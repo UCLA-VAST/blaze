@@ -1,0 +1,540 @@
+15/06/24 09:45:06 INFO SparkContext: Running Spark version 1.3.1
+15/06/24 09:45:06 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+15/06/24 09:45:07 INFO SecurityManager: Changing view acls to: cody
+15/06/24 09:45:07 INFO SecurityManager: Changing modify acls to: cody
+15/06/24 09:45:07 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(cody); users with modify permissions: Set(cody)
+15/06/24 09:45:07 INFO Slf4jLogger: Slf4jLogger started
+15/06/24 09:45:07 INFO Remoting: Starting remoting
+15/06/24 09:45:07 INFO Remoting: Remoting started; listening on addresses :[akka.tcp://sparkDriver@Gemini.CS.UCLA.EDU:51448]
+15/06/24 09:45:07 INFO Utils: Successfully started service 'sparkDriver' on port 51448.
+15/06/24 09:45:07 INFO SparkEnv: Registering MapOutputTracker
+15/06/24 09:45:07 INFO SparkEnv: Registering BlockManagerMaster
+15/06/24 09:45:07 INFO DiskBlockManager: Created local directory at /tmp/spark-8871156c-0347-4bb4-a7f5-d3e5b24a9dc2/blockmgr-11130db4-3188-4f22-975e-da81ee2fb815
+15/06/24 09:45:07 INFO MemoryStore: MemoryStore started with capacity 265.4 MB
+15/06/24 09:45:07 INFO HttpFileServer: HTTP File server directory is /tmp/spark-ac79a2b6-e0a0-4c88-9f7c-4a9aca49b402/httpd-8ab54fe1-0a37-4bf5-9d2d-8e2f1f74fbdd
+15/06/24 09:45:07 INFO HttpServer: Starting HTTP Server
+15/06/24 09:45:07 INFO Server: jetty-8.y.z-SNAPSHOT
+15/06/24 09:45:07 INFO AbstractConnector: Started SocketConnector@0.0.0.0:38873
+15/06/24 09:45:07 INFO Utils: Successfully started service 'HTTP file server' on port 38873.
+15/06/24 09:45:07 INFO SparkEnv: Registering OutputCommitCoordinator
+15/06/24 09:45:07 INFO Server: jetty-8.y.z-SNAPSHOT
+15/06/24 09:45:08 INFO AbstractConnector: Started SelectChannelConnector@0.0.0.0:4040
+15/06/24 09:45:08 INFO Utils: Successfully started service 'SparkUI' on port 4040.
+15/06/24 09:45:08 INFO SparkUI: Started SparkUI at http://Gemini.CS.UCLA.EDU:4040
+15/06/24 09:45:08 INFO SparkContext: Added JAR file:/curr/cody/Spark_FPGA/rddacc/target/RDD_ACC-1.0-SNAPSHOT.jar at http://131.179.224.69:38873/jars/RDD_ACC-1.0-SNAPSHOT.jar with timestamp 1435164308067
+15/06/24 09:45:08 INFO SparkContext: Added JAR file:/curr/cody/Spark_FPGA/rddacc/app/test/target/testapp-0.0.0.jar at http://131.179.224.69:38873/jars/testapp-0.0.0.jar with timestamp 1435164308067
+15/06/24 09:45:08 INFO Executor: Starting executor ID <driver> on host localhost
+15/06/24 09:45:08 INFO AkkaUtils: Connecting to HeartbeatReceiver: akka.tcp://sparkDriver@Gemini.CS.UCLA.EDU:51448/user/HeartbeatReceiver
+15/06/24 09:45:08 INFO NettyBlockTransferService: Server created on 54888
+15/06/24 09:45:08 INFO BlockManagerMaster: Trying to register BlockManager
+15/06/24 09:45:08 INFO BlockManagerMasterActor: Registering block manager localhost:54888 with 265.4 MB RAM, BlockManagerId(<driver>, localhost, 54888)
+15/06/24 09:45:08 INFO BlockManagerMaster: Registered BlockManager
+15/06/24 09:45:08 INFO MemoryStore: ensureFreeSpace(163705) called with curMem=0, maxMem=278302556
+15/06/24 09:45:08 INFO MemoryStore: Block broadcast_0 stored as values in memory (estimated size 159.9 KB, free 265.3 MB)
+15/06/24 09:45:08 INFO MemoryStore: ensureFreeSpace(22692) called with curMem=163705, maxMem=278302556
+15/06/24 09:45:08 INFO MemoryStore: Block broadcast_0_piece0 stored as bytes in memory (estimated size 22.2 KB, free 265.2 MB)
+15/06/24 09:45:08 INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on localhost:54888 (size: 22.2 KB, free: 265.4 MB)
+15/06/24 09:45:08 INFO BlockManagerMaster: Updated info of block broadcast_0_piece0
+15/06/24 09:45:08 INFO SparkContext: Created broadcast 0 from textFile at TestApp.scala:15
+15/06/24 09:45:08 INFO FileInputFormat: Total input paths to process : 1
+15/06/24 09:45:08 INFO SparkContext: Starting job: reduce at TestApp.scala:17
+15/06/24 09:45:08 INFO DAGScheduler: Got job 0 (reduce at TestApp.scala:17) with 10 output partitions (allowLocal=false)
+15/06/24 09:45:08 INFO DAGScheduler: Final stage: Stage 0(reduce at TestApp.scala:17)
+15/06/24 09:45:08 INFO DAGScheduler: Parents of final stage: List()
+15/06/24 09:45:08 INFO DAGScheduler: Missing parents: List()
+15/06/24 09:45:08 INFO DAGScheduler: Submitting Stage 0 (MapPartitionsRDD[3] at map at TestApp.scala:17), which has no missing parents
+15/06/24 09:45:08 INFO MemoryStore: ensureFreeSpace(3104) called with curMem=186397, maxMem=278302556
+15/06/24 09:45:08 INFO MemoryStore: Block broadcast_1 stored as values in memory (estimated size 3.0 KB, free 265.2 MB)
+15/06/24 09:45:08 INFO MemoryStore: ensureFreeSpace(2171) called with curMem=189501, maxMem=278302556
+15/06/24 09:45:08 INFO MemoryStore: Block broadcast_1_piece0 stored as bytes in memory (estimated size 2.1 KB, free 265.2 MB)
+15/06/24 09:45:08 INFO BlockManagerInfo: Added broadcast_1_piece0 in memory on localhost:54888 (size: 2.1 KB, free: 265.4 MB)
+15/06/24 09:45:08 INFO BlockManagerMaster: Updated info of block broadcast_1_piece0
+15/06/24 09:45:08 INFO SparkContext: Created broadcast 1 from broadcast at DAGScheduler.scala:839
+15/06/24 09:45:08 INFO DAGScheduler: Submitting 10 missing tasks from Stage 0 (MapPartitionsRDD[3] at map at TestApp.scala:17)
+15/06/24 09:45:08 INFO TaskSchedulerImpl: Adding task set 0.0 with 10 tasks
+15/06/24 09:45:08 INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 09:45:08 INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 09:45:08 INFO TaskSetManager: Starting task 2.0 in stage 0.0 (TID 2, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 09:45:08 INFO TaskSetManager: Starting task 3.0 in stage 0.0 (TID 3, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 09:45:08 INFO TaskSetManager: Starting task 4.0 in stage 0.0 (TID 4, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 09:45:08 INFO TaskSetManager: Starting task 5.0 in stage 0.0 (TID 5, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 09:45:08 INFO TaskSetManager: Starting task 6.0 in stage 0.0 (TID 6, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 09:45:08 INFO TaskSetManager: Starting task 7.0 in stage 0.0 (TID 7, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 09:45:08 INFO TaskSetManager: Starting task 8.0 in stage 0.0 (TID 8, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 09:45:08 INFO TaskSetManager: Starting task 9.0 in stage 0.0 (TID 9, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 09:45:08 INFO Executor: Running task 0.0 in stage 0.0 (TID 0)
+15/06/24 09:45:08 INFO Executor: Running task 2.0 in stage 0.0 (TID 2)
+15/06/24 09:45:08 INFO Executor: Running task 1.0 in stage 0.0 (TID 1)
+15/06/24 09:45:08 INFO Executor: Running task 3.0 in stage 0.0 (TID 3)
+15/06/24 09:45:08 INFO Executor: Running task 4.0 in stage 0.0 (TID 4)
+15/06/24 09:45:08 INFO Executor: Running task 5.0 in stage 0.0 (TID 5)
+15/06/24 09:45:08 INFO Executor: Running task 6.0 in stage 0.0 (TID 6)
+15/06/24 09:45:08 INFO Executor: Running task 7.0 in stage 0.0 (TID 7)
+15/06/24 09:45:08 INFO Executor: Running task 8.0 in stage 0.0 (TID 8)
+15/06/24 09:45:08 INFO Executor: Running task 9.0 in stage 0.0 (TID 9)
+15/06/24 09:45:08 INFO Executor: Fetching http://131.179.224.69:38873/jars/RDD_ACC-1.0-SNAPSHOT.jar with timestamp 1435164308067
+15/06/24 09:45:08 INFO Utils: Fetching http://131.179.224.69:38873/jars/RDD_ACC-1.0-SNAPSHOT.jar to /tmp/spark-2ee9fc51-472c-4e94-ab14-6c6c63eaa033/userFiles-db5324a4-d63d-4242-b16c-1e6a923e92d8/fetchFileTemp6655033219488902668.tmp
+15/06/24 09:45:09 INFO Executor: Adding file:/tmp/spark-2ee9fc51-472c-4e94-ab14-6c6c63eaa033/userFiles-db5324a4-d63d-4242-b16c-1e6a923e92d8/RDD_ACC-1.0-SNAPSHOT.jar to class loader
+15/06/24 09:45:09 INFO Executor: Fetching http://131.179.224.69:38873/jars/testapp-0.0.0.jar with timestamp 1435164308067
+15/06/24 09:45:09 INFO Utils: Fetching http://131.179.224.69:38873/jars/testapp-0.0.0.jar to /tmp/spark-2ee9fc51-472c-4e94-ab14-6c6c63eaa033/userFiles-db5324a4-d63d-4242-b16c-1e6a923e92d8/fetchFileTemp695911985443041250.tmp
+15/06/24 09:45:09 INFO Executor: Adding file:/tmp/spark-2ee9fc51-472c-4e94-ab14-6c6c63eaa033/userFiles-db5324a4-d63d-4242-b16c-1e6a923e92d8/testapp-0.0.0.jar to class loader
+15/06/24 09:45:09 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:12510+1391
+15/06/24 09:45:09 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:4170+1390
+15/06/24 09:45:09 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:11120+1390
+15/06/24 09:45:09 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:5560+1390
+15/06/24 09:45:09 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:0+1390
+15/06/24 09:45:09 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:8340+1390
+15/06/24 09:45:09 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:2780+1390
+15/06/24 09:45:09 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:6950+1390
+15/06/24 09:45:09 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:1390+1390
+15/06/24 09:45:09 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:9730+1390
+15/06/24 09:45:09 INFO deprecation: mapred.tip.id is deprecated. Instead, use mapreduce.task.id
+15/06/24 09:45:09 INFO deprecation: mapred.task.id is deprecated. Instead, use mapreduce.task.attempt.id
+15/06/24 09:45:09 INFO deprecation: mapred.task.is.map is deprecated. Instead, use mapreduce.task.ismap
+15/06/24 09:45:09 INFO deprecation: mapred.task.partition is deprecated. Instead, use mapreduce.task.partition
+15/06/24 09:45:09 INFO deprecation: mapred.job.id is deprecated. Instead, use mapreduce.job.id
+15/06/24 09:45:09 INFO Executor: Finished task 5.0 in stage 0.0 (TID 5). 1911 bytes result sent to driver
+15/06/24 09:45:09 INFO Executor: Finished task 6.0 in stage 0.0 (TID 6). 1911 bytes result sent to driver
+15/06/24 09:45:09 INFO Executor: Finished task 8.0 in stage 0.0 (TID 8). 1911 bytes result sent to driver
+15/06/24 09:45:09 INFO Executor: Finished task 4.0 in stage 0.0 (TID 4). 1911 bytes result sent to driver
+15/06/24 09:45:09 INFO Executor: Finished task 2.0 in stage 0.0 (TID 2). 1911 bytes result sent to driver
+15/06/24 09:45:09 INFO Executor: Finished task 0.0 in stage 0.0 (TID 0). 1911 bytes result sent to driver
+15/06/24 09:45:09 INFO Executor: Finished task 3.0 in stage 0.0 (TID 3). 1911 bytes result sent to driver
+15/06/24 09:45:09 INFO Executor: Finished task 1.0 in stage 0.0 (TID 1). 1911 bytes result sent to driver
+15/06/24 09:45:09 INFO Executor: Finished task 9.0 in stage 0.0 (TID 9). 1911 bytes result sent to driver
+15/06/24 09:45:09 INFO Executor: Finished task 7.0 in stage 0.0 (TID 7). 1911 bytes result sent to driver
+15/06/24 09:45:09 INFO TaskSetManager: Finished task 4.0 in stage 0.0 (TID 4) in 183 ms on localhost (1/10)
+15/06/24 09:45:09 INFO TaskSetManager: Finished task 8.0 in stage 0.0 (TID 8) in 182 ms on localhost (2/10)
+15/06/24 09:45:09 INFO TaskSetManager: Finished task 6.0 in stage 0.0 (TID 6) in 184 ms on localhost (3/10)
+15/06/24 09:45:09 INFO TaskSetManager: Finished task 5.0 in stage 0.0 (TID 5) in 186 ms on localhost (4/10)
+15/06/24 09:45:09 INFO TaskSetManager: Finished task 2.0 in stage 0.0 (TID 2) in 190 ms on localhost (5/10)
+15/06/24 09:45:09 INFO TaskSetManager: Finished task 0.0 in stage 0.0 (TID 0) in 201 ms on localhost (6/10)
+15/06/24 09:45:09 INFO TaskSetManager: Finished task 3.0 in stage 0.0 (TID 3) in 190 ms on localhost (7/10)
+15/06/24 09:45:09 INFO TaskSetManager: Finished task 1.0 in stage 0.0 (TID 1) in 192 ms on localhost (8/10)
+15/06/24 09:45:09 INFO TaskSetManager: Finished task 9.0 in stage 0.0 (TID 9) in 186 ms on localhost (9/10)
+15/06/24 09:45:09 INFO TaskSetManager: Finished task 7.0 in stage 0.0 (TID 7) in 189 ms on localhost (10/10)
+15/06/24 09:45:09 INFO DAGScheduler: Stage 0 (reduce at TestApp.scala:17) finished in 0.216 s
+15/06/24 09:45:09 INFO TaskSchedulerImpl: Removed TaskSet 0.0, whose tasks have all completed, from pool 
+15/06/24 09:45:09 INFO DAGScheduler: Job 0 finished: reduce at TestApp.scala:17, took 0.317715 s
+15/06/24 10:33:52 INFO SparkContext: Running Spark version 1.3.1
+15/06/24 10:33:52 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+15/06/24 10:33:52 INFO SecurityManager: Changing view acls to: cody
+15/06/24 10:33:52 INFO SecurityManager: Changing modify acls to: cody
+15/06/24 10:33:52 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(cody); users with modify permissions: Set(cody)
+15/06/24 10:33:53 INFO Slf4jLogger: Slf4jLogger started
+15/06/24 10:33:53 INFO Remoting: Starting remoting
+15/06/24 10:33:53 INFO Remoting: Remoting started; listening on addresses :[akka.tcp://sparkDriver@Gemini.CS.UCLA.EDU:44467]
+15/06/24 10:33:53 INFO Utils: Successfully started service 'sparkDriver' on port 44467.
+15/06/24 10:33:53 INFO SparkEnv: Registering MapOutputTracker
+15/06/24 10:33:53 INFO SparkEnv: Registering BlockManagerMaster
+15/06/24 10:33:53 INFO DiskBlockManager: Created local directory at /tmp/spark-649f9df2-ad12-412d-a156-4630cbd9d33e/blockmgr-776f278b-5b86-435a-9d02-fec94db7984a
+15/06/24 10:33:53 INFO MemoryStore: MemoryStore started with capacity 265.4 MB
+15/06/24 10:33:53 INFO HttpFileServer: HTTP File server directory is /tmp/spark-d1446bf6-1c16-4957-9671-2697f5df9cbf/httpd-0324fe94-13cb-4884-af3e-140a273ad2d3
+15/06/24 10:33:53 INFO HttpServer: Starting HTTP Server
+15/06/24 10:33:53 INFO Server: jetty-8.y.z-SNAPSHOT
+15/06/24 10:33:53 INFO AbstractConnector: Started SocketConnector@0.0.0.0:50101
+15/06/24 10:33:53 INFO Utils: Successfully started service 'HTTP file server' on port 50101.
+15/06/24 10:33:53 INFO SparkEnv: Registering OutputCommitCoordinator
+15/06/24 10:33:53 INFO Server: jetty-8.y.z-SNAPSHOT
+15/06/24 10:33:53 INFO AbstractConnector: Started SelectChannelConnector@0.0.0.0:4040
+15/06/24 10:33:53 INFO Utils: Successfully started service 'SparkUI' on port 4040.
+15/06/24 10:33:53 INFO SparkUI: Started SparkUI at http://Gemini.CS.UCLA.EDU:4040
+15/06/24 10:33:53 INFO SparkContext: Added JAR file:/curr/cody/Spark_FPGA/rddacc/target/RDD_ACC-1.0-SNAPSHOT.jar at http://131.179.224.69:50101/jars/RDD_ACC-1.0-SNAPSHOT.jar with timestamp 1435167233713
+15/06/24 10:33:53 INFO SparkContext: Added JAR file:/curr/cody/Spark_FPGA/rddacc/app/test/target/testapp-0.0.0.jar at http://131.179.224.69:50101/jars/testapp-0.0.0.jar with timestamp 1435167233714
+15/06/24 10:33:53 INFO Executor: Starting executor ID <driver> on host localhost
+15/06/24 10:33:53 INFO AkkaUtils: Connecting to HeartbeatReceiver: akka.tcp://sparkDriver@Gemini.CS.UCLA.EDU:44467/user/HeartbeatReceiver
+15/06/24 10:33:53 INFO NettyBlockTransferService: Server created on 46425
+15/06/24 10:33:53 INFO BlockManagerMaster: Trying to register BlockManager
+15/06/24 10:33:53 INFO BlockManagerMasterActor: Registering block manager localhost:46425 with 265.4 MB RAM, BlockManagerId(<driver>, localhost, 46425)
+15/06/24 10:33:53 INFO BlockManagerMaster: Registered BlockManager
+15/06/24 10:33:54 INFO MemoryStore: ensureFreeSpace(163705) called with curMem=0, maxMem=278302556
+15/06/24 10:33:54 INFO MemoryStore: Block broadcast_0 stored as values in memory (estimated size 159.9 KB, free 265.3 MB)
+15/06/24 10:33:54 INFO MemoryStore: ensureFreeSpace(22692) called with curMem=163705, maxMem=278302556
+15/06/24 10:33:54 INFO MemoryStore: Block broadcast_0_piece0 stored as bytes in memory (estimated size 22.2 KB, free 265.2 MB)
+15/06/24 10:33:54 INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on localhost:46425 (size: 22.2 KB, free: 265.4 MB)
+15/06/24 10:33:54 INFO BlockManagerMaster: Updated info of block broadcast_0_piece0
+15/06/24 10:33:54 INFO SparkContext: Created broadcast 0 from textFile at TestApp.scala:15
+15/06/24 10:33:54 INFO FileInputFormat: Total input paths to process : 1
+15/06/24 10:33:54 INFO SparkContext: Starting job: reduce at TestApp.scala:17
+15/06/24 10:33:54 INFO DAGScheduler: Got job 0 (reduce at TestApp.scala:17) with 10 output partitions (allowLocal=false)
+15/06/24 10:33:54 INFO DAGScheduler: Final stage: Stage 0(reduce at TestApp.scala:17)
+15/06/24 10:33:54 INFO DAGScheduler: Parents of final stage: List()
+15/06/24 10:33:54 INFO DAGScheduler: Missing parents: List()
+15/06/24 10:33:54 INFO DAGScheduler: Submitting Stage 0 (MapPartitionsRDD[3] at map at TestApp.scala:17), which has no missing parents
+15/06/24 10:33:54 INFO MemoryStore: ensureFreeSpace(2952) called with curMem=186397, maxMem=278302556
+15/06/24 10:33:54 INFO MemoryStore: Block broadcast_1 stored as values in memory (estimated size 2.9 KB, free 265.2 MB)
+15/06/24 10:33:54 INFO MemoryStore: ensureFreeSpace(2140) called with curMem=189349, maxMem=278302556
+15/06/24 10:33:54 INFO MemoryStore: Block broadcast_1_piece0 stored as bytes in memory (estimated size 2.1 KB, free 265.2 MB)
+15/06/24 10:33:54 INFO BlockManagerInfo: Added broadcast_1_piece0 in memory on localhost:46425 (size: 2.1 KB, free: 265.4 MB)
+15/06/24 10:33:54 INFO BlockManagerMaster: Updated info of block broadcast_1_piece0
+15/06/24 10:33:54 INFO SparkContext: Created broadcast 1 from broadcast at DAGScheduler.scala:839
+15/06/24 10:33:54 INFO DAGScheduler: Submitting 10 missing tasks from Stage 0 (MapPartitionsRDD[3] at map at TestApp.scala:17)
+15/06/24 10:33:54 INFO TaskSchedulerImpl: Adding task set 0.0 with 10 tasks
+15/06/24 10:33:54 INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 10:33:54 INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 10:33:54 INFO TaskSetManager: Starting task 2.0 in stage 0.0 (TID 2, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 10:33:54 INFO TaskSetManager: Starting task 3.0 in stage 0.0 (TID 3, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 10:33:54 INFO TaskSetManager: Starting task 4.0 in stage 0.0 (TID 4, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 10:33:54 INFO TaskSetManager: Starting task 5.0 in stage 0.0 (TID 5, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 10:33:54 INFO TaskSetManager: Starting task 6.0 in stage 0.0 (TID 6, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 10:33:54 INFO TaskSetManager: Starting task 7.0 in stage 0.0 (TID 7, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 10:33:54 INFO TaskSetManager: Starting task 8.0 in stage 0.0 (TID 8, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 10:33:54 INFO TaskSetManager: Starting task 9.0 in stage 0.0 (TID 9, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 10:33:54 INFO Executor: Running task 1.0 in stage 0.0 (TID 1)
+15/06/24 10:33:54 INFO Executor: Running task 0.0 in stage 0.0 (TID 0)
+15/06/24 10:33:54 INFO Executor: Running task 3.0 in stage 0.0 (TID 3)
+15/06/24 10:33:54 INFO Executor: Running task 4.0 in stage 0.0 (TID 4)
+15/06/24 10:33:54 INFO Executor: Running task 2.0 in stage 0.0 (TID 2)
+15/06/24 10:33:54 INFO Executor: Running task 5.0 in stage 0.0 (TID 5)
+15/06/24 10:33:54 INFO Executor: Running task 6.0 in stage 0.0 (TID 6)
+15/06/24 10:33:54 INFO Executor: Running task 7.0 in stage 0.0 (TID 7)
+15/06/24 10:33:54 INFO Executor: Running task 8.0 in stage 0.0 (TID 8)
+15/06/24 10:33:54 INFO Executor: Running task 9.0 in stage 0.0 (TID 9)
+15/06/24 10:33:54 INFO Executor: Fetching http://131.179.224.69:50101/jars/testapp-0.0.0.jar with timestamp 1435167233714
+15/06/24 10:33:54 INFO Utils: Fetching http://131.179.224.69:50101/jars/testapp-0.0.0.jar to /tmp/spark-dc383f84-6ca6-4969-8534-0e64dc2ff048/userFiles-ebcfa8d0-c30a-43b2-9d0c-e457950d3fa3/fetchFileTemp5003080044949818133.tmp
+15/06/24 10:33:54 INFO Executor: Adding file:/tmp/spark-dc383f84-6ca6-4969-8534-0e64dc2ff048/userFiles-ebcfa8d0-c30a-43b2-9d0c-e457950d3fa3/testapp-0.0.0.jar to class loader
+15/06/24 10:33:54 INFO Executor: Fetching http://131.179.224.69:50101/jars/RDD_ACC-1.0-SNAPSHOT.jar with timestamp 1435167233713
+15/06/24 10:33:54 INFO Utils: Fetching http://131.179.224.69:50101/jars/RDD_ACC-1.0-SNAPSHOT.jar to /tmp/spark-dc383f84-6ca6-4969-8534-0e64dc2ff048/userFiles-ebcfa8d0-c30a-43b2-9d0c-e457950d3fa3/fetchFileTemp1103598271027234148.tmp
+15/06/24 10:33:54 INFO Executor: Adding file:/tmp/spark-dc383f84-6ca6-4969-8534-0e64dc2ff048/userFiles-ebcfa8d0-c30a-43b2-9d0c-e457950d3fa3/RDD_ACC-1.0-SNAPSHOT.jar to class loader
+15/06/24 10:33:54 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:0+1390
+15/06/24 10:33:54 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:2780+1390
+15/06/24 10:33:54 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:8340+1390
+15/06/24 10:33:54 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:9730+1390
+15/06/24 10:33:54 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:6950+1390
+15/06/24 10:33:54 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:11120+1390
+15/06/24 10:33:54 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:5560+1390
+15/06/24 10:33:54 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:12510+1391
+15/06/24 10:33:54 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:4170+1390
+15/06/24 10:33:54 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:1390+1390
+15/06/24 10:33:54 INFO deprecation: mapred.tip.id is deprecated. Instead, use mapreduce.task.id
+15/06/24 10:33:54 INFO deprecation: mapred.task.id is deprecated. Instead, use mapreduce.task.attempt.id
+15/06/24 10:33:54 INFO deprecation: mapred.task.is.map is deprecated. Instead, use mapreduce.task.ismap
+15/06/24 10:33:54 INFO deprecation: mapred.task.partition is deprecated. Instead, use mapreduce.task.partition
+15/06/24 10:33:54 INFO deprecation: mapred.job.id is deprecated. Instead, use mapreduce.job.id
+15/06/24 10:33:54 INFO Executor: Finished task 1.0 in stage 0.0 (TID 1). 1911 bytes result sent to driver
+15/06/24 10:33:54 INFO Executor: Finished task 7.0 in stage 0.0 (TID 7). 1911 bytes result sent to driver
+15/06/24 10:33:54 INFO Executor: Finished task 9.0 in stage 0.0 (TID 9). 1911 bytes result sent to driver
+15/06/24 10:33:54 INFO Executor: Finished task 8.0 in stage 0.0 (TID 8). 1911 bytes result sent to driver
+15/06/24 10:33:54 INFO Executor: Finished task 4.0 in stage 0.0 (TID 4). 1911 bytes result sent to driver
+15/06/24 10:33:54 INFO Executor: Finished task 2.0 in stage 0.0 (TID 2). 1911 bytes result sent to driver
+15/06/24 10:33:54 INFO Executor: Finished task 5.0 in stage 0.0 (TID 5). 1911 bytes result sent to driver
+15/06/24 10:33:54 INFO Executor: Finished task 0.0 in stage 0.0 (TID 0). 1911 bytes result sent to driver
+15/06/24 10:33:54 INFO Executor: Finished task 6.0 in stage 0.0 (TID 6). 1911 bytes result sent to driver
+15/06/24 10:33:54 INFO Executor: Finished task 3.0 in stage 0.0 (TID 3). 1911 bytes result sent to driver
+15/06/24 10:33:54 INFO TaskSetManager: Finished task 9.0 in stage 0.0 (TID 9) in 176 ms on localhost (1/10)
+15/06/24 10:33:54 INFO TaskSetManager: Finished task 7.0 in stage 0.0 (TID 7) in 181 ms on localhost (2/10)
+15/06/24 10:33:54 INFO TaskSetManager: Finished task 1.0 in stage 0.0 (TID 1) in 188 ms on localhost (3/10)
+15/06/24 10:33:54 INFO TaskSetManager: Finished task 8.0 in stage 0.0 (TID 8) in 182 ms on localhost (4/10)
+15/06/24 10:33:54 INFO TaskSetManager: Finished task 2.0 in stage 0.0 (TID 2) in 189 ms on localhost (5/10)
+15/06/24 10:33:54 INFO TaskSetManager: Finished task 4.0 in stage 0.0 (TID 4) in 188 ms on localhost (6/10)
+15/06/24 10:33:54 INFO TaskSetManager: Finished task 5.0 in stage 0.0 (TID 5) in 187 ms on localhost (7/10)
+15/06/24 10:33:54 INFO TaskSetManager: Finished task 0.0 in stage 0.0 (TID 0) in 202 ms on localhost (8/10)
+15/06/24 10:33:54 INFO TaskSetManager: Finished task 3.0 in stage 0.0 (TID 3) in 191 ms on localhost (9/10)
+15/06/24 10:33:54 INFO TaskSetManager: Finished task 6.0 in stage 0.0 (TID 6) in 189 ms on localhost (10/10)
+15/06/24 10:33:54 INFO DAGScheduler: Stage 0 (reduce at TestApp.scala:17) finished in 0.215 s
+15/06/24 10:33:54 INFO TaskSchedulerImpl: Removed TaskSet 0.0, whose tasks have all completed, from pool 
+15/06/24 10:33:54 INFO DAGScheduler: Job 0 finished: reduce at TestApp.scala:17, took 0.311139 s
+15/06/24 11:03:45 INFO SparkContext: Running Spark version 1.3.1
+15/06/24 11:03:46 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+15/06/24 11:03:46 INFO SecurityManager: Changing view acls to: cody
+15/06/24 11:03:46 INFO SecurityManager: Changing modify acls to: cody
+15/06/24 11:03:46 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(cody); users with modify permissions: Set(cody)
+15/06/24 11:03:46 INFO Slf4jLogger: Slf4jLogger started
+15/06/24 11:03:46 INFO Remoting: Starting remoting
+15/06/24 11:03:47 INFO Remoting: Remoting started; listening on addresses :[akka.tcp://sparkDriver@Gemini.CS.UCLA.EDU:39743]
+15/06/24 11:03:47 INFO Utils: Successfully started service 'sparkDriver' on port 39743.
+15/06/24 11:03:47 INFO SparkEnv: Registering MapOutputTracker
+15/06/24 11:03:47 INFO SparkEnv: Registering BlockManagerMaster
+15/06/24 11:03:47 INFO DiskBlockManager: Created local directory at /tmp/spark-1a14fdeb-b8ef-4aed-8131-4964667871c7/blockmgr-b05327ab-c269-4fe8-a739-d895e615025a
+15/06/24 11:03:47 INFO MemoryStore: MemoryStore started with capacity 265.4 MB
+15/06/24 11:03:47 INFO HttpFileServer: HTTP File server directory is /tmp/spark-7ec7a224-f6cf-4ef1-87ba-4f9dfb24d81b/httpd-36beb147-581b-4a88-b7f9-d72957993d49
+15/06/24 11:03:47 INFO HttpServer: Starting HTTP Server
+15/06/24 11:03:47 INFO Server: jetty-8.y.z-SNAPSHOT
+15/06/24 11:03:47 INFO AbstractConnector: Started SocketConnector@0.0.0.0:47412
+15/06/24 11:03:47 INFO Utils: Successfully started service 'HTTP file server' on port 47412.
+15/06/24 11:03:47 INFO SparkEnv: Registering OutputCommitCoordinator
+15/06/24 11:03:47 INFO Server: jetty-8.y.z-SNAPSHOT
+15/06/24 11:03:47 INFO AbstractConnector: Started SelectChannelConnector@0.0.0.0:4040
+15/06/24 11:03:47 INFO Utils: Successfully started service 'SparkUI' on port 4040.
+15/06/24 11:03:47 INFO SparkUI: Started SparkUI at http://Gemini.CS.UCLA.EDU:4040
+15/06/24 11:03:47 INFO SparkContext: Added JAR file:/curr/cody/Spark_FPGA/rddacc/target/RDD_ACC-1.0-SNAPSHOT.jar at http://131.179.224.69:47412/jars/RDD_ACC-1.0-SNAPSHOT.jar with timestamp 1435169027521
+15/06/24 11:03:47 INFO SparkContext: Added JAR file:/curr/cody/Spark_FPGA/rddacc/app/test/target/testapp-0.0.0.jar at http://131.179.224.69:47412/jars/testapp-0.0.0.jar with timestamp 1435169027522
+15/06/24 11:03:47 INFO Executor: Starting executor ID <driver> on host localhost
+15/06/24 11:03:47 INFO AkkaUtils: Connecting to HeartbeatReceiver: akka.tcp://sparkDriver@Gemini.CS.UCLA.EDU:39743/user/HeartbeatReceiver
+15/06/24 11:03:47 INFO NettyBlockTransferService: Server created on 53310
+15/06/24 11:03:47 INFO BlockManagerMaster: Trying to register BlockManager
+15/06/24 11:03:47 INFO BlockManagerMasterActor: Registering block manager localhost:53310 with 265.4 MB RAM, BlockManagerId(<driver>, localhost, 53310)
+15/06/24 11:03:47 INFO BlockManagerMaster: Registered BlockManager
+15/06/24 11:03:47 INFO MemoryStore: ensureFreeSpace(163705) called with curMem=0, maxMem=278302556
+15/06/24 11:03:48 INFO MemoryStore: Block broadcast_0 stored as values in memory (estimated size 159.9 KB, free 265.3 MB)
+15/06/24 11:03:48 INFO MemoryStore: ensureFreeSpace(22692) called with curMem=163705, maxMem=278302556
+15/06/24 11:03:48 INFO MemoryStore: Block broadcast_0_piece0 stored as bytes in memory (estimated size 22.2 KB, free 265.2 MB)
+15/06/24 11:03:48 INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on localhost:53310 (size: 22.2 KB, free: 265.4 MB)
+15/06/24 11:03:48 INFO BlockManagerMaster: Updated info of block broadcast_0_piece0
+15/06/24 11:03:48 INFO SparkContext: Created broadcast 0 from textFile at TestApp.scala:15
+15/06/24 11:03:48 INFO FileInputFormat: Total input paths to process : 1
+15/06/24 11:03:48 INFO SparkContext: Starting job: reduce at TestApp.scala:17
+15/06/24 11:03:48 INFO DAGScheduler: Got job 0 (reduce at TestApp.scala:17) with 10 output partitions (allowLocal=false)
+15/06/24 11:03:48 INFO DAGScheduler: Final stage: Stage 0(reduce at TestApp.scala:17)
+15/06/24 11:03:48 INFO DAGScheduler: Parents of final stage: List()
+15/06/24 11:03:48 INFO DAGScheduler: Missing parents: List()
+15/06/24 11:03:48 INFO DAGScheduler: Submitting Stage 0 (RDD_ACC[3] at RDD at RDD_ACC.scala:13), which has no missing parents
+15/06/24 11:03:48 INFO MemoryStore: ensureFreeSpace(3256) called with curMem=186397, maxMem=278302556
+15/06/24 11:03:48 INFO MemoryStore: Block broadcast_1 stored as values in memory (estimated size 3.2 KB, free 265.2 MB)
+15/06/24 11:03:48 INFO MemoryStore: ensureFreeSpace(2329) called with curMem=189653, maxMem=278302556
+15/06/24 11:03:48 INFO MemoryStore: Block broadcast_1_piece0 stored as bytes in memory (estimated size 2.3 KB, free 265.2 MB)
+15/06/24 11:03:48 INFO BlockManagerInfo: Added broadcast_1_piece0 in memory on localhost:53310 (size: 2.3 KB, free: 265.4 MB)
+15/06/24 11:03:48 INFO BlockManagerMaster: Updated info of block broadcast_1_piece0
+15/06/24 11:03:48 INFO SparkContext: Created broadcast 1 from broadcast at DAGScheduler.scala:839
+15/06/24 11:03:48 INFO DAGScheduler: Submitting 10 missing tasks from Stage 0 (RDD_ACC[3] at RDD at RDD_ACC.scala:13)
+15/06/24 11:03:48 INFO TaskSchedulerImpl: Adding task set 0.0 with 10 tasks
+15/06/24 11:03:48 INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:03:48 INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:03:48 INFO TaskSetManager: Starting task 2.0 in stage 0.0 (TID 2, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:03:48 INFO TaskSetManager: Starting task 3.0 in stage 0.0 (TID 3, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:03:48 INFO TaskSetManager: Starting task 4.0 in stage 0.0 (TID 4, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:03:48 INFO TaskSetManager: Starting task 5.0 in stage 0.0 (TID 5, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:03:48 INFO TaskSetManager: Starting task 6.0 in stage 0.0 (TID 6, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:03:48 INFO TaskSetManager: Starting task 7.0 in stage 0.0 (TID 7, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:03:48 INFO TaskSetManager: Starting task 8.0 in stage 0.0 (TID 8, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:03:48 INFO TaskSetManager: Starting task 9.0 in stage 0.0 (TID 9, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:03:48 INFO Executor: Running task 0.0 in stage 0.0 (TID 0)
+15/06/24 11:03:48 INFO Executor: Running task 2.0 in stage 0.0 (TID 2)
+15/06/24 11:03:48 INFO Executor: Running task 3.0 in stage 0.0 (TID 3)
+15/06/24 11:03:48 INFO Executor: Running task 1.0 in stage 0.0 (TID 1)
+15/06/24 11:03:48 INFO Executor: Running task 4.0 in stage 0.0 (TID 4)
+15/06/24 11:03:48 INFO Executor: Running task 5.0 in stage 0.0 (TID 5)
+15/06/24 11:03:48 INFO Executor: Running task 6.0 in stage 0.0 (TID 6)
+15/06/24 11:03:48 INFO Executor: Running task 7.0 in stage 0.0 (TID 7)
+15/06/24 11:03:48 INFO Executor: Running task 8.0 in stage 0.0 (TID 8)
+15/06/24 11:03:48 INFO Executor: Running task 9.0 in stage 0.0 (TID 9)
+15/06/24 11:03:48 INFO Executor: Fetching http://131.179.224.69:47412/jars/testapp-0.0.0.jar with timestamp 1435169027522
+15/06/24 11:03:48 INFO Utils: Fetching http://131.179.224.69:47412/jars/testapp-0.0.0.jar to /tmp/spark-a31b6b0b-7140-4f99-9260-1cbe113c08f9/userFiles-a15f1e47-96d2-4642-ac03-c15b171ee1ff/fetchFileTemp3393861853048940543.tmp
+15/06/24 11:03:48 INFO Executor: Adding file:/tmp/spark-a31b6b0b-7140-4f99-9260-1cbe113c08f9/userFiles-a15f1e47-96d2-4642-ac03-c15b171ee1ff/testapp-0.0.0.jar to class loader
+15/06/24 11:03:48 INFO Executor: Fetching http://131.179.224.69:47412/jars/RDD_ACC-1.0-SNAPSHOT.jar with timestamp 1435169027521
+15/06/24 11:03:48 INFO Utils: Fetching http://131.179.224.69:47412/jars/RDD_ACC-1.0-SNAPSHOT.jar to /tmp/spark-a31b6b0b-7140-4f99-9260-1cbe113c08f9/userFiles-a15f1e47-96d2-4642-ac03-c15b171ee1ff/fetchFileTemp6911741938992279664.tmp
+15/06/24 11:03:48 INFO Executor: Adding file:/tmp/spark-a31b6b0b-7140-4f99-9260-1cbe113c08f9/userFiles-a15f1e47-96d2-4642-ac03-c15b171ee1ff/RDD_ACC-1.0-SNAPSHOT.jar to class loader
+15/06/24 11:03:48 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:0+1390
+15/06/24 11:03:48 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:4170+1390
+15/06/24 11:03:48 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:8340+1390
+15/06/24 11:03:48 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:5560+1390
+15/06/24 11:03:48 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:9730+1390
+15/06/24 11:03:48 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:1390+1390
+15/06/24 11:03:48 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:11120+1390
+15/06/24 11:03:48 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:12510+1391
+15/06/24 11:03:48 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:6950+1390
+15/06/24 11:03:48 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:2780+1390
+15/06/24 11:03:48 INFO deprecation: mapred.tip.id is deprecated. Instead, use mapreduce.task.id
+15/06/24 11:03:48 INFO deprecation: mapred.task.id is deprecated. Instead, use mapreduce.task.attempt.id
+15/06/24 11:03:48 INFO deprecation: mapred.task.is.map is deprecated. Instead, use mapreduce.task.ismap
+15/06/24 11:03:48 INFO deprecation: mapred.task.partition is deprecated. Instead, use mapreduce.task.partition
+15/06/24 11:03:48 INFO deprecation: mapred.job.id is deprecated. Instead, use mapreduce.job.id
+15/06/24 11:03:48 INFO Executor: Finished task 4.0 in stage 0.0 (TID 4). 1911 bytes result sent to driver
+15/06/24 11:03:48 INFO Executor: Finished task 6.0 in stage 0.0 (TID 6). 1911 bytes result sent to driver
+15/06/24 11:03:48 INFO Executor: Finished task 3.0 in stage 0.0 (TID 3). 1911 bytes result sent to driver
+15/06/24 11:03:48 INFO Executor: Finished task 5.0 in stage 0.0 (TID 5). 1911 bytes result sent to driver
+15/06/24 11:03:48 INFO Executor: Finished task 9.0 in stage 0.0 (TID 9). 1911 bytes result sent to driver
+15/06/24 11:03:48 INFO Executor: Finished task 8.0 in stage 0.0 (TID 8). 1911 bytes result sent to driver
+15/06/24 11:03:48 INFO Executor: Finished task 0.0 in stage 0.0 (TID 0). 1911 bytes result sent to driver
+15/06/24 11:03:48 INFO Executor: Finished task 2.0 in stage 0.0 (TID 2). 1911 bytes result sent to driver
+15/06/24 11:03:48 INFO Executor: Finished task 7.0 in stage 0.0 (TID 7). 1911 bytes result sent to driver
+15/06/24 11:03:48 INFO Executor: Finished task 1.0 in stage 0.0 (TID 1). 1911 bytes result sent to driver
+15/06/24 11:03:48 INFO TaskSetManager: Finished task 5.0 in stage 0.0 (TID 5) in 187 ms on localhost (1/10)
+15/06/24 11:03:48 INFO TaskSetManager: Finished task 6.0 in stage 0.0 (TID 6) in 188 ms on localhost (2/10)
+15/06/24 11:03:48 INFO TaskSetManager: Finished task 4.0 in stage 0.0 (TID 4) in 191 ms on localhost (3/10)
+15/06/24 11:03:48 INFO TaskSetManager: Finished task 3.0 in stage 0.0 (TID 3) in 192 ms on localhost (4/10)
+15/06/24 11:03:48 INFO TaskSetManager: Finished task 9.0 in stage 0.0 (TID 9) in 187 ms on localhost (5/10)
+15/06/24 11:03:48 INFO TaskSetManager: Finished task 8.0 in stage 0.0 (TID 8) in 189 ms on localhost (6/10)
+15/06/24 11:03:48 INFO TaskSetManager: Finished task 0.0 in stage 0.0 (TID 0) in 207 ms on localhost (7/10)
+15/06/24 11:03:48 INFO TaskSetManager: Finished task 2.0 in stage 0.0 (TID 2) in 196 ms on localhost (8/10)
+15/06/24 11:03:48 INFO TaskSetManager: Finished task 7.0 in stage 0.0 (TID 7) in 193 ms on localhost (9/10)
+15/06/24 11:03:48 INFO TaskSetManager: Finished task 1.0 in stage 0.0 (TID 1) in 198 ms on localhost (10/10)
+15/06/24 11:03:48 INFO DAGScheduler: Stage 0 (reduce at TestApp.scala:17) finished in 0.222 s
+15/06/24 11:03:48 INFO TaskSchedulerImpl: Removed TaskSet 0.0, whose tasks have all completed, from pool 
+15/06/24 11:03:48 INFO DAGScheduler: Job 0 finished: reduce at TestApp.scala:17, took 0.321499 s
+15/06/24 11:07:47 INFO SparkContext: Running Spark version 1.3.1
+15/06/24 11:07:48 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+15/06/24 11:07:48 INFO SecurityManager: Changing view acls to: cody
+15/06/24 11:07:48 INFO SecurityManager: Changing modify acls to: cody
+15/06/24 11:07:48 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(cody); users with modify permissions: Set(cody)
+15/06/24 11:07:48 INFO Slf4jLogger: Slf4jLogger started
+15/06/24 11:07:48 INFO Remoting: Starting remoting
+15/06/24 11:07:48 INFO Remoting: Remoting started; listening on addresses :[akka.tcp://sparkDriver@Gemini.CS.UCLA.EDU:37338]
+15/06/24 11:07:48 INFO Utils: Successfully started service 'sparkDriver' on port 37338.
+15/06/24 11:07:48 INFO SparkEnv: Registering MapOutputTracker
+15/06/24 11:07:48 INFO SparkEnv: Registering BlockManagerMaster
+15/06/24 11:07:48 INFO DiskBlockManager: Created local directory at /tmp/spark-89c39824-2af0-424f-85c3-b08910323536/blockmgr-76b9c4f1-2e05-48a7-901a-f5dfcdd24b9e
+15/06/24 11:07:48 INFO MemoryStore: MemoryStore started with capacity 265.4 MB
+15/06/24 11:07:48 INFO HttpFileServer: HTTP File server directory is /tmp/spark-47eaab76-a4fd-46f0-acd0-d36b81fbe857/httpd-2e4778f8-ad68-467f-99bf-880a77a23a53
+15/06/24 11:07:48 INFO HttpServer: Starting HTTP Server
+15/06/24 11:07:49 INFO Server: jetty-8.y.z-SNAPSHOT
+15/06/24 11:07:49 INFO AbstractConnector: Started SocketConnector@0.0.0.0:37794
+15/06/24 11:07:49 INFO Utils: Successfully started service 'HTTP file server' on port 37794.
+15/06/24 11:07:49 INFO SparkEnv: Registering OutputCommitCoordinator
+15/06/24 11:07:49 INFO Server: jetty-8.y.z-SNAPSHOT
+15/06/24 11:07:49 INFO AbstractConnector: Started SelectChannelConnector@0.0.0.0:4040
+15/06/24 11:07:49 INFO Utils: Successfully started service 'SparkUI' on port 4040.
+15/06/24 11:07:49 INFO SparkUI: Started SparkUI at http://Gemini.CS.UCLA.EDU:4040
+15/06/24 11:07:49 INFO SparkContext: Added JAR file:/curr/cody/Spark_FPGA/rddacc/target/RDD_ACC-1.0-SNAPSHOT.jar at http://131.179.224.69:37794/jars/RDD_ACC-1.0-SNAPSHOT.jar with timestamp 1435169269223
+15/06/24 11:07:49 INFO SparkContext: Added JAR file:/curr/cody/Spark_FPGA/rddacc/app/test/target/testapp-0.0.0.jar at http://131.179.224.69:37794/jars/testapp-0.0.0.jar with timestamp 1435169269223
+15/06/24 11:07:49 INFO Executor: Starting executor ID <driver> on host localhost
+15/06/24 11:07:49 INFO AkkaUtils: Connecting to HeartbeatReceiver: akka.tcp://sparkDriver@Gemini.CS.UCLA.EDU:37338/user/HeartbeatReceiver
+15/06/24 11:07:49 INFO NettyBlockTransferService: Server created on 46242
+15/06/24 11:07:49 INFO BlockManagerMaster: Trying to register BlockManager
+15/06/24 11:07:49 INFO BlockManagerMasterActor: Registering block manager localhost:46242 with 265.4 MB RAM, BlockManagerId(<driver>, localhost, 46242)
+15/06/24 11:07:49 INFO BlockManagerMaster: Registered BlockManager
+15/06/24 11:07:49 INFO MemoryStore: ensureFreeSpace(163705) called with curMem=0, maxMem=278302556
+15/06/24 11:07:49 INFO MemoryStore: Block broadcast_0 stored as values in memory (estimated size 159.9 KB, free 265.3 MB)
+15/06/24 11:07:49 INFO MemoryStore: ensureFreeSpace(22692) called with curMem=163705, maxMem=278302556
+15/06/24 11:07:49 INFO MemoryStore: Block broadcast_0_piece0 stored as bytes in memory (estimated size 22.2 KB, free 265.2 MB)
+15/06/24 11:07:49 INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on localhost:46242 (size: 22.2 KB, free: 265.4 MB)
+15/06/24 11:07:49 INFO BlockManagerMaster: Updated info of block broadcast_0_piece0
+15/06/24 11:07:49 INFO SparkContext: Created broadcast 0 from textFile at TestApp.scala:15
+15/06/24 11:07:49 INFO FileInputFormat: Total input paths to process : 1
+15/06/24 11:07:49 INFO SparkContext: Starting job: reduce at TestApp.scala:17
+15/06/24 11:07:49 INFO DAGScheduler: Got job 0 (reduce at TestApp.scala:17) with 10 output partitions (allowLocal=false)
+15/06/24 11:07:49 INFO DAGScheduler: Final stage: Stage 0(reduce at TestApp.scala:17)
+15/06/24 11:07:49 INFO DAGScheduler: Parents of final stage: List()
+15/06/24 11:07:49 INFO DAGScheduler: Missing parents: List()
+15/06/24 11:07:49 INFO DAGScheduler: Submitting Stage 0 (MapPartitionsRDD[3] at map at TestApp.scala:17), which has no missing parents
+15/06/24 11:07:50 INFO MemoryStore: ensureFreeSpace(3104) called with curMem=186397, maxMem=278302556
+15/06/24 11:07:50 INFO MemoryStore: Block broadcast_1 stored as values in memory (estimated size 3.0 KB, free 265.2 MB)
+15/06/24 11:07:50 INFO MemoryStore: ensureFreeSpace(2174) called with curMem=189501, maxMem=278302556
+15/06/24 11:07:50 INFO MemoryStore: Block broadcast_1_piece0 stored as bytes in memory (estimated size 2.1 KB, free 265.2 MB)
+15/06/24 11:07:50 INFO BlockManagerInfo: Added broadcast_1_piece0 in memory on localhost:46242 (size: 2.1 KB, free: 265.4 MB)
+15/06/24 11:07:50 INFO BlockManagerMaster: Updated info of block broadcast_1_piece0
+15/06/24 11:07:50 INFO SparkContext: Created broadcast 1 from broadcast at DAGScheduler.scala:839
+15/06/24 11:07:50 INFO DAGScheduler: Submitting 10 missing tasks from Stage 0 (MapPartitionsRDD[3] at map at TestApp.scala:17)
+15/06/24 11:07:50 INFO TaskSchedulerImpl: Adding task set 0.0 with 10 tasks
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 2.0 in stage 0.0 (TID 2, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 3.0 in stage 0.0 (TID 3, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 4.0 in stage 0.0 (TID 4, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 5.0 in stage 0.0 (TID 5, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 6.0 in stage 0.0 (TID 6, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 7.0 in stage 0.0 (TID 7, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 8.0 in stage 0.0 (TID 8, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 9.0 in stage 0.0 (TID 9, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO Executor: Running task 1.0 in stage 0.0 (TID 1)
+15/06/24 11:07:50 INFO Executor: Running task 0.0 in stage 0.0 (TID 0)
+15/06/24 11:07:50 INFO Executor: Running task 3.0 in stage 0.0 (TID 3)
+15/06/24 11:07:50 INFO Executor: Running task 2.0 in stage 0.0 (TID 2)
+15/06/24 11:07:50 INFO Executor: Running task 4.0 in stage 0.0 (TID 4)
+15/06/24 11:07:50 INFO Executor: Running task 5.0 in stage 0.0 (TID 5)
+15/06/24 11:07:50 INFO Executor: Running task 6.0 in stage 0.0 (TID 6)
+15/06/24 11:07:50 INFO Executor: Running task 7.0 in stage 0.0 (TID 7)
+15/06/24 11:07:50 INFO Executor: Running task 8.0 in stage 0.0 (TID 8)
+15/06/24 11:07:50 INFO Executor: Running task 9.0 in stage 0.0 (TID 9)
+15/06/24 11:07:50 INFO Executor: Fetching http://131.179.224.69:37794/jars/testapp-0.0.0.jar with timestamp 1435169269223
+15/06/24 11:07:50 INFO Utils: Fetching http://131.179.224.69:37794/jars/testapp-0.0.0.jar to /tmp/spark-d1f70402-dc5d-4b72-ba36-a7a38ff8eaf7/userFiles-b8e4069b-a129-4212-8760-03d2b76a20be/fetchFileTemp2393023673512961100.tmp
+15/06/24 11:07:50 INFO Executor: Adding file:/tmp/spark-d1f70402-dc5d-4b72-ba36-a7a38ff8eaf7/userFiles-b8e4069b-a129-4212-8760-03d2b76a20be/testapp-0.0.0.jar to class loader
+15/06/24 11:07:50 INFO Executor: Fetching http://131.179.224.69:37794/jars/RDD_ACC-1.0-SNAPSHOT.jar with timestamp 1435169269223
+15/06/24 11:07:50 INFO Utils: Fetching http://131.179.224.69:37794/jars/RDD_ACC-1.0-SNAPSHOT.jar to /tmp/spark-d1f70402-dc5d-4b72-ba36-a7a38ff8eaf7/userFiles-b8e4069b-a129-4212-8760-03d2b76a20be/fetchFileTemp2856869405678019678.tmp
+15/06/24 11:07:50 INFO Executor: Adding file:/tmp/spark-d1f70402-dc5d-4b72-ba36-a7a38ff8eaf7/userFiles-b8e4069b-a129-4212-8760-03d2b76a20be/RDD_ACC-1.0-SNAPSHOT.jar to class loader
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:0+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:4170+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:9730+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:5560+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:6950+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:1390+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:11120+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:8340+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:2780+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:12510+1391
+15/06/24 11:07:50 INFO deprecation: mapred.tip.id is deprecated. Instead, use mapreduce.task.id
+15/06/24 11:07:50 INFO deprecation: mapred.task.id is deprecated. Instead, use mapreduce.task.attempt.id
+15/06/24 11:07:50 INFO deprecation: mapred.task.is.map is deprecated. Instead, use mapreduce.task.ismap
+15/06/24 11:07:50 INFO deprecation: mapred.task.partition is deprecated. Instead, use mapreduce.task.partition
+15/06/24 11:07:50 INFO deprecation: mapred.job.id is deprecated. Instead, use mapreduce.job.id
+15/06/24 11:07:50 INFO Executor: Finished task 9.0 in stage 0.0 (TID 9). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 0.0 in stage 0.0 (TID 0). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 4.0 in stage 0.0 (TID 4). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 7.0 in stage 0.0 (TID 7). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 2.0 in stage 0.0 (TID 2). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 5.0 in stage 0.0 (TID 5). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 1.0 in stage 0.0 (TID 1). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 8.0 in stage 0.0 (TID 8). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 3.0 in stage 0.0 (TID 3). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 6.0 in stage 0.0 (TID 6). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 9.0 in stage 0.0 (TID 9) in 188 ms on localhost (1/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 0.0 in stage 0.0 (TID 0) in 208 ms on localhost (2/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 7.0 in stage 0.0 (TID 7) in 193 ms on localhost (3/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 4.0 in stage 0.0 (TID 4) in 196 ms on localhost (4/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 2.0 in stage 0.0 (TID 2) in 200 ms on localhost (5/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 1.0 in stage 0.0 (TID 1) in 203 ms on localhost (6/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 8.0 in stage 0.0 (TID 8) in 197 ms on localhost (7/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 5.0 in stage 0.0 (TID 5) in 200 ms on localhost (8/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 3.0 in stage 0.0 (TID 3) in 204 ms on localhost (9/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 6.0 in stage 0.0 (TID 6) in 201 ms on localhost (10/10)
+15/06/24 11:07:50 INFO DAGScheduler: Stage 0 (reduce at TestApp.scala:17) finished in 0.228 s
+15/06/24 11:07:50 INFO TaskSchedulerImpl: Removed TaskSet 0.0, whose tasks have all completed, from pool 
+15/06/24 11:07:50 INFO DAGScheduler: Job 0 finished: reduce at TestApp.scala:17, took 0.324273 s
+15/06/24 11:07:50 INFO SparkContext: Starting job: reduce at TestApp.scala:18
+15/06/24 11:07:50 INFO DAGScheduler: Got job 1 (reduce at TestApp.scala:18) with 10 output partitions (allowLocal=false)
+15/06/24 11:07:50 INFO DAGScheduler: Final stage: Stage 1(reduce at TestApp.scala:18)
+15/06/24 11:07:50 INFO DAGScheduler: Parents of final stage: List()
+15/06/24 11:07:50 INFO DAGScheduler: Missing parents: List()
+15/06/24 11:07:50 INFO DAGScheduler: Submitting Stage 1 (RDD_ACC[4] at RDD at RDD_ACC.scala:13), which has no missing parents
+15/06/24 11:07:50 INFO MemoryStore: ensureFreeSpace(3256) called with curMem=191675, maxMem=278302556
+15/06/24 11:07:50 INFO MemoryStore: Block broadcast_2 stored as values in memory (estimated size 3.2 KB, free 265.2 MB)
+15/06/24 11:07:50 INFO MemoryStore: ensureFreeSpace(2329) called with curMem=194931, maxMem=278302556
+15/06/24 11:07:50 INFO MemoryStore: Block broadcast_2_piece0 stored as bytes in memory (estimated size 2.3 KB, free 265.2 MB)
+15/06/24 11:07:50 INFO BlockManagerInfo: Added broadcast_2_piece0 in memory on localhost:46242 (size: 2.3 KB, free: 265.4 MB)
+15/06/24 11:07:50 INFO BlockManagerMaster: Updated info of block broadcast_2_piece0
+15/06/24 11:07:50 INFO SparkContext: Created broadcast 2 from broadcast at DAGScheduler.scala:839
+15/06/24 11:07:50 INFO DAGScheduler: Submitting 10 missing tasks from Stage 1 (RDD_ACC[4] at RDD at RDD_ACC.scala:13)
+15/06/24 11:07:50 INFO TaskSchedulerImpl: Adding task set 1.0 with 10 tasks
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 0.0 in stage 1.0 (TID 10, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 1.0 in stage 1.0 (TID 11, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 2.0 in stage 1.0 (TID 12, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 3.0 in stage 1.0 (TID 13, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 4.0 in stage 1.0 (TID 14, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 5.0 in stage 1.0 (TID 15, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 6.0 in stage 1.0 (TID 16, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 7.0 in stage 1.0 (TID 17, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 8.0 in stage 1.0 (TID 18, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO TaskSetManager: Starting task 9.0 in stage 1.0 (TID 19, localhost, PROCESS_LOCAL, 1425 bytes)
+15/06/24 11:07:50 INFO Executor: Running task 2.0 in stage 1.0 (TID 12)
+15/06/24 11:07:50 INFO Executor: Running task 5.0 in stage 1.0 (TID 15)
+15/06/24 11:07:50 INFO Executor: Running task 7.0 in stage 1.0 (TID 17)
+15/06/24 11:07:50 INFO Executor: Running task 6.0 in stage 1.0 (TID 16)
+15/06/24 11:07:50 INFO Executor: Running task 4.0 in stage 1.0 (TID 14)
+15/06/24 11:07:50 INFO Executor: Running task 3.0 in stage 1.0 (TID 13)
+15/06/24 11:07:50 INFO Executor: Running task 1.0 in stage 1.0 (TID 11)
+15/06/24 11:07:50 INFO Executor: Running task 0.0 in stage 1.0 (TID 10)
+15/06/24 11:07:50 INFO Executor: Running task 9.0 in stage 1.0 (TID 19)
+15/06/24 11:07:50 INFO Executor: Running task 8.0 in stage 1.0 (TID 18)
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:12510+1391
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:6950+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:9730+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:2780+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:1390+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:8340+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:0+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:11120+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:4170+1390
+15/06/24 11:07:50 INFO HadoopRDD: Input split: file:/curr/cody/test/testInput.txt:5560+1390
+15/06/24 11:07:50 INFO Executor: Finished task 9.0 in stage 1.0 (TID 19). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 1.0 in stage 1.0 (TID 11). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 2.0 in stage 1.0 (TID 12). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 9.0 in stage 1.0 (TID 19) in 18 ms on localhost (1/10)
+15/06/24 11:07:50 INFO Executor: Finished task 7.0 in stage 1.0 (TID 17). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 1.0 in stage 1.0 (TID 11) in 26 ms on localhost (2/10)
+15/06/24 11:07:50 INFO Executor: Finished task 8.0 in stage 1.0 (TID 18). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 5.0 in stage 1.0 (TID 15). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 3.0 in stage 1.0 (TID 13). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 4.0 in stage 1.0 (TID 14). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 6.0 in stage 1.0 (TID 16). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO Executor: Finished task 0.0 in stage 1.0 (TID 10). 1911 bytes result sent to driver
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 2.0 in stage 1.0 (TID 12) in 28 ms on localhost (3/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 7.0 in stage 1.0 (TID 17) in 24 ms on localhost (4/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 8.0 in stage 1.0 (TID 18) in 24 ms on localhost (5/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 5.0 in stage 1.0 (TID 15) in 27 ms on localhost (6/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 3.0 in stage 1.0 (TID 13) in 32 ms on localhost (7/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 4.0 in stage 1.0 (TID 14) in 32 ms on localhost (8/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 6.0 in stage 1.0 (TID 16) in 30 ms on localhost (9/10)
+15/06/24 11:07:50 INFO TaskSetManager: Finished task 0.0 in stage 1.0 (TID 10) in 37 ms on localhost (10/10)
+15/06/24 11:07:50 INFO DAGScheduler: Stage 1 (reduce at TestApp.scala:18) finished in 0.038 s
+15/06/24 11:07:50 INFO TaskSchedulerImpl: Removed TaskSet 1.0, whose tasks have all completed, from pool 
+15/06/24 11:07:50 INFO DAGScheduler: Job 1 finished: reduce at TestApp.scala:18, took 0.056889 s
