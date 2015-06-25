@@ -30,8 +30,9 @@ class RDD_FAKE[T: ClassTag](prev: RDD[T])
     iter
   }
 
-  def map_acc[V:ClassTag](f: T => V): RDD[V] = {
-    new RDD_ACC(this, sparkContext.clean(f))
+  def map_acc[U:ClassTag](f: T => U): RDD[U] = {
+    val cleanF = sparkContext.clean(f)
+    new RDD_ACC[U, T](this, cleanF)
   }
 }
 

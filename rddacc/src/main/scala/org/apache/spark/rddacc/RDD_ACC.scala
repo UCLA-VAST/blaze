@@ -15,29 +15,24 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
-    println("Compute partition " + split.index + " using accelerator")
-    val iter = new Iterator[U] {
-      val nested = firstParent[T].iterator(split, context)
+    val input_iter = firstParent[T].iterator(split, context)
 
-      def hasNext : Boolean = {
-        nested.hasNext
+    val output_iter = new Iterator[U] {
+      var iter: Iterator[U] = null
+
+      // in case of using CPU
+      println("Compute partition " + split.index + " using CPU")
+      iter = input_iter.map(e => f(e))
+
+      def hasNext(): Boolean = {
+        iter.hasNext
       }
 
-      def next : U = {
-        f(nested.next)
+      def next(): U = {
+        iter.next
       }
     }
-    iter
+    output_iter
   }
-
-  // do the samething: force to use accelerators
-  override def map[V:ClassTag](f: U => V): RDD[V] = {
-    new RDD_ACC(this, sparkContext.clean(f))
-  }
-
-  def map_acc[V:ClassTag](f: U => V): RDD[V] = {
-    new RDD_ACC(this, sparkContext.clean(f))
-  }
-
 }
 
