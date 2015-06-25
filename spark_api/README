@@ -1,0 +1,6 @@
+Compile:
+  mvn compile
+  mvn package
+
+Run:
+  mvn test
