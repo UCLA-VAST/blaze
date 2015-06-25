@@ -19,6 +19,9 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
     val output_iter = new Iterator[U] {
       var iter: Iterator[U] = null
+      var msg: AccMessage.TaskMsg = DataTransmitter.createMsg(split.index)
+      DataTransmitter.send(msg)
+      msg = DataTransmitter.receive()
 
       // in case of using CPU
       println("Compute partition " + split.index + " using CPU")

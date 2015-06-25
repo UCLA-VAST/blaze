@@ -1,6 +1,6 @@
-package acc_runtime;
+package rddacc;
 
-option java_package = "ucla.vast.acc_runtime";
+option java_package = "org.apache.spark.rddacc";
 option java_outer_classname = "AccMessage";
 
 enum MsgType {
