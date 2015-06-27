@@ -3,6 +3,8 @@ package org.apache.spark.rddacc;
 import java.lang.InterruptedException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileChannel.MapMode;
 import java.io.*;
 import java.util.*;
 import java.net.Socket;
@@ -15,7 +17,7 @@ import java.lang.System;
 * and Accelerator manager.
 **/
 public class DataTransmitter {
-	static Socket acc_socket = null;
+	static Socket acc_socket = null; // FIXME: static?
 
 	/**
 	* Initialize connection.
