@@ -21,19 +21,21 @@ namespace acc_runtime {
 class Comm {
 
 public:
-  Comm(int ip_port): srv_port(ip_port) {;}
+	void init();
+  Comm(int ip_port): srv_port(ip_port) { init();}
   Comm(std::string address, int ip_port): 
-    ip_address(address), srv_port(ip_port) {;}
-  
+    ip_address(address), srv_port(ip_port) { init();}
+
   void recv(TaskMsg&, ip::tcp::iostream&);
   void send(TaskMsg&, ip::tcp::iostream&);
   void process(socket_ptr); // processing messages
   void listen(); // always on kernel to wait for connection
-
+  
 private:
   int srv_port;
   std::string ip_address;
   std::vector<boost::thread> thread_pool;
+	std::map<std::string, int> Type2Size;
 
   // reference to block manager
   // reference to task queue

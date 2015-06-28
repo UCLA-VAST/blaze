@@ -3,10 +3,20 @@
 #include <time.h>
 #include <iostream>
 #include <stdexcept>
+#include <fcntl.h>   
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 #include "Comm.h"
 
 #define MAX_MSGSIZE 4096
+
+#define READ_MAPPED_FILE(cType, input, file, size, length) { \
+	input = (void *)malloc(sizeof(cType) * size); \
+	memcpy((void *) input, (const void *) file, sizeof(cType) * length); }
+
+#define FREE_DATA(input) \
+	free(input);
 
 void logInfo(const char *msg) {
   struct timespec tr;
@@ -24,6 +34,17 @@ void logInfo(const char *msg) {
 }
 
 namespace acc_runtime {
+
+void Comm::init()
+{
+	// The data type size in Java
+	Type2Size["int"] = 4;
+	Type2Size["float"] = 4;
+	Type2Size["long"] = 8;
+	Type2Size["double"] = 8;
+
+	return ;
+}
 
 // receive one message, bytesize first
 void Comm::recv(
@@ -62,6 +83,7 @@ void Comm::send(
 }
 
 void Comm::process(socket_ptr sock) {
+	#define cType double
 
   // This may not be the best available method
   ip::tcp::iostream socket_stream;
@@ -111,16 +133,40 @@ void Comm::process(socket_ptr sock) {
       return;
     }
 
-    if (data_msg.type() == ACCDATA) {
-      logInfo(std::string("Comm:process(): Received an ACCDATA message.").c_str());
-    }
-    else {
-      printf("Comm:process() error: Unknown message type, discarding message.\n");
-      return;
-    }
+		if (data_msg.type() == ACCDATA) {
+	    // task execution
+			int fd = open(data_msg.data().path().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
+			void *memory_file = mmap(0, data_msg.data().size(), PROT_READ | PROT_WRITE,
+					MAP_SHARED, fd, 0);
+			close(fd);
+	
+			int dataSize = data_msg.data().size();
+			std::string dataType = data_msg.data().data_type();
+			int dataLength = dataSize / Type2Size[dataType];
+			void *in;
+			printf("Reading %d data...", dataLength);
 
-    // task execution
-    usleep(500000);
+			if (dataType == "int") {
+				READ_MAPPED_FILE(int, in, memory_file, dataSize, dataLength);
+			}
+			else if (dataType == "float")	{
+				READ_MAPPED_FILE(float, in, memory_file, dataSize, dataLength);
+			}
+			else if (dataType == "long") {
+				READ_MAPPED_FILE(long, in, memory_file, dataSize, dataLength);
+			}
+			else if (dataType == "double") {
+				READ_MAPPED_FILE(double, in, memory_file, dataSize, dataLength);
+			}
+
+			// comaniac: only for testing, print first 10 values
+			for (int i = 0; i < 10; ++i) {
+				printf("%.2f\n", (double) *((double *) in + i));
+				memory_file += Type2Size["double"];
+			}
+
+			FREE_DATA(in);
+		}
 
     TaskMsg finish_msg;
     finish_msg.set_type(ACCFINISH);

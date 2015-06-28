@@ -1,4 +1,4 @@
-package org.apache.spark.rddacc
+package org.apache.spark.acc_runtime
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._

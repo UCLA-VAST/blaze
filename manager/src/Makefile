@@ -17,7 +17,7 @@ LINK= -L$(BOOST_DIR)/lib -lboost_system -lboost_thread \
 
 DEPS= main.o \
 			Comm.o \
-			Task_msg.o 
+			Task_msg.o
 
 all: ../bin/acc_manager
 

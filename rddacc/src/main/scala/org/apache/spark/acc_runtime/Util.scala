@@ -1,4 +1,4 @@
-package org.apache.spark.rddacc
+package org.apache.spark.acc_runtime
 
 import java.io.File;
 import java.io.IOException;
@@ -21,16 +21,16 @@ import org.apache.spark.rdd._
 
 object Util {
   val sizeof = mutable.HashMap[String, Int]()
-  sizeof("java.lang.Int") = 4
-  sizeof("java.lang.Float") = 4
-  sizeof("java.lang.Long") = 8
-  sizeof("java.lang.Double") = 8
+  sizeof("int") = 4
+  sizeof("float") = 4
+  sizeof("long") = 8
+  sizeof("double") = 8
 
-  def serializePartition[T: ClassTag](input: Array[T], id: Int): String = {
+  def serializePartition[T: ClassTag](input: Array[T], id: Int): (String, String, Int) = {
     val fileName: String = System.getProperty("java.io.tmpdir") + "/spark_acc" + id + ".dat"
 
      // Fetch size information
-    val dataType: String = input(0).getClass.getName
+    val dataType: String = input(0).getClass.getName.replace("java.lang.", "").toLowerCase()
 
     if (!sizeof.exists(_._1 == dataType)) // TODO: Support String and objects
       throw new RuntimeException("Unsupported type " + dataType);
@@ -52,10 +52,12 @@ object Util {
 
     for (e <- input) {
       dataType match {
-        case "java.lang.Int" => buf.putInt(e.asInstanceOf[Int].intValue)
-        case "java.lang.Float" => buf.putFloat(e.asInstanceOf[Float].floatValue)
-        case "java.lang.Long" => buf.putLong(e.asInstanceOf[Long].longValue)
-        case "java.lang.Double" => buf.putDouble(e.asInstanceOf[Double].doubleValue)
+        case "int" => buf.putInt(e.asInstanceOf[Int].intValue)
+        case "float" => buf.putFloat(e.asInstanceOf[Float].floatValue)
+        case "long" => buf.putLong(e.asInstanceOf[Long].longValue)
+        case "double" => buf.putDouble(e.asInstanceOf[Double].doubleValue)
+        case _ =>
+          throw new RuntimeException("Unsupported type" + dataType)
       }
     }
    
@@ -67,6 +69,6 @@ object Util {
         println("Fail to close memory mapped file " + fileName + ": " + e.toString)
     }
 
-    fileName
+    (fileName, dataType, input.length * typeSize)
   }
 }

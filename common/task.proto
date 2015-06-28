@@ -1,6 +1,6 @@
-package rddacc;
+package acc_runtime;
 
-option java_package = "org.apache.spark.rddacc";
+option java_package = "org.apache.spark.acc_runtime";
 option java_outer_classname = "AccMessage";
 
 enum MsgType {
@@ -13,18 +13,8 @@ enum MsgType {
 }
 
 message Data {
-
-  enum DataType {
-    INT32 = 0;
-    UINT32 = 1;
-    INT64 = 2;
-    UINT64 = 3;
-    FLOAT = 4;
-    DOUBLE = 5;
-  }
-
   required int32 partition_id = 1;
-  required DataType data_type = 2;
+  required string data_type = 2;
   required int64 size = 3;
   optional string path = 4;
 }
@@ -33,6 +23,6 @@ message TaskMsg {
   required MsgType type = 1;
   optional string acc_id = 2; 
   optional int32 task_id = 3;
-  repeated Data data = 4;
+  optional Data data = 4;
   optional int32 get_data = 5;
 }

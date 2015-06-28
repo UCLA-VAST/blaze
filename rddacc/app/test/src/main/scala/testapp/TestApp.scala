@@ -7,12 +7,12 @@ import org.apache.spark.rdd._
 import java.net._
 
 // comaniac: Import extended package
-import org.apache.spark.rddacc._
+import org.apache.spark.acc_runtime._
 
 object TestApp {
     def main(args : Array[String]) {
       val sc = get_spark_context("Test App")
-      val rdd = sc.textFile("/curr/cody/test/testInput.txt", 5)
+      val rdd = sc.textFile("/curr/cody/test/testInput.txt", 1)
       val rdd_acc = ACCWrapper.wrap(rdd.map(a => a.toDouble))
       println(rdd_acc.map_acc(a => (a + 1.0)).reduce((a, b) => (a + b)))
     }

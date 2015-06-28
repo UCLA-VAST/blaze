@@ -1,4 +1,4 @@
-package org.apache.spark.rddacc;
+package org.apache.spark.acc_runtime;
 
 import java.lang.InterruptedException;
 import java.nio.ByteBuffer;
@@ -87,15 +87,33 @@ public class DataTransmitter {
   }
 
 	/**
-	* Create a message based on the given information.
+	* Create a task message for requesting.
 	**/
-	public static AccMessage.TaskMsg createMsg(int idx) {
-		// TODO Insert either data or file path.
+	public static AccMessage.TaskMsg createTaskMsg(int idx, AccMessage.MsgType type) {
 		AccMessage.TaskMsg msg = AccMessage.TaskMsg.newBuilder()
-			.setType(AccMessage.MsgType.ACCREQUEST)
-			.setAccId("test" + idx)
+			.setType(type)
+			.setAccId("request" + idx)
 			.build();
 		
+		return msg;
+	}
+
+	/**
+	* Create a data message.
+	**/
+	public static AccMessage.TaskMsg createDataMsg(int id, String dataType, int size, String path) {
+		AccMessage.Data data = AccMessage.Data.newBuilder()
+			.setPartitionId(id)
+			.setDataType(dataType)
+			.setSize(size)
+			.setPath(path)
+			.build();
+		
+		AccMessage.TaskMsg msg = AccMessage.TaskMsg.newBuilder()
+			.setType(AccMessage.MsgType.ACCDATA)
+			.setData(data)
+			.build();
+
 		return msg;
 	}
 
