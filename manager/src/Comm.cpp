@@ -37,10 +37,10 @@ namespace acc_runtime {
 
 void Comm::init()
 {
-	Type2Size["int"] = 4;
-	Type2Size["float"] = 4;
-	Type2Size["long"] = 8;
-	Type2Size["double"] = 8;
+	Type2Size[Data_type_INT] = 4;
+	Type2Size[Data_type_FLOAT] = 4;
+	Type2Size[Data_type_LONG] = 8;
+	Type2Size[Data_type_DOUBLE] = 8;
 
 	return ;
 }
@@ -134,27 +134,27 @@ void Comm::process(socket_ptr sock) {
 		if (data_msg.type() == ACCDATA) {
 	    // task execution
 
-			int fd = open(data_msg.data().path().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
+			int fd = open(data_msg.data(0).path().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
 			void *memory_file = mmap(0, data_msg.data().size(), PROT_READ | PROT_WRITE,
 					MAP_SHARED, fd, 0);
 			close(fd);
 	
-			int dataSize = data_msg.data().size();
-			std::string dataType = data_msg.data().data_type();
+			int dataSize = data_msg.data(0).size();
+			Data_type dataType = data_msg.data(0).data_type();
 			int dataLength = dataSize / Type2Size[dataType];
 			void *in;
 
 			// Read input
-			if (dataType == "int") {
+			if (dataType == Data_type_INT) {
 				READ_MAPPED_FILE(int, in, memory_file, dataSize, dataLength);
 			}
-			else if (dataType == "float")	{
+			else if (dataType == Data_type_FLOAT)	{
 				READ_MAPPED_FILE(float, in, memory_file, dataSize, dataLength);
 			}
-			else if (dataType == "long") {
+			else if (dataType == Data_type_LONG) {
 				READ_MAPPED_FILE(long, in, memory_file, dataSize, dataLength);
 			}
-			else if (dataType == "double") {
+			else if (dataType == Data_type_DOUBLE) {
 				READ_MAPPED_FILE(double, in, memory_file, dataSize, dataLength);
 			}
 			else {
@@ -172,7 +172,7 @@ void Comm::process(socket_ptr sock) {
 			char out_file_name[128];
 
 			// Generalized result file name: inputFileName.out
-			sprintf(out_file_name, "%s.out", data_msg.data().path().c_str());
+			sprintf(out_file_name, "%s.out", data_msg.data(0).path().c_str());
 			fd = open(out_file_name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 			int pageSize = getpagesize();
 			int offset = 0;

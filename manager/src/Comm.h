@@ -35,7 +35,7 @@ private:
   int srv_port;
   std::string ip_address;
   std::vector<boost::thread> thread_pool;
-	std::map<std::string, int> Type2Size;
+	std::map<int, int> Type2Size;
 
   // reference to block manager
   // reference to task queue

@@ -13,8 +13,16 @@ enum MsgType {
 }
 
 message Data {
+	enum type {
+		INT = 0;
+		FLOAT = 1;
+		LONG = 2;
+		DOUBLE = 3;
+		STRING = 4;
+	};
+
   required int32 partition_id = 1;
-  required string data_type = 2;
+  required type data_type = 2;
   required int64 size = 3;
   optional string path = 4;
 }
@@ -23,6 +31,6 @@ message TaskMsg {
   required MsgType type = 1;
   optional string acc_id = 2; 
   optional int32 task_id = 3;
-  optional Data data = 4;
+  repeated Data data = 4;
   optional int32 get_data = 5;
 }
