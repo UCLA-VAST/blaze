@@ -21,6 +21,14 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
+    val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
+    val filePath: String = splitInfo.substring(
+        splitInfo.indexOf(':') + 1, splitInfo.lastIndexOf(':'))
+    val fileOffset: Int = splitInfo.substring(
+        splitInfo.lastIndexOf(':') + 1, splitInfo.lastIndexOf('+')).toInt
+    val fileSize: Int = splitInfo.substring(
+        splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
+
     val input_iter = firstParent[T].iterator(split, context)
 
     val output_iter = new Iterator[U] {
@@ -31,7 +39,6 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       // TODO: We should send either data (memory mapped file) or file path,
       // but now we just send data.
       val mappedFileInfo = Util.serializePartition(inputAry, split.index)
-      println("Message info: " + mappedFileInfo._1 + ", " + mappedFileInfo._2 + ", " + mappedFileInfo._3)
       var msg: AccMessage.TaskMsg = 
         DataTransmitter.createTaskMsg(split.index, AccMessage.MsgType.ACCREQUEST)
       DataTransmitter.send(msg)
