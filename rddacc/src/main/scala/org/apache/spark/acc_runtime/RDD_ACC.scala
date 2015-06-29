@@ -52,7 +52,11 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       DataTransmitter.send(msg)
       msg = DataTransmitter.receive()
 
-      if (msg.getType() != AccMessage.MsgType.ACCFINISH) {
+      if (msg.getType() == AccMessage.MsgType.ACCFINISH) {
+        // read result
+        Util.readMemoryMappedFile(outputAry, mappedFileInfo._1 + ".out")
+      }
+      else {
         // in case of using CPU
         println("Compute partition " + split.index + " using CPU")
         for (e <- inputAry) {

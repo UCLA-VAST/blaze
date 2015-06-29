@@ -12,8 +12,8 @@
 #define MAX_MSGSIZE 4096
 
 #define READ_MAPPED_FILE(cType, input, file, size, length) { \
-	input = (void *)malloc(sizeof(cType) * size); \
-	memcpy((void *) input, (const void *) file, sizeof(cType) * length); }
+	input = (void *)malloc(sizeof(cType) * length); \
+	memcpy((void *) input, (const void *) file, size); }
 
 #define FREE_DATA(input) \
 	free(input);
@@ -37,7 +37,6 @@ namespace acc_runtime {
 
 void Comm::init()
 {
-	// The data type size in Java
 	Type2Size["int"] = 4;
 	Type2Size["float"] = 4;
 	Type2Size["long"] = 8;
@@ -83,7 +82,6 @@ void Comm::send(
 }
 
 void Comm::process(socket_ptr sock) {
-	#define cType double
 
   // This may not be the best available method
   ip::tcp::iostream socket_stream;
@@ -96,7 +94,7 @@ void Comm::process(socket_ptr sock) {
   try {
     recv(task_msg, socket_stream);
   } catch (std::runtime_error &e) {
-    printf("Comm:process() error: %s.\n", e.what());
+    fprintf(stderr, "Comm:process() error: %s.\n", e.what());
     return;
   }
 
@@ -129,12 +127,13 @@ void Comm::process(socket_ptr sock) {
     try {
       recv(data_msg, socket_stream);
     } catch (std::runtime_error &e) {
-      printf("Comm:process() error: %s.\n", e.what());
+      fprintf(stderr, "Comm:process() error: %s.\n", e.what());
       return;
     }
 
 		if (data_msg.type() == ACCDATA) {
 	    // task execution
+
 			int fd = open(data_msg.data().path().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
 			void *memory_file = mmap(0, data_msg.data().size(), PROT_READ | PROT_WRITE,
 					MAP_SHARED, fd, 0);
@@ -144,8 +143,8 @@ void Comm::process(socket_ptr sock) {
 			std::string dataType = data_msg.data().data_type();
 			int dataLength = dataSize / Type2Size[dataType];
 			void *in;
-			printf("Reading %d data...", dataLength);
 
+			// Read input
 			if (dataType == "int") {
 				READ_MAPPED_FILE(int, in, memory_file, dataSize, dataLength);
 			}
@@ -158,14 +157,46 @@ void Comm::process(socket_ptr sock) {
 			else if (dataType == "double") {
 				READ_MAPPED_FILE(double, in, memory_file, dataSize, dataLength);
 			}
+			else {
+				// TODO
+			}
+			munmap (memory_file, dataSize);
 
-			// comaniac: only for testing, print first 10 values
-			for (int i = 0; i < 10; ++i) {
-				printf("%.2f\n", (double) *((double *) in + i));
-				memory_file += Type2Size["double"];
+			// TODO: Execute on accelerator
+			void *out = (void *)malloc(sizeof(double) * dataLength);
+			for (int i = 0; i < dataLength; ++i) {
+				*((double *) out + i) = (double) *((double *) in + i) + 1.0;
 			}
 
+			// Write result
+			char out_file_name[128];
+
+			// Generalized result file name: inputFileName.out
+			sprintf(out_file_name, "%s.out", data_msg.data().path().c_str());
+			fd = open(out_file_name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+			int pageSize = getpagesize();
+			int offset = 0;
+			int outFileSize = sizeof(double) * dataLength; // FIXME: data type should vary.
+
+			// Write one page (usually 4k)
+			while ((offset + pageSize) < outFileSize) {
+				ftruncate(fd, offset + pageSize);
+				memory_file = mmap(0, pageSize, PROT_READ | PROT_WRITE, 
+						MAP_SHARED, fd, offset);
+				memcpy((void *) memory_file, (const void *) out + offset, pageSize);
+				munmap (memory_file, pageSize); 
+				offset += pageSize;
+			}
+			ftruncate(fd, outFileSize);
+			memory_file = mmap (0, (outFileSize - offset), PROT_READ | PROT_WRITE,        
+						MAP_SHARED, fd, offset);
+			memcpy((void *) memory_file, (const void *) out + offset, outFileSize - offset);
+			munmap (memory_file, outFileSize - offset);                                   
+
+			close(fd);
+
 			FREE_DATA(in);
+			FREE_DATA(out);
 		}
 
     TaskMsg finish_msg;
@@ -175,7 +206,7 @@ void Comm::process(socket_ptr sock) {
     logInfo(std::string("Comm:process(): Sent an ACCFINISH message.").c_str());
   }
   else {
-    printf("Comm:process() error: Unknown message type, discarding message.\n");
+    fprintf(stderr, "Comm:process() error: Unknown message type, discarding message.\n");
   }
 }
 

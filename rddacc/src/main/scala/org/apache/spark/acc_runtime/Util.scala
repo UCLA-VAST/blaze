@@ -71,4 +71,49 @@ object Util {
 
     (fileName, dataType, input.length * typeSize)
   }
+
+  def readMemoryMappedFile[T: ClassTag](out: Array[T], fileName: String) = {
+     // Fetch size information
+    val dataType: String = out(0).getClass.getName.replace("java.lang.", "").toLowerCase()
+
+    if (!sizeof.exists(_._1 == dataType)) // TODO: Support String and objects
+      throw new RuntimeException("Unsupported type " + dataType);
+
+    val typeSize: Int = sizeof(dataType)
+
+    // Create and write memory mapped file
+    var raf: RandomAccessFile = null
+
+    try {
+      raf = new RandomAccessFile(fileName, "r")
+    } catch {
+      case e: IOException =>
+        println("Fail to read memory mapped file " + fileName + ": " + e.toString)
+    }
+
+    val fc: FileChannel = raf.getChannel()
+    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, out.length * typeSize)
+    buf.order(ByteOrder.LITTLE_ENDIAN)
+
+    var idx: Int = 0
+    while (idx < out.length) {
+      dataType match {
+        case "int" => out(idx) = buf.getInt().asInstanceOf[T]
+        case "float" => out(idx) = buf.getFloat().asInstanceOf[T]
+        case "long" => out(idx) = buf.getLong().asInstanceOf[T]
+        case "double" => out(idx) = buf.getDouble().asInstanceOf[T]
+        case _ =>
+          throw new RuntimeException("Unsupported type" + dataType)
+      }
+      idx = idx + 1
+    }
+   
+    try {
+      fc.close()
+      raf.close()
+    } catch {
+      case e: IOException =>
+        println("Fail to close memory mapped file " + fileName + ": " + e.toString)
+    }
+  }
 }
