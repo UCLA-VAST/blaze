@@ -101,17 +101,16 @@ public class DataTransmitter {
 	/**
 	* Create a data message.
 	**/
-	public static AccMessage.TaskMsg createDataMsg(int id, String dataType, int size, String path) {
-		AccMessage.Data data = AccMessage.Data.newBuilder()
+	public static AccMessage.TaskMsg createDataMsg(int id, AccMessage.Data.Type dataType, int size, String path) {
+		AccMessage.Data.Builder data = AccMessage.Data.newBuilder()
 			.setPartitionId(id)
 			.setDataType(dataType)
 			.setSize(size)
-			.setPath(path)
-			.build();
+			.setPath(path);
 		
 		AccMessage.TaskMsg msg = AccMessage.TaskMsg.newBuilder()
 			.setType(AccMessage.MsgType.ACCDATA)
-			.setData(data)
+			.addData(data)
 			.build();
 
 		return msg;

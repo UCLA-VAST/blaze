@@ -13,7 +13,7 @@ enum MsgType {
 }
 
 message Data {
-	enum type {
+	enum Type {
 		INT = 0;
 		FLOAT = 1;
 		LONG = 2;
@@ -22,7 +22,7 @@ message Data {
 	};
 
   required int32 partition_id = 1;
-  required type data_type = 2;
+  required Type data_type = 2;
   required int64 size = 3;
   optional string path = 4;
 }

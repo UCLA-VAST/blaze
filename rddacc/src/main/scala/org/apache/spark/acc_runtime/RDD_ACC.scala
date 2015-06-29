@@ -22,6 +22,8 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
   override def compute(split: Partition, context: TaskContext) = {
     val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
+
+    // Parse Hadoop file string: file:<path>:<offset>+<size>
     val filePath: String = splitInfo.substring(
         splitInfo.indexOf(':') + 1, splitInfo.lastIndexOf(':'))
     val fileOffset: Int = splitInfo.substring(
@@ -29,10 +31,10 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val fileSize: Int = splitInfo.substring(
         splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
 
-    val input_iter = firstParent[T].iterator(split, context)
+    val inputIter = firstParent[T].iterator(split, context)
 
-    val output_iter = new Iterator[U] {
-      val inputAry: Array[T] = input_iter.toArray
+    val outputIter = new Iterator[U] {
+      val inputAry: Array[T] = inputIter.toArray
       val outputAry: Array[U] = new Array[U](inputAry.length)
       var idx: Int = 0
 
@@ -82,7 +84,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
         outputAry(idx - 1)
       }
     }
-    output_iter
+    outputIter
   }
 }
 

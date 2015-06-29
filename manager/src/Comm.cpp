@@ -15,9 +15,6 @@
 	input = (void *)malloc(sizeof(cType) * length); \
 	memcpy((void *) input, (const void *) file, size); }
 
-#define FREE_DATA(input) \
-	free(input);
-
 void logInfo(const char *msg) {
   struct timespec tr;
   clock_gettime(CLOCK_REALTIME, &tr);
@@ -37,10 +34,10 @@ namespace acc_runtime {
 
 void Comm::init()
 {
-	Type2Size[Data_type_INT] = 4;
-	Type2Size[Data_type_FLOAT] = 4;
-	Type2Size[Data_type_LONG] = 8;
-	Type2Size[Data_type_DOUBLE] = 8;
+	Type2Size[Data_Type_INT] = 4;
+	Type2Size[Data_Type_FLOAT] = 4;
+	Type2Size[Data_Type_LONG] = 8;
+	Type2Size[Data_Type_DOUBLE] = 8;
 
 	return ;
 }
@@ -133,28 +130,27 @@ void Comm::process(socket_ptr sock) {
 
 		if (data_msg.type() == ACCDATA) {
 	    // task execution
-
 			int fd = open(data_msg.data(0).path().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
-			void *memory_file = mmap(0, data_msg.data().size(), PROT_READ | PROT_WRITE,
+			void *memory_file = mmap(0, data_msg.data(0).size(), PROT_READ | PROT_WRITE,
 					MAP_SHARED, fd, 0);
 			close(fd);
 	
 			int dataSize = data_msg.data(0).size();
-			Data_type dataType = data_msg.data(0).data_type();
+			Data_Type dataType = data_msg.data(0).data_type();
 			int dataLength = dataSize / Type2Size[dataType];
 			void *in;
 
 			// Read input
-			if (dataType == Data_type_INT) {
+			if (dataType == Data_Type_INT) {
 				READ_MAPPED_FILE(int, in, memory_file, dataSize, dataLength);
 			}
-			else if (dataType == Data_type_FLOAT)	{
+			else if (dataType == Data_Type_FLOAT)	{
 				READ_MAPPED_FILE(float, in, memory_file, dataSize, dataLength);
 			}
-			else if (dataType == Data_type_LONG) {
+			else if (dataType == Data_Type_LONG) {
 				READ_MAPPED_FILE(long, in, memory_file, dataSize, dataLength);
 			}
-			else if (dataType == Data_type_DOUBLE) {
+			else if (dataType == Data_Type_DOUBLE) {
 				READ_MAPPED_FILE(double, in, memory_file, dataSize, dataLength);
 			}
 			else {
@@ -195,8 +191,8 @@ void Comm::process(socket_ptr sock) {
 
 			close(fd);
 
-			FREE_DATA(in);
-			FREE_DATA(out);
+			free(in);
+			free(out);
 		}
 
     TaskMsg finish_msg;
