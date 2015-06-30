@@ -13,7 +13,7 @@ enum MsgType {
 }
 
 message Data {
-	enum type {
+	enum Type {
 		INT = 0;
 		FLOAT = 1;
 		LONG = 2;
@@ -21,7 +21,7 @@ message Data {
 		STRING = 4;
 	};
 
-  enum flag_type {
+  enum Flag_type {
     CACHED = 0;
     NOT_CACHED = 1;
   }

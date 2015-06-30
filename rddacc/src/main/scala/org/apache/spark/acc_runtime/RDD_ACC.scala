@@ -22,6 +22,8 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
   override def compute(split: Partition, context: TaskContext) = {
     val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
+
+    // Parse Hadoop file string: file:<path>:<offset>+<size>
     val filePath: String = splitInfo.substring(
         splitInfo.indexOf(':') + 1, splitInfo.lastIndexOf(':'))
     val fileOffset: Int = splitInfo.substring(
@@ -29,20 +31,25 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val fileSize: Int = splitInfo.substring(
         splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
 
-    val input_iter = firstParent[T].iterator(split, context)
+    val splitKey = RDDBlockId(this.id, split.index)
+//    SparkEnv.blockManager
 
-    val output_iter = new Iterator[U] {
-      val inputAry: Array[T] = input_iter.toArray
+    val inputIter = firstParent[T].iterator(split, context)
+
+    val outputIter = new Iterator[U] {
+      val inputAry: Array[T] = inputIter.toArray
       val outputAry: Array[U] = new Array[U](inputAry.length)
       var idx: Int = 0
 
       // TODO: We should send either data (memory mapped file) or file path,
       // but now we just send data.
       val mappedFileInfo = Util.serializePartition(inputAry, split.index)
+      val transmitter = new DataTransmitter()
+
       var msg: AccMessage.TaskMsg = 
-        DataTransmitter.createTaskMsg(split.index, AccMessage.MsgType.ACCREQUEST)
-      DataTransmitter.send(msg)
-      msg = DataTransmitter.receive()
+        transmitter.createTaskMsg(split.index, AccMessage.MsgType.ACCREQUEST)
+      transmitter.send(msg)
+      msg = transmitter.receive()
 
       // TODO: We should retry if rejected.
       if (msg.getType() != AccMessage.MsgType.ACCGRANT)
@@ -50,14 +57,14 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       else
         println("Acquire resource, sending data...")
 
-      msg = DataTransmitter.createDataMsg(
+      msg = transmitter.createDataMsg(
           split.index, 
           mappedFileInfo._2, 
           mappedFileInfo._3,
           mappedFileInfo._1)
 
-      DataTransmitter.send(msg)
-      msg = DataTransmitter.receive()
+      transmitter.send(msg)
+      msg = transmitter.receive()
 
       if (msg.getType() == AccMessage.MsgType.ACCFINISH) {
         // read result
@@ -82,7 +89,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
         outputAry(idx - 1)
       }
     }
-    output_iter
+    outputIter
   }
 }
 

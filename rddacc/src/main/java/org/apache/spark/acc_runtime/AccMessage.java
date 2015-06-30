@@ -139,15 +139,15 @@ public final class AccMessage {
      */
     int getPartitionId();
 
-    // required .acc_runtime.Data.type data_type = 2;
+    // required .acc_runtime.Data.Type data_type = 2;
     /**
-     * <code>required .acc_runtime.Data.type data_type = 2;</code>
+     * <code>required .acc_runtime.Data.Type data_type = 2;</code>
      */
     boolean hasDataType();
     /**
-     * <code>required .acc_runtime.Data.type data_type = 2;</code>
+     * <code>required .acc_runtime.Data.Type data_type = 2;</code>
      */
-    org.apache.spark.acc_runtime.AccMessage.Data.type getDataType();
+    org.apache.spark.acc_runtime.AccMessage.Data.Type getDataType();
 
     // required int64 size = 3;
     /**
@@ -232,7 +232,7 @@ public final class AccMessage {
             }
             case 16: {
               int rawValue = input.readEnum();
-              org.apache.spark.acc_runtime.AccMessage.Data.type value = org.apache.spark.acc_runtime.AccMessage.Data.type.valueOf(rawValue);
+              org.apache.spark.acc_runtime.AccMessage.Data.Type value = org.apache.spark.acc_runtime.AccMessage.Data.Type.valueOf(rawValue);
               if (value == null) {
                 unknownFields.mergeVarintField(2, rawValue);
               } else {
@@ -291,9 +291,9 @@ public final class AccMessage {
     }
 
     /**
-     * Protobuf enum {@code acc_runtime.Data.type}
+     * Protobuf enum {@code acc_runtime.Data.Type}
      */
-    public enum type
+    public enum Type
         implements com.google.protobuf.ProtocolMessageEnum {
       /**
        * <code>INT = 0;</code>
@@ -341,7 +341,7 @@ public final class AccMessage {
 
       public final int getNumber() { return value; }
 
-      public static type valueOf(int value) {
+      public static Type valueOf(int value) {
         switch (value) {
           case 0: return INT;
           case 1: return FLOAT;
@@ -352,15 +352,15 @@ public final class AccMessage {
         }
       }
 
-      public static com.google.protobuf.Internal.EnumLiteMap<type>
+      public static com.google.protobuf.Internal.EnumLiteMap<Type>
           internalGetValueMap() {
         return internalValueMap;
       }
-      private static com.google.protobuf.Internal.EnumLiteMap<type>
+      private static com.google.protobuf.Internal.EnumLiteMap<Type>
           internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<type>() {
-              public type findValueByNumber(int number) {
-                return type.valueOf(number);
+            new com.google.protobuf.Internal.EnumLiteMap<Type>() {
+              public Type findValueByNumber(int number) {
+                return Type.valueOf(number);
               }
             };
 
@@ -377,9 +377,9 @@ public final class AccMessage {
         return org.apache.spark.acc_runtime.AccMessage.Data.getDescriptor().getEnumTypes().get(0);
       }
 
-      private static final type[] VALUES = values();
+      private static final Type[] VALUES = values();
 
-      public static type valueOf(
+      public static Type valueOf(
           com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
         if (desc.getType() != getDescriptor()) {
           throw new java.lang.IllegalArgumentException(
@@ -391,12 +391,12 @@ public final class AccMessage {
       private final int index;
       private final int value;
 
-      private type(int index, int value) {
+      private Type(int index, int value) {
         this.index = index;
         this.value = value;
       }
 
-      // @@protoc_insertion_point(enum_scope:acc_runtime.Data.type)
+      // @@protoc_insertion_point(enum_scope:acc_runtime.Data.Type)
     }
 
     private int bitField0_;
@@ -416,19 +416,19 @@ public final class AccMessage {
       return partitionId_;
     }
 
-    // required .acc_runtime.Data.type data_type = 2;
+    // required .acc_runtime.Data.Type data_type = 2;
     public static final int DATA_TYPE_FIELD_NUMBER = 2;
-    private org.apache.spark.acc_runtime.AccMessage.Data.type dataType_;
+    private org.apache.spark.acc_runtime.AccMessage.Data.Type dataType_;
     /**
-     * <code>required .acc_runtime.Data.type data_type = 2;</code>
+     * <code>required .acc_runtime.Data.Type data_type = 2;</code>
      */
     public boolean hasDataType() {
       return ((bitField0_ & 0x00000002) == 0x00000002);
     }
     /**
-     * <code>required .acc_runtime.Data.type data_type = 2;</code>
+     * <code>required .acc_runtime.Data.Type data_type = 2;</code>
      */
-    public org.apache.spark.acc_runtime.AccMessage.Data.type getDataType() {
+    public org.apache.spark.acc_runtime.AccMessage.Data.Type getDataType() {
       return dataType_;
     }
 
@@ -493,7 +493,7 @@ public final class AccMessage {
 
     private void initFields() {
       partitionId_ = 0;
-      dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.type.INT;
+      dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
       size_ = 0L;
       path_ = "";
     }
@@ -676,7 +676,7 @@ public final class AccMessage {
         super.clear();
         partitionId_ = 0;
         bitField0_ = (bitField0_ & ~0x00000001);
-        dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.type.INT;
+        dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
         bitField0_ = (bitField0_ & ~0x00000002);
         size_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000004);
@@ -828,24 +828,24 @@ public final class AccMessage {
         return this;
       }
 
-      // required .acc_runtime.Data.type data_type = 2;
-      private org.apache.spark.acc_runtime.AccMessage.Data.type dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.type.INT;
+      // required .acc_runtime.Data.Type data_type = 2;
+      private org.apache.spark.acc_runtime.AccMessage.Data.Type dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
       /**
-       * <code>required .acc_runtime.Data.type data_type = 2;</code>
+       * <code>required .acc_runtime.Data.Type data_type = 2;</code>
        */
       public boolean hasDataType() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
       }
       /**
-       * <code>required .acc_runtime.Data.type data_type = 2;</code>
+       * <code>required .acc_runtime.Data.Type data_type = 2;</code>
        */
-      public org.apache.spark.acc_runtime.AccMessage.Data.type getDataType() {
+      public org.apache.spark.acc_runtime.AccMessage.Data.Type getDataType() {
         return dataType_;
       }
       /**
-       * <code>required .acc_runtime.Data.type data_type = 2;</code>
+       * <code>required .acc_runtime.Data.Type data_type = 2;</code>
        */
-      public Builder setDataType(org.apache.spark.acc_runtime.AccMessage.Data.type value) {
+      public Builder setDataType(org.apache.spark.acc_runtime.AccMessage.Data.Type value) {
         if (value == null) {
           throw new NullPointerException();
         }
@@ -855,11 +855,11 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>required .acc_runtime.Data.type data_type = 2;</code>
+       * <code>required .acc_runtime.Data.Type data_type = 2;</code>
        */
       public Builder clearDataType() {
         bitField0_ = (bitField0_ & ~0x00000002);
-        dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.type.INT;
+        dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
         onChanged();
         return this;
       }
@@ -2108,8 +2108,8 @@ public final class AccMessage {
     java.lang.String[] descriptorData = {
       "\n\ntask.proto\022\013acc_runtime\"\241\001\n\004Data\022\024\n\014pa" +
       "rtition_id\030\001 \002(\005\022)\n\tdata_type\030\002 \002(\0162\026.ac" +
-      "c_runtime.Data.type\022\014\n\004size\030\003 \002(\003\022\014\n\004pat" +
-      "h\030\004 \001(\t\"<\n\004type\022\007\n\003INT\020\000\022\t\n\005FLOAT\020\001\022\010\n\004L" +
+      "c_runtime.Data.Type\022\014\n\004size\030\003 \002(\003\022\014\n\004pat" +
+      "h\030\004 \001(\t\"<\n\004Type\022\007\n\003INT\020\000\022\t\n\005FLOAT\020\001\022\010\n\004L" +
       "ONG\020\002\022\n\n\006DOUBLE\020\003\022\n\n\006STRING\020\004\"\201\001\n\007TaskMs" +
       "g\022\"\n\004type\030\001 \002(\0162\024.acc_runtime.MsgType\022\016\n" +
       "\006acc_id\030\002 \001(\t\022\017\n\007task_id\030\003 \001(\005\022\037\n\004data\030\004" +
