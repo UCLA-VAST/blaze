@@ -13,25 +13,12 @@ enum MsgType {
 }
 
 message Data {
-	enum Type {
-		INT = 0;
-		FLOAT = 1;
-		LONG = 2;
-		DOUBLE = 3;
-		STRING = 4;
-	};
-
-  enum Flag_type {
-    CACHED = 0;
-    NOT_CACHED = 1;
-  }
-
   required int32 partition_id = 1;
-  optional type data_type = 2;
+  optional int32 width = 2;
   optional int64 size = 3;
   optional string path = 4;
   optional int32 offset = 5;
-  optional flag_type flag = 6;
+  optional bool cached = 6;
 }
 
 message TaskMsg {

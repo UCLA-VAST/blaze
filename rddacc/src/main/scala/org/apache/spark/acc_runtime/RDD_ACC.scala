@@ -21,29 +21,19 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
-    val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
 
-    // Parse Hadoop file string: file:<path>:<offset>+<size>
-    val filePath: String = splitInfo.substring(
-        splitInfo.indexOf(':') + 1, splitInfo.lastIndexOf(':'))
-    val fileOffset: Int = splitInfo.substring(
-        splitInfo.lastIndexOf(':') + 1, splitInfo.lastIndexOf('+')).toInt
-    val fileSize: Int = splitInfo.substring(
-        splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
-
-    val splitKey = RDDBlockId(this.id, split.index)
-//    SparkEnv.blockManager
-
-    val inputIter = firstParent[T].iterator(split, context)
+    var inputIter: Iterator[T] = isInMemory(split, context) match {
+      case true =>
+        println(split.index + " cached.")
+        firstParent[T].iterator(split, context)
+      case false =>
+        println(split.indx + " uncached.")
+        null
+    }
 
     val outputIter = new Iterator[U] {
-      val inputAry: Array[T] = inputIter.toArray
       val outputAry: Array[U] = new Array[U](inputAry.length)
       var idx: Int = 0
-
-      // TODO: We should send either data (memory mapped file) or file path,
-      // but now we just send data.
-      val mappedFileInfo = Util.serializePartition(inputAry, split.index)
       val transmitter = new DataTransmitter()
 
       var msg: AccMessage.TaskMsg = 
@@ -57,11 +47,30 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       else
         println("Acquire resource, sending data...")
 
-      msg = transmitter.createDataMsg(
-          split.index, 
-          mappedFileInfo._2, 
-          mappedFileInfo._3,
-          mappedFileInfo._1)
+      if (inputIter) { // Send data from memory
+        val inputAry: Array[T] = inputIter.toArray
+        val mappedFileInfo = Util.serializePartition(inputAry, split.index)
+
+        msg = transmitter.createDataMsgForMem(
+            split.index, 
+            mappedFileInfo._2, 
+            mappedFileInfo._3,
+            mappedFileInfo._1)
+      }
+      else { // Send HDFS file information
+        val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
+
+        // Parse Hadoop file string: file:<path>:<offset>+<size>
+        val filePath: String = splitInfo.substring(
+            splitInfo.indexOf(':') + 1, splitInfo.lastIndexOf(':'))
+        val fileOffset: Int = splitInfo.substring(
+            splitInfo.lastIndexOf(':') + 1, splitInfo.lastIndexOf('+')).toInt
+        val fileSize: Int = splitInfo.substring(
+            splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
+     
+        msg = transmitter.createDataMsgForPath(
+            split.index, filePath, fileOffset, fileSize)
+      }
 
       transmitter.send(msg)
       msg = transmitter.receive()
@@ -73,6 +82,9 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       else {
         // in case of using CPU
         println("Compute partition " + split.index + " using CPU")
+        if (!inputIter)
+          inputIter = firstParent[T].iterator(split, context)
+        val inputAry: Array[T] = inputIter.toArray
         for (e <- inputAry) {
           outputAry(idx) = f(e.asInstanceOf[T])
           idx = idx + 1
@@ -81,7 +93,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       }
 
       def hasNext(): Boolean = {
-        idx < inputAry.length
+        idx < outputAry.length
       }
 
       def next(): U = {
@@ -90,6 +102,20 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       }
     }
     outputIter
+  }
+
+  def isInMemory(split: Partition, context: TaskContext): Boolean = {
+    if (getStorageLevel == StorageLevel.NONE)
+      false
+    else {
+      val splitKey = RDDBlockId(this.id, split.index)
+      SparkEnv.blockManager.get(splitKey) match {
+        case Some(result) =>
+          true
+        case None =>
+          false
+      }
+    }
   }
 }
 

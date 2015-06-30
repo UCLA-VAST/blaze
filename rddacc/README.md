@@ -12,14 +12,15 @@ source setup.sh
 	Status: Working.
 
 #2: Implicit broadcast inputs
-	There have some input data that referred by the map function. Spark broadcasts these input data to all workers automatically before executing the map function. However, there has no way for a RDD to realize them so that we do not know which input data should be broadcast followed by partitions.
+	There have some input data that referred by the map function. Workers fetch these data from driver when performing map function. However, it is inefficient and impractical for an accelerator to request the input data during the execution.
 
-	Solution plan 1: Require user to write broadcast explicitly.
+	Solution plan A: Require user to write broadcast explicitly.
 
-	Drawback: The user has responsibility to write broadcast for all necessary referred data. The NAM will encounter errors if the user misses to write some of them.
+	Drawback: The user has responsibility to write broadcast for all necessary referred data. The NAM will encounter errors (data not found) if the user misses to write some of them.
 
-	Solution plan 2: Leverage Aparapi front-end to analyze the necessary inputs.
+	Solution plan B: Leverage Aparapi front-end to analyze the necessary inputs.
 
 	Drawback: 1. Migrate and adapt an Aparapi front-end needs some efforts. 
 						2. Analyze and extract required inputs cause overhead.
 
+	Status: Working for plan A.
