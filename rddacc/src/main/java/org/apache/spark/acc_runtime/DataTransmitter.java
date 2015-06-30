@@ -17,7 +17,11 @@ import java.lang.System;
 * and Accelerator manager.
 **/
 public class DataTransmitter {
-	static Socket acc_socket = null; // FIXME: static?
+	Socket acc_socket = null;
+
+	public DataTransmitter() {
+		init("127.0.0.1", 1027);
+	}
 
 	/**
 	* Initialize connection.
@@ -29,7 +33,7 @@ public class DataTransmitter {
 	* @param port
 	*		The port of the Accelerator manager.
 	**/
-	public static void init(String hostname, int port) {
+	public void init(String hostname, int port) {
 		try {
       acc_socket = new Socket(hostname, port); 
     } catch (Exception e) {
@@ -46,13 +50,10 @@ public class DataTransmitter {
 	*		The message to be sent.
 	*	@see init(String hostname, int port)
 	**/
-	public static void send(AccMessage.TaskMsg msg)
+	public void send(AccMessage.TaskMsg msg)
     throws IOException {
 
     int msg_size = msg.getSerializedSize();
-
-		if (acc_socket == null)
-			init("127.0.0.1", 1027);
 
     // send byte size
     DataOutputStream sout = new DataOutputStream(acc_socket.getOutputStream());
@@ -69,7 +70,7 @@ public class DataTransmitter {
 	/**
 	* Receive the message from Accelerator manager.
 	**/
-  public static AccMessage.TaskMsg receive()
+  public AccMessage.TaskMsg receive()
     throws IOException {
 
     DataInputStream sin = new DataInputStream(acc_socket.getInputStream());
@@ -89,7 +90,7 @@ public class DataTransmitter {
 	/**
 	* Create a task message for requesting.
 	**/
-	public static AccMessage.TaskMsg createTaskMsg(int idx, AccMessage.MsgType type) {
+	public AccMessage.TaskMsg createTaskMsg(int idx, AccMessage.MsgType type) {
 		AccMessage.TaskMsg msg = AccMessage.TaskMsg.newBuilder()
 			.setType(type)
 			.setAccId("request" + idx)
@@ -101,7 +102,7 @@ public class DataTransmitter {
 	/**
 	* Create a data message.
 	**/
-	public static AccMessage.TaskMsg createDataMsg(int id, AccMessage.Data.Type dataType, int size, String path) {
+	public AccMessage.TaskMsg createDataMsg(int id, AccMessage.Data.Type dataType, int size, String path) {
 		AccMessage.Data.Builder data = AccMessage.Data.newBuilder()
 			.setPartitionId(id)
 			.setDataType(dataType)
@@ -115,61 +116,4 @@ public class DataTransmitter {
 
 		return msg;
 	}
-
-	/**
-	* Main method is used for testing only.
-	**/
-  public static void main (String[] args) {
-
-    try {
-      // send an ACCREQUEST
-      AccMessage.TaskMsg task_msg = 
-        AccMessage.TaskMsg.newBuilder()
-        .setType(AccMessage.MsgType.ACCREQUEST)
-        .setAccId("example")
-        .build();
-
-      send(task_msg);
-
-      System.out.println("sent an ACCREQUEST message.");
-
-      // wait for a reply
-      // - byte size first
-      AccMessage.TaskMsg result_msg = receive();
-
-      if (result_msg.getType() == AccMessage.MsgType.ACCGRANT) {
-        System.out.println("received an ACCGRANT message.");
-      }
-      else {
-        System.out.println("invalid message.");
-        System.exit(1);
-      }
-
-      // open a memory mapped file 
-      
-
-      // build a ACCDATA message
-      AccMessage.TaskMsg data_msg = 
-        AccMessage.TaskMsg.newBuilder()
-        .setType(AccMessage.MsgType.ACCDATA)
-        .build();
-
-      // send
-      send(data_msg);
-
-      task_msg = receive();
-      if (task_msg.getType() == AccMessage.MsgType.ACCFINISH) {
-        System.out.println("Task finished.");
-      }
-      else {
-        System.out.println("Task failed.");
-        System.exit(1);
-      }
-    } catch (Exception e) {
-      e.printStackTrace(System.err);
-      System.exit(1);
-    }
-
-    System.exit(0);
-  }
 }

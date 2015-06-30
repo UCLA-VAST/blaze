@@ -31,6 +31,9 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val fileSize: Int = splitInfo.substring(
         splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
 
+    val splitKey = RDDBlockId(this.id, split.index)
+//    SparkEnv.blockManager
+
     val inputIter = firstParent[T].iterator(split, context)
 
     val outputIter = new Iterator[U] {
@@ -41,10 +44,12 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       // TODO: We should send either data (memory mapped file) or file path,
       // but now we just send data.
       val mappedFileInfo = Util.serializePartition(inputAry, split.index)
+      val transmitter = new DataTransmitter()
+
       var msg: AccMessage.TaskMsg = 
-        DataTransmitter.createTaskMsg(split.index, AccMessage.MsgType.ACCREQUEST)
-      DataTransmitter.send(msg)
-      msg = DataTransmitter.receive()
+        transmitter.createTaskMsg(split.index, AccMessage.MsgType.ACCREQUEST)
+      transmitter.send(msg)
+      msg = transmitter.receive()
 
       // TODO: We should retry if rejected.
       if (msg.getType() != AccMessage.MsgType.ACCGRANT)
@@ -52,14 +57,14 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       else
         println("Acquire resource, sending data...")
 
-      msg = DataTransmitter.createDataMsg(
+      msg = transmitter.createDataMsg(
           split.index, 
           mappedFileInfo._2, 
           mappedFileInfo._3,
           mappedFileInfo._1)
 
-      DataTransmitter.send(msg)
-      msg = DataTransmitter.receive()
+      transmitter.send(msg)
+      msg = transmitter.receive()
 
       if (msg.getType() == AccMessage.MsgType.ACCFINISH) {
         // read result
