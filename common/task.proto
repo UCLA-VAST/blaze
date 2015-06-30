@@ -21,10 +21,17 @@ message Data {
 		STRING = 4;
 	};
 
+  enum flag_type {
+    CACHED = 0;
+    NOT_CACHED = 1;
+  }
+
   required int32 partition_id = 1;
-  required type data_type = 2;
-  required int64 size = 3;
+  optional type data_type = 2;
+  optional int64 size = 3;
   optional string path = 4;
+  optional int32 offset = 5;
+  optional flag_type flag = 6;
 }
 
 message TaskMsg {
@@ -32,5 +39,4 @@ message TaskMsg {
   optional string acc_id = 2; 
   optional int32 task_id = 3;
   repeated Data data = 4;
-  optional int32 get_data = 5;
 }
