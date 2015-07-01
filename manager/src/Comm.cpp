@@ -10,6 +10,7 @@
 #include "Comm.h"
 
 #define MAX_MSGSIZE 4096
+#define OUTPUT_DIR "/tmp"
 
 void logInfo(const char *msg) {
   struct timespec tr;
@@ -91,12 +92,14 @@ void Comm::process(socket_ptr sock) {
 
     // TODO: also consult cache manager to see if data is cached
 
-		// FIXME: Now assume we only have one data block and no cached data.
     TaskMsg accept_msg;
     accept_msg.set_type(ACCGRANT);
-    Data *block_info = accept_msg.add_data();
-		block_info->set_partition_id(task_msg.data(0).partition_id());
-		block_info->clear_cached();
+
+		for(int i = 0; i < task_msg.data_size(); ++i) {
+	    Data *block_info = accept_msg.add_data();
+			block_info->set_partition_id(task_msg.data(0).partition_id());
+			block_info->clear_cached(); // FIXME: Now assume we have no cached data
+		}
 
     // start a new thread to process the subsequent messages
     // socket_stream should be copied
@@ -117,77 +120,95 @@ void Comm::process(socket_ptr sock) {
       return;
     }
 
+   	TaskMsg finish_msg;
+   	finish_msg.set_type(ACCFINISH);
+
 		if (data_msg.type() == ACCDATA) {
-			int dataSize = data_msg.data(0).size();
-			int dataLength = data_msg.data(0).width();
-			void *in = (void *)malloc(dataSize);
+			for (int d = 0; d < data_msg.data_size(); ++d) {
+				int blockId = data_msg.data(d).partition_id();
+				int dataSize = data_msg.data(d).size();
+				int dataLength = data_msg.data(d).width();
+				void *in = NULL;
 
-			// FIXME: Now we use "file_path!" to represent memory mapped file
-			char filePath[256];
-			strcpy(filePath, data_msg.data(0).path().c_str());
-//			logInfo(std::string("Comm::process(): Read data from " + data_msg.data(0).path()).c_str());
+				char filePath[256];
+				strcpy(filePath, data_msg.data(d).path().c_str());
+				//logInfo(std::string("Comm::process(): Read data from " + 
+				//	data_msg.data(d).path()).c_str());
 
-			if (filePath[strlen(filePath) - 1] == '!') {
-				filePath[strlen(filePath) - 1] = '\0';
-				int fd = open(filePath, O_RDWR, S_IRUSR | S_IWUSR);
-				void *memory_file = mmap(0, data_msg.data(0).size(), PROT_READ | PROT_WRITE,
-						MAP_SHARED, fd, 0);
-				close(fd);
+				if (dataLength != -1) { // Known length means memory mapped file
+					in = (void *)malloc(dataSize);
+					int fd = open(filePath, O_RDWR, S_IRUSR | S_IWUSR);
+					void *memory_file = mmap(0, data_msg.data(d).size(), PROT_READ | PROT_WRITE,
+							MAP_SHARED, fd, 0);
+					close(fd);
+	
+					memcpy((void *) in, (const void *) memory_file, dataSize);
+					munmap (memory_file, dataSize);
+				}
+				else { // Read from file directly
+					FILE *infilep = fopen(filePath, "r");
+					fseek(infilep, data_msg.data(d).offset(), SEEK_SET);
+//					char *buf = (char *)malloc(dataSize);
+//					fread(buf, dataSize, 1, infilep);
 
-				memcpy((void *) in, (const void *) memory_file, dataSize);
-				munmap (memory_file, dataSize);
-			}
-			else { // Read from file directly
-				FILE *infilep = fopen(filePath, "r");
-				fseek(infilep, data_msg.data(0).offset(), SEEK_SET);
-				fread(in, 1, dataSize, infilep);
-				fclose(infilep);
-			}
+					in = (void *)malloc(sizeof(double) * 1000);
+
+					// FIXME: Should be done at accelerator}
+					dataLength = 1000;
+					for (int i = 0; i < dataLength; ++i)
+						fscanf(infilep, "%lf", ((double *) in + i));
+
+					fclose(infilep);
+//					free(buf);
+					fprintf(stderr, "Read data from file, first value: %.2f\n", (double) *((double *) in));
+				}
 
 // FIXME: Simulate accelerator
-			void *out = (void *)malloc(sizeof(double) * dataLength);
-			for (int i = 0; i < dataLength; ++i) {
-				*((double *) out + i) = 0; //(double) *((double *) in + i) + 1.0;
-			}
-//			fprintf(stderr, "%.2f\n", (double) *((double *) out));
+				void *out = (void *)malloc(sizeof(double) * dataLength);
+				for (int i = 0; i < dataLength; ++i) {
+					*((double *) out + i) = (double) *((double *) in + i) + 1.0;
+				}
 // Accelerator end
 
-			// Write result
-			char out_file_name[128];
+				// Write result
+				char out_file_name[128];
+				sprintf(out_file_name, "%s/spark_acc%d.out", OUTPUT_DIR, blockId);
 
-			// Generalized result file name: inputFileName.out
-			sprintf(out_file_name, "%s.out", filePath);
-			int fd = open(out_file_name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-			int pageSize = getpagesize();
-			int offset = 0;
-			int outFileSize = sizeof(double) * dataLength; // FIXME: data type should vary.
-			void *memory_file = NULL;
+				int fd = open(out_file_name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+				int pageSize = getpagesize();
+				int offset = 0;
+				int outFileSize = sizeof(double) * dataLength; // FIXME: data type should vary.
+				void *memory_file = NULL;
 
-			// Write one page (usually 4k)
-			while ((offset + pageSize) < outFileSize) {
-				ftruncate(fd, offset + pageSize);
-				memory_file = mmap(0, pageSize, PROT_READ | PROT_WRITE, 
-						MAP_SHARED, fd, offset);
-				memcpy((void *) memory_file, (const void *) out + offset, pageSize);
-				munmap (memory_file, pageSize); 
-				offset += pageSize;
+				// Write one page (usually 4k)
+				while ((offset + pageSize) < outFileSize) {
+					ftruncate(fd, offset + pageSize);
+					memory_file = mmap(0, pageSize, PROT_READ | PROT_WRITE, 
+							MAP_SHARED, fd, offset);
+					memcpy((void *) memory_file, (const void *) out + offset, pageSize);
+					munmap (memory_file, pageSize); 
+					offset += pageSize;
+				}
+				ftruncate(fd, outFileSize);
+				memory_file = mmap (0, (outFileSize - offset), PROT_READ | PROT_WRITE,        
+							MAP_SHARED, fd, offset);
+				memcpy((void *) memory_file, (const void *) out + offset, outFileSize - offset);
+				munmap (memory_file, outFileSize - offset);                                   
+	
+				close(fd);
+
+				// Add file path to finish message
+				Data *block_info = finish_msg.add_data();
+				block_info->set_partition_id(blockId);
+				block_info->set_path(out_file_name);
+				block_info->set_width(dataLength);
+
+				free(in);
+				free(out);
 			}
-			ftruncate(fd, outFileSize);
-			memory_file = mmap (0, (outFileSize - offset), PROT_READ | PROT_WRITE,        
-						MAP_SHARED, fd, offset);
-			memcpy((void *) memory_file, (const void *) out + offset, outFileSize - offset);
-			munmap (memory_file, outFileSize - offset);                                   
-
-			close(fd);
-
-			free(in);
-			free(out);
 		}
 		else
 			fprintf(stderr, "Comm:process() error: Unknown message type, discarding message.\n");
-
-    TaskMsg finish_msg;
-    finish_msg.set_type(ACCFINISH);
 
     send(finish_msg, socket_stream);
     logInfo(std::string("Comm:process(): Sent an ACCFINISH message.").c_str());

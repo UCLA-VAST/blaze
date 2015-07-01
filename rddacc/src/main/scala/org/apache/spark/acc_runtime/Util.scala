@@ -80,10 +80,15 @@ object Util {
         println("Fail to close memory mapped file " + fileName + ": " + e.toString)
     }
 
-    (fileName, input.length * typeSize)
+    (fileName, input.length)
   }
 
-  def readMemoryMappedFile[T: ClassTag](out: Array[T], fileName: String) = {
+  def readMemoryMappedFile[T: ClassTag](
+      out: Array[T], 
+      offset: Int, 
+      length: Int,
+      fileName: String) = {
+
      // Fetch size information
     val dataType: String = out(0).getClass.getName.replace("java.lang.", "").toLowerCase()
     val typeSize: Int = getTypeSizeByName(dataType)
@@ -99,11 +104,11 @@ object Util {
     }
 
     val fc: FileChannel = raf.getChannel()
-    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, out.length * typeSize)
+    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, length * typeSize)
     buf.order(ByteOrder.LITTLE_ENDIAN)
 
-    var idx: Int = 0
-    while (idx < out.length) {
+    var idx: Int = offset
+    while (idx < offset + length) {
       dataType match {
         case "int" => out(idx) = buf.getInt().asInstanceOf[T]
         case "float" => out(idx) = buf.getFloat().asInstanceOf[T]
