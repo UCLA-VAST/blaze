@@ -139,15 +139,15 @@ public final class AccMessage {
      */
     int getPartitionId();
 
-    // optional .acc_runtime.Data.Type data_type = 2;
+    // optional int32 width = 2;
     /**
-     * <code>optional .acc_runtime.Data.Type data_type = 2;</code>
+     * <code>optional int32 width = 2;</code>
      */
-    boolean hasDataType();
+    boolean hasWidth();
     /**
-     * <code>optional .acc_runtime.Data.Type data_type = 2;</code>
+     * <code>optional int32 width = 2;</code>
      */
-    org.apache.spark.acc_runtime.AccMessage.Data.Type getDataType();
+    int getWidth();
 
     // optional int64 size = 3;
     /**
@@ -184,15 +184,15 @@ public final class AccMessage {
      */
     int getOffset();
 
-    // optional .acc_runtime.Data.Flag_type flag = 6;
+    // optional bool cached = 6;
     /**
-     * <code>optional .acc_runtime.Data.Flag_type flag = 6;</code>
+     * <code>optional bool cached = 6;</code>
      */
-    boolean hasFlag();
+    boolean hasCached();
     /**
-     * <code>optional .acc_runtime.Data.Flag_type flag = 6;</code>
+     * <code>optional bool cached = 6;</code>
      */
-    org.apache.spark.acc_runtime.AccMessage.Data.Flag_type getFlag();
+    boolean getCached();
   }
   /**
    * Protobuf type {@code acc_runtime.Data}
@@ -251,14 +251,8 @@ public final class AccMessage {
               break;
             }
             case 16: {
-              int rawValue = input.readEnum();
-              org.apache.spark.acc_runtime.AccMessage.Data.Type value = org.apache.spark.acc_runtime.AccMessage.Data.Type.valueOf(rawValue);
-              if (value == null) {
-                unknownFields.mergeVarintField(2, rawValue);
-              } else {
-                bitField0_ |= 0x00000002;
-                dataType_ = value;
-              }
+              bitField0_ |= 0x00000002;
+              width_ = input.readInt32();
               break;
             }
             case 24: {
@@ -277,14 +271,8 @@ public final class AccMessage {
               break;
             }
             case 48: {
-              int rawValue = input.readEnum();
-              org.apache.spark.acc_runtime.AccMessage.Data.Flag_type value = org.apache.spark.acc_runtime.AccMessage.Data.Flag_type.valueOf(rawValue);
-              if (value == null) {
-                unknownFields.mergeVarintField(6, rawValue);
-              } else {
-                bitField0_ |= 0x00000020;
-                flag_ = value;
-              }
+              bitField0_ |= 0x00000020;
+              cached_ = input.readBool();
               break;
             }
           }
@@ -326,197 +314,6 @@ public final class AccMessage {
       return PARSER;
     }
 
-    /**
-     * Protobuf enum {@code acc_runtime.Data.Type}
-     */
-    public enum Type
-        implements com.google.protobuf.ProtocolMessageEnum {
-      /**
-       * <code>INT = 0;</code>
-       */
-      INT(0, 0),
-      /**
-       * <code>FLOAT = 1;</code>
-       */
-      FLOAT(1, 1),
-      /**
-       * <code>LONG = 2;</code>
-       */
-      LONG(2, 2),
-      /**
-       * <code>DOUBLE = 3;</code>
-       */
-      DOUBLE(3, 3),
-      /**
-       * <code>STRING = 4;</code>
-       */
-      STRING(4, 4),
-      ;
-
-      /**
-       * <code>INT = 0;</code>
-       */
-      public static final int INT_VALUE = 0;
-      /**
-       * <code>FLOAT = 1;</code>
-       */
-      public static final int FLOAT_VALUE = 1;
-      /**
-       * <code>LONG = 2;</code>
-       */
-      public static final int LONG_VALUE = 2;
-      /**
-       * <code>DOUBLE = 3;</code>
-       */
-      public static final int DOUBLE_VALUE = 3;
-      /**
-       * <code>STRING = 4;</code>
-       */
-      public static final int STRING_VALUE = 4;
-
-
-      public final int getNumber() { return value; }
-
-      public static Type valueOf(int value) {
-        switch (value) {
-          case 0: return INT;
-          case 1: return FLOAT;
-          case 2: return LONG;
-          case 3: return DOUBLE;
-          case 4: return STRING;
-          default: return null;
-        }
-      }
-
-      public static com.google.protobuf.Internal.EnumLiteMap<Type>
-          internalGetValueMap() {
-        return internalValueMap;
-      }
-      private static com.google.protobuf.Internal.EnumLiteMap<Type>
-          internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<Type>() {
-              public Type findValueByNumber(int number) {
-                return Type.valueOf(number);
-              }
-            };
-
-      public final com.google.protobuf.Descriptors.EnumValueDescriptor
-          getValueDescriptor() {
-        return getDescriptor().getValues().get(index);
-      }
-      public final com.google.protobuf.Descriptors.EnumDescriptor
-          getDescriptorForType() {
-        return getDescriptor();
-      }
-      public static final com.google.protobuf.Descriptors.EnumDescriptor
-          getDescriptor() {
-        return org.apache.spark.acc_runtime.AccMessage.Data.getDescriptor().getEnumTypes().get(0);
-      }
-
-      private static final Type[] VALUES = values();
-
-      public static Type valueOf(
-          com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
-        if (desc.getType() != getDescriptor()) {
-          throw new java.lang.IllegalArgumentException(
-            "EnumValueDescriptor is not for this type.");
-        }
-        return VALUES[desc.getIndex()];
-      }
-
-      private final int index;
-      private final int value;
-
-      private Type(int index, int value) {
-        this.index = index;
-        this.value = value;
-      }
-
-      // @@protoc_insertion_point(enum_scope:acc_runtime.Data.Type)
-    }
-
-    /**
-     * Protobuf enum {@code acc_runtime.Data.Flag_type}
-     */
-    public enum Flag_type
-        implements com.google.protobuf.ProtocolMessageEnum {
-      /**
-       * <code>CACHED = 0;</code>
-       */
-      CACHED(0, 0),
-      /**
-       * <code>NOT_CACHED = 1;</code>
-       */
-      NOT_CACHED(1, 1),
-      ;
-
-      /**
-       * <code>CACHED = 0;</code>
-       */
-      public static final int CACHED_VALUE = 0;
-      /**
-       * <code>NOT_CACHED = 1;</code>
-       */
-      public static final int NOT_CACHED_VALUE = 1;
-
-
-      public final int getNumber() { return value; }
-
-      public static Flag_type valueOf(int value) {
-        switch (value) {
-          case 0: return CACHED;
-          case 1: return NOT_CACHED;
-          default: return null;
-        }
-      }
-
-      public static com.google.protobuf.Internal.EnumLiteMap<Flag_type>
-          internalGetValueMap() {
-        return internalValueMap;
-      }
-      private static com.google.protobuf.Internal.EnumLiteMap<Flag_type>
-          internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<Flag_type>() {
-              public Flag_type findValueByNumber(int number) {
-                return Flag_type.valueOf(number);
-              }
-            };
-
-      public final com.google.protobuf.Descriptors.EnumValueDescriptor
-          getValueDescriptor() {
-        return getDescriptor().getValues().get(index);
-      }
-      public final com.google.protobuf.Descriptors.EnumDescriptor
-          getDescriptorForType() {
-        return getDescriptor();
-      }
-      public static final com.google.protobuf.Descriptors.EnumDescriptor
-          getDescriptor() {
-        return org.apache.spark.acc_runtime.AccMessage.Data.getDescriptor().getEnumTypes().get(1);
-      }
-
-      private static final Flag_type[] VALUES = values();
-
-      public static Flag_type valueOf(
-          com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
-        if (desc.getType() != getDescriptor()) {
-          throw new java.lang.IllegalArgumentException(
-            "EnumValueDescriptor is not for this type.");
-        }
-        return VALUES[desc.getIndex()];
-      }
-
-      private final int index;
-      private final int value;
-
-      private Flag_type(int index, int value) {
-        this.index = index;
-        this.value = value;
-      }
-
-      // @@protoc_insertion_point(enum_scope:acc_runtime.Data.Flag_type)
-    }
-
     private int bitField0_;
     // required int32 partition_id = 1;
     public static final int PARTITION_ID_FIELD_NUMBER = 1;
@@ -534,20 +331,20 @@ public final class AccMessage {
       return partitionId_;
     }
 
-    // optional .acc_runtime.Data.Type data_type = 2;
-    public static final int DATA_TYPE_FIELD_NUMBER = 2;
-    private org.apache.spark.acc_runtime.AccMessage.Data.Type dataType_;
+    // optional int32 width = 2;
+    public static final int WIDTH_FIELD_NUMBER = 2;
+    private int width_;
     /**
-     * <code>optional .acc_runtime.Data.Type data_type = 2;</code>
+     * <code>optional int32 width = 2;</code>
      */
-    public boolean hasDataType() {
+    public boolean hasWidth() {
       return ((bitField0_ & 0x00000002) == 0x00000002);
     }
     /**
-     * <code>optional .acc_runtime.Data.Type data_type = 2;</code>
+     * <code>optional int32 width = 2;</code>
      */
-    public org.apache.spark.acc_runtime.AccMessage.Data.Type getDataType() {
-      return dataType_;
+    public int getWidth() {
+      return width_;
     }
 
     // optional int64 size = 3;
@@ -625,29 +422,29 @@ public final class AccMessage {
       return offset_;
     }
 
-    // optional .acc_runtime.Data.Flag_type flag = 6;
-    public static final int FLAG_FIELD_NUMBER = 6;
-    private org.apache.spark.acc_runtime.AccMessage.Data.Flag_type flag_;
+    // optional bool cached = 6;
+    public static final int CACHED_FIELD_NUMBER = 6;
+    private boolean cached_;
     /**
-     * <code>optional .acc_runtime.Data.Flag_type flag = 6;</code>
+     * <code>optional bool cached = 6;</code>
      */
-    public boolean hasFlag() {
+    public boolean hasCached() {
       return ((bitField0_ & 0x00000020) == 0x00000020);
     }
     /**
-     * <code>optional .acc_runtime.Data.Flag_type flag = 6;</code>
+     * <code>optional bool cached = 6;</code>
      */
-    public org.apache.spark.acc_runtime.AccMessage.Data.Flag_type getFlag() {
-      return flag_;
+    public boolean getCached() {
+      return cached_;
     }
 
     private void initFields() {
       partitionId_ = 0;
-      dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
+      width_ = 0;
       size_ = 0L;
       path_ = "";
       offset_ = 0;
-      flag_ = org.apache.spark.acc_runtime.AccMessage.Data.Flag_type.CACHED;
+      cached_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -669,7 +466,7 @@ public final class AccMessage {
         output.writeInt32(1, partitionId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeEnum(2, dataType_.getNumber());
+        output.writeInt32(2, width_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeInt64(3, size_);
@@ -681,7 +478,7 @@ public final class AccMessage {
         output.writeInt32(5, offset_);
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        output.writeEnum(6, flag_.getNumber());
+        output.writeBool(6, cached_);
       }
       getUnknownFields().writeTo(output);
     }
@@ -698,7 +495,7 @@ public final class AccMessage {
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(2, dataType_.getNumber());
+          .computeInt32Size(2, width_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
@@ -714,7 +511,7 @@ public final class AccMessage {
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(6, flag_.getNumber());
+          .computeBoolSize(6, cached_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -834,7 +631,7 @@ public final class AccMessage {
         super.clear();
         partitionId_ = 0;
         bitField0_ = (bitField0_ & ~0x00000001);
-        dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
+        width_ = 0;
         bitField0_ = (bitField0_ & ~0x00000002);
         size_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000004);
@@ -842,7 +639,7 @@ public final class AccMessage {
         bitField0_ = (bitField0_ & ~0x00000008);
         offset_ = 0;
         bitField0_ = (bitField0_ & ~0x00000010);
-        flag_ = org.apache.spark.acc_runtime.AccMessage.Data.Flag_type.CACHED;
+        cached_ = false;
         bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
@@ -879,7 +676,7 @@ public final class AccMessage {
         if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
           to_bitField0_ |= 0x00000002;
         }
-        result.dataType_ = dataType_;
+        result.width_ = width_;
         if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
           to_bitField0_ |= 0x00000004;
         }
@@ -895,7 +692,7 @@ public final class AccMessage {
         if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
           to_bitField0_ |= 0x00000020;
         }
-        result.flag_ = flag_;
+        result.cached_ = cached_;
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
@@ -915,8 +712,8 @@ public final class AccMessage {
         if (other.hasPartitionId()) {
           setPartitionId(other.getPartitionId());
         }
-        if (other.hasDataType()) {
-          setDataType(other.getDataType());
+        if (other.hasWidth()) {
+          setWidth(other.getWidth());
         }
         if (other.hasSize()) {
           setSize(other.getSize());
@@ -929,8 +726,8 @@ public final class AccMessage {
         if (other.hasOffset()) {
           setOffset(other.getOffset());
         }
-        if (other.hasFlag()) {
-          setFlag(other.getFlag());
+        if (other.hasCached()) {
+          setCached(other.getCached());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
@@ -996,38 +793,35 @@ public final class AccMessage {
         return this;
       }
 
-      // optional .acc_runtime.Data.Type data_type = 2;
-      private org.apache.spark.acc_runtime.AccMessage.Data.Type dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
+      // optional int32 width = 2;
+      private int width_ ;
       /**
-       * <code>optional .acc_runtime.Data.Type data_type = 2;</code>
+       * <code>optional int32 width = 2;</code>
        */
-      public boolean hasDataType() {
+      public boolean hasWidth() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
       }
       /**
-       * <code>optional .acc_runtime.Data.Type data_type = 2;</code>
+       * <code>optional int32 width = 2;</code>
        */
-      public org.apache.spark.acc_runtime.AccMessage.Data.Type getDataType() {
-        return dataType_;
+      public int getWidth() {
+        return width_;
       }
       /**
-       * <code>optional .acc_runtime.Data.Type data_type = 2;</code>
+       * <code>optional int32 width = 2;</code>
        */
-      public Builder setDataType(org.apache.spark.acc_runtime.AccMessage.Data.Type value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
+      public Builder setWidth(int value) {
         bitField0_ |= 0x00000002;
-        dataType_ = value;
+        width_ = value;
         onChanged();
         return this;
       }
       /**
-       * <code>optional .acc_runtime.Data.Type data_type = 2;</code>
+       * <code>optional int32 width = 2;</code>
        */
-      public Builder clearDataType() {
+      public Builder clearWidth() {
         bitField0_ = (bitField0_ & ~0x00000002);
-        dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
+        width_ = 0;
         onChanged();
         return this;
       }
@@ -1172,38 +966,35 @@ public final class AccMessage {
         return this;
       }
 
-      // optional .acc_runtime.Data.Flag_type flag = 6;
-      private org.apache.spark.acc_runtime.AccMessage.Data.Flag_type flag_ = org.apache.spark.acc_runtime.AccMessage.Data.Flag_type.CACHED;
+      // optional bool cached = 6;
+      private boolean cached_ ;
       /**
-       * <code>optional .acc_runtime.Data.Flag_type flag = 6;</code>
+       * <code>optional bool cached = 6;</code>
        */
-      public boolean hasFlag() {
+      public boolean hasCached() {
         return ((bitField0_ & 0x00000020) == 0x00000020);
       }
       /**
-       * <code>optional .acc_runtime.Data.Flag_type flag = 6;</code>
+       * <code>optional bool cached = 6;</code>
        */
-      public org.apache.spark.acc_runtime.AccMessage.Data.Flag_type getFlag() {
-        return flag_;
+      public boolean getCached() {
+        return cached_;
       }
       /**
-       * <code>optional .acc_runtime.Data.Flag_type flag = 6;</code>
+       * <code>optional bool cached = 6;</code>
        */
-      public Builder setFlag(org.apache.spark.acc_runtime.AccMessage.Data.Flag_type value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
+      public Builder setCached(boolean value) {
         bitField0_ |= 0x00000020;
-        flag_ = value;
+        cached_ = value;
         onChanged();
         return this;
       }
       /**
-       * <code>optional .acc_runtime.Data.Flag_type flag = 6;</code>
+       * <code>optional bool cached = 6;</code>
        */
-      public Builder clearFlag() {
+      public Builder clearCached() {
         bitField0_ = (bitField0_ & ~0x00000020);
-        flag_ = org.apache.spark.acc_runtime.AccMessage.Data.Flag_type.CACHED;
+        cached_ = false;
         onChanged();
         return this;
       }
@@ -2262,20 +2053,16 @@ public final class AccMessage {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\ntask.proto\022\013acc_runtime\"\205\002\n\004Data\022\024\n\014pa" +
-      "rtition_id\030\001 \002(\005\022)\n\tdata_type\030\002 \001(\0162\026.ac" +
-      "c_runtime.Data.Type\022\014\n\004size\030\003 \001(\003\022\014\n\004pat" +
-      "h\030\004 \001(\t\022\016\n\006offset\030\005 \001(\005\022)\n\004flag\030\006 \001(\0162\033." +
-      "acc_runtime.Data.Flag_type\"<\n\004Type\022\007\n\003IN" +
-      "T\020\000\022\t\n\005FLOAT\020\001\022\010\n\004LONG\020\002\022\n\n\006DOUBLE\020\003\022\n\n\006" +
-      "STRING\020\004\"\'\n\tFlag_type\022\n\n\006CACHED\020\000\022\016\n\nNOT" +
-      "_CACHED\020\001\"o\n\007TaskMsg\022\"\n\004type\030\001 \002(\0162\024.acc" +
-      "_runtime.MsgType\022\016\n\006acc_id\030\002 \001(\t\022\017\n\007task" +
-      "_id\030\003 \001(\005\022\037\n\004data\030\004 \003(\0132\021.acc_runtime.Da",
-      "ta*b\n\007MsgType\022\016\n\nACCREQUEST\020\000\022\014\n\010ACCGRAN" +
-      "T\020\001\022\r\n\tACCREJECT\020\002\022\r\n\tACCFINISH\020\003\022\013\n\007ACC" +
-      "DATA\020\004\022\016\n\nACCFAILURE\020\005B*\n\034org.apache.spa" +
-      "rk.acc_runtimeB\nAccMessage"
+      "\n\ntask.proto\022\013acc_runtime\"g\n\004Data\022\024\n\014par" +
+      "tition_id\030\001 \002(\005\022\r\n\005width\030\002 \001(\005\022\014\n\004size\030\003" +
+      " \001(\003\022\014\n\004path\030\004 \001(\t\022\016\n\006offset\030\005 \001(\005\022\016\n\006ca" +
+      "ched\030\006 \001(\010\"o\n\007TaskMsg\022\"\n\004type\030\001 \002(\0162\024.ac" +
+      "c_runtime.MsgType\022\016\n\006acc_id\030\002 \001(\t\022\017\n\007tas" +
+      "k_id\030\003 \001(\005\022\037\n\004data\030\004 \003(\0132\021.acc_runtime.D" +
+      "ata*b\n\007MsgType\022\016\n\nACCREQUEST\020\000\022\014\n\010ACCGRA" +
+      "NT\020\001\022\r\n\tACCREJECT\020\002\022\r\n\tACCFINISH\020\003\022\013\n\007AC" +
+      "CDATA\020\004\022\016\n\nACCFAILURE\020\005B*\n\034org.apache.sp" +
+      "ark.acc_runtimeB\nAccMessage"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -2287,7 +2074,7 @@ public final class AccMessage {
           internal_static_acc_runtime_Data_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_acc_runtime_Data_descriptor,
-              new java.lang.String[] { "PartitionId", "DataType", "Size", "Path", "Offset", "Flag", });
+              new java.lang.String[] { "PartitionId", "Width", "Size", "Path", "Offset", "Cached", });
           internal_static_acc_runtime_TaskMsg_descriptor =
             getDescriptor().getMessageTypes().get(1);
           internal_static_acc_runtime_TaskMsg_fieldAccessorTable = new
