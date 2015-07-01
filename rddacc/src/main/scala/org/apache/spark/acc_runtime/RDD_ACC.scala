@@ -6,7 +6,7 @@ import java.util.ArrayList
 import java.nio.ByteBuffer     
 import java.nio.ByteOrder      
 
-import scala.reflect.ClassTag
+import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
 
 import org.apache.spark._
@@ -18,9 +18,12 @@ import org.apache.spark.scheduler._
 class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U) 
   extends RDD[U](prev) {
 
+  def getRDD() = this
+
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
+    val numBlock = 1 // FIXME: Assume 1 at this time
     val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
 
     // Parse Hadoop file string: file:<path>:<offset>+<size>
@@ -31,57 +34,87 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val fileSize: Int = splitInfo.substring(
         splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
 
-    val splitKey = RDDBlockId(this.id, split.index)
-//    SparkEnv.blockManager
-
     val inputIter = firstParent[T].iterator(split, context)
-
+/*
+    var inputIter: Iterator[T] = inMemoryCheck(split, context) match {
+      case true =>
+        println(split.index + " cached.")
+        firstParent[T].iterator(split, context)
+      case false =>
+        println(split.index + " uncached.")
+        null
+    }
+*/
     val outputIter = new Iterator[U] {
-      val inputAry: Array[T] = inputIter.toArray
-      val outputAry: Array[U] = new Array[U](inputAry.length)
+      val N: Int = fileSize / Util.getTypeSizeByRDD(getRDD())
+      val outputAry: Array[U] = new Array[U](N)
       var idx: Int = 0
-
-      // TODO: We should send either data (memory mapped file) or file path,
-      // but now we just send data.
-      val mappedFileInfo = Util.serializePartition(inputAry, split.index)
       val transmitter = new DataTransmitter()
 
-      var msg: AccMessage.TaskMsg = 
-        transmitter.createTaskMsg(split.index, AccMessage.MsgType.ACCREQUEST)
+      var msg = transmitter.buildRequest(split.index)
       transmitter.send(msg)
-      msg = transmitter.receive()
+      var revMsg = transmitter.receive()
 
-      // TODO: We should retry if rejected.
-      if (msg.getType() != AccMessage.MsgType.ACCGRANT)
+      // TODO: We should retry or use CPU if rejected.
+      if (revMsg.getType() != AccMessage.MsgType.ACCGRANT)
         throw new RuntimeException("Request reject.")
       else
         println("Acquire resource, sending data...")
 
-      msg = transmitter.createDataMsg(
-          split.index, 
-          mappedFileInfo._2, 
-          mappedFileInfo._3,
-          mappedFileInfo._1)
+      val dataMsg = transmitter.buildData(split.index)
 
-      transmitter.send(msg)
-      msg = transmitter.receive()
+      var i: Int = 0
+      var blockFileName: Array[String] = new Array[String](revMsg.getDataCount())
+      while (i < numBlock) {
+        if (!revMsg.getData(i).getCached()) {
+          if (inputIter != null) { // Send data from memory
+            val inputAry: Array[T] = inputIter.toArray
+            val mappedFileInfo = Util.serializePartition(inputAry, split.index)
+            blockFileName(i) = mappedFileInfo._1
+            println("Mapped file name " + blockFileName(i))
 
-      if (msg.getType() == AccMessage.MsgType.ACCFINISH) {
+            transmitter.addData(
+                dataMsg,
+                split.index * 100 + i, // id
+                N, // width
+                mappedFileInfo._2, // size
+                0, // offset
+                blockFileName(i) + "!" // path
+            )
+          }
+          else { // Send HDFS file information     
+            transmitter.addData(
+                dataMsg, split.index * 100 + i, N, fileSize, fileOffset, filePath)
+          }
+        }
+        i = i + 1
+      }
+      transmitter.send(dataMsg)
+      revMsg = transmitter.receive()
+
+      if (revMsg.getType() == AccMessage.MsgType.ACCFINISH) {
         // read result
-        Util.readMemoryMappedFile(outputAry, mappedFileInfo._1 + ".out")
+        i = 0
+        while (i < numBlock) {
+          Util.readMemoryMappedFile(outputAry, blockFileName(i) + ".out")
+          i = i + 1
+        }
       }
       else {
         // in case of using CPU
         println("Compute partition " + split.index + " using CPU")
+//        if (inputIter == null)
+//          inputIter = firstParent[T].iterator(split, context)
+        val inputAry: Array[T] = inputIter.toArray
+        i = 0
         for (e <- inputAry) {
-          outputAry(idx) = f(e.asInstanceOf[T])
-          idx = idx + 1
+          outputAry(i) = f(e.asInstanceOf[T])
+          i = i + 1
         }
-        idx = 0
       }
 
       def hasNext(): Boolean = {
-        idx < inputAry.length
+        idx < outputAry.length
       }
 
       def next(): U = {
@@ -90,6 +123,21 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       }
     }
     outputIter
+  }
+
+  def inMemoryCheck(split: Partition, context: TaskContext): Boolean = {
+    if (getStorageLevel == StorageLevel.NONE)
+      false
+    else {
+    // FIXME
+//      val splitKey = RDDBlockId(this.id, split.index)
+//      SparkEnv.get.cacheManager.blockManager.get(splitKey) match {
+//        case Some(result) =>
+          true
+//        case None =>
+//          false
+//      }
+    }
   }
 }
 

@@ -139,23 +139,23 @@ public final class AccMessage {
      */
     int getPartitionId();
 
-    // required .acc_runtime.Data.Type data_type = 2;
+    // optional int32 width = 2;
     /**
-     * <code>required .acc_runtime.Data.Type data_type = 2;</code>
+     * <code>optional int32 width = 2;</code>
      */
-    boolean hasDataType();
+    boolean hasWidth();
     /**
-     * <code>required .acc_runtime.Data.Type data_type = 2;</code>
+     * <code>optional int32 width = 2;</code>
      */
-    org.apache.spark.acc_runtime.AccMessage.Data.Type getDataType();
+    int getWidth();
 
-    // required int64 size = 3;
+    // optional int64 size = 3;
     /**
-     * <code>required int64 size = 3;</code>
+     * <code>optional int64 size = 3;</code>
      */
     boolean hasSize();
     /**
-     * <code>required int64 size = 3;</code>
+     * <code>optional int64 size = 3;</code>
      */
     long getSize();
 
@@ -173,6 +173,26 @@ public final class AccMessage {
      */
     com.google.protobuf.ByteString
         getPathBytes();
+
+    // optional int32 offset = 5;
+    /**
+     * <code>optional int32 offset = 5;</code>
+     */
+    boolean hasOffset();
+    /**
+     * <code>optional int32 offset = 5;</code>
+     */
+    int getOffset();
+
+    // optional bool cached = 6;
+    /**
+     * <code>optional bool cached = 6;</code>
+     */
+    boolean hasCached();
+    /**
+     * <code>optional bool cached = 6;</code>
+     */
+    boolean getCached();
   }
   /**
    * Protobuf type {@code acc_runtime.Data}
@@ -231,14 +251,8 @@ public final class AccMessage {
               break;
             }
             case 16: {
-              int rawValue = input.readEnum();
-              org.apache.spark.acc_runtime.AccMessage.Data.Type value = org.apache.spark.acc_runtime.AccMessage.Data.Type.valueOf(rawValue);
-              if (value == null) {
-                unknownFields.mergeVarintField(2, rawValue);
-              } else {
-                bitField0_ |= 0x00000002;
-                dataType_ = value;
-              }
+              bitField0_ |= 0x00000002;
+              width_ = input.readInt32();
               break;
             }
             case 24: {
@@ -249,6 +263,16 @@ public final class AccMessage {
             case 34: {
               bitField0_ |= 0x00000008;
               path_ = input.readBytes();
+              break;
+            }
+            case 40: {
+              bitField0_ |= 0x00000010;
+              offset_ = input.readInt32();
+              break;
+            }
+            case 48: {
+              bitField0_ |= 0x00000020;
+              cached_ = input.readBool();
               break;
             }
           }
@@ -290,115 +314,6 @@ public final class AccMessage {
       return PARSER;
     }
 
-    /**
-     * Protobuf enum {@code acc_runtime.Data.Type}
-     */
-    public enum Type
-        implements com.google.protobuf.ProtocolMessageEnum {
-      /**
-       * <code>INT = 0;</code>
-       */
-      INT(0, 0),
-      /**
-       * <code>FLOAT = 1;</code>
-       */
-      FLOAT(1, 1),
-      /**
-       * <code>LONG = 2;</code>
-       */
-      LONG(2, 2),
-      /**
-       * <code>DOUBLE = 3;</code>
-       */
-      DOUBLE(3, 3),
-      /**
-       * <code>STRING = 4;</code>
-       */
-      STRING(4, 4),
-      ;
-
-      /**
-       * <code>INT = 0;</code>
-       */
-      public static final int INT_VALUE = 0;
-      /**
-       * <code>FLOAT = 1;</code>
-       */
-      public static final int FLOAT_VALUE = 1;
-      /**
-       * <code>LONG = 2;</code>
-       */
-      public static final int LONG_VALUE = 2;
-      /**
-       * <code>DOUBLE = 3;</code>
-       */
-      public static final int DOUBLE_VALUE = 3;
-      /**
-       * <code>STRING = 4;</code>
-       */
-      public static final int STRING_VALUE = 4;
-
-
-      public final int getNumber() { return value; }
-
-      public static Type valueOf(int value) {
-        switch (value) {
-          case 0: return INT;
-          case 1: return FLOAT;
-          case 2: return LONG;
-          case 3: return DOUBLE;
-          case 4: return STRING;
-          default: return null;
-        }
-      }
-
-      public static com.google.protobuf.Internal.EnumLiteMap<Type>
-          internalGetValueMap() {
-        return internalValueMap;
-      }
-      private static com.google.protobuf.Internal.EnumLiteMap<Type>
-          internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<Type>() {
-              public Type findValueByNumber(int number) {
-                return Type.valueOf(number);
-              }
-            };
-
-      public final com.google.protobuf.Descriptors.EnumValueDescriptor
-          getValueDescriptor() {
-        return getDescriptor().getValues().get(index);
-      }
-      public final com.google.protobuf.Descriptors.EnumDescriptor
-          getDescriptorForType() {
-        return getDescriptor();
-      }
-      public static final com.google.protobuf.Descriptors.EnumDescriptor
-          getDescriptor() {
-        return org.apache.spark.acc_runtime.AccMessage.Data.getDescriptor().getEnumTypes().get(0);
-      }
-
-      private static final Type[] VALUES = values();
-
-      public static Type valueOf(
-          com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
-        if (desc.getType() != getDescriptor()) {
-          throw new java.lang.IllegalArgumentException(
-            "EnumValueDescriptor is not for this type.");
-        }
-        return VALUES[desc.getIndex()];
-      }
-
-      private final int index;
-      private final int value;
-
-      private Type(int index, int value) {
-        this.index = index;
-        this.value = value;
-      }
-
-      // @@protoc_insertion_point(enum_scope:acc_runtime.Data.Type)
-    }
-
     private int bitField0_;
     // required int32 partition_id = 1;
     public static final int PARTITION_ID_FIELD_NUMBER = 1;
@@ -416,33 +331,33 @@ public final class AccMessage {
       return partitionId_;
     }
 
-    // required .acc_runtime.Data.Type data_type = 2;
-    public static final int DATA_TYPE_FIELD_NUMBER = 2;
-    private org.apache.spark.acc_runtime.AccMessage.Data.Type dataType_;
+    // optional int32 width = 2;
+    public static final int WIDTH_FIELD_NUMBER = 2;
+    private int width_;
     /**
-     * <code>required .acc_runtime.Data.Type data_type = 2;</code>
+     * <code>optional int32 width = 2;</code>
      */
-    public boolean hasDataType() {
+    public boolean hasWidth() {
       return ((bitField0_ & 0x00000002) == 0x00000002);
     }
     /**
-     * <code>required .acc_runtime.Data.Type data_type = 2;</code>
+     * <code>optional int32 width = 2;</code>
      */
-    public org.apache.spark.acc_runtime.AccMessage.Data.Type getDataType() {
-      return dataType_;
+    public int getWidth() {
+      return width_;
     }
 
-    // required int64 size = 3;
+    // optional int64 size = 3;
     public static final int SIZE_FIELD_NUMBER = 3;
     private long size_;
     /**
-     * <code>required int64 size = 3;</code>
+     * <code>optional int64 size = 3;</code>
      */
     public boolean hasSize() {
       return ((bitField0_ & 0x00000004) == 0x00000004);
     }
     /**
-     * <code>required int64 size = 3;</code>
+     * <code>optional int64 size = 3;</code>
      */
     public long getSize() {
       return size_;
@@ -491,11 +406,45 @@ public final class AccMessage {
       }
     }
 
+    // optional int32 offset = 5;
+    public static final int OFFSET_FIELD_NUMBER = 5;
+    private int offset_;
+    /**
+     * <code>optional int32 offset = 5;</code>
+     */
+    public boolean hasOffset() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    /**
+     * <code>optional int32 offset = 5;</code>
+     */
+    public int getOffset() {
+      return offset_;
+    }
+
+    // optional bool cached = 6;
+    public static final int CACHED_FIELD_NUMBER = 6;
+    private boolean cached_;
+    /**
+     * <code>optional bool cached = 6;</code>
+     */
+    public boolean hasCached() {
+      return ((bitField0_ & 0x00000020) == 0x00000020);
+    }
+    /**
+     * <code>optional bool cached = 6;</code>
+     */
+    public boolean getCached() {
+      return cached_;
+    }
+
     private void initFields() {
       partitionId_ = 0;
-      dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
+      width_ = 0;
       size_ = 0L;
       path_ = "";
+      offset_ = 0;
+      cached_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -503,14 +452,6 @@ public final class AccMessage {
       if (isInitialized != -1) return isInitialized == 1;
 
       if (!hasPartitionId()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasDataType()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasSize()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -525,13 +466,19 @@ public final class AccMessage {
         output.writeInt32(1, partitionId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeEnum(2, dataType_.getNumber());
+        output.writeInt32(2, width_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeInt64(3, size_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         output.writeBytes(4, getPathBytes());
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeInt32(5, offset_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        output.writeBool(6, cached_);
       }
       getUnknownFields().writeTo(output);
     }
@@ -548,7 +495,7 @@ public final class AccMessage {
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(2, dataType_.getNumber());
+          .computeInt32Size(2, width_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
@@ -557,6 +504,14 @@ public final class AccMessage {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(4, getPathBytes());
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt32Size(5, offset_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(6, cached_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -676,12 +631,16 @@ public final class AccMessage {
         super.clear();
         partitionId_ = 0;
         bitField0_ = (bitField0_ & ~0x00000001);
-        dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
+        width_ = 0;
         bitField0_ = (bitField0_ & ~0x00000002);
         size_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000004);
         path_ = "";
         bitField0_ = (bitField0_ & ~0x00000008);
+        offset_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000010);
+        cached_ = false;
+        bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
 
@@ -717,7 +676,7 @@ public final class AccMessage {
         if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
           to_bitField0_ |= 0x00000002;
         }
-        result.dataType_ = dataType_;
+        result.width_ = width_;
         if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
           to_bitField0_ |= 0x00000004;
         }
@@ -726,6 +685,14 @@ public final class AccMessage {
           to_bitField0_ |= 0x00000008;
         }
         result.path_ = path_;
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.offset_ = offset_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000020;
+        }
+        result.cached_ = cached_;
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
@@ -745,8 +712,8 @@ public final class AccMessage {
         if (other.hasPartitionId()) {
           setPartitionId(other.getPartitionId());
         }
-        if (other.hasDataType()) {
-          setDataType(other.getDataType());
+        if (other.hasWidth()) {
+          setWidth(other.getWidth());
         }
         if (other.hasSize()) {
           setSize(other.getSize());
@@ -756,20 +723,18 @@ public final class AccMessage {
           path_ = other.path_;
           onChanged();
         }
+        if (other.hasOffset()) {
+          setOffset(other.getOffset());
+        }
+        if (other.hasCached()) {
+          setCached(other.getCached());
+        }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
       }
 
       public final boolean isInitialized() {
         if (!hasPartitionId()) {
-          
-          return false;
-        }
-        if (!hasDataType()) {
-          
-          return false;
-        }
-        if (!hasSize()) {
           
           return false;
         }
@@ -828,58 +793,55 @@ public final class AccMessage {
         return this;
       }
 
-      // required .acc_runtime.Data.Type data_type = 2;
-      private org.apache.spark.acc_runtime.AccMessage.Data.Type dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
+      // optional int32 width = 2;
+      private int width_ ;
       /**
-       * <code>required .acc_runtime.Data.Type data_type = 2;</code>
+       * <code>optional int32 width = 2;</code>
        */
-      public boolean hasDataType() {
+      public boolean hasWidth() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
       }
       /**
-       * <code>required .acc_runtime.Data.Type data_type = 2;</code>
+       * <code>optional int32 width = 2;</code>
        */
-      public org.apache.spark.acc_runtime.AccMessage.Data.Type getDataType() {
-        return dataType_;
+      public int getWidth() {
+        return width_;
       }
       /**
-       * <code>required .acc_runtime.Data.Type data_type = 2;</code>
+       * <code>optional int32 width = 2;</code>
        */
-      public Builder setDataType(org.apache.spark.acc_runtime.AccMessage.Data.Type value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
+      public Builder setWidth(int value) {
         bitField0_ |= 0x00000002;
-        dataType_ = value;
+        width_ = value;
         onChanged();
         return this;
       }
       /**
-       * <code>required .acc_runtime.Data.Type data_type = 2;</code>
+       * <code>optional int32 width = 2;</code>
        */
-      public Builder clearDataType() {
+      public Builder clearWidth() {
         bitField0_ = (bitField0_ & ~0x00000002);
-        dataType_ = org.apache.spark.acc_runtime.AccMessage.Data.Type.INT;
+        width_ = 0;
         onChanged();
         return this;
       }
 
-      // required int64 size = 3;
+      // optional int64 size = 3;
       private long size_ ;
       /**
-       * <code>required int64 size = 3;</code>
+       * <code>optional int64 size = 3;</code>
        */
       public boolean hasSize() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
       }
       /**
-       * <code>required int64 size = 3;</code>
+       * <code>optional int64 size = 3;</code>
        */
       public long getSize() {
         return size_;
       }
       /**
-       * <code>required int64 size = 3;</code>
+       * <code>optional int64 size = 3;</code>
        */
       public Builder setSize(long value) {
         bitField0_ |= 0x00000004;
@@ -888,7 +850,7 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>required int64 size = 3;</code>
+       * <code>optional int64 size = 3;</code>
        */
       public Builder clearSize() {
         bitField0_ = (bitField0_ & ~0x00000004);
@@ -971,6 +933,72 @@ public final class AccMessage {
         return this;
       }
 
+      // optional int32 offset = 5;
+      private int offset_ ;
+      /**
+       * <code>optional int32 offset = 5;</code>
+       */
+      public boolean hasOffset() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      /**
+       * <code>optional int32 offset = 5;</code>
+       */
+      public int getOffset() {
+        return offset_;
+      }
+      /**
+       * <code>optional int32 offset = 5;</code>
+       */
+      public Builder setOffset(int value) {
+        bitField0_ |= 0x00000010;
+        offset_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional int32 offset = 5;</code>
+       */
+      public Builder clearOffset() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        offset_ = 0;
+        onChanged();
+        return this;
+      }
+
+      // optional bool cached = 6;
+      private boolean cached_ ;
+      /**
+       * <code>optional bool cached = 6;</code>
+       */
+      public boolean hasCached() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      /**
+       * <code>optional bool cached = 6;</code>
+       */
+      public boolean getCached() {
+        return cached_;
+      }
+      /**
+       * <code>optional bool cached = 6;</code>
+       */
+      public Builder setCached(boolean value) {
+        bitField0_ |= 0x00000020;
+        cached_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional bool cached = 6;</code>
+       */
+      public Builder clearCached() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        cached_ = false;
+        onChanged();
+        return this;
+      }
+
       // @@protoc_insertion_point(builder_scope:acc_runtime.Data)
     }
 
@@ -1044,16 +1072,6 @@ public final class AccMessage {
      */
     org.apache.spark.acc_runtime.AccMessage.DataOrBuilder getDataOrBuilder(
         int index);
-
-    // optional int32 get_data = 5;
-    /**
-     * <code>optional int32 get_data = 5;</code>
-     */
-    boolean hasGetData();
-    /**
-     * <code>optional int32 get_data = 5;</code>
-     */
-    int getGetData();
   }
   /**
    * Protobuf type {@code acc_runtime.TaskMsg}
@@ -1133,11 +1151,6 @@ public final class AccMessage {
                 mutable_bitField0_ |= 0x00000008;
               }
               data_.add(input.readMessage(org.apache.spark.acc_runtime.AccMessage.Data.PARSER, extensionRegistry));
-              break;
-            }
-            case 40: {
-              bitField0_ |= 0x00000008;
-              getData_ = input.readInt32();
               break;
             }
           }
@@ -1294,28 +1307,11 @@ public final class AccMessage {
       return data_.get(index);
     }
 
-    // optional int32 get_data = 5;
-    public static final int GET_DATA_FIELD_NUMBER = 5;
-    private int getData_;
-    /**
-     * <code>optional int32 get_data = 5;</code>
-     */
-    public boolean hasGetData() {
-      return ((bitField0_ & 0x00000008) == 0x00000008);
-    }
-    /**
-     * <code>optional int32 get_data = 5;</code>
-     */
-    public int getGetData() {
-      return getData_;
-    }
-
     private void initFields() {
       type_ = org.apache.spark.acc_runtime.AccMessage.MsgType.ACCREQUEST;
       accId_ = "";
       taskId_ = 0;
       data_ = java.util.Collections.emptyList();
-      getData_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -1351,9 +1347,6 @@ public final class AccMessage {
       for (int i = 0; i < data_.size(); i++) {
         output.writeMessage(4, data_.get(i));
       }
-      if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        output.writeInt32(5, getData_);
-      }
       getUnknownFields().writeTo(output);
     }
 
@@ -1378,10 +1371,6 @@ public final class AccMessage {
       for (int i = 0; i < data_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(4, data_.get(i));
-      }
-      if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(5, getData_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -1512,8 +1501,6 @@ public final class AccMessage {
         } else {
           dataBuilder_.clear();
         }
-        getData_ = 0;
-        bitField0_ = (bitField0_ & ~0x00000010);
         return this;
       }
 
@@ -1563,10 +1550,6 @@ public final class AccMessage {
         } else {
           result.data_ = dataBuilder_.build();
         }
-        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
-          to_bitField0_ |= 0x00000008;
-        }
-        result.getData_ = getData_;
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
@@ -1619,9 +1602,6 @@ public final class AccMessage {
               dataBuilder_.addAllMessages(other.data_);
             }
           }
-        }
-        if (other.hasGetData()) {
-          setGetData(other.getGetData());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
@@ -2043,39 +2023,6 @@ public final class AccMessage {
         return dataBuilder_;
       }
 
-      // optional int32 get_data = 5;
-      private int getData_ ;
-      /**
-       * <code>optional int32 get_data = 5;</code>
-       */
-      public boolean hasGetData() {
-        return ((bitField0_ & 0x00000010) == 0x00000010);
-      }
-      /**
-       * <code>optional int32 get_data = 5;</code>
-       */
-      public int getGetData() {
-        return getData_;
-      }
-      /**
-       * <code>optional int32 get_data = 5;</code>
-       */
-      public Builder setGetData(int value) {
-        bitField0_ |= 0x00000010;
-        getData_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>optional int32 get_data = 5;</code>
-       */
-      public Builder clearGetData() {
-        bitField0_ = (bitField0_ & ~0x00000010);
-        getData_ = 0;
-        onChanged();
-        return this;
-      }
-
       // @@protoc_insertion_point(builder_scope:acc_runtime.TaskMsg)
     }
 
@@ -2106,18 +2053,16 @@ public final class AccMessage {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\ntask.proto\022\013acc_runtime\"\241\001\n\004Data\022\024\n\014pa" +
-      "rtition_id\030\001 \002(\005\022)\n\tdata_type\030\002 \002(\0162\026.ac" +
-      "c_runtime.Data.Type\022\014\n\004size\030\003 \002(\003\022\014\n\004pat" +
-      "h\030\004 \001(\t\"<\n\004Type\022\007\n\003INT\020\000\022\t\n\005FLOAT\020\001\022\010\n\004L" +
-      "ONG\020\002\022\n\n\006DOUBLE\020\003\022\n\n\006STRING\020\004\"\201\001\n\007TaskMs" +
-      "g\022\"\n\004type\030\001 \002(\0162\024.acc_runtime.MsgType\022\016\n" +
-      "\006acc_id\030\002 \001(\t\022\017\n\007task_id\030\003 \001(\005\022\037\n\004data\030\004" +
-      " \003(\0132\021.acc_runtime.Data\022\020\n\010get_data\030\005 \001(" +
-      "\005*b\n\007MsgType\022\016\n\nACCREQUEST\020\000\022\014\n\010ACCGRANT" +
-      "\020\001\022\r\n\tACCREJECT\020\002\022\r\n\tACCFINISH\020\003\022\013\n\007ACCD",
-      "ATA\020\004\022\016\n\nACCFAILURE\020\005B*\n\034org.apache.spar" +
-      "k.acc_runtimeB\nAccMessage"
+      "\n\ntask.proto\022\013acc_runtime\"g\n\004Data\022\024\n\014par" +
+      "tition_id\030\001 \002(\005\022\r\n\005width\030\002 \001(\005\022\014\n\004size\030\003" +
+      " \001(\003\022\014\n\004path\030\004 \001(\t\022\016\n\006offset\030\005 \001(\005\022\016\n\006ca" +
+      "ched\030\006 \001(\010\"o\n\007TaskMsg\022\"\n\004type\030\001 \002(\0162\024.ac" +
+      "c_runtime.MsgType\022\016\n\006acc_id\030\002 \001(\t\022\017\n\007tas" +
+      "k_id\030\003 \001(\005\022\037\n\004data\030\004 \003(\0132\021.acc_runtime.D" +
+      "ata*b\n\007MsgType\022\016\n\nACCREQUEST\020\000\022\014\n\010ACCGRA" +
+      "NT\020\001\022\r\n\tACCREJECT\020\002\022\r\n\tACCFINISH\020\003\022\013\n\007AC" +
+      "CDATA\020\004\022\016\n\nACCFAILURE\020\005B*\n\034org.apache.sp" +
+      "ark.acc_runtimeB\nAccMessage"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -2129,13 +2074,13 @@ public final class AccMessage {
           internal_static_acc_runtime_Data_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_acc_runtime_Data_descriptor,
-              new java.lang.String[] { "PartitionId", "DataType", "Size", "Path", });
+              new java.lang.String[] { "PartitionId", "Width", "Size", "Path", "Offset", "Cached", });
           internal_static_acc_runtime_TaskMsg_descriptor =
             getDescriptor().getMessageTypes().get(1);
           internal_static_acc_runtime_TaskMsg_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_acc_runtime_TaskMsg_descriptor,
-              new java.lang.String[] { "Type", "AccId", "TaskId", "Data", "GetData", });
+              new java.lang.String[] { "Type", "AccId", "TaskId", "Data", });
           return null;
         }
       };

@@ -50,9 +50,10 @@ public class DataTransmitter {
 	*		The message to be sent.
 	*	@see init(String hostname, int port)
 	**/
-	public void send(AccMessage.TaskMsg msg)
+	public void send(AccMessage.TaskMsg.Builder msgBuilder)
     throws IOException {
 
+		AccMessage.TaskMsg msg = msgBuilder.build();
     int msg_size = msg.getSerializedSize();
 
     // send byte size
@@ -90,30 +91,40 @@ public class DataTransmitter {
 	/**
 	* Create a task message for requesting.
 	**/
-	public AccMessage.TaskMsg createTaskMsg(int idx, AccMessage.MsgType type) {
-		AccMessage.TaskMsg msg = AccMessage.TaskMsg.newBuilder()
-			.setType(type)
-			.setAccId("request" + idx)
-			.build();
+	public AccMessage.TaskMsg.Builder buildRequest(int id) {
+		AccMessage.Data.Builder data = AccMessage.Data.newBuilder()
+			.setPartitionId(id);
+
+		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
+			.setType(AccMessage.MsgType.ACCREQUEST)
+			.setAccId("request" + id)
+			.addData(data);
 		
 		return msg;
 	}
 
 	/**
-	* Create a data message.
+	* Create an empty data message.
 	**/
-	public AccMessage.TaskMsg createDataMsg(int id, AccMessage.Data.Type dataType, int size, String path) {
-		AccMessage.Data.Builder data = AccMessage.Data.newBuilder()
-			.setPartitionId(id)
-			.setDataType(dataType)
-			.setSize(size)
-			.setPath(path);
-		
-		AccMessage.TaskMsg msg = AccMessage.TaskMsg.newBuilder()
-			.setType(AccMessage.MsgType.ACCDATA)
-			.addData(data)
-			.build();
+	public AccMessage.TaskMsg.Builder buildData(int id) {
+		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
+			.setType(AccMessage.MsgType.ACCDATA);
 
 		return msg;
+	}
+
+	/**
+	* Add a data block.
+	**/
+	public void addData(AccMessage.TaskMsg.Builder msg, int id, int width, int size, int offset, String path) {
+		AccMessage.Data.Builder data = AccMessage.Data.newBuilder()
+			.setPartitionId(id)
+			.setWidth(width)
+			.setSize(size)
+			.setOffset(offset)
+			.setPath(path);
+
+		msg.addData(data);
+		return ;
 	}
 }

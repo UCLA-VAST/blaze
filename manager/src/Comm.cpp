@@ -11,10 +11,6 @@
 
 #define MAX_MSGSIZE 4096
 
-#define READ_MAPPED_FILE(cType, input, file, size, length) { \
-	input = (void *)malloc(sizeof(cType) * length); \
-	memcpy((void *) input, (const void *) file, size); }
-
 void logInfo(const char *msg) {
   struct timespec tr;
   clock_gettime(CLOCK_REALTIME, &tr);
@@ -31,16 +27,6 @@ void logInfo(const char *msg) {
 }
 
 namespace acc_runtime {
-
-void Comm::init()
-{
-	Type2Size[Data_Type_INT] = 4;
-	Type2Size[Data_Type_FLOAT] = 4;
-	Type2Size[Data_Type_LONG] = 8;
-	Type2Size[Data_Type_DOUBLE] = 8;
-
-	return ;
-}
 
 // receive one message, bytesize first
 void Comm::recv(
@@ -105,13 +91,16 @@ void Comm::process(socket_ptr sock) {
 
     // TODO: also consult cache manager to see if data is cached
 
-    // start a new thread to process the subsequent messages
-    // socket_stream should be copied
-    //process(socket_stream);
-
+		// FIXME: Now assume we only have one data block and no cached data.
     TaskMsg accept_msg;
     accept_msg.set_type(ACCGRANT);
-    accept_msg.set_get_data(1);
+    Data *block_info = accept_msg.add_data();
+		block_info->set_partition_id(task_msg.data(0).partition_id());
+		block_info->clear_cached();
+
+    // start a new thread to process the subsequent messages
+    // socket_stream should be copied
+    //process(socket_stream);		
 
     // send msg back to client
     send(accept_msg, socket_stream);
@@ -129,50 +118,50 @@ void Comm::process(socket_ptr sock) {
     }
 
 		if (data_msg.type() == ACCDATA) {
-	    // task execution
-			int fd = open(data_msg.data(0).path().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
-			void *memory_file = mmap(0, data_msg.data(0).size(), PROT_READ | PROT_WRITE,
-					MAP_SHARED, fd, 0);
-			close(fd);
-	
 			int dataSize = data_msg.data(0).size();
-			Data_Type dataType = data_msg.data(0).data_type();
-			int dataLength = dataSize / Type2Size[dataType];
-			void *in;
+			int dataLength = data_msg.data(0).width();
+			void *in = (void *)malloc(dataSize);
 
-			// Read input
-			if (dataType == Data_Type_INT) {
-				READ_MAPPED_FILE(int, in, memory_file, dataSize, dataLength);
-			}
-			else if (dataType == Data_Type_FLOAT)	{
-				READ_MAPPED_FILE(float, in, memory_file, dataSize, dataLength);
-			}
-			else if (dataType == Data_Type_LONG) {
-				READ_MAPPED_FILE(long, in, memory_file, dataSize, dataLength);
-			}
-			else if (dataType == Data_Type_DOUBLE) {
-				READ_MAPPED_FILE(double, in, memory_file, dataSize, dataLength);
-			}
-			else {
-				// TODO
-			}
-			munmap (memory_file, dataSize);
+			// FIXME: Now we use "file_path!" to represent memory mapped file
+			char filePath[256];
+			strcpy(filePath, data_msg.data(0).path().c_str());
+//			logInfo(std::string("Comm::process(): Read data from " + data_msg.data(0).path()).c_str());
 
-			// TODO: Execute on accelerator
+			if (filePath[strlen(filePath) - 1] == '!') {
+				filePath[strlen(filePath) - 1] = '\0';
+				int fd = open(filePath, O_RDWR, S_IRUSR | S_IWUSR);
+				void *memory_file = mmap(0, data_msg.data(0).size(), PROT_READ | PROT_WRITE,
+						MAP_SHARED, fd, 0);
+				close(fd);
+
+				memcpy((void *) in, (const void *) memory_file, dataSize);
+				munmap (memory_file, dataSize);
+			}
+			else { // Read from file directly
+				FILE *infilep = fopen(filePath, "r");
+				fseek(infilep, data_msg.data(0).offset(), SEEK_SET);
+				fread(in, 1, dataSize, infilep);
+				fclose(infilep);
+			}
+
+// FIXME: Simulate accelerator
 			void *out = (void *)malloc(sizeof(double) * dataLength);
 			for (int i = 0; i < dataLength; ++i) {
-				*((double *) out + i) = (double) *((double *) in + i) + 1.0;
+				*((double *) out + i) = 0; //(double) *((double *) in + i) + 1.0;
 			}
+//			fprintf(stderr, "%.2f\n", (double) *((double *) out));
+// Accelerator end
 
 			// Write result
 			char out_file_name[128];
 
 			// Generalized result file name: inputFileName.out
-			sprintf(out_file_name, "%s.out", data_msg.data(0).path().c_str());
-			fd = open(out_file_name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+			sprintf(out_file_name, "%s.out", filePath);
+			int fd = open(out_file_name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 			int pageSize = getpagesize();
 			int offset = 0;
 			int outFileSize = sizeof(double) * dataLength; // FIXME: data type should vary.
+			void *memory_file = NULL;
 
 			// Write one page (usually 4k)
 			while ((offset + pageSize) < outFileSize) {
@@ -194,6 +183,8 @@ void Comm::process(socket_ptr sock) {
 			free(in);
 			free(out);
 		}
+		else
+			fprintf(stderr, "Comm:process() error: Unknown message type, discarding message.\n");
 
     TaskMsg finish_msg;
     finish_msg.set_type(ACCFINISH);

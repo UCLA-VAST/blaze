@@ -21,10 +21,9 @@ namespace acc_runtime {
 class Comm {
 
 public:
-	void init();
-  Comm(int ip_port): srv_port(ip_port) { init();}
+  Comm(int ip_port): srv_port(ip_port) { ; }
   Comm(std::string address, int ip_port): 
-    ip_address(address), srv_port(ip_port) { init();}
+    ip_address(address), srv_port(ip_port) { ; }
 
   void recv(TaskMsg&, ip::tcp::iostream&);
   void send(TaskMsg&, ip::tcp::iostream&);
@@ -35,7 +34,6 @@ private:
   int srv_port;
   std::string ip_address;
   std::vector<boost::thread> thread_pool;
-	std::map<int, int> Type2Size;
 
   // reference to block manager
   // reference to task queue

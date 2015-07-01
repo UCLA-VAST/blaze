@@ -10,7 +10,7 @@ import java.nio.channels.FileChannel.MapMode;
 import java.io.OutputStream    
 import java.io.FileOutputStream
 
-import scala.reflect.ClassTag                   
+import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._         
 import scala.collection.mutable        
 import scala.collection.mutable.HashMap
@@ -20,28 +20,33 @@ import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._                   
 
 object Util {
-  val sizeof = mutable.HashMap[AccMessage.Data.Type, Int]()
-  sizeof(AccMessage.Data.Type.INT) = 4
-  sizeof(AccMessage.Data.Type.FLOAT) = 4
-  sizeof(AccMessage.Data.Type.LONG) = 8
-  sizeof(AccMessage.Data.Type.DOUBLE) = 8
 
-  def serializePartition[T: ClassTag](input: Array[T], id: Int): (String, AccMessage.Data.Type, Int) = {
-    val fileName: String = System.getProperty("java.io.tmpdir") + "/spark_acc" + id + ".dat"
+  def getTypeSizeByRDD[T: ClassTag](rdd: RDD[T]): Int = {
+    if (classTag[T] == classTag[Byte])        1
+    else if (classTag[T] == classTag[Short])  2
+    else if (classTag[T] == classTag[Char])   2
+    else if (classTag[T] == classTag[Int])    4
+    else if (classTag[T] == classTag[Float])  4
+    else if (classTag[T] == classTag[Long])   8
+    else if (classTag[T] == classTag[Double]) 8
+    else 0
+  }
 
-     // Fetch size information
-    val dataType: AccMessage.Data.Type = input(0).getClass.getName.replace("java.lang.", "").toLowerCase() match {
-      case "int" => AccMessage.Data.Type.INT
-      case "float" => AccMessage.Data.Type.FLOAT
-      case "long" => AccMessage.Data.Type.LONG
-      case "double" => AccMessage.Data.Type.DOUBLE
-      case _ => null
+  def getTypeSizeByName(dataType: String): Int = {
+    val typeSize: Int = dataType match {
+      case "int" => 4
+      case "float" => 4
+      case "long" => 8
+      case "double" => 8
+      case _ => 0
     }
+    typeSize
+  }
 
-    if (!sizeof.exists(_._1 == dataType)) // TODO: Support String and objects
-      throw new RuntimeException("Unsupported type " + dataType);
-
-    val typeSize: Int = sizeof(dataType)
+  def serializePartition[T: ClassTag](input: Array[T], id: Int): (String, Int) = {
+    val fileName: String = System.getProperty("java.io.tmpdir") + "/spark_acc" + id + ".dat"
+    val dataType: String = input(0).getClass.getName.replace("java.lang.", "").toLowerCase()
+    val typeSize: Int = getTypeSizeByName(dataType)
 
     // Create and write memory mapped file
     var raf: RandomAccessFile = null
@@ -58,10 +63,10 @@ object Util {
 
     for (e <- input) {
       dataType match {
-        case AccMessage.Data.Type.INT => buf.putInt(e.asInstanceOf[Int].intValue)
-        case AccMessage.Data.Type.FLOAT => buf.putFloat(e.asInstanceOf[Float].floatValue)
-        case AccMessage.Data.Type.LONG => buf.putLong(e.asInstanceOf[Long].longValue)
-        case AccMessage.Data.Type.DOUBLE => buf.putDouble(e.asInstanceOf[Double].doubleValue)
+        case "int" => buf.putInt(e.asInstanceOf[Int].intValue)
+        case "float" => buf.putFloat(e.asInstanceOf[Float].floatValue)
+        case "long" => buf.putLong(e.asInstanceOf[Long].longValue)
+        case "double" => buf.putDouble(e.asInstanceOf[Double].doubleValue)
         case _ =>
           throw new RuntimeException("Unsupported type" + dataType)
       }
@@ -75,23 +80,13 @@ object Util {
         println("Fail to close memory mapped file " + fileName + ": " + e.toString)
     }
 
-    (fileName, dataType, input.length * typeSize)
+    (fileName, input.length * typeSize)
   }
 
   def readMemoryMappedFile[T: ClassTag](out: Array[T], fileName: String) = {
      // Fetch size information
-    val dataType: AccMessage.Data.Type = out(0).getClass.getName.replace("java.lang.", "").toLowerCase() match {
-      case "int" => AccMessage.Data.Type.INT
-      case "float" => AccMessage.Data.Type.FLOAT
-      case "long" => AccMessage.Data.Type.LONG
-      case "double" => AccMessage.Data.Type.DOUBLE
-      case _ => null
-    }
-
-    if (!sizeof.exists(_._1 == dataType)) // TODO: Support String and objects
-      throw new RuntimeException("Unsupported type " + dataType);
-
-    val typeSize: Int = sizeof(dataType)
+    val dataType: String = out(0).getClass.getName.replace("java.lang.", "").toLowerCase()
+    val typeSize: Int = getTypeSizeByName(dataType)
 
     // Create and write memory mapped file
     var raf: RandomAccessFile = null
@@ -110,10 +105,10 @@ object Util {
     var idx: Int = 0
     while (idx < out.length) {
       dataType match {
-        case AccMessage.Data.Type.INT => out(idx) = buf.getInt().asInstanceOf[T]
-        case AccMessage.Data.Type.FLOAT => out(idx) = buf.getFloat().asInstanceOf[T]
-        case AccMessage.Data.Type.LONG => out(idx) = buf.getLong().asInstanceOf[T]
-        case AccMessage.Data.Type.DOUBLE => out(idx) = buf.getDouble().asInstanceOf[T]
+        case "int" => out(idx) = buf.getInt().asInstanceOf[T]
+        case "float" => out(idx) = buf.getFloat().asInstanceOf[T]
+        case "long" => out(idx) = buf.getLong().asInstanceOf[T]
+        case "double" => out(idx) = buf.getDouble().asInstanceOf[T]
         case _ =>
           throw new RuntimeException("Unsupported type" + dataType)
       }
