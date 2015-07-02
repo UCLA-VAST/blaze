@@ -18,12 +18,19 @@ import org.apache.spark.scheduler._
 class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U) 
   extends RDD[U](prev) {
 
-  def getRDD() = this
+  def getRDD() = prev
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
-    val numBlock = 1 // FIXME: Assume 1 at this time
+    val numBlock: Int = 1 // Now we just use 1 block
+    val blockId = new Array[Int](numBlock)
+    var ii = 0
+    while (ii < numBlock) {
+      blockId(ii) = split.index * 100 + ii
+      ii = ii + 1
+    }
+
     val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
 
     // Parse Hadoop file string: file:<path>:<offset>+<size>
@@ -34,57 +41,41 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val fileSize: Int = splitInfo.substring(
         splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
 
-    val inputIter = firstParent[T].iterator(split, context)
-/*
-    var inputIter: Iterator[T] = inMemoryCheck(split, context) match {
-      case true =>
-        println(split.index + " cached.")
-        firstParent[T].iterator(split, context)
-      case false =>
-        println(split.index + " uncached.")
-        null
-    }
-*/
+    val typeSize: Int = Util.getTypeSizeByRDD(getRDD())
+
+    val isCached = inMemoryCheck(split, context)
+
     val outputIter = new Iterator[U] {
-      val N: Int = fileSize / Util.getTypeSizeByRDD(getRDD())
-      val outputAry: Array[U] = new Array[U](N)
+      var outputAry: Array[U] = null // Length is unknown before read the input
       var idx: Int = 0
+      var dataLength: Int = -1
       val transmitter = new DataTransmitter()
 
-      var msg = transmitter.buildRequest(split.index)
+      var msg = transmitter.buildRequest(split.index, blockId)
       transmitter.send(msg)
       var revMsg = transmitter.receive()
 
       // TODO: We should retry or use CPU if rejected.
       if (revMsg.getType() != AccMessage.MsgType.ACCGRANT)
         throw new RuntimeException("Request reject.")
-      else
-        println("Acquire resource, sending data...")
+//      else
+//        println("Acquire resource, sending data...")
 
       val dataMsg = transmitter.buildData(split.index)
 
-      var i: Int = 0
-      var blockFileName: Array[String] = new Array[String](revMsg.getDataCount())
+      var i = 0
       while (i < numBlock) {
         if (!revMsg.getData(i).getCached()) {
-          if (inputIter != null) { // Send data from memory
-            val inputAry: Array[T] = inputIter.toArray
-            val mappedFileInfo = Util.serializePartition(inputAry, split.index)
-            blockFileName(i) = mappedFileInfo._1
-            println("Mapped file name " + blockFileName(i))
-
-            transmitter.addData(
-                dataMsg,
-                split.index * 100 + i, // id
-                N, // width
-                mappedFileInfo._2, // size
-                0, // offset
-                blockFileName(i) + "!" // path
-            )
+          if (isCached == true) { // Send data from memory
+            val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
+            val mappedFileInfo = Util.serializePartition(inputAry, blockId(i))
+            dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
+            transmitter.addData(dataMsg, blockId(i), mappedFileInfo._2,
+                mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)
           }
-          else { // Send HDFS file information     
-            transmitter.addData(
-                dataMsg, split.index * 100 + i, N, fileSize, fileOffset, filePath)
+          else { // Send HDFS file information: unknown length
+            transmitter.addData(dataMsg, blockId(i), -1, 
+                fileSize, fileOffset, filePath)
           }
         }
         i = i + 1
@@ -93,19 +84,34 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       revMsg = transmitter.receive()
 
       if (revMsg.getType() == AccMessage.MsgType.ACCFINISH) {
-        // read result
+        // set length
         i = 0
+        dataLength = 0
+        val subLength = new Array[Int](numBlock)
         while (i < numBlock) {
-          Util.readMemoryMappedFile(outputAry, blockFileName(i) + ".out")
+          subLength(i) = revMsg.getData(i).getWidth()
+          dataLength = dataLength + subLength(i)
           i = i + 1
         }
+        outputAry = new Array[U](dataLength)
+
+        // read result
+        i = 0
+        idx = 0
+        while (i < numBlock) { // Now we just simply concatenate all blocks
+          println(split.index + " reads result from " + revMsg.getData(i).getPath())
+          Util.readMemoryMappedFile(outputAry, idx, subLength(i), revMsg.getData(i).getPath())
+          idx = idx + subLength(i)
+          i = i + 1
+        }
+        idx = 0
       }
       else {
         // in case of using CPU
         println("Compute partition " + split.index + " using CPU")
-//        if (inputIter == null)
-//          inputIter = firstParent[T].iterator(split, context)
-        val inputAry: Array[T] = inputIter.toArray
+        val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
+        dataLength = inputAry.length
+        outputAry = new Array[U](dataLength)
         i = 0
         for (e <- inputAry) {
           outputAry(i) = f(e.asInstanceOf[T])
@@ -125,18 +131,14 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     outputIter
   }
 
-  def inMemoryCheck(split: Partition, context: TaskContext): Boolean = {
-    if (getStorageLevel == StorageLevel.NONE)
-      false
+  def inMemoryCheck(split: Partition, context: TaskContext): Boolean = { 
+    val splitKey = RDDBlockId(getRDD.id, split.index)
+    val result = SparkEnv.get.blockManager.getStatus(splitKey)
+    if (result.isDefined && result.get.isCached == true) {
+      true
+    }
     else {
-    // FIXME
-//      val splitKey = RDDBlockId(this.id, split.index)
-//      SparkEnv.get.cacheManager.blockManager.get(splitKey) match {
-//        case Some(result) =>
-          true
-//        case None =>
-//          false
-//      }
+      false
     }
   }
 }

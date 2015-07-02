@@ -91,14 +91,16 @@ public class DataTransmitter {
 	/**
 	* Create a task message for requesting.
 	**/
-	public AccMessage.TaskMsg.Builder buildRequest(int id) {
-		AccMessage.Data.Builder data = AccMessage.Data.newBuilder()
-			.setPartitionId(id);
-
+	public AccMessage.TaskMsg.Builder buildRequest(int pid, int[] blockId) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
 			.setType(AccMessage.MsgType.ACCREQUEST)
-			.setAccId("request" + id)
-			.addData(data);
+			.setAccId("request" + pid);
+
+			for (int id: blockId) {
+				AccMessage.Data.Builder data = AccMessage.Data.newBuilder()
+					.setPartitionId(id);
+				msg.addData(data);
+			}
 		
 		return msg;
 	}
