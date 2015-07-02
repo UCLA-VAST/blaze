@@ -18,7 +18,7 @@ import org.apache.spark.scheduler._
 class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U) 
   extends RDD[U](prev) {
 
-  def getRDD() = this
+  def getRDD() = prev
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -131,18 +131,14 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     outputIter
   }
 
-  def inMemoryCheck(split: Partition, context: TaskContext): Boolean = {
-    if (getStorageLevel == StorageLevel.NONE)
-      false
+  def inMemoryCheck(split: Partition, context: TaskContext): Boolean = { 
+    val splitKey = RDDBlockId(getRDD.id, split.index)
+    val result = SparkEnv.get.blockManager.getStatus(splitKey)
+    if (result.isDefined && result.get.isCached == true) {
+      true
+    }
     else {
-    // FIXME
-//      val splitKey = RDDBlockId(this.id, split.index)
-//      SparkEnv.get.cacheManager.blockManager.get(splitKey) match {
-//        case Some(result) =>
-          true
-//        case None =>
-//          false
-//      }
+      false
     }
   }
 }

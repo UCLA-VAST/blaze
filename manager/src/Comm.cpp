@@ -95,6 +95,8 @@ void Comm::process(socket_ptr sock) {
     TaskMsg accept_msg;
     accept_msg.set_type(ACCGRANT);
 
+		// Based on parittion ID of each block, identify if the block is cached or not,
+		// and "clear_cached()" or "set_cached()"
 		for(int i = 0; i < task_msg.data_size(); ++i) {
 	    Data *block_info = accept_msg.add_data();
 			block_info->set_partition_id(task_msg.data(0).partition_id());
@@ -120,10 +122,14 @@ void Comm::process(socket_ptr sock) {
       return;
     }
 
+		// Initial finish message
    	TaskMsg finish_msg;
    	finish_msg.set_type(ACCFINISH);
 
+		// Acquire data from Spark
 		if (data_msg.type() == ACCDATA) {
+
+			// Fetch information from each block
 			for (int d = 0; d < data_msg.data_size(); ++d) {
 				int blockId = data_msg.data(d).partition_id();
 				int dataSize = data_msg.data(d).size();
@@ -145,15 +151,18 @@ void Comm::process(socket_ptr sock) {
 					memcpy((void *) in, (const void *) memory_file, dataSize);
 					munmap (memory_file, dataSize);
 				}
-				else { // Read from file directly
+				else { // Unknown length means Spark doesn't read the file, we read from HDFS directly
 					FILE *infilep = fopen(filePath, "r");
 					fseek(infilep, data_msg.data(d).offset(), SEEK_SET);
+
+// We should read an entire block to a buffer and send to accelerator, so we don't have to know
+// the # of input elements.
 //					char *buf = (char *)malloc(dataSize);
 //					fread(buf, dataSize, 1, infilep);
 
+					// FIXME: Should be done at accelerator, so here we assume length is known
 					in = (void *)malloc(sizeof(double) * 1000);
 
-					// FIXME: Should be done at accelerator}
 					dataLength = 1000;
 					for (int i = 0; i < dataLength; ++i)
 						fscanf(infilep, "%lf", ((double *) in + i));
@@ -170,7 +179,7 @@ void Comm::process(socket_ptr sock) {
 				}
 // Accelerator end
 
-				// Write result
+				// Write result to memory mapped file
 				char out_file_name[128];
 				sprintf(out_file_name, "%s/spark_acc%d.out", OUTPUT_DIR, blockId);
 
@@ -197,11 +206,11 @@ void Comm::process(socket_ptr sock) {
 	
 				close(fd);
 
-				// Add file path to finish message
+				// Add block information to finish message
 				Data *block_info = finish_msg.add_data();
 				block_info->set_partition_id(blockId);
-				block_info->set_path(out_file_name);
-				block_info->set_width(dataLength);
+				block_info->set_path(out_file_name); // Output file path
+				block_info->set_width(dataLength);	 // # of output elements
 
 				free(in);
 				free(out);
