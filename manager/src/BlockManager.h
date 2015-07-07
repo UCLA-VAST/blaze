@@ -87,10 +87,17 @@ public:
 
   void printTable() {
 
+    int i = 0;
     printf("id,\ttag,\trefcnt\n");
-    for (int i=0; i<cacheQueue.size(); i++) {
-      std::pair<int, DataBlock_ptr> v = cacheQueue[i];
-      printf("%d,\t%d,\t%d\n", i, v.second->getTag(), v.first);
+    std::map<int, std::pair<int, DataBlock_ptr> >::iterator iter; 
+    for (iter = cacheTable.begin(); 
+         iter != cacheTable.end(); 
+         iter ++)
+    {
+      int tag = iter->first;
+      std::pair<int, DataBlock_ptr> v = iter->second;
+      printf("%d,\t%d,\t%d\n", i, tag, v.first);
+      i++;
     }
   }
 
@@ -109,11 +116,11 @@ private:
 
   std::map<int, DataBlock_ptr> scratchTable;
 
-  // index to cacheQueue access by tag
-  std::map<int, int> cacheTable;
+  // index to blocks and its access time
+  std::map<int, std::pair<int, DataBlock_ptr> > cacheTable;
 
   // maintaining blocks sorted by access count 
-  std::vector<std::pair<int, DataBlock_ptr>> cacheQueue;
+  //std::vector<std::pair<int, DataBlock_ptr>> cacheQueue;
 
   size_t maxCacheSize;
   size_t maxScratchSize;

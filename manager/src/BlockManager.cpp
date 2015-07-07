@@ -1,3 +1,5 @@
+#include <climits>
+
 #include "BlockManager.h"
 
 namespace acc_runtime {
@@ -29,7 +31,7 @@ DataBlock_ptr BlockManager::get(int tag) {
     // TODO: should do it async
     update(tag);
 
-    return cacheQueue[cacheTable[tag]].second;
+    return cacheTable[tag].second;
   }
 }
 
@@ -49,7 +51,7 @@ DataBlock_ptr BlockManager::getOrAlloc(int tag, int size) {
     return new_block;
   }
   else {
-    DataBlock_ptr block = cacheQueue[cacheTable[tag]].second;
+    DataBlock_ptr block = cacheTable[tag].second;
 
     update(tag);
 
@@ -132,33 +134,43 @@ void BlockManager::add(
     evict();
   }
 
-  // add the new block to cacheQueue
-  cacheQueue.push_back(std::make_pair(0, block));
-  int idx = cacheQueue.size() - 1;
-
   // add the index to cacheTable
-  cacheTable.insert(std::make_pair(tag, idx));
+  cacheTable.insert(
+      std::make_pair(
+        tag, 
+        std::make_pair(0, block)
+        ));
 
   // increase the current cacheSize
   cacheSize += block->getSize();
 }
 
 void BlockManager::evict() {
+   
+  // find the block that has the least access count
+  int min_val = INT_MAX;
+  std::map<int, std::pair<int, DataBlock_ptr> >::iterator min_idx; 
+  std::map<int, std::pair<int, DataBlock_ptr> >::iterator iter; 
+  for (iter = cacheTable.begin(); 
+       iter != cacheTable.end(); 
+       iter ++)
+  {
+    if (iter->second.first == 0) {
+      // early jump out
+      min_idx = iter; 
+      break;
+    }
+    if (min_val > iter->second.first) {
+      min_val = iter->second.first;
+      min_idx = iter;
+    }
+  }
 
-  // element in the back with highest priority
-  std::pair<int, DataBlock_ptr> val = cacheQueue.back();
+  int size = min_idx->second.second->getSize();
+  int tag = min_idx->first;
 
-  DataBlock_ptr block = val.second;
-  int tag = block->getTag();
-  int size = block->getSize();
-
-  // free block 
-  //delete block;
-
-  cacheQueue.pop_back();  
-
-  // remove index from cacheTag
-  cacheTable.erase(tag);
+  // remove the block 
+  cacheTable.erase(min_idx);
 
   // decrease the current cacheSize
   cacheSize -= size;
@@ -180,45 +192,7 @@ void BlockManager::update(int tag) {
                     std::to_string((long long int)tag);
   logger->logInfo(msg);
 
-  int idx = cacheTable[tag];
-
-  std::pair<int, DataBlock_ptr> val = cacheQueue[idx];
-  int key = val.first;
-  DataBlock_ptr block = val.second;
-
-  cacheQueue.erase(cacheQueue.begin()+idx);
-  
-  /* find the position of the updated block, 
-   * and upate all blocks' indexes after it */
-
-  int idx_res = 0;
-  int idx_lo = 0;
-  int idx_hi = cacheQueue.size();
-
-  while (idx_lo < idx_hi) {
-    int idx_mid = (idx_lo + idx_hi)/2;    
-    if (cacheQueue[idx_mid].first < key+1) {
-      idx_hi = idx_mid;
-      idx_res = idx_hi;
-    }
-    else {
-      idx_lo = idx_mid + 1;
-      idx_res = idx_lo;
-    }
-  }
-  // insert the block in idx_mid
-  cacheQueue.insert(cacheQueue.begin()+idx_res, 
-                    std::make_pair(key+1, block));
-  // update its idx in cacheTable
-  cacheTable[tag] = idx_res;
-
-  /* all blocks originally after the updated block will have 
-   * changed index */
-  for (int i=idx_res+1; i<=idx; i++) {
-    DataBlock_ptr block = cacheQueue[i].second;
-    int tag = block->getTag();
-    cacheTable[tag] += 1;
-  }
+  cacheTable[tag].first += 1;
 }
 
 }
