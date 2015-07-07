@@ -15,14 +15,16 @@ import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 
-class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U) 
+class RDD_ACC[U:ClassTag, T: ClassTag](broadcastId: String, prev: RDD[T], f: T => U) 
   extends RDD[U](prev) {
 
-  def getRDD() = prev
+  def getPrevRDD() = prev
+  def getRDD() = this
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
+    println(getRDD().id + " has broadcast ID " + broadcastId)
     val numBlock: Int = 1 // Now we just use 1 block
     val blockId = new Array[Int](numBlock)
     var ii = 0
@@ -43,7 +45,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
     val typeSize: Int = Util.getTypeSizeByRDD(getRDD())
 
-    val isCached = inMemoryCheck(split, context)
+    val isCached = inMemoryCheck(split)
 
     val outputIter = new Iterator[U] {
       var outputAry: Array[U] = null // Length is unknown before read the input
@@ -98,7 +100,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
         // read result
         i = 0
         idx = 0
-        while (i < numBlock) { // Now we just simply concatenate all blocks
+        while (i < numBlock) { // We just simply concatenate all blocks
           println(split.index + " reads result from " + revMsg.getData(i).getPath())
           Util.readMemoryMappedFile(outputAry, idx, subLength(i), revMsg.getData(i).getPath())
           idx = idx + subLength(i)
@@ -131,8 +133,13 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     outputIter
   }
 
-  def inMemoryCheck(split: Partition, context: TaskContext): Boolean = { 
-    val splitKey = RDDBlockId(getRDD.id, split.index)
+  def map_acc[V:ClassTag](f: U => V): RDD[V] = {
+    val cleanF = sparkContext.clean(f)
+    new RDD_ACC[V, U](broadcastId, this, cleanF)
+  }
+
+  def inMemoryCheck(split: Partition): Boolean = { 
+    val splitKey = RDDBlockId(getPrevRDD.id, split.index)
     val result = SparkEnv.get.blockManager.getStatus(splitKey)
     if (result.isDefined && result.get.isCached == true) {
       true
@@ -140,6 +147,10 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     else {
       false
     }
+  }
+
+  def broadcast_acc[V: ClassTag](value: V) = {
+    throw new RuntimeException("RDD_ACC cannot broadcast values. Please use RDD to broadcast them.")
   }
 }
 
