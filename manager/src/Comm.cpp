@@ -42,6 +42,9 @@ void Comm::recv(
   if (msg_size<=0) {
     throw std::runtime_error("Invalid message size");
   }
+	else
+		fprintf(stderr, "Comm:recv(): Message size %d\n", msg_size);
+
   char* msg_data = new char[msg_size];
   socket_stream.read(msg_data, msg_size);
 

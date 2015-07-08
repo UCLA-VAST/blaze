@@ -12,8 +12,6 @@ import org.apache.spark.scheduler._
 class RDD_FAKE[T: ClassTag](prev: RDD[T]) 
   extends RDD[T](prev) {
 
-  val broadcastId: String = "brdcstrdd_" + this.id
-
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   // do nothing
@@ -58,13 +56,7 @@ class RDD_FAKE[T: ClassTag](prev: RDD[T])
 
   def map_acc[U:ClassTag](f: T => U): RDD_ACC[U, T] = {
     val cleanF = sparkContext.clean(f)
-    new RDD_ACC[U, T](broadcastId, this, cleanF)
-  }
-}
-
-object ACCWrapper {
-  def wrap[T: ClassTag](rdd : RDD[T]) : RDD_FAKE[T] = {
-    new RDD_FAKE[T](rdd)
+    new RDD_ACC[U, T](this, cleanF)
   }
 }
 

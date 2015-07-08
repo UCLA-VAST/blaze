@@ -193,6 +193,16 @@ public final class AccMessage {
      * <code>optional bool cached = 6;</code>
      */
     boolean getCached();
+
+    // optional int64 bval = 7;
+    /**
+     * <code>optional int64 bval = 7;</code>
+     */
+    boolean hasBval();
+    /**
+     * <code>optional int64 bval = 7;</code>
+     */
+    long getBval();
   }
   /**
    * Protobuf type {@code acc_runtime.Data}
@@ -273,6 +283,11 @@ public final class AccMessage {
             case 48: {
               bitField0_ |= 0x00000020;
               cached_ = input.readBool();
+              break;
+            }
+            case 56: {
+              bitField0_ |= 0x00000040;
+              bval_ = input.readInt64();
               break;
             }
           }
@@ -438,6 +453,22 @@ public final class AccMessage {
       return cached_;
     }
 
+    // optional int64 bval = 7;
+    public static final int BVAL_FIELD_NUMBER = 7;
+    private long bval_;
+    /**
+     * <code>optional int64 bval = 7;</code>
+     */
+    public boolean hasBval() {
+      return ((bitField0_ & 0x00000040) == 0x00000040);
+    }
+    /**
+     * <code>optional int64 bval = 7;</code>
+     */
+    public long getBval() {
+      return bval_;
+    }
+
     private void initFields() {
       partitionId_ = 0;
       width_ = 0;
@@ -445,6 +476,7 @@ public final class AccMessage {
       path_ = "";
       offset_ = 0;
       cached_ = false;
+      bval_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -480,6 +512,9 @@ public final class AccMessage {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         output.writeBool(6, cached_);
       }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        output.writeInt64(7, bval_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -512,6 +547,10 @@ public final class AccMessage {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(6, cached_);
+      }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(7, bval_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -641,6 +680,8 @@ public final class AccMessage {
         bitField0_ = (bitField0_ & ~0x00000010);
         cached_ = false;
         bitField0_ = (bitField0_ & ~0x00000020);
+        bval_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
 
@@ -693,6 +734,10 @@ public final class AccMessage {
           to_bitField0_ |= 0x00000020;
         }
         result.cached_ = cached_;
+        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
+          to_bitField0_ |= 0x00000040;
+        }
+        result.bval_ = bval_;
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
@@ -728,6 +773,9 @@ public final class AccMessage {
         }
         if (other.hasCached()) {
           setCached(other.getCached());
+        }
+        if (other.hasBval()) {
+          setBval(other.getBval());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
@@ -995,6 +1043,39 @@ public final class AccMessage {
       public Builder clearCached() {
         bitField0_ = (bitField0_ & ~0x00000020);
         cached_ = false;
+        onChanged();
+        return this;
+      }
+
+      // optional int64 bval = 7;
+      private long bval_ ;
+      /**
+       * <code>optional int64 bval = 7;</code>
+       */
+      public boolean hasBval() {
+        return ((bitField0_ & 0x00000040) == 0x00000040);
+      }
+      /**
+       * <code>optional int64 bval = 7;</code>
+       */
+      public long getBval() {
+        return bval_;
+      }
+      /**
+       * <code>optional int64 bval = 7;</code>
+       */
+      public Builder setBval(long value) {
+        bitField0_ |= 0x00000040;
+        bval_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional int64 bval = 7;</code>
+       */
+      public Builder clearBval() {
+        bitField0_ = (bitField0_ & ~0x00000040);
+        bval_ = 0L;
         onChanged();
         return this;
       }
@@ -2053,16 +2134,17 @@ public final class AccMessage {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\ntask.proto\022\013acc_runtime\"g\n\004Data\022\024\n\014par" +
+      "\n\ntask.proto\022\013acc_runtime\"u\n\004Data\022\024\n\014par" +
       "tition_id\030\001 \002(\005\022\r\n\005width\030\002 \001(\005\022\014\n\004size\030\003" +
       " \001(\003\022\014\n\004path\030\004 \001(\t\022\016\n\006offset\030\005 \001(\005\022\016\n\006ca" +
-      "ched\030\006 \001(\010\"o\n\007TaskMsg\022\"\n\004type\030\001 \002(\0162\024.ac" +
-      "c_runtime.MsgType\022\016\n\006acc_id\030\002 \001(\t\022\017\n\007tas" +
-      "k_id\030\003 \001(\005\022\037\n\004data\030\004 \003(\0132\021.acc_runtime.D" +
-      "ata*b\n\007MsgType\022\016\n\nACCREQUEST\020\000\022\014\n\010ACCGRA" +
-      "NT\020\001\022\r\n\tACCREJECT\020\002\022\r\n\tACCFINISH\020\003\022\013\n\007AC" +
-      "CDATA\020\004\022\016\n\nACCFAILURE\020\005B*\n\034org.apache.sp" +
-      "ark.acc_runtimeB\nAccMessage"
+      "ched\030\006 \001(\010\022\014\n\004bval\030\007 \001(\003\"o\n\007TaskMsg\022\"\n\004t" +
+      "ype\030\001 \002(\0162\024.acc_runtime.MsgType\022\016\n\006acc_i" +
+      "d\030\002 \001(\t\022\017\n\007task_id\030\003 \001(\005\022\037\n\004data\030\004 \003(\0132\021" +
+      ".acc_runtime.Data*b\n\007MsgType\022\016\n\nACCREQUE" +
+      "ST\020\000\022\014\n\010ACCGRANT\020\001\022\r\n\tACCREJECT\020\002\022\r\n\tACC" +
+      "FINISH\020\003\022\013\n\007ACCDATA\020\004\022\016\n\nACCFAILURE\020\005B*\n" +
+      "\034org.apache.spark.acc_runtimeB\nAccMessag",
+      "e"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -2074,7 +2156,7 @@ public final class AccMessage {
           internal_static_acc_runtime_Data_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_acc_runtime_Data_descriptor,
-              new java.lang.String[] { "PartitionId", "Width", "Size", "Path", "Offset", "Cached", });
+              new java.lang.String[] { "PartitionId", "Width", "Size", "Path", "Offset", "Cached", "Bval", });
           internal_static_acc_runtime_TaskMsg_descriptor =
             getDescriptor().getMessageTypes().get(1);
           internal_static_acc_runtime_TaskMsg_fieldAccessorTable = new

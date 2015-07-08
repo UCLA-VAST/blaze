@@ -43,7 +43,34 @@ object Util {
     typeSize
   }
 
-  def serializePartition[T: ClassTag](input: Array[T], id: Int): (String, Int) = {
+  def casting[T: ClassTag, U: ClassTag](value: T, clazz: Class[U]): U = {
+ 	  val buf = ByteBuffer.allocate(8)
+	  buf.order(ByteOrder.LITTLE_ENDIAN)
+
+	  if (value.isInstanceOf[Int])
+	    buf.putInt(value.asInstanceOf[Int])
+    else if (value.isInstanceOf[Float])
+	    buf.putFloat(value.asInstanceOf[Float])
+    else if (value.isInstanceOf[Long])
+	    buf.putLong(value.asInstanceOf[Long])
+    else if (value.isInstanceOf[Double])
+	    buf.putDouble(value.asInstanceOf[Double])
+    else
+      throw new RuntimeException("Unsupported casting type")
+
+    if (clazz == classOf[Long])
+  	  buf.getLong(0).asInstanceOf[U]
+    else if (clazz == classOf[Int])
+      buf.getInt(0).asInstanceOf[U]
+    else if (clazz == classOf[Float])
+      buf.getFloat(0).asInstanceOf[U]
+    else if (clazz == classOf[Double])
+      buf.getDouble(0).asInstanceOf[U]
+    else
+      throw new RuntimeException("Unsupported casting type")
+  }
+
+  def serializePartition[T: ClassTag](input: Array[T], id: String): (String, Int) = {
     val fileName: String = System.getProperty("java.io.tmpdir") + "/spark_acc" + id + ".dat"
     val dataType: String = input(0).getClass.getName.replace("java.lang.", "").toLowerCase()
     val typeSize: Int = getTypeSizeByName(dataType)
