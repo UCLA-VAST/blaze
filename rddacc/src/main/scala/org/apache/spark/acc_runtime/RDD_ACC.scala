@@ -15,7 +15,7 @@ import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 
-class RDD_ACC[U:ClassTag, T: ClassTag](broadcastId: String, prev: RDD[T], f: T => U) 
+class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U) 
   extends RDD[U](prev) {
 
   def getPrevRDD() = prev
@@ -24,7 +24,6 @@ class RDD_ACC[U:ClassTag, T: ClassTag](broadcastId: String, prev: RDD[T], f: T =
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
-    println(getRDD().id + " has broadcast ID " + broadcastId)
     val numBlock: Int = 1 // Now we just use 1 block
     val blockId = new Array[Int](numBlock)
     var ii = 0
@@ -53,24 +52,27 @@ class RDD_ACC[U:ClassTag, T: ClassTag](broadcastId: String, prev: RDD[T], f: T =
       var dataLength: Int = -1
       val transmitter = new DataTransmitter()
 
-      var msg = transmitter.buildRequest(split.index, blockId)
+      var msg = transmitter.buildRequest(split.index.toString, blockId)
+      var startTime = System.nanoTime
       transmitter.send(msg)
       var revMsg = transmitter.receive()
+      var elapseTime = System.nanoTime - startTime
+      println("Communication latency: " + elapseTime + " ns")
 
       // TODO: We should retry or use CPU if rejected.
       if (revMsg.getType() != AccMessage.MsgType.ACCGRANT)
         throw new RuntimeException("Request reject.")
-//      else
-//        println("Acquire resource, sending data...")
 
-      val dataMsg = transmitter.buildData(split.index)
+//      startTime = System.nanoTime
+
+      val dataMsg = transmitter.buildData()
 
       var i = 0
       while (i < numBlock) {
         if (!revMsg.getData(i).getCached()) {
           if (isCached == true) { // Send data from memory
             val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
-            val mappedFileInfo = Util.serializePartition(inputAry, blockId(i))
+            val mappedFileInfo = Util.serializePartition(inputAry, blockId(i).toString)
             dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
             transmitter.addData(dataMsg, blockId(i), mappedFileInfo._2,
                 mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)
@@ -82,6 +84,9 @@ class RDD_ACC[U:ClassTag, T: ClassTag](broadcastId: String, prev: RDD[T], f: T =
         }
         i = i + 1
       }
+//      elapseTime = System.nanoTime - startTime
+//      println("Preprocess time: " + elapseTime + " ns")
+
       transmitter.send(dataMsg)
       revMsg = transmitter.receive()
 
@@ -97,16 +102,19 @@ class RDD_ACC[U:ClassTag, T: ClassTag](broadcastId: String, prev: RDD[T], f: T =
         }
         outputAry = new Array[U](dataLength)
 
+        startTime = System.nanoTime
         // read result
         i = 0
         idx = 0
         while (i < numBlock) { // We just simply concatenate all blocks
-          println(split.index + " reads result from " + revMsg.getData(i).getPath())
+//          println(split.index + " reads result from " + revMsg.getData(i).getPath())
           Util.readMemoryMappedFile(outputAry, idx, subLength(i), revMsg.getData(i).getPath())
           idx = idx + subLength(i)
           i = i + 1
         }
         idx = 0
+//        elapseTime = System.nanoTime - startTime
+//        println("Read memory mapped file time: " + elapseTime + " ns")
       }
       else {
         // in case of using CPU
@@ -135,7 +143,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](broadcastId: String, prev: RDD[T], f: T =
 
   def map_acc[V:ClassTag](f: U => V): RDD[V] = {
     val cleanF = sparkContext.clean(f)
-    new RDD_ACC[V, U](broadcastId, this, cleanF)
+    new RDD_ACC[V, U](this, cleanF)
   }
 
   def inMemoryCheck(split: Partition): Boolean = { 
@@ -147,10 +155,6 @@ class RDD_ACC[U:ClassTag, T: ClassTag](broadcastId: String, prev: RDD[T], f: T =
     else {
       false
     }
-  }
-
-  def broadcast_acc[V: ClassTag](value: V) = {
-    throw new RuntimeException("RDD_ACC cannot broadcast values. Please use RDD to broadcast them.")
   }
 }
 
