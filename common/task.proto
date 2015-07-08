@@ -10,10 +10,11 @@ enum MsgType {
   ACCFINISH = 3;
   ACCDATA = 4;
   ACCFAILURE = 5;
+  ACCBROADCAST = 6;
 }
 
-message Data {
-  required int32 partition_id = 1;
+message DataMsg {
+  optional int32 partition_id = 1;
   optional int32 width = 2;
   optional int64 size = 3;
   optional string path = 4;
@@ -26,5 +27,6 @@ message TaskMsg {
   required MsgType type = 1;
   optional string acc_id = 2; 
   optional int32 task_id = 3;
-  repeated Data data = 4;
+  repeated DataMsg input = 4;
+  repeated DataMsg output = 5;
 }
