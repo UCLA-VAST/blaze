@@ -65,7 +65,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
 //      startTime = System.nanoTime
 
-      val dataMsg = transmitter.buildData()
+      val dataMsg = transmitter.buildMessage(AccMessage.MsgType.ACCDATA)
 
       var i = 0
       while (i < numBlock) {
@@ -96,7 +96,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
         dataLength = 0
         val subLength = new Array[Int](numBlock)
         while (i < numBlock) {
-          subLength(i) = revMsg.getData(i).getWidth()
+          subLength(i) = revMsg.getData(i).getLength()
           dataLength = dataLength + subLength(i)
           i = i + 1
         }

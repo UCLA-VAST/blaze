@@ -97,7 +97,7 @@ public class DataTransmitter {
 			.setAccId("request" + pid);
 
 			for (int id: blockId) {
-				AccMessage.Data.Builder data = AccMessage.Data.newBuilder()
+				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 					.setPartitionId(id);
 				msg.addData(data);
 			}
@@ -106,11 +106,11 @@ public class DataTransmitter {
 	}
 
 	/**
-	* Create an empty data message.
+	* Create an empty message with specific type.
 	**/
-	public AccMessage.TaskMsg.Builder buildData() {
+	public AccMessage.TaskMsg.Builder buildMessage(AccMessage.MsgType type) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
-			.setType(AccMessage.MsgType.ACCDATA);
+			.setType(type);
 
 		return msg;
 	}
@@ -119,9 +119,9 @@ public class DataTransmitter {
 	* Add a data block.
 	**/
 	public void addData(AccMessage.TaskMsg.Builder msg, int id, int width, int size, int offset, String path) {
-		AccMessage.Data.Builder data = AccMessage.Data.newBuilder()
+		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id)
-			.setWidth(width)
+			.setLength(width)
 			.setSize(size)
 			.setOffset(offset)
 			.setPath(path);
@@ -134,7 +134,7 @@ public class DataTransmitter {
 	* Add a scalar data block.
 	**/
 	public void addScalarData(AccMessage.TaskMsg.Builder msg, long value) {
-		AccMessage.Data.Builder data = AccMessage.Data.newBuilder()
+		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(-1)
 			.setBval(value);
 

@@ -35,6 +35,7 @@ object Util {
   def getTypeSizeByName(dataType: String): Int = {
     val typeSize: Int = dataType match {
       case "int" => 4
+      case "integer" => 4
       case "float" => 4
       case "long" => 8
       case "double" => 8
@@ -91,11 +92,12 @@ object Util {
     for (e <- input) {
       dataType match {
         case "int" => buf.putInt(e.asInstanceOf[Int].intValue)
+        case "integer" => buf.putInt(e.asInstanceOf[Int].intValue)
         case "float" => buf.putFloat(e.asInstanceOf[Float].floatValue)
         case "long" => buf.putLong(e.asInstanceOf[Long].longValue)
         case "double" => buf.putDouble(e.asInstanceOf[Double].doubleValue)
         case _ =>
-          throw new RuntimeException("Unsupported type" + dataType)
+          throw new RuntimeException("Unsupported type " + dataType)
       }
     }
    
@@ -138,6 +140,7 @@ object Util {
     while (idx < offset + length) {
       dataType match {
         case "int" => out(idx) = buf.getInt().asInstanceOf[T]
+        case "integer" => out(idx) = buf.getInt().asInstanceOf[T]
         case "float" => out(idx) = buf.getFloat().asInstanceOf[T]
         case "long" => out(idx) = buf.getLong().asInstanceOf[T]
         case "double" => out(idx) = buf.getDouble().asInstanceOf[T]

@@ -15,7 +15,7 @@ enum MsgType {
 
 message DataMsg {
   optional int32 partition_id = 1;
-  optional int32 width = 2;
+  optional int32 length = 2;
   optional int64 size = 3;
   optional string path = 4;
   optional int32 offset = 5;
@@ -27,6 +27,5 @@ message TaskMsg {
   required MsgType type = 1;
   optional string acc_id = 2; 
   optional int32 task_id = 3;
-  repeated DataMsg input = 4;
-  repeated DataMsg output = 5;
+  repeated DataMsg data = 4;
 }

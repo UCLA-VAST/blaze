@@ -14,29 +14,22 @@ class Broadcast_ACC[T: ClassTag](val bd: Broadcast[T]) {
   val data = bd.value
   
   val transmitter = new DataTransmitter()
-  var msg = transmitter.buildRequest(acc_id, Array(0))
-  transmitter.send(msg)
-  var revMsg = transmitter.receive()
-
-  if (revMsg.getType() != AccMessage.MsgType.ACCGRANT)
-    throw new RuntimeException("Broadcast failed.")
-
-  val dataMsg = transmitter.buildData()
+  val msg = transmitter.buildMessage(AccMessage.MsgType.ACCBROADCAST)
  
   if (data.getClass.isArray) {
     val arrayData = data.asInstanceOf[Array[_]]
     val mappedFileInfo = Util.serializePartition(arrayData, acc_id)
     val typeSize = Util.getTypeSizeByName(arrayData(0).getClass.getName.replace("java.lang", "").toLowerCase)
-    transmitter.addData(dataMsg, -1, arrayData.length,
+    transmitter.addData(msg, -1, arrayData.length,
         arrayData.length * typeSize, 0, mappedFileInfo._1)
   }
   else {
     val longData: Long = Util.casting(data, classOf[Long])
-    transmitter.addScalarData(dataMsg, longData)
+    transmitter.addScalarData(msg, longData)
   }
 
-  transmitter.send(dataMsg)
-  revMsg = transmitter.receive()
+  transmitter.send(msg)
+  val revMsg = transmitter.receive()
 
   if (revMsg.getType() != AccMessage.MsgType.ACCFINISH)
     throw new RuntimeException("Broadcast failed.")

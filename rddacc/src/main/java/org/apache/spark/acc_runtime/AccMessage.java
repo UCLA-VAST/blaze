@@ -37,6 +37,10 @@ public final class AccMessage {
      * <code>ACCFAILURE = 5;</code>
      */
     ACCFAILURE(5, 5),
+    /**
+     * <code>ACCBROADCAST = 6;</code>
+     */
+    ACCBROADCAST(6, 6),
     ;
 
     /**
@@ -63,6 +67,10 @@ public final class AccMessage {
      * <code>ACCFAILURE = 5;</code>
      */
     public static final int ACCFAILURE_VALUE = 5;
+    /**
+     * <code>ACCBROADCAST = 6;</code>
+     */
+    public static final int ACCBROADCAST_VALUE = 6;
 
 
     public final int getNumber() { return value; }
@@ -75,6 +83,7 @@ public final class AccMessage {
         case 3: return ACCFINISH;
         case 4: return ACCDATA;
         case 5: return ACCFAILURE;
+        case 6: return ACCBROADCAST;
         default: return null;
       }
     }
@@ -126,28 +135,28 @@ public final class AccMessage {
     // @@protoc_insertion_point(enum_scope:acc_runtime.MsgType)
   }
 
-  public interface DataOrBuilder
+  public interface DataMsgOrBuilder
       extends com.google.protobuf.MessageOrBuilder {
 
-    // required int32 partition_id = 1;
+    // optional int32 partition_id = 1;
     /**
-     * <code>required int32 partition_id = 1;</code>
+     * <code>optional int32 partition_id = 1;</code>
      */
     boolean hasPartitionId();
     /**
-     * <code>required int32 partition_id = 1;</code>
+     * <code>optional int32 partition_id = 1;</code>
      */
     int getPartitionId();
 
-    // optional int32 width = 2;
+    // optional int32 length = 2;
     /**
-     * <code>optional int32 width = 2;</code>
+     * <code>optional int32 length = 2;</code>
      */
-    boolean hasWidth();
+    boolean hasLength();
     /**
-     * <code>optional int32 width = 2;</code>
+     * <code>optional int32 length = 2;</code>
      */
-    int getWidth();
+    int getLength();
 
     // optional int64 size = 3;
     /**
@@ -205,24 +214,24 @@ public final class AccMessage {
     long getBval();
   }
   /**
-   * Protobuf type {@code acc_runtime.Data}
+   * Protobuf type {@code acc_runtime.DataMsg}
    */
-  public static final class Data extends
+  public static final class DataMsg extends
       com.google.protobuf.GeneratedMessage
-      implements DataOrBuilder {
-    // Use Data.newBuilder() to construct.
-    private Data(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      implements DataMsgOrBuilder {
+    // Use DataMsg.newBuilder() to construct.
+    private DataMsg(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
       super(builder);
       this.unknownFields = builder.getUnknownFields();
     }
-    private Data(boolean noInit) { this.unknownFields = com.google.protobuf.UnknownFieldSet.getDefaultInstance(); }
+    private DataMsg(boolean noInit) { this.unknownFields = com.google.protobuf.UnknownFieldSet.getDefaultInstance(); }
 
-    private static final Data defaultInstance;
-    public static Data getDefaultInstance() {
+    private static final DataMsg defaultInstance;
+    public static DataMsg getDefaultInstance() {
       return defaultInstance;
     }
 
-    public Data getDefaultInstanceForType() {
+    public DataMsg getDefaultInstanceForType() {
       return defaultInstance;
     }
 
@@ -232,7 +241,7 @@ public final class AccMessage {
         getUnknownFields() {
       return this.unknownFields;
     }
-    private Data(
+    private DataMsg(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
@@ -262,7 +271,7 @@ public final class AccMessage {
             }
             case 16: {
               bitField0_ |= 0x00000002;
-              width_ = input.readInt32();
+              length_ = input.readInt32();
               break;
             }
             case 24: {
@@ -304,62 +313,62 @@ public final class AccMessage {
     }
     public static final com.google.protobuf.Descriptors.Descriptor
         getDescriptor() {
-      return org.apache.spark.acc_runtime.AccMessage.internal_static_acc_runtime_Data_descriptor;
+      return org.apache.spark.acc_runtime.AccMessage.internal_static_acc_runtime_DataMsg_descriptor;
     }
 
     protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
         internalGetFieldAccessorTable() {
-      return org.apache.spark.acc_runtime.AccMessage.internal_static_acc_runtime_Data_fieldAccessorTable
+      return org.apache.spark.acc_runtime.AccMessage.internal_static_acc_runtime_DataMsg_fieldAccessorTable
           .ensureFieldAccessorsInitialized(
-              org.apache.spark.acc_runtime.AccMessage.Data.class, org.apache.spark.acc_runtime.AccMessage.Data.Builder.class);
+              org.apache.spark.acc_runtime.AccMessage.DataMsg.class, org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder.class);
     }
 
-    public static com.google.protobuf.Parser<Data> PARSER =
-        new com.google.protobuf.AbstractParser<Data>() {
-      public Data parsePartialFrom(
+    public static com.google.protobuf.Parser<DataMsg> PARSER =
+        new com.google.protobuf.AbstractParser<DataMsg>() {
+      public DataMsg parsePartialFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws com.google.protobuf.InvalidProtocolBufferException {
-        return new Data(input, extensionRegistry);
+        return new DataMsg(input, extensionRegistry);
       }
     };
 
     @java.lang.Override
-    public com.google.protobuf.Parser<Data> getParserForType() {
+    public com.google.protobuf.Parser<DataMsg> getParserForType() {
       return PARSER;
     }
 
     private int bitField0_;
-    // required int32 partition_id = 1;
+    // optional int32 partition_id = 1;
     public static final int PARTITION_ID_FIELD_NUMBER = 1;
     private int partitionId_;
     /**
-     * <code>required int32 partition_id = 1;</code>
+     * <code>optional int32 partition_id = 1;</code>
      */
     public boolean hasPartitionId() {
       return ((bitField0_ & 0x00000001) == 0x00000001);
     }
     /**
-     * <code>required int32 partition_id = 1;</code>
+     * <code>optional int32 partition_id = 1;</code>
      */
     public int getPartitionId() {
       return partitionId_;
     }
 
-    // optional int32 width = 2;
-    public static final int WIDTH_FIELD_NUMBER = 2;
-    private int width_;
+    // optional int32 length = 2;
+    public static final int LENGTH_FIELD_NUMBER = 2;
+    private int length_;
     /**
-     * <code>optional int32 width = 2;</code>
+     * <code>optional int32 length = 2;</code>
      */
-    public boolean hasWidth() {
+    public boolean hasLength() {
       return ((bitField0_ & 0x00000002) == 0x00000002);
     }
     /**
-     * <code>optional int32 width = 2;</code>
+     * <code>optional int32 length = 2;</code>
      */
-    public int getWidth() {
-      return width_;
+    public int getLength() {
+      return length_;
     }
 
     // optional int64 size = 3;
@@ -471,7 +480,7 @@ public final class AccMessage {
 
     private void initFields() {
       partitionId_ = 0;
-      width_ = 0;
+      length_ = 0;
       size_ = 0L;
       path_ = "";
       offset_ = 0;
@@ -483,10 +492,6 @@ public final class AccMessage {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized != -1) return isInitialized == 1;
 
-      if (!hasPartitionId()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -498,7 +503,7 @@ public final class AccMessage {
         output.writeInt32(1, partitionId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeInt32(2, width_);
+        output.writeInt32(2, length_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeInt64(3, size_);
@@ -530,7 +535,7 @@ public final class AccMessage {
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(2, width_);
+          .computeInt32Size(2, length_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
@@ -564,53 +569,53 @@ public final class AccMessage {
       return super.writeReplace();
     }
 
-    public static org.apache.spark.acc_runtime.AccMessage.Data parseFrom(
+    public static org.apache.spark.acc_runtime.AccMessage.DataMsg parseFrom(
         com.google.protobuf.ByteString data)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data);
     }
-    public static org.apache.spark.acc_runtime.AccMessage.Data parseFrom(
+    public static org.apache.spark.acc_runtime.AccMessage.DataMsg parseFrom(
         com.google.protobuf.ByteString data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data, extensionRegistry);
     }
-    public static org.apache.spark.acc_runtime.AccMessage.Data parseFrom(byte[] data)
+    public static org.apache.spark.acc_runtime.AccMessage.DataMsg parseFrom(byte[] data)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data);
     }
-    public static org.apache.spark.acc_runtime.AccMessage.Data parseFrom(
+    public static org.apache.spark.acc_runtime.AccMessage.DataMsg parseFrom(
         byte[] data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data, extensionRegistry);
     }
-    public static org.apache.spark.acc_runtime.AccMessage.Data parseFrom(java.io.InputStream input)
+    public static org.apache.spark.acc_runtime.AccMessage.DataMsg parseFrom(java.io.InputStream input)
         throws java.io.IOException {
       return PARSER.parseFrom(input);
     }
-    public static org.apache.spark.acc_runtime.AccMessage.Data parseFrom(
+    public static org.apache.spark.acc_runtime.AccMessage.DataMsg parseFrom(
         java.io.InputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return PARSER.parseFrom(input, extensionRegistry);
     }
-    public static org.apache.spark.acc_runtime.AccMessage.Data parseDelimitedFrom(java.io.InputStream input)
+    public static org.apache.spark.acc_runtime.AccMessage.DataMsg parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
       return PARSER.parseDelimitedFrom(input);
     }
-    public static org.apache.spark.acc_runtime.AccMessage.Data parseDelimitedFrom(
+    public static org.apache.spark.acc_runtime.AccMessage.DataMsg parseDelimitedFrom(
         java.io.InputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return PARSER.parseDelimitedFrom(input, extensionRegistry);
     }
-    public static org.apache.spark.acc_runtime.AccMessage.Data parseFrom(
+    public static org.apache.spark.acc_runtime.AccMessage.DataMsg parseFrom(
         com.google.protobuf.CodedInputStream input)
         throws java.io.IOException {
       return PARSER.parseFrom(input);
     }
-    public static org.apache.spark.acc_runtime.AccMessage.Data parseFrom(
+    public static org.apache.spark.acc_runtime.AccMessage.DataMsg parseFrom(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
@@ -619,7 +624,7 @@ public final class AccMessage {
 
     public static Builder newBuilder() { return Builder.create(); }
     public Builder newBuilderForType() { return newBuilder(); }
-    public static Builder newBuilder(org.apache.spark.acc_runtime.AccMessage.Data prototype) {
+    public static Builder newBuilder(org.apache.spark.acc_runtime.AccMessage.DataMsg prototype) {
       return newBuilder().mergeFrom(prototype);
     }
     public Builder toBuilder() { return newBuilder(this); }
@@ -631,24 +636,24 @@ public final class AccMessage {
       return builder;
     }
     /**
-     * Protobuf type {@code acc_runtime.Data}
+     * Protobuf type {@code acc_runtime.DataMsg}
      */
     public static final class Builder extends
         com.google.protobuf.GeneratedMessage.Builder<Builder>
-       implements org.apache.spark.acc_runtime.AccMessage.DataOrBuilder {
+       implements org.apache.spark.acc_runtime.AccMessage.DataMsgOrBuilder {
       public static final com.google.protobuf.Descriptors.Descriptor
           getDescriptor() {
-        return org.apache.spark.acc_runtime.AccMessage.internal_static_acc_runtime_Data_descriptor;
+        return org.apache.spark.acc_runtime.AccMessage.internal_static_acc_runtime_DataMsg_descriptor;
       }
 
       protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
           internalGetFieldAccessorTable() {
-        return org.apache.spark.acc_runtime.AccMessage.internal_static_acc_runtime_Data_fieldAccessorTable
+        return org.apache.spark.acc_runtime.AccMessage.internal_static_acc_runtime_DataMsg_fieldAccessorTable
             .ensureFieldAccessorsInitialized(
-                org.apache.spark.acc_runtime.AccMessage.Data.class, org.apache.spark.acc_runtime.AccMessage.Data.Builder.class);
+                org.apache.spark.acc_runtime.AccMessage.DataMsg.class, org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder.class);
       }
 
-      // Construct using org.apache.spark.acc_runtime.AccMessage.Data.newBuilder()
+      // Construct using org.apache.spark.acc_runtime.AccMessage.DataMsg.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -670,7 +675,7 @@ public final class AccMessage {
         super.clear();
         partitionId_ = 0;
         bitField0_ = (bitField0_ & ~0x00000001);
-        width_ = 0;
+        length_ = 0;
         bitField0_ = (bitField0_ & ~0x00000002);
         size_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000004);
@@ -691,23 +696,23 @@ public final class AccMessage {
 
       public com.google.protobuf.Descriptors.Descriptor
           getDescriptorForType() {
-        return org.apache.spark.acc_runtime.AccMessage.internal_static_acc_runtime_Data_descriptor;
+        return org.apache.spark.acc_runtime.AccMessage.internal_static_acc_runtime_DataMsg_descriptor;
       }
 
-      public org.apache.spark.acc_runtime.AccMessage.Data getDefaultInstanceForType() {
-        return org.apache.spark.acc_runtime.AccMessage.Data.getDefaultInstance();
+      public org.apache.spark.acc_runtime.AccMessage.DataMsg getDefaultInstanceForType() {
+        return org.apache.spark.acc_runtime.AccMessage.DataMsg.getDefaultInstance();
       }
 
-      public org.apache.spark.acc_runtime.AccMessage.Data build() {
-        org.apache.spark.acc_runtime.AccMessage.Data result = buildPartial();
+      public org.apache.spark.acc_runtime.AccMessage.DataMsg build() {
+        org.apache.spark.acc_runtime.AccMessage.DataMsg result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(result);
         }
         return result;
       }
 
-      public org.apache.spark.acc_runtime.AccMessage.Data buildPartial() {
-        org.apache.spark.acc_runtime.AccMessage.Data result = new org.apache.spark.acc_runtime.AccMessage.Data(this);
+      public org.apache.spark.acc_runtime.AccMessage.DataMsg buildPartial() {
+        org.apache.spark.acc_runtime.AccMessage.DataMsg result = new org.apache.spark.acc_runtime.AccMessage.DataMsg(this);
         int from_bitField0_ = bitField0_;
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
@@ -717,7 +722,7 @@ public final class AccMessage {
         if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
           to_bitField0_ |= 0x00000002;
         }
-        result.width_ = width_;
+        result.length_ = length_;
         if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
           to_bitField0_ |= 0x00000004;
         }
@@ -744,21 +749,21 @@ public final class AccMessage {
       }
 
       public Builder mergeFrom(com.google.protobuf.Message other) {
-        if (other instanceof org.apache.spark.acc_runtime.AccMessage.Data) {
-          return mergeFrom((org.apache.spark.acc_runtime.AccMessage.Data)other);
+        if (other instanceof org.apache.spark.acc_runtime.AccMessage.DataMsg) {
+          return mergeFrom((org.apache.spark.acc_runtime.AccMessage.DataMsg)other);
         } else {
           super.mergeFrom(other);
           return this;
         }
       }
 
-      public Builder mergeFrom(org.apache.spark.acc_runtime.AccMessage.Data other) {
-        if (other == org.apache.spark.acc_runtime.AccMessage.Data.getDefaultInstance()) return this;
+      public Builder mergeFrom(org.apache.spark.acc_runtime.AccMessage.DataMsg other) {
+        if (other == org.apache.spark.acc_runtime.AccMessage.DataMsg.getDefaultInstance()) return this;
         if (other.hasPartitionId()) {
           setPartitionId(other.getPartitionId());
         }
-        if (other.hasWidth()) {
-          setWidth(other.getWidth());
+        if (other.hasLength()) {
+          setLength(other.getLength());
         }
         if (other.hasSize()) {
           setSize(other.getSize());
@@ -782,10 +787,6 @@ public final class AccMessage {
       }
 
       public final boolean isInitialized() {
-        if (!hasPartitionId()) {
-          
-          return false;
-        }
         return true;
       }
 
@@ -793,11 +794,11 @@ public final class AccMessage {
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
-        org.apache.spark.acc_runtime.AccMessage.Data parsedMessage = null;
+        org.apache.spark.acc_runtime.AccMessage.DataMsg parsedMessage = null;
         try {
           parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
         } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-          parsedMessage = (org.apache.spark.acc_runtime.AccMessage.Data) e.getUnfinishedMessage();
+          parsedMessage = (org.apache.spark.acc_runtime.AccMessage.DataMsg) e.getUnfinishedMessage();
           throw e;
         } finally {
           if (parsedMessage != null) {
@@ -808,22 +809,22 @@ public final class AccMessage {
       }
       private int bitField0_;
 
-      // required int32 partition_id = 1;
+      // optional int32 partition_id = 1;
       private int partitionId_ ;
       /**
-       * <code>required int32 partition_id = 1;</code>
+       * <code>optional int32 partition_id = 1;</code>
        */
       public boolean hasPartitionId() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
       }
       /**
-       * <code>required int32 partition_id = 1;</code>
+       * <code>optional int32 partition_id = 1;</code>
        */
       public int getPartitionId() {
         return partitionId_;
       }
       /**
-       * <code>required int32 partition_id = 1;</code>
+       * <code>optional int32 partition_id = 1;</code>
        */
       public Builder setPartitionId(int value) {
         bitField0_ |= 0x00000001;
@@ -832,7 +833,7 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>required int32 partition_id = 1;</code>
+       * <code>optional int32 partition_id = 1;</code>
        */
       public Builder clearPartitionId() {
         bitField0_ = (bitField0_ & ~0x00000001);
@@ -841,35 +842,35 @@ public final class AccMessage {
         return this;
       }
 
-      // optional int32 width = 2;
-      private int width_ ;
+      // optional int32 length = 2;
+      private int length_ ;
       /**
-       * <code>optional int32 width = 2;</code>
+       * <code>optional int32 length = 2;</code>
        */
-      public boolean hasWidth() {
+      public boolean hasLength() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
       }
       /**
-       * <code>optional int32 width = 2;</code>
+       * <code>optional int32 length = 2;</code>
        */
-      public int getWidth() {
-        return width_;
+      public int getLength() {
+        return length_;
       }
       /**
-       * <code>optional int32 width = 2;</code>
+       * <code>optional int32 length = 2;</code>
        */
-      public Builder setWidth(int value) {
+      public Builder setLength(int value) {
         bitField0_ |= 0x00000002;
-        width_ = value;
+        length_ = value;
         onChanged();
         return this;
       }
       /**
-       * <code>optional int32 width = 2;</code>
+       * <code>optional int32 length = 2;</code>
        */
-      public Builder clearWidth() {
+      public Builder clearLength() {
         bitField0_ = (bitField0_ & ~0x00000002);
-        width_ = 0;
+        length_ = 0;
         onChanged();
         return this;
       }
@@ -1080,15 +1081,15 @@ public final class AccMessage {
         return this;
       }
 
-      // @@protoc_insertion_point(builder_scope:acc_runtime.Data)
+      // @@protoc_insertion_point(builder_scope:acc_runtime.DataMsg)
     }
 
     static {
-      defaultInstance = new Data(true);
+      defaultInstance = new DataMsg(true);
       defaultInstance.initFields();
     }
 
-    // @@protoc_insertion_point(class_scope:acc_runtime.Data)
+    // @@protoc_insertion_point(class_scope:acc_runtime.DataMsg)
   }
 
   public interface TaskMsgOrBuilder
@@ -1129,29 +1130,29 @@ public final class AccMessage {
      */
     int getTaskId();
 
-    // repeated .acc_runtime.Data data = 4;
+    // repeated .acc_runtime.DataMsg data = 4;
     /**
-     * <code>repeated .acc_runtime.Data data = 4;</code>
+     * <code>repeated .acc_runtime.DataMsg data = 4;</code>
      */
-    java.util.List<org.apache.spark.acc_runtime.AccMessage.Data> 
+    java.util.List<org.apache.spark.acc_runtime.AccMessage.DataMsg> 
         getDataList();
     /**
-     * <code>repeated .acc_runtime.Data data = 4;</code>
+     * <code>repeated .acc_runtime.DataMsg data = 4;</code>
      */
-    org.apache.spark.acc_runtime.AccMessage.Data getData(int index);
+    org.apache.spark.acc_runtime.AccMessage.DataMsg getData(int index);
     /**
-     * <code>repeated .acc_runtime.Data data = 4;</code>
+     * <code>repeated .acc_runtime.DataMsg data = 4;</code>
      */
     int getDataCount();
     /**
-     * <code>repeated .acc_runtime.Data data = 4;</code>
+     * <code>repeated .acc_runtime.DataMsg data = 4;</code>
      */
-    java.util.List<? extends org.apache.spark.acc_runtime.AccMessage.DataOrBuilder> 
+    java.util.List<? extends org.apache.spark.acc_runtime.AccMessage.DataMsgOrBuilder> 
         getDataOrBuilderList();
     /**
-     * <code>repeated .acc_runtime.Data data = 4;</code>
+     * <code>repeated .acc_runtime.DataMsg data = 4;</code>
      */
-    org.apache.spark.acc_runtime.AccMessage.DataOrBuilder getDataOrBuilder(
+    org.apache.spark.acc_runtime.AccMessage.DataMsgOrBuilder getDataOrBuilder(
         int index);
   }
   /**
@@ -1228,10 +1229,10 @@ public final class AccMessage {
             }
             case 34: {
               if (!((mutable_bitField0_ & 0x00000008) == 0x00000008)) {
-                data_ = new java.util.ArrayList<org.apache.spark.acc_runtime.AccMessage.Data>();
+                data_ = new java.util.ArrayList<org.apache.spark.acc_runtime.AccMessage.DataMsg>();
                 mutable_bitField0_ |= 0x00000008;
               }
-              data_.add(input.readMessage(org.apache.spark.acc_runtime.AccMessage.Data.PARSER, extensionRegistry));
+              data_.add(input.readMessage(org.apache.spark.acc_runtime.AccMessage.DataMsg.PARSER, extensionRegistry));
               break;
             }
           }
@@ -1352,38 +1353,38 @@ public final class AccMessage {
       return taskId_;
     }
 
-    // repeated .acc_runtime.Data data = 4;
+    // repeated .acc_runtime.DataMsg data = 4;
     public static final int DATA_FIELD_NUMBER = 4;
-    private java.util.List<org.apache.spark.acc_runtime.AccMessage.Data> data_;
+    private java.util.List<org.apache.spark.acc_runtime.AccMessage.DataMsg> data_;
     /**
-     * <code>repeated .acc_runtime.Data data = 4;</code>
+     * <code>repeated .acc_runtime.DataMsg data = 4;</code>
      */
-    public java.util.List<org.apache.spark.acc_runtime.AccMessage.Data> getDataList() {
+    public java.util.List<org.apache.spark.acc_runtime.AccMessage.DataMsg> getDataList() {
       return data_;
     }
     /**
-     * <code>repeated .acc_runtime.Data data = 4;</code>
+     * <code>repeated .acc_runtime.DataMsg data = 4;</code>
      */
-    public java.util.List<? extends org.apache.spark.acc_runtime.AccMessage.DataOrBuilder> 
+    public java.util.List<? extends org.apache.spark.acc_runtime.AccMessage.DataMsgOrBuilder> 
         getDataOrBuilderList() {
       return data_;
     }
     /**
-     * <code>repeated .acc_runtime.Data data = 4;</code>
+     * <code>repeated .acc_runtime.DataMsg data = 4;</code>
      */
     public int getDataCount() {
       return data_.size();
     }
     /**
-     * <code>repeated .acc_runtime.Data data = 4;</code>
+     * <code>repeated .acc_runtime.DataMsg data = 4;</code>
      */
-    public org.apache.spark.acc_runtime.AccMessage.Data getData(int index) {
+    public org.apache.spark.acc_runtime.AccMessage.DataMsg getData(int index) {
       return data_.get(index);
     }
     /**
-     * <code>repeated .acc_runtime.Data data = 4;</code>
+     * <code>repeated .acc_runtime.DataMsg data = 4;</code>
      */
-    public org.apache.spark.acc_runtime.AccMessage.DataOrBuilder getDataOrBuilder(
+    public org.apache.spark.acc_runtime.AccMessage.DataMsgOrBuilder getDataOrBuilder(
         int index) {
       return data_.get(index);
     }
@@ -1402,12 +1403,6 @@ public final class AccMessage {
       if (!hasType()) {
         memoizedIsInitialized = 0;
         return false;
-      }
-      for (int i = 0; i < getDataCount(); i++) {
-        if (!getData(i).isInitialized()) {
-          memoizedIsInitialized = 0;
-          return false;
-        }
       }
       memoizedIsInitialized = 1;
       return true;
@@ -1693,12 +1688,6 @@ public final class AccMessage {
           
           return false;
         }
-        for (int i = 0; i < getDataCount(); i++) {
-          if (!getData(i).isInitialized()) {
-            
-            return false;
-          }
-        }
         return true;
       }
 
@@ -1864,23 +1853,23 @@ public final class AccMessage {
         return this;
       }
 
-      // repeated .acc_runtime.Data data = 4;
-      private java.util.List<org.apache.spark.acc_runtime.AccMessage.Data> data_ =
+      // repeated .acc_runtime.DataMsg data = 4;
+      private java.util.List<org.apache.spark.acc_runtime.AccMessage.DataMsg> data_ =
         java.util.Collections.emptyList();
       private void ensureDataIsMutable() {
         if (!((bitField0_ & 0x00000008) == 0x00000008)) {
-          data_ = new java.util.ArrayList<org.apache.spark.acc_runtime.AccMessage.Data>(data_);
+          data_ = new java.util.ArrayList<org.apache.spark.acc_runtime.AccMessage.DataMsg>(data_);
           bitField0_ |= 0x00000008;
          }
       }
 
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.apache.spark.acc_runtime.AccMessage.Data, org.apache.spark.acc_runtime.AccMessage.Data.Builder, org.apache.spark.acc_runtime.AccMessage.DataOrBuilder> dataBuilder_;
+          org.apache.spark.acc_runtime.AccMessage.DataMsg, org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder, org.apache.spark.acc_runtime.AccMessage.DataMsgOrBuilder> dataBuilder_;
 
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
-      public java.util.List<org.apache.spark.acc_runtime.AccMessage.Data> getDataList() {
+      public java.util.List<org.apache.spark.acc_runtime.AccMessage.DataMsg> getDataList() {
         if (dataBuilder_ == null) {
           return java.util.Collections.unmodifiableList(data_);
         } else {
@@ -1888,7 +1877,7 @@ public final class AccMessage {
         }
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
       public int getDataCount() {
         if (dataBuilder_ == null) {
@@ -1898,9 +1887,9 @@ public final class AccMessage {
         }
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
-      public org.apache.spark.acc_runtime.AccMessage.Data getData(int index) {
+      public org.apache.spark.acc_runtime.AccMessage.DataMsg getData(int index) {
         if (dataBuilder_ == null) {
           return data_.get(index);
         } else {
@@ -1908,10 +1897,10 @@ public final class AccMessage {
         }
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
       public Builder setData(
-          int index, org.apache.spark.acc_runtime.AccMessage.Data value) {
+          int index, org.apache.spark.acc_runtime.AccMessage.DataMsg value) {
         if (dataBuilder_ == null) {
           if (value == null) {
             throw new NullPointerException();
@@ -1925,10 +1914,10 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
       public Builder setData(
-          int index, org.apache.spark.acc_runtime.AccMessage.Data.Builder builderForValue) {
+          int index, org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder builderForValue) {
         if (dataBuilder_ == null) {
           ensureDataIsMutable();
           data_.set(index, builderForValue.build());
@@ -1939,9 +1928,9 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
-      public Builder addData(org.apache.spark.acc_runtime.AccMessage.Data value) {
+      public Builder addData(org.apache.spark.acc_runtime.AccMessage.DataMsg value) {
         if (dataBuilder_ == null) {
           if (value == null) {
             throw new NullPointerException();
@@ -1955,10 +1944,10 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
       public Builder addData(
-          int index, org.apache.spark.acc_runtime.AccMessage.Data value) {
+          int index, org.apache.spark.acc_runtime.AccMessage.DataMsg value) {
         if (dataBuilder_ == null) {
           if (value == null) {
             throw new NullPointerException();
@@ -1972,10 +1961,10 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
       public Builder addData(
-          org.apache.spark.acc_runtime.AccMessage.Data.Builder builderForValue) {
+          org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder builderForValue) {
         if (dataBuilder_ == null) {
           ensureDataIsMutable();
           data_.add(builderForValue.build());
@@ -1986,10 +1975,10 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
       public Builder addData(
-          int index, org.apache.spark.acc_runtime.AccMessage.Data.Builder builderForValue) {
+          int index, org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder builderForValue) {
         if (dataBuilder_ == null) {
           ensureDataIsMutable();
           data_.add(index, builderForValue.build());
@@ -2000,10 +1989,10 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
       public Builder addAllData(
-          java.lang.Iterable<? extends org.apache.spark.acc_runtime.AccMessage.Data> values) {
+          java.lang.Iterable<? extends org.apache.spark.acc_runtime.AccMessage.DataMsg> values) {
         if (dataBuilder_ == null) {
           ensureDataIsMutable();
           super.addAll(values, data_);
@@ -2014,7 +2003,7 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
       public Builder clearData() {
         if (dataBuilder_ == null) {
@@ -2027,7 +2016,7 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
       public Builder removeData(int index) {
         if (dataBuilder_ == null) {
@@ -2040,16 +2029,16 @@ public final class AccMessage {
         return this;
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
-      public org.apache.spark.acc_runtime.AccMessage.Data.Builder getDataBuilder(
+      public org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder getDataBuilder(
           int index) {
         return getDataFieldBuilder().getBuilder(index);
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
-      public org.apache.spark.acc_runtime.AccMessage.DataOrBuilder getDataOrBuilder(
+      public org.apache.spark.acc_runtime.AccMessage.DataMsgOrBuilder getDataOrBuilder(
           int index) {
         if (dataBuilder_ == null) {
           return data_.get(index);  } else {
@@ -2057,9 +2046,9 @@ public final class AccMessage {
         }
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
-      public java.util.List<? extends org.apache.spark.acc_runtime.AccMessage.DataOrBuilder> 
+      public java.util.List<? extends org.apache.spark.acc_runtime.AccMessage.DataMsgOrBuilder> 
            getDataOrBuilderList() {
         if (dataBuilder_ != null) {
           return dataBuilder_.getMessageOrBuilderList();
@@ -2068,33 +2057,33 @@ public final class AccMessage {
         }
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
-      public org.apache.spark.acc_runtime.AccMessage.Data.Builder addDataBuilder() {
+      public org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder addDataBuilder() {
         return getDataFieldBuilder().addBuilder(
-            org.apache.spark.acc_runtime.AccMessage.Data.getDefaultInstance());
+            org.apache.spark.acc_runtime.AccMessage.DataMsg.getDefaultInstance());
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
-      public org.apache.spark.acc_runtime.AccMessage.Data.Builder addDataBuilder(
+      public org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder addDataBuilder(
           int index) {
         return getDataFieldBuilder().addBuilder(
-            index, org.apache.spark.acc_runtime.AccMessage.Data.getDefaultInstance());
+            index, org.apache.spark.acc_runtime.AccMessage.DataMsg.getDefaultInstance());
       }
       /**
-       * <code>repeated .acc_runtime.Data data = 4;</code>
+       * <code>repeated .acc_runtime.DataMsg data = 4;</code>
        */
-      public java.util.List<org.apache.spark.acc_runtime.AccMessage.Data.Builder> 
+      public java.util.List<org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder> 
            getDataBuilderList() {
         return getDataFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.apache.spark.acc_runtime.AccMessage.Data, org.apache.spark.acc_runtime.AccMessage.Data.Builder, org.apache.spark.acc_runtime.AccMessage.DataOrBuilder> 
+          org.apache.spark.acc_runtime.AccMessage.DataMsg, org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder, org.apache.spark.acc_runtime.AccMessage.DataMsgOrBuilder> 
           getDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
-              org.apache.spark.acc_runtime.AccMessage.Data, org.apache.spark.acc_runtime.AccMessage.Data.Builder, org.apache.spark.acc_runtime.AccMessage.DataOrBuilder>(
+              org.apache.spark.acc_runtime.AccMessage.DataMsg, org.apache.spark.acc_runtime.AccMessage.DataMsg.Builder, org.apache.spark.acc_runtime.AccMessage.DataMsgOrBuilder>(
                   data_,
                   ((bitField0_ & 0x00000008) == 0x00000008),
                   getParentForChildren(),
@@ -2116,10 +2105,10 @@ public final class AccMessage {
   }
 
   private static com.google.protobuf.Descriptors.Descriptor
-    internal_static_acc_runtime_Data_descriptor;
+    internal_static_acc_runtime_DataMsg_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_acc_runtime_Data_fieldAccessorTable;
+      internal_static_acc_runtime_DataMsg_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
     internal_static_acc_runtime_TaskMsg_descriptor;
   private static
@@ -2134,29 +2123,29 @@ public final class AccMessage {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\ntask.proto\022\013acc_runtime\"u\n\004Data\022\024\n\014par" +
-      "tition_id\030\001 \002(\005\022\r\n\005width\030\002 \001(\005\022\014\n\004size\030\003" +
-      " \001(\003\022\014\n\004path\030\004 \001(\t\022\016\n\006offset\030\005 \001(\005\022\016\n\006ca" +
-      "ched\030\006 \001(\010\022\014\n\004bval\030\007 \001(\003\"o\n\007TaskMsg\022\"\n\004t" +
-      "ype\030\001 \002(\0162\024.acc_runtime.MsgType\022\016\n\006acc_i" +
-      "d\030\002 \001(\t\022\017\n\007task_id\030\003 \001(\005\022\037\n\004data\030\004 \003(\0132\021" +
-      ".acc_runtime.Data*b\n\007MsgType\022\016\n\nACCREQUE" +
-      "ST\020\000\022\014\n\010ACCGRANT\020\001\022\r\n\tACCREJECT\020\002\022\r\n\tACC" +
-      "FINISH\020\003\022\013\n\007ACCDATA\020\004\022\016\n\nACCFAILURE\020\005B*\n" +
-      "\034org.apache.spark.acc_runtimeB\nAccMessag",
-      "e"
+      "\n\ntask.proto\022\013acc_runtime\"y\n\007DataMsg\022\024\n\014" +
+      "partition_id\030\001 \001(\005\022\016\n\006length\030\002 \001(\005\022\014\n\004si" +
+      "ze\030\003 \001(\003\022\014\n\004path\030\004 \001(\t\022\016\n\006offset\030\005 \001(\005\022\016" +
+      "\n\006cached\030\006 \001(\010\022\014\n\004bval\030\007 \001(\003\"r\n\007TaskMsg\022" +
+      "\"\n\004type\030\001 \002(\0162\024.acc_runtime.MsgType\022\016\n\006a" +
+      "cc_id\030\002 \001(\t\022\017\n\007task_id\030\003 \001(\005\022\"\n\004data\030\004 \003" +
+      "(\0132\024.acc_runtime.DataMsg*t\n\007MsgType\022\016\n\nA" +
+      "CCREQUEST\020\000\022\014\n\010ACCGRANT\020\001\022\r\n\tACCREJECT\020\002" +
+      "\022\r\n\tACCFINISH\020\003\022\013\n\007ACCDATA\020\004\022\016\n\nACCFAILU" +
+      "RE\020\005\022\020\n\014ACCBROADCAST\020\006B*\n\034org.apache.spa",
+      "rk.acc_runtimeB\nAccMessage"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
         public com.google.protobuf.ExtensionRegistry assignDescriptors(
             com.google.protobuf.Descriptors.FileDescriptor root) {
           descriptor = root;
-          internal_static_acc_runtime_Data_descriptor =
+          internal_static_acc_runtime_DataMsg_descriptor =
             getDescriptor().getMessageTypes().get(0);
-          internal_static_acc_runtime_Data_fieldAccessorTable = new
+          internal_static_acc_runtime_DataMsg_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-              internal_static_acc_runtime_Data_descriptor,
-              new java.lang.String[] { "PartitionId", "Width", "Size", "Path", "Offset", "Cached", "Bval", });
+              internal_static_acc_runtime_DataMsg_descriptor,
+              new java.lang.String[] { "PartitionId", "Length", "Size", "Path", "Offset", "Cached", "Bval", });
           internal_static_acc_runtime_TaskMsg_descriptor =
             getDescriptor().getMessageTypes().get(1);
           internal_static_acc_runtime_TaskMsg_fieldAccessorTable = new

@@ -15,7 +15,7 @@ object TestApp {
       val rdd = sc.textFile("/curr/cody/test/testInput.txt", 1)
       val rdd_acc = ACCWrapper.wrap(rdd.map(a => a.toDouble))
 
-      val b = ACCWrapper.wrap(sc.broadcast(1))
+      val b = ACCWrapper.wrap(sc.broadcast(Array(1, 2, 3)))
 
 //      rdd_acc.cache
 //      rdd_acc.collect
