@@ -7,6 +7,10 @@
 #include <boost/thread/thread.hpp>
 
 #include "task.pb.h"
+#include "BlockManager.h"
+#include "QueueManager.h"
+#include "TaskManager.h"
+#include "Logger.h"
 
 using namespace boost::asio;
 
@@ -21,9 +25,21 @@ namespace acc_runtime {
 class Comm {
 
 public:
-  Comm(int ip_port): srv_port(ip_port) { ; }
-  Comm(std::string address, int ip_port): 
-    ip_address(address), srv_port(ip_port) { ; }
+  Comm(
+      BlockManager* _block_manager,
+      QueueManager* _queue_manager,
+      Logger* _logger,
+      std::string address = "127.0.0.1",
+      int ip_port = 1027
+    ):
+    ip_address(address), 
+    srv_port(ip_port), 
+    block_manager(_block_manager),
+    queue_manager(_queue_manager),
+    logger(_logger)
+  { 
+    ;
+  }
 
   void recv(TaskMsg&, ip::tcp::iostream&);
   void send(TaskMsg&, ip::tcp::iostream&);
@@ -36,6 +52,10 @@ private:
   std::vector<boost::thread> thread_pool;
 
   // reference to block manager
-  // reference to task queue
+  BlockManager *block_manager;
+  // reference to queue manager
+  QueueManager *queue_manager;
+
+  Logger *logger;
 };
 }

@@ -3,6 +3,9 @@
 #include <string>
 
 #include "Comm.h"
+#include "QueueManager.h"
+#include "BlockManager.h"
+#include "TaskManager.h"
 
 using namespace acc_runtime;
 
@@ -18,7 +21,29 @@ int main(int argc, char** argv) {
     port = atoi(argv[2]);   
   }
 
-  Comm comm(ip_address, port);
+  Logger logger(3);
+  BlockManager block_manager(&logger);
+  QueueManager queue_manager(&logger);
+
+  // add task queue to queue manager
+  queue_manager.add(
+    "SimpleAddition", 
+    "../../task/lib/SimpleAddition.so");
+
+  TaskManager_ptr task_manager = 
+        queue_manager.get("SimpleAddition");
+
+  // start executor and commitor
+  boost::thread executor(
+    boost::bind(&TaskManager::execute, task_manager));
+
+  boost::thread committer(
+    boost::bind(&TaskManager::commit, task_manager));
+
+  Comm comm(
+          &block_manager, 
+          &queue_manager, 
+          &logger, ip_address, port);
 
   comm.listen();
 

@@ -1,4 +1,3 @@
-
 CC=gcc
 PP=g++
 
@@ -11,23 +10,26 @@ COMPILE= $(CFLAGS) \
 				 -I$(ACCMSG_DIR) \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include 
-LINK= -L$(BOOST_DIR)/lib -lboost_system -lboost_thread \
+LINK= -L$(BOOST_DIR)/lib \
+			-lboost_system -lboost_thread -lboost_iostreams \
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \
-			-lpthread -lm
+			-lpthread -lm -ldl
 
-DEPS= main.o \
-			Comm.o \
+DEPS= Comm.o \
+			BlockManager.o \
+			QueueManager.o \
+			TaskManager.o \
 			Task_msg.o
 
 all: ../bin/acc_manager
 
-../bin/acc_manager: $(DEPS)
-	$(PP) -o $@ $(DEPS) $(LINK) 
+../bin/acc_manager: $(DEPS) main.o
+	$(PP) -o $@ $(DEPS) main.o $(LINK) 
 
 Task_msg.o: $(ACCMSG_DIR)/task.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 
 
-%.o: %.cpp %.h
+%.o: %.cpp *.h
 	$(PP) $(COMPILE) $< -o $@
 
 clean:

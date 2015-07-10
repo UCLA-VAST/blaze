@@ -1,3 +1,6 @@
+#ifndef BLOCK_MANAGER_H
+#define BLOCK_MANAGER_H
+
 #include <map>
 #include <vector>
 #include <iostream>
@@ -10,14 +13,6 @@
 #include "Block.h"
 #include "Logger.h"
 
-/* 
- * BlockManager holds two spaces of memory
- * - scratch: for shared data across many tasks of the same stage,
- *   will be explicitly deleted after the stage finishes.
- *   Aligned with Spark broadcast
- * - cache: hold all input blocks, and is managed on a LRU basis
- */
-
 /* TODO list:
  * - guarantee an unique partition id shared by possibly multiple
  *   spark context/applications/tasks
@@ -25,11 +20,14 @@
 
 namespace acc_runtime {
 
-typedef boost::shared_ptr<DataBlock> DataBlock_ptr;
+/**
+ * BlockManager holds two spaces of memory
+ * - scratch: for shared data across many tasks of the same stage,
+ *   will be explicitly deleted after the stage finishes.
+ *   Aligned with Spark broadcast
+ * - cache: hold all input blocks, and is managed on a LRU basis
+ */
 
-const DataBlock_ptr NULL_DATA_BLOCK;
-
-// use simple mutex to guarantee thread safety of this part
 class BlockManager 
 : public boost::basic_lockable_adapter<boost::mutex>
 {
@@ -50,35 +48,22 @@ public:
     //scratchTable  = new std::map<int, DataBlock*>;
   }
 
-   ~BlockManager() {
-    
-    /* all reference in BlockManager will be automatically removed */
-
-    /*
-    // free all blocks in cacheQueue
-    for (std::vector<std::pair<int, DataBlock_ptr>>::iterator
-         iter = cacheQueue.begin(); 
-         iter != cacheQueue.end(); iter++) 
-    {
-      DataBlock_ptr block = iter->second;
-      delete block;
-    }
-
-    // free all blocks in scratchTable
-    for (std::map<int, DataBlock_ptr>::iterator 
-         iter = scratchTable.begin(); 
-         iter != scratchTable.end(); iter++) 
-    {
-      DataBlock_ptr block = iter->second;
-      delete block;
-    }
-    */
-
-  }
+  /* all reference in BlockManager will be automatically removed */
+  //~BlockManager();
 
   // cache access
+  bool isCached(int tag) {
+    if (cacheTable.find(tag) == cacheTable.end()) {
+      return false;
+    }
+    else {
+      return true;
+    }
+  }
+  void add(int tag, DataBlock_ptr block);
   DataBlock_ptr get(int tag);
-  DataBlock_ptr getOrAlloc(int tag, int size);
+  //DataBlock_ptr alloc(int tag, int length, int width);
+  //DataBlock_ptr getOrAlloc(int tag, int size);
 
   // scratch access
   DataBlock_ptr getShared(int tag);
@@ -91,8 +76,8 @@ public:
     printf("id,\ttag,\trefcnt\n");
     std::map<int, std::pair<int, DataBlock_ptr> >::iterator iter; 
     for (iter = cacheTable.begin(); 
-         iter != cacheTable.end(); 
-         iter ++)
+        iter != cacheTable.end(); 
+        iter ++)
     {
       int tag = iter->first;
       std::pair<int, DataBlock_ptr> v = iter->second;
@@ -110,7 +95,6 @@ private:
   }
 
   // cache operation
-  void add(int tag, DataBlock_ptr block);
   void evict();
   void update(int idx);
 
@@ -130,3 +114,5 @@ private:
   Logger* logger;
 };
 }
+
+#endif

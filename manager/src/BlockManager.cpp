@@ -19,10 +19,6 @@ DataBlock_ptr BlockManager::get(int tag) {
                     std::to_string((long long int)tag);
   logger->logInfo(msg);
   
-  /* ISSUE: it is possible that between the block is removed 
-   * while it is being used
-   */
-
   if (cacheTable.find(tag) == cacheTable.end()) {
     return NULL_DATA_BLOCK;
   }
@@ -35,17 +31,54 @@ DataBlock_ptr BlockManager::get(int tag) {
   }
 }
 
+void BlockManager::add(
+    int tag, 
+    DataBlock_ptr block)
+{
+  // guarantee exclusive access
+  boost::lock_guard<BlockManager> guard(*this);
+
+  // check if block already exists
+  if (cacheTable.find(tag) != cacheTable.end()) {
+    return;
+  }
+
+  // log info
+  std::string msg = LOG_HEADER + 
+                    std::string("adding block ") +
+                    std::to_string((long long int)tag);
+  logger->logInfo(msg);
+
+  while (cacheSize + block->getSize() > maxCacheSize) {
+
+    // remove block from cache
+    evict();
+  }
+
+  // add the index to cacheTable
+  cacheTable.insert(
+      std::make_pair(
+        tag, 
+        std::make_pair(0, block)
+        ));
+
+  // increase the current cacheSize
+  cacheSize += block->getSize();
+}
+
+
+// TODO: this function seems to be useless
+/*
 DataBlock_ptr BlockManager::getOrAlloc(int tag, int size) {
 
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
 
-  /* ISSUE: it is possible that between the block is removed 
-   * while it is being used
-   */
+  // ISSUE: it is possible that between the block is removed 
+  // while it is being used
 
   if (cacheTable.find(tag) == cacheTable.end()) {
-    DataBlock_ptr new_block(new DataBlock(tag, size));
+    DataBlock_ptr new_block(new DataBlock());
 
     add(tag, new_block);
     return new_block;
@@ -58,6 +91,7 @@ DataBlock_ptr BlockManager::getOrAlloc(int tag, int size) {
     return block;
   }
 }
+*/
 
 DataBlock_ptr BlockManager::getShared(int tag) {
 
@@ -113,36 +147,6 @@ int BlockManager::removeShared(int tag) {
 
     return 0;
   }
-}
-
-void BlockManager::add(
-    int tag, 
-    DataBlock_ptr block)
-{
-
-  // private method, exclusion guaranteed outside
-
-  // log info
-  std::string msg = LOG_HEADER + 
-                    std::string("adding block ") +
-                    std::to_string((long long int)tag);
-  logger->logInfo(msg);
-
-  while (cacheSize + block->getSize() > maxCacheSize) {
-
-    // remove block from cache
-    evict();
-  }
-
-  // add the index to cacheTable
-  cacheTable.insert(
-      std::make_pair(
-        tag, 
-        std::make_pair(0, block)
-        ));
-
-  // increase the current cacheSize
-  cacheSize += block->getSize();
 }
 
 void BlockManager::evict() {

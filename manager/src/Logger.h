@@ -1,3 +1,6 @@
+#ifndef LOGGER_H
+#define LOGGER_H
+
 #include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
@@ -7,6 +10,7 @@
 #include <stdexcept>
 #include <boost/lexical_cast.hpp>
 
+namespace acc_runtime {
 class Logger {
 
 public:
@@ -104,3 +108,6 @@ private:
   FILE* info_out;
   FILE* error_out;
 };
+}
+
+#endif

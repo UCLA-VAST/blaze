@@ -10,22 +10,9 @@
 #include "Comm.h"
 
 #define MAX_MSGSIZE 4096
-#define OUTPUT_DIR "/tmp"
-
-void logInfo(const char *msg) {
-  struct timespec tr;
-  clock_gettime(CLOCK_REALTIME, &tr);
-  struct tm *l_time = localtime(&tr.tv_sec);
-  char t_str[100];
-  strftime(t_str, sizeof(t_str), "%Y-%m-%d %H:%M:%S", l_time);
-
-  int tid = 0;
-  std::string tid_str = boost::lexical_cast<std::string>(boost::this_thread::get_id());
-  sscanf(tid_str.c_str(), "%lx", &tid);
-  fprintf(stdout, "[%s,%d:t%x] %s\n", 
-          t_str, tr.tv_nsec/1000000, 
-          tid, msg);
-}
+#define LOG_HEADER  std::string("Comm::") + \
+                    std::string(__func__) +\
+                    std::string("(): ")
 
 namespace acc_runtime {
 
@@ -74,159 +61,200 @@ void Comm::process(socket_ptr sock) {
   ip::tcp::iostream socket_stream;
   socket_stream.rdbuf()->assign( ip::tcp::v4(), sock->native());
 
-  logInfo("Comm:process(): Start processing a new connection.");
+  // log info
+  std::string msg = 
+    LOG_HEADER + 
+    std::string("Start processing a new connection.");
+  logger->logInfo(msg);
 
   TaskMsg task_msg;
 
   try {
     recv(task_msg, socket_stream);
   } catch (std::runtime_error &e) {
-    fprintf(stderr, "Comm:process() error: %s.\n", e.what());
+    std::string msg = LOG_HEADER + e.what();
+    logger->logErr(msg);
     return;
   }
 
   if (task_msg.type() == ACCREQUEST) {
 
-    //printf("Comm:listen(): Received an ACCREQUEST message.\n");
-    logInfo(std::string("Comm:process(): Received an ACCREQUEST message.").c_str());
+    logger->logInfo(
+        LOG_HEADER + 
+        std::string("Received an ACCREQUEST message."));
 
-    // TODO: calculate scheduling decision
-    // here assuming always accept
+    TaskMsg reply_msg;
 
-    // TODO: also consult cache manager to see if data is cached
+    // query the queue manager to find matching acc
+    TaskManager_ptr task_manager = 
+      queue_manager->get(task_msg.acc_id());
 
-    TaskMsg accept_msg;
-    accept_msg.set_type(ACCGRANT);
+    if (task_manager == NULL_TASK_MANAGER) {
+      // if there is no matching acc
+      logger->logInfo(
+          LOG_HEADER + 
+          std::string("No matching accelerators, rejecting request"));
 
-		// Based on parittion ID of each block, identify if the block is cached or not,
-		// and "clear_cached()" or "set_cached()"
-		for(int i = 0; i < task_msg.data_size(); ++i) {
-	    Data *block_info = accept_msg.add_data();
-			block_info->set_partition_id(task_msg.data(0).partition_id());
-			block_info->clear_cached(); // FIXME: Now assume we have no cached data
-		}
+      reply_msg.set_type(ACCREJECT);
 
-    // start a new thread to process the subsequent messages
-    // socket_stream should be copied
-    //process(socket_stream);		
+      // send msg back to client
+      send(reply_msg, socket_stream);
 
-    // send msg back to client
-    send(accept_msg, socket_stream);
-
-    logInfo(std::string("Comm:process(): Replied with an ACCGRANT message.").c_str());
-
-    // wait for data
-    TaskMsg data_msg;
-
-    try {
-      recv(data_msg, socket_stream);
-    } catch (std::runtime_error &e) {
-      fprintf(stderr, "Comm:process() error: %s.\n", e.what());
       return;
     }
 
-		// Initial finish message
-   	TaskMsg finish_msg;
-   	finish_msg.set_type(ACCFINISH);
+    // TODO: calculate scheduling decision
+    // here assuming always accept
+    reply_msg.set_type(ACCGRANT);
 
-		// Acquire data from Spark
-		if (data_msg.type() == ACCDATA) {
+    // create a task, which will be automatically enqueued
+    Task* task = task_manager->create();
 
-			// Fetch information from each block
-			for (int d = 0; d < data_msg.data_size(); ++d) {
-				int blockId = data_msg.data(d).partition_id();
-				int dataSize = data_msg.data(d).size();
-				int dataLength = data_msg.data(d).width();
-				void *in = NULL;
+    bool all_cached = true;
 
-				char filePath[256];
-				strcpy(filePath, data_msg.data(d).path().c_str());
-				//logInfo(std::string("Comm::process(): Read data from " + 
-				//	data_msg.data(d).path()).c_str());
+    // consult BlockManager to see if block is cached
+    for(int i = 0; i < task_msg.data_size(); ++i) {
+      int blockId = task_msg.data(i).partition_id();
 
-				if (dataLength != -1) { // Known length means memory mapped file
-					in = (void *)malloc(dataSize);
-					int fd = open(filePath, O_RDWR, S_IRUSR | S_IWUSR);
-					void *memory_file = mmap(0, data_msg.data(d).size(), PROT_READ | PROT_WRITE,
-							MAP_SHARED, fd, 0);
-					close(fd);
-	
-					memcpy((void *) in, (const void *) memory_file, dataSize);
-					munmap (memory_file, dataSize);
-				}
-				else { // Unknown length means Spark doesn't read the file, we read from HDFS directly
-					FILE *infilep = fopen(filePath, "r");
-					fseek(infilep, data_msg.data(d).offset(), SEEK_SET);
+      DataMsg *block_info = reply_msg.add_data();
+      block_info->set_partition_id(blockId);
 
-// We should read an entire block to a buffer and send to accelerator, so we don't have to know
-// the # of input elements.
-//					char *buf = (char *)malloc(dataSize);
-//					fread(buf, dataSize, 1, infilep);
+      if (!block_manager->isCached(blockId)) {
 
-					// FIXME: Should be done at accelerator, so here we assume length is known
-					in = (void *)malloc(sizeof(double) * 1000);
+        // allocate a new block without initilizing
+        // this block need to be added to cache later since the
+        // size information may not be available at this point
+        DataBlock_ptr block(new DataBlock());
 
-					dataLength = 1000;
-					for (int i = 0; i < dataLength; ++i)
-						fscanf(infilep, "%lf", ((double *) in + i));
+        // add the block to task
+        // this step may be mandatory to guarantee correct block
+        // order
+        task->addInputBlock(blockId, block);
 
-					fclose(infilep);
-//					free(buf);
-					fprintf(stderr, "Read data from file, first value: %.2f\n", (double) *((double *) in));
-				}
+        // set message flag
+        block_info->set_cached(false);
+        all_cached = false;
+      }
+      else {
+        DataBlock_ptr block = block_manager->get(blockId);
 
-// FIXME: Simulate accelerator
-				void *out = (void *)malloc(sizeof(double) * dataLength);
-				for (int i = 0; i < dataLength; ++i) {
-					*((double *) out + i) = (double) *((double *) in + i) + 1.0;
-				}
-// Accelerator end
+        // add cached block to task
+        task->addInputBlock(blockId, block);
 
-				// Write result to memory mapped file
-				char out_file_name[128];
-				sprintf(out_file_name, "%s/spark_acc%d.out", OUTPUT_DIR, blockId);
+        block_info->set_cached(false); 
+      }
+    }
 
-				int fd = open(out_file_name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-				int pageSize = getpagesize();
-				int offset = 0;
-				int outFileSize = sizeof(double) * dataLength; // FIXME: data type should vary.
-				void *memory_file = NULL;
+    // send msg back to client
+    send(reply_msg, socket_stream);
 
-				// Write one page (usually 4k)
-				while ((offset + pageSize) < outFileSize) {
-					ftruncate(fd, offset + pageSize);
-					memory_file = mmap(0, pageSize, PROT_READ | PROT_WRITE, 
-							MAP_SHARED, fd, offset);
-					memcpy((void *) memory_file, (const void *) out + offset, pageSize);
-					munmap (memory_file, pageSize); 
-					offset += pageSize;
-				}
-				ftruncate(fd, outFileSize);
-				memory_file = mmap (0, (outFileSize - offset), PROT_READ | PROT_WRITE,        
-							MAP_SHARED, fd, offset);
-				memcpy((void *) memory_file, (const void *) out + offset, outFileSize - offset);
-				munmap (memory_file, outFileSize - offset);                                   
-	
-				close(fd);
+    logger->logInfo(
+        LOG_HEADER + 
+        std::string("Replied with an ACCGRANT message."));
 
-				// Add block information to finish message
-				Data *block_info = finish_msg.add_data();
-				block_info->set_partition_id(blockId);
-				block_info->set_path(out_file_name); // Output file path
-				block_info->set_width(dataLength);	 // # of output elements
+    // wait for ACCDATA message if not all blocks are cached
+    if (!all_cached) {
 
-				free(in);
-				free(out);
-			}
-		}
-		else
-			fprintf(stderr, "Comm:process() error: Unknown message type, discarding message.\n");
+      TaskMsg data_msg;
+
+      try {
+        recv(data_msg, socket_stream);
+      } catch (std::runtime_error &e) {
+        std::string msg = LOG_HEADER + e.what();
+        logger->logErr(msg);
+        return;
+      }
+
+      // Acquire data from Spark
+      if (data_msg.type() == ACCDATA) {
+
+        // TaskManager.onDataReady(task_id, partition_id);
+        for (int d = 0; d < data_msg.data_size(); ++d) {
+
+          int blockId = data_msg.data(d).partition_id();
+          int dataSize = data_msg.data(d).size();
+          int dataLength = data_msg.data(d).length();
+          std::string dataPath = data_msg.data(d).path();
+
+          // get the updated block from task
+          DataBlock_ptr block = 
+            task->onDataReady(blockId, dataLength, dataSize, dataPath);
+
+          // add the block to cache
+          block_manager->add(blockId, block);
+        }
+      }
+      else {
+        std::string msg = 
+          LOG_HEADER + 
+          std::string("Unknown message type, discarding message.");
+        logger->logErr(msg);
+      }
+    }
+
+    // wait on task finish
+    while (task->status != Task::FINISHED) {
+      boost::this_thread::sleep_for(
+          boost::chrono::microseconds(10)); 
+    }
+
+    logger->logInfo(
+        LOG_HEADER + 
+        std::string("Task finished"));
+
+    // Initialize finish message
+    TaskMsg finish_msg;
+    finish_msg.set_type(ACCFINISH);
+
+    // add block information to finish message 
+    // for all output blocks
+    DataBlock_ptr block;
+    int outId = 0;
+
+    while ((block = task->getOutputBlock()) != NULL_DATA_BLOCK) {
+
+      // use thread id to create unique output file path
+      std::string path = 
+        "/tmp/" + 
+        logger->getTid() + 
+        std::to_string((long long)outId);
+
+      logger->logInfo(
+          LOG_HEADER + 
+          std::string("Write output block to ") +
+          path);
+
+      // write the block to output shared memory
+      task->writeToMem(block, path);
+
+      // construct DataMsg
+      DataMsg *block_info = finish_msg.add_data();
+      block_info->set_partition_id(outId);
+      block_info->set_path(path); 
+      block_info->set_length(block->getLength());	
+      block_info->set_size(block->getSize());	
+
+      outId ++;
+    }
 
     send(finish_msg, socket_stream);
-    logInfo(std::string("Comm:process(): Sent an ACCFINISH message.").c_str());
+
+    std::string msg = 
+      LOG_HEADER + 
+      std::string("Sent an ACCFINISH message.");
+    logger->logInfo(msg);
+
+  }
+  else if (task_msg.type() == ACCBROADCAST) {
+    // TODO: handle broadcast message 
+    logger->logInfo(LOG_HEADER + 
+        std::string("Recieved a ACCBROADCAST message")) ; 
   }
   else {
-    fprintf(stderr, "Comm:process() error: Unknown message type, discarding message.\n");
+    std::string msg = 
+      LOG_HEADER + 
+      std::string("Unknown message type, discarding message.");
+    logger->logErr(msg);
   }
 }
 
@@ -240,17 +268,23 @@ void Comm::listen() {
 
   ip::tcp::acceptor acceptor(ios, endpoint);
 
+  logger->logInfo(LOG_HEADER + 
+      std::string("start listening for new connections"));
+
   while(1) {
-    
+
     // create socket for connection
     socket_ptr sock(new ip::tcp::socket(ios));
 
     // accept incoming connection
     acceptor.accept(*sock);
     //acceptor.accept(*socket_stream.rdbuf());
-    
-    logInfo(std::string("Comm:listen(): Accepted a new connection.").c_str());
-    
+
+    std::string msg = 
+      LOG_HEADER + 
+      std::string("Accepted a new connection.");
+    logger->logInfo(msg);
+
     boost::thread t(boost::bind(&Comm::process, this, sock));
   }
 }
