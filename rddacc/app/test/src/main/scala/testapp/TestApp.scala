@@ -15,13 +15,14 @@ object TestApp {
       val rdd = sc.textFile("/curr/cody/test/testInput.txt", 1)
       val rdd_acc = ACCWrapper.wrap(rdd.map(a => a.toDouble))
 
-      val b = ACCWrapper.wrap(sc.broadcast(Array(1, 2, 3)))
+//      val b = ACCWrapper.wrap(sc.broadcast(Array(1, 2, 3)))
+//      val c = ACCWrapper.wrap(sc.broadcast(5))
 
-//      rdd_acc.cache
-//      rdd_acc.collect
-//      val rdd_acc2 = rdd_acc.map_acc(a => (a + 1.0))
+      rdd_acc.cache
+      rdd_acc.collect
+      val rdd_acc2 = rdd_acc.map_acc(a => (a + 1.0))
 //      val rdd_acc3 = rdd_acc.map_acc(a => (a + 1.0)).map_acc(a => (a + 1.0))
-//      println(rdd_acc2.reduce((a, b) => (a + b)))
+      println(rdd_acc2.reduce((a, b) => (a + b)))
     }
 
     def get_spark_context(appName : String) : SparkContext = {

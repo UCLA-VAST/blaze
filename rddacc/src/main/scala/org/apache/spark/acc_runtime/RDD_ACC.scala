@@ -28,7 +28,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val blockId = new Array[Int](numBlock)
     var ii = 0
     while (ii < numBlock) {
-      blockId(ii) = split.index * 100 + ii
+      blockId(ii) = Util.getBlockID(getRDD.id, split.index, ii)
       ii = ii + 1
     }
 
@@ -52,7 +52,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       var dataLength: Int = -1
       val transmitter = new DataTransmitter()
 
-      var msg = transmitter.buildRequest(split.index.toString, blockId)
+      var msg = transmitter.buildRequest("SimpleAddition" /*FIXME: Accelerator ID*/, blockId)
       var startTime = System.nanoTime
       transmitter.send(msg)
       var revMsg = transmitter.receive()
@@ -72,7 +72,7 @@ class RDD_ACC[U:ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
         if (!revMsg.getData(i).getCached()) {
           if (isCached == true) { // Send data from memory
             val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
-            val mappedFileInfo = Util.serializePartition(inputAry, blockId(i).toString)
+            val mappedFileInfo = Util.serializePartition(inputAry, blockId(i))
             dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
             transmitter.addData(dataMsg, blockId(i), mappedFileInfo._2,
                 mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)

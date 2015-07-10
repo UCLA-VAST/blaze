@@ -21,6 +21,10 @@ import org.apache.spark.rdd._
 
 object Util {
 
+  // This config value should be moved to another sutiable place.
+  val MAX_PARTITION_NUM = 16
+  val MAX_BLOCK_NUM = 1
+
   def getTypeSizeByRDD[T: ClassTag](rdd: RDD[T]): Int = {
     if (classTag[T] == classTag[Byte])        1
     else if (classTag[T] == classTag[Short])  2
@@ -71,7 +75,16 @@ object Util {
       throw new RuntimeException("Unsupported casting type")
   }
 
-  def serializePartition[T: ClassTag](input: Array[T], id: String): (String, Int) = {
+  def getBlockID(first: Int, second: Int = -1, third: Int = -1): Int = {
+    if (second == -1) { // broadcast block
+      -first
+    }
+    else { // normal block
+      first * MAX_PARTITION_NUM + second * MAX_BLOCK_NUM + third
+    }
+  }
+
+  def serializePartition[T: ClassTag](input: Array[T], id: Int): (String, Int) = {
     val fileName: String = System.getProperty("java.io.tmpdir") + "/spark_acc" + id + ".dat"
     val dataType: String = input(0).getClass.getName.replace("java.lang.", "").toLowerCase()
     val typeSize: Int = getTypeSizeByName(dataType)

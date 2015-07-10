@@ -91,10 +91,10 @@ public class DataTransmitter {
 	/**
 	* Create a task message for requesting.
 	**/
-	public AccMessage.TaskMsg.Builder buildRequest(String pid, int[] blockId) {
+	public AccMessage.TaskMsg.Builder buildRequest(String acc_id, int[] blockId) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
 			.setType(AccMessage.MsgType.ACCREQUEST)
-			.setAccId("request" + pid);
+			.setAccId(acc_id);
 
 			for (int id: blockId) {
 				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
@@ -133,9 +133,9 @@ public class DataTransmitter {
 	/**
 	* Add a scalar data block.
 	**/
-	public void addScalarData(AccMessage.TaskMsg.Builder msg, long value) {
+	public void addScalarData(AccMessage.TaskMsg.Builder msg, int id, long value) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-			.setPartitionId(-1)
+			.setPartitionId(id)
 			.setBval(value);
 
 		msg.addData(data);
