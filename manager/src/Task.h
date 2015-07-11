@@ -111,12 +111,14 @@ public:
 
   void writeToMem(DataBlock_ptr block, std::string path) {
 
-    boost::iostreams::mapped_file_source fout;
-
     int data_length = block->getLength(); 
     int data_size = block->getSize();
 
-    fout.open(path, data_size);
+    boost::iostreams::mapped_file_params param(path); 
+    param.flags = boost::iostreams::mapped_file::mapmode::readwrite;
+    param.new_file_size = data_size;
+    param.length = data_size;
+    boost::iostreams::mapped_file_sink fout(param);
 
     if (fout.is_open()) {
 
