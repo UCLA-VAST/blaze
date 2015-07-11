@@ -10,7 +10,8 @@ COMPILE= $(CFLAGS) \
 				 -I$(BOOST_DIR)/include 
 DSTDIR=../lib
 
-OBJS= $(DSTDIR)/SimpleAddition.so 
+ACC=SimpleAddition
+OBJS= $(DSTDIR)/$(ACC).so 
 
 all: $(OBJS)
 

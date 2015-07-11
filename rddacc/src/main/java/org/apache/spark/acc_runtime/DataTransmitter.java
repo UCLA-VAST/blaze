@@ -108,6 +108,12 @@ public class DataTransmitter {
 
 	/**
 	* Create a task message for requesting.
+	*
+	* @param acc_id
+	*		The accelerator ID. Should be provided by accelerator library.
+	* @param blockId
+	*		The unique block ID.
+	* @return The message which hasn't been built.
 	**/
 	public AccMessage.TaskMsg.Builder buildRequest(String acc_id, int[] blockId) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
@@ -125,6 +131,10 @@ public class DataTransmitter {
 
 	/**
 	* Create an empty message with specific type.
+	*
+	* @param type
+	*		The message type.
+	* @see AccMessage.MsgType
 	**/
 	public AccMessage.TaskMsg.Builder buildMessage(AccMessage.MsgType type) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
@@ -135,11 +145,19 @@ public class DataTransmitter {
 
 	/**
 	* Add a data block.
+	* Create and add a data block to assigned message with full information. 
+	*
+	*	@param msg The message that wanted to be added.
+	* @param id The unique ID of the data block.
+	* @param length The number of element of the data.
+	* @param size The file size of either memory mapped file or HDFS file.
+	* @param offset The start position of this block in the file.
+	* @param path The file path.
 	**/
-	public void addData(AccMessage.TaskMsg.Builder msg, int id, int width, int size, int offset, String path) {
+	public void addData(AccMessage.TaskMsg.Builder msg, int id, int length, int size, int offset, String path) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id)
-			.setLength(width)
+			.setLength(length)
 			.setSize(size)
 			.setOffset(offset)
 			.setPath(path);
@@ -150,11 +168,36 @@ public class DataTransmitter {
 
 	/**
 	* Add a scalar data block.
+	* Create and add a data block with a scalar data. This is only used for 
+	* broadcasting scalar variables.
+	*
+	*	@param msg The message that wanted to be added.
+	* @param id The unique ID of the data block.
+	* @param value The value of the scalar variable.
 	**/
 	public void addScalarData(AccMessage.TaskMsg.Builder msg, int id, long value) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id)
 			.setBval(value);
+
+		msg.addData(data);
+		return ;
+	}
+
+	/**
+	* Add a broadcast block.
+	* Create and add a broadcast block with broadcast ID. This is only used for 
+	* indicating the Manager about which broadcast data block should be used.
+	*
+	* '''Note''' The broadcast data block must be transmitted to the Manager in advance.
+	*
+	*	@param msg The message that wanted to be added.
+	* @param id The unique ID of the data block.
+	* @param value The value of the scalar variable.
+	**/
+	public void addBroadcastData(AccMessage.TaskMsg.Builder msg, int id) {
+		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
+			.setPartitionId(id);
 
 		msg.addData(data);
 		return ;

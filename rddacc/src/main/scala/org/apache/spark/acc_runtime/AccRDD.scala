@@ -69,6 +69,7 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
 
         val dataMsg = transmitter.buildMessage(AccMessage.MsgType.ACCDATA)
 
+        // Prepare input data blocks
         var i = 0
         while (i < numBlock) {
           if (!revMsg.getData(i).getCached()) {
@@ -86,6 +87,20 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
           }
           i = i + 1
         }
+
+        // Prepare broadcast blocks
+        i = 0
+        while (i < acc.getArgNum()) {
+          val arg = acc.getArg(i)
+          if (arg.isDefined == false)
+            throw new RuntimeException("Argument index is out of range.")
+
+          if (arg.get.isBroadcast == false)
+            throw new RuntimeException("Broadcast data is not prepared.")
+          transmitter.addBroadcastData(dataMsg, arg.get.brdcst_id)
+          i = i + 1
+        }
+
   //      elapseTime = System.nanoTime - startTime
   //      println("Preprocess time: " + elapseTime + " ns")
 

@@ -9,29 +9,36 @@ import org.apache.spark.util.Utils
 
 import scala.reflect.ClassTag
 
-class Broadcast_ACC[T: ClassTag](val bd: Broadcast[T]) {
+class Broadcast_ACC[T: ClassTag](val bd: Broadcast[T]) extends java.io.Serializable {
   var brdcst_id = Util.getBlockID(bd.id.asInstanceOf[Int])
   val data = bd.value
-  
-  val transmitter = new DataTransmitter()
-  val msg = transmitter.buildMessage(AccMessage.MsgType.ACCBROADCAST)
+  var isBroadcast: Boolean = false
+
+  try {
+    val transmitter = new DataTransmitter()
+    val msg = transmitter.buildMessage(AccMessage.MsgType.ACCBROADCAST)
  
-  if (data.getClass.isArray) {
-    val arrayData = data.asInstanceOf[Array[_]]
-    val mappedFileInfo = Util.serializePartition(arrayData, brdcst_id)
-    val typeSize = Util.getTypeSizeByName(arrayData(0).getClass.getName.replace("java.lang", "").toLowerCase)
-    transmitter.addData(msg, brdcst_id, arrayData.length,
-        arrayData.length * typeSize, 0, mappedFileInfo._1)
-  }
-  else {
-    val longData: Long = Util.casting(data, classOf[Long])
-    transmitter.addScalarData(msg, brdcst_id, longData)
-  }
+    if (data.getClass.isArray) {
+      val arrayData = data.asInstanceOf[Array[_]]
+      val mappedFileInfo = Util.serializePartition(arrayData, brdcst_id)
+      val typeSize = Util.getTypeSizeByName(arrayData(0).getClass.getName.replace("java.lang", "").toLowerCase)
+      transmitter.addData(msg, brdcst_id, arrayData.length,
+          arrayData.length * typeSize, 0, mappedFileInfo._1)
+    }
+    else {
+      val longData: Long = Util.casting(data, classOf[Long])
+      transmitter.addScalarData(msg, brdcst_id, longData)
+    }
 
-  transmitter.send(msg)
-  val revMsg = transmitter.receive()
+    transmitter.send(msg)
+    val revMsg = transmitter.receive()
 
-  if (revMsg.getType() != AccMessage.MsgType.ACCFINISH)
-    throw new RuntimeException("Broadcast failed.")
-  
+    if (revMsg.getType() != AccMessage.MsgType.ACCFINISH)
+      throw new RuntimeException("Broadcast failed.")
+    isBroadcast = true
+  }
+  catch {
+    case e: Throwable =>
+      println("Fail to broadcast data: " + e) 
+  }  
 }
