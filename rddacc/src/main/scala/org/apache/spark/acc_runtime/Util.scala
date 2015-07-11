@@ -21,9 +21,10 @@ import org.apache.spark.rdd._
 
 object Util {
 
-  // This config value should be moved to another sutiable place.
-  val MAX_PARTITION_NUM = 16
-  val MAX_BLOCK_NUM = 1
+  // These config values should be moved to another sutiable place.
+  val PARTITION_BIT_NUM = 12
+  val BLOCK_BIT_NUM = 1
+  val RDD_BIT_NUM = 31 - PARTITION_BIT_NUM - BLOCK_BIT_NUM
 
   def getTypeSizeByRDD[T: ClassTag](rdd: RDD[T]): Int = {
     if (classTag[T] == classTag[Byte])        1
@@ -77,10 +78,10 @@ object Util {
 
   def getBlockID(first: Int, second: Int = -1, third: Int = -1): Int = {
     if (second == -1) { // broadcast block
-      -first
+      -(first + 1)
     }
     else { // normal block
-      first * MAX_PARTITION_NUM + second * MAX_BLOCK_NUM + third
+      (first << RDD_BIT_NUM) + (second << PARTITION_BIT_NUM) + (third)
     }
   }
 

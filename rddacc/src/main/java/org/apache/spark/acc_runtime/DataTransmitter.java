@@ -35,10 +35,28 @@ public class DataTransmitter {
 	**/
 	public void init(String hostname, int port) {
 		try {
-      acc_socket = new Socket(hostname, port); 
-    } catch (Exception e) {
-      e.printStackTrace(System.err);
-    }
+	  	acc_socket = new Socket(hostname, port); 
+		}
+		catch (Exception e) {
+			; // do nothing
+		}
+		finally {
+			; // do nothing
+		}
+	}
+
+	/**
+	* Check connection between Manager.
+	* Check if the socket is built with Node Manager.
+	*
+	* @return 
+	*		True if the connection is built successfully.
+	**/
+	public boolean isConnect() {
+		if (acc_socket == null)
+			return false;
+		else
+			return true;
 	}
 
 	/**

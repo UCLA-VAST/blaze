@@ -9,20 +9,31 @@ import java.net._
 // comaniac: Import extended package
 import org.apache.spark.acc_runtime._
 
+class SimpleAddition extends Accelerator[Double, Double] {
+  val id: String = "SimpleAddition"
+
+  def call(in: Double): Double = {
+    in + 1.0
+  }
+}
+
 object TestApp {
     def main(args : Array[String]) {
       val sc = get_spark_context("Test App")
-      val rdd = sc.textFile("/curr/cody/test/testInput.txt", 1)
-      val rdd_acc = ACCWrapper.wrap(rdd.map(a => a.toDouble))
+      val rdd = sc.textFile("/curr/cody/test/testInput.txt", 5)
 
-//      val b = ACCWrapper.wrap(sc.broadcast(Array(1, 2, 3)))
-//      val c = ACCWrapper.wrap(sc.broadcast(5))
+      val acc = new ACCRuntime(sc)
+      val rdd_acc = acc.wrap(rdd.map(a => a.toDouble))
+
+//      val b = acc.wrap(sc.broadcast(Array(1, 2, 3)))
+//      val c = acc.wrap(sc.broadcast(5))
 
       rdd_acc.cache
       rdd_acc.collect
-      val rdd_acc2 = rdd_acc.map_acc(a => (a + 1.0))
-//      val rdd_acc3 = rdd_acc.map_acc(a => (a + 1.0)).map_acc(a => (a + 1.0))
+      val rdd_acc2 = rdd_acc.map_acc(new SimpleAddition())
       println(rdd_acc2.reduce((a, b) => (a + b)))
+
+      acc.stop()
     }
 
     def get_spark_context(appName : String) : SparkContext = {

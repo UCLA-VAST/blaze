@@ -10,13 +10,22 @@ import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 import org.apache.spark.broadcast._
 
-object ACCWrapper {
+class ACCRuntime(sc: SparkContext) extends Logging {
+
+  var BroadcastList: List[Broadcast_ACC[_]] = List()
+
+  def stop() = {
+    sc.stop
+  }
+
   def wrap[T: ClassTag](rdd : RDD[T]) : ShellRDD[T] = {
     new ShellRDD[T](rdd)
   }
 
   def wrap[T: ClassTag](bd : Broadcast[T]) : Broadcast_ACC[T] = {
-    new Broadcast_ACC[T](bd)
+    val newBrdcst = new Broadcast_ACC[T](bd)
+    BroadcastList = BroadcastList :+ newBrdcst
+    newBrdcst
   }
 }
 
