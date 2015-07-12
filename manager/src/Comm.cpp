@@ -31,8 +31,6 @@ void Comm::recv(
         "Invalid message size of " +
         std::to_string((long long)msg_size));
   }
-	else
-		fprintf(stderr, "Comm:recv(): Message size %d\n", msg_size);
 
   char* msg_data = new char[msg_size];
   socket_stream.read(msg_data, msg_size);
@@ -254,14 +252,14 @@ void Comm::process(socket_ptr sock) {
 
     bool success = true;
     for (int d=0; d< task_msg.data_size(); d++) {
-      const DataMsg *blockInfo = &task_msg.data(d);
-      int blockId = blockInfo->partition_id();
+      const DataMsg blockInfo = task_msg.data(d);
+      int blockId = blockInfo.partition_id();
 
-      if (blockInfo->has_length()) {
+      if (blockInfo.has_length()) {
         // add a new block 
-        std::string dataPath = blockInfo->path(); 
-        int dataLength = blockInfo->length();
-        int dataSize = blockInfo->size();	
+        std::string dataPath = blockInfo.path(); 
+        int dataLength = blockInfo.length();
+        int dataSize = blockInfo.size();	
 
         DataBlock_ptr block = block_manager->getShared(blockId);
 
@@ -277,6 +275,10 @@ void Comm::process(socket_ptr sock) {
           int err = block_manager->addShared(blockId, new_block);
 
           if (err != 0) { // not enough space
+            logger->logErr(
+                LOG_HEADER+
+                "Not enough space left in scratch");
+
             success = false;
             break;
           }
@@ -293,6 +295,10 @@ void Comm::process(socket_ptr sock) {
         if (err != 0) { // failed to remove
           success = false;  
 
+          logger->logErr(
+              LOG_HEADER+
+              "Failed to delete the block");
+
           // do not break out of the loop
         }
       }
@@ -301,9 +307,15 @@ void Comm::process(socket_ptr sock) {
     TaskMsg finish_msg;
     if (success) {
       finish_msg.set_type(ACCFINISH);
+      logger->logInfo(
+          LOG_HEADER+
+          "Replied an ACCFINISH message regarding the broadcast.");
     }
     else {
       finish_msg.set_type(ACCFAILURE);
+      logger->logInfo(
+          LOG_HEADER+
+          "Replied an ACCFAILURE message regarding the broadcast.");
     }
     send(finish_msg, socket_stream);
   }
@@ -313,6 +325,9 @@ void Comm::process(socket_ptr sock) {
       std::string("Unknown message type, discarding message.");
     logger->logErr(msg);
   }
+  logger->logInfo(
+      LOG_HEADER+
+      "thread exiting.");
 }
 
 void Comm::listen() {

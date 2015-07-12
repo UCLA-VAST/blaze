@@ -25,6 +25,7 @@ void QueueManager::add(std::string id, std::string lib_path) {
   Task* (*create_func)();
   void (*destroy_func)(Task*);
 
+  // read the custom constructor and destructor  
   create_func = (Task* (*)())dlsym(handle, "create");
   destroy_func = (void (*)(Task*))dlsym(handle, "destroy");
 
@@ -34,10 +35,16 @@ void QueueManager::add(std::string id, std::string lib_path) {
     throw std::runtime_error(error);
   }
 
+  // construct the corresponding task queue
   TaskManager_ptr taskManager(
     new TaskManager(create_func, destroy_func, logger));
 
   queue_table.insert(std::make_pair(id, taskManager));
+
+  logger->logInfo(
+      LOG_HEADER +
+      "added a new task queue: "+
+      id);
 }
 
 TaskManager_ptr QueueManager::get(std::string id) {

@@ -11,7 +11,7 @@ COMPILE= $(CFLAGS) \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include 
 LINK= -L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams \
+			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \
 			-lpthread -lm -ldl
 

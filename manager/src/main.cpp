@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string>
 
+#include <boost/filesystem.hpp>
+
 #include "Comm.h"
 #include "QueueManager.h"
 #include "BlockManager.h"
@@ -25,20 +27,44 @@ int main(int argc, char** argv) {
   BlockManager block_manager(&logger);
   QueueManager queue_manager(&logger);
 
-  // add task queue to queue manager
-  queue_manager.add(
-    "SimpleAddition", 
-    "../../task/lib/SimpleAddition.so");
+  boost::filesystem::path acc_dir("../../task/lib/");
 
-  TaskManager_ptr task_manager = 
-        queue_manager.get("SimpleAddition");
+  if ( !boost::filesystem::exists( acc_dir ) ) {
+    printf("Cannot find any accelerators.\n");
+    return -1;
+  }
 
-  // start executor and commitor
-  boost::thread executor(
-    boost::bind(&TaskManager::execute, task_manager));
+  boost::filesystem::directory_iterator end_iter;
+  // construct a task for every accelerator in the directory
+  for (boost::filesystem::directory_iterator iter(acc_dir);
+       iter != end_iter; 
+       ++iter)
+  {
+    if (iter->path().extension().compare(".so")==0) {
+      // add task queue to queue manager
+      try {
+        queue_manager.add(
+            iter->path().stem().string(), 
+            acc_dir.string() + iter->path().string());
+      }
+      catch (std::runtime_error &e) {
+        printf("%s\n", e.what());
+        continue;
+      }
 
-  boost::thread committer(
-    boost::bind(&TaskManager::commit, task_manager));
+      // get the reference to the task queue 
+      TaskManager_ptr task_manager = 
+        queue_manager.get(iter->path().stem().string());
+
+      // start executor and commitor
+      boost::thread executor(
+          boost::bind(&TaskManager::execute, task_manager));
+
+      boost::thread committer(
+          boost::bind(&TaskManager::commit, task_manager));
+
+    }
+  }
 
   Comm comm(
           &block_manager, 

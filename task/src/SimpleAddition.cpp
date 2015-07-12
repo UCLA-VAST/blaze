@@ -19,6 +19,8 @@ public:
     int data_length = input_blocks[0]->getLength();
     int data_size = input_blocks[0]->getSize();
 
+    printf("processing %d double\n", data_length);
+
     //DataBlock_ptr input_block = input[0];
     DataBlock_ptr out_block = createOutputBlock(data_length, data_size);
 

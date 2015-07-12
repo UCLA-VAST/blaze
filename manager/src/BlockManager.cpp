@@ -121,6 +121,14 @@ int BlockManager::addShared(
     // add new block
     scratchTable.insert(std::make_pair(tag, block));
     scratchSize += block->getSize();
+
+    logger->logInfo(
+        LOG_HEADER+
+        "added broadcast block "+
+        std::to_string((long long)tag)+
+        " with size:" + 
+        std::to_string((long long)block->getSize()));
+
     return 0;
   }
   else {
