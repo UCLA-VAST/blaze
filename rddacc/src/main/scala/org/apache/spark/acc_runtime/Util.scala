@@ -85,8 +85,8 @@ object Util {
     }
   }
 
-  def serializePartition[T: ClassTag](input: Array[T], id: Int): (String, Int) = {
-    var fileName: String = System.getProperty("java.io.tmpdir") + "/spark_acc"
+  def serializePartition[T: ClassTag](prefix: String, input: Array[T], id: Int): (String, Int) = {
+    var fileName: String = System.getProperty("java.io.tmpdir") + "/" + prefix
     if (id < 0) // Broadcast data
       fileName = fileName + "_brdcst_" + (-id) + ".dat"
     else // Normal data

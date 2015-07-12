@@ -12,6 +12,7 @@ import org.apache.spark.broadcast._
 
 class ACCRuntime(sc: SparkContext) extends Logging {
 
+  val appSignature: String = sc.appName.replace(" ", "")
   var BroadcastList: List[Broadcast_ACC[_]] = List()
 
   def stop() = {
@@ -37,11 +38,11 @@ class ACCRuntime(sc: SparkContext) extends Logging {
   }
 
   def wrap[T: ClassTag](rdd : RDD[T]) : ShellRDD[T] = {
-    new ShellRDD[T](rdd)
+    new ShellRDD[T](appSignature, rdd)
   }
 
   def wrap[T: ClassTag](bd : Broadcast[T]) : Broadcast_ACC[T] = {
-    val newBrdcst = new Broadcast_ACC[T](bd)
+    val newBrdcst = new Broadcast_ACC[T](appSignature, bd)
     BroadcastList = BroadcastList :+ newBrdcst
     newBrdcst
   }

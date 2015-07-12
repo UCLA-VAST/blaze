@@ -9,7 +9,7 @@ import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 
-class ShellRDD[T: ClassTag](prev: RDD[T]) 
+class ShellRDD[T: ClassTag](sign: String, prev: RDD[T]) 
   extends RDD[T](prev) {
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
@@ -31,7 +31,7 @@ class ShellRDD[T: ClassTag](prev: RDD[T])
   }
 
   def map_acc[U: ClassTag](clazz: Accelerator[T, U]): AccRDD[U, T] = {
-    new AccRDD(this, clazz)
+    new AccRDD(sign, this, clazz)
   }
 }
 

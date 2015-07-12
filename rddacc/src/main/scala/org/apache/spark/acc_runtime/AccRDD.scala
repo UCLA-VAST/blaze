@@ -15,7 +15,7 @@ import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 
-class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U]) 
+class AccRDD[U: ClassTag, T: ClassTag](sign: String, prev: RDD[T], acc: Accelerator[T, U]) 
   extends RDD[U](prev) {
 
   def getPrevRDD() = prev
@@ -71,7 +71,7 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
         val transmitter = new DataTransmitter()
         if (transmitter.isConnect == false)
           throw new RuntimeException("Connection refuse.")
-        var msg = transmitter.buildRequest(acc.id, blockId)
+        var msg = transmitter.buildRequest(acc.id, blockId, brdcstId)
 //        var startTime = System.nanoTime
         transmitter.send(msg)
         var revMsg = transmitter.receive()
@@ -87,13 +87,13 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
 
         // Prepare input data blocks
         var i = 0
-        var allCached: Boolean = true
+        var requireData: Boolean = false
         while (i < numBlock) {
           if (!revMsg.getData(i).getCached()) {
-            allCached = false
+            requireData = true
             if (isCached == true) { // Send data from memory
               val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
-              val mappedFileInfo = Util.serializePartition(inputAry, blockId(i))
+              val mappedFileInfo = Util.serializePartition(sign, inputAry, blockId(i))
               dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
               transmitter.addData(dataMsg, blockId(i), mappedFileInfo._2,
                   mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)
@@ -116,10 +116,9 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
   //      elapseTime = System.nanoTime - startTime
   //      println("Preprocess time: " + elapseTime + " ns")
 
-        if (allCached == false)
+        if (requireData == true)
           transmitter.send(dataMsg)
-        else
-          println("No data need to be sent, waiting for result")
+
         revMsg = transmitter.receive()
 
         if (revMsg.getType() == AccMessage.MsgType.ACCFINISH) {
@@ -178,7 +177,7 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
   }
 
   def map_acc[V: ClassTag](clazz: Accelerator[U, V]): AccRDD[V, U] = {
-    new AccRDD(this, clazz)
+    new AccRDD(sign, this, clazz)
   }
 
   def inMemoryCheck(split: Partition): Boolean = { 

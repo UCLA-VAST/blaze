@@ -115,12 +115,17 @@ public class DataTransmitter {
 	*		The unique block ID.
 	* @return The message which hasn't been built.
 	**/
-	public AccMessage.TaskMsg.Builder buildRequest(String acc_id, int[] blockId) {
+	public AccMessage.TaskMsg.Builder buildRequest(String acc_id, int[] blockId, int[] brdcstId) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
 			.setType(AccMessage.MsgType.ACCREQUEST)
 			.setAccId(acc_id);
 
 			for (int id: blockId) {
+				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
+					.setPartitionId(id);
+				msg.addData(data);
+			}
+			for (int id: brdcstId) {
 				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 					.setPartitionId(id);
 				msg.addData(data);
