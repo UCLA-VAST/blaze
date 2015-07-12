@@ -86,7 +86,12 @@ object Util {
   }
 
   def serializePartition[T: ClassTag](input: Array[T], id: Int): (String, Int) = {
-    val fileName: String = System.getProperty("java.io.tmpdir") + "/spark_acc" + id + ".dat"
+    var fileName: String = System.getProperty("java.io.tmpdir") + "/spark_acc"
+    if (id < 0) // Broadcast data
+      fileName = fileName + "_brdcst_" + (-id) + ".dat"
+    else // Normal data
+      fileName = fileName + id + ".dat"
+
     val dataType: String = input(0).getClass.getName.replace("java.lang.", "").toLowerCase()
     val typeSize: Int = getTypeSizeByName(dataType)
 

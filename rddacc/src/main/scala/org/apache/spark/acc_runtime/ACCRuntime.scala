@@ -23,7 +23,11 @@ class ACCRuntime(sc: SparkContext) extends Logging {
         transmitter.addBroadcastData(msg, e.brdcst_id)
       }
       transmitter.send(msg)
-      println("Successfully release broadcast blocks from Manager")
+      val revMsg = transmitter.receive()
+      if (revMsg.getType() == AccMessage.MsgType.ACCFINISH)
+        println("Successfully release broadcast blocks from Manager")
+      else
+        println("Fail to release broadcast blocks from Manager")
     }
     catch {
       case e: Throwable =>

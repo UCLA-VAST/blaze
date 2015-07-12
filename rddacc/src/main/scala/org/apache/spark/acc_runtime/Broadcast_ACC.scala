@@ -31,14 +31,15 @@ class Broadcast_ACC[T: ClassTag](val bd: Broadcast[T]) extends java.io.Serializa
     }
 
     transmitter.send(msg)
-    val revMsg = transmitter.receive()
 
+    val revMsg = transmitter.receive()
     if (revMsg.getType() != AccMessage.MsgType.ACCFINISH)
-      throw new RuntimeException("Broadcast failed.")
+      throw new RuntimeException("Manager returns failure.")
     isBroadcast = true
   }
   catch {
     case e: Throwable =>
-      println("Fail to broadcast data: " + e) 
+      println("Fail to broadcast data: ")
+      e.printStackTrace
   }  
 }

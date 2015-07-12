@@ -25,11 +25,27 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
 
   override def compute(split: Partition, context: TaskContext) = {
     val numBlock: Int = 1 // Now we just use 1 block
+    var j: Int = 0 // Don't use "i" or you will encounter an unknown compiler error.
+
+    // Generate normal block ID array
     val blockId = new Array[Int](numBlock)
-    var ii = 0 // Don't use "i" or you will encounter an unknown compiler error.
-    while (ii < numBlock) {
-      blockId(ii) = Util.getBlockID(getRDD.id, split.index, ii)
-      ii = ii + 1
+    while (j < numBlock) {
+      blockId(j) = Util.getBlockID(getRDD.id, split.index, j)
+      j = j + 1
+    }
+    j = 0
+
+    // Generate broadcast block ID array
+    val brdcstId = new Array[Int](acc.getArgNum)
+    while (j < brdcstId.length) {
+      val arg = acc.getArg(j)
+      if (arg.isDefined == false)
+        throw new RuntimeException("Argument index is out of range.")
+      if (arg.get.isBroadcast == false)
+        throw new RuntimeException("Broadcast data is not prepared.")
+
+      brdcstId(j) = arg.get.brdcst_id
+      j = j + 1
     }
 
     val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
@@ -56,11 +72,11 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
         if (transmitter.isConnect == false)
           throw new RuntimeException("Connection refuse.")
         var msg = transmitter.buildRequest(acc.id, blockId)
-        var startTime = System.nanoTime
+//        var startTime = System.nanoTime
         transmitter.send(msg)
         var revMsg = transmitter.receive()
-        var elapseTime = System.nanoTime - startTime
-        println("Communication latency: " + elapseTime + " ns")
+//        var elapseTime = System.nanoTime - startTime
+//        println("Communication latency: " + elapseTime + " ns")
 
         if (revMsg.getType() != AccMessage.MsgType.ACCGRANT)
           throw new RuntimeException("Request reject.")
@@ -71,8 +87,10 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
 
         // Prepare input data blocks
         var i = 0
+        var allCached: Boolean = true
         while (i < numBlock) {
           if (!revMsg.getData(i).getCached()) {
+            allCached = false
             if (isCached == true) { // Send data from memory
               val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
               val mappedFileInfo = Util.serializePartition(inputAry, blockId(i))
@@ -90,21 +108,18 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
 
         // Prepare broadcast blocks
         i = 0
-        while (i < acc.getArgNum()) {
-          val arg = acc.getArg(i)
-          if (arg.isDefined == false)
-            throw new RuntimeException("Argument index is out of range.")
-
-          if (arg.get.isBroadcast == false)
-            throw new RuntimeException("Broadcast data is not prepared.")
-          transmitter.addBroadcastData(dataMsg, arg.get.brdcst_id)
+        while (i < brdcstId.length) {
+          transmitter.addBroadcastData(dataMsg, brdcstId(i))
           i = i + 1
         }
 
   //      elapseTime = System.nanoTime - startTime
   //      println("Preprocess time: " + elapseTime + " ns")
 
-        transmitter.send(dataMsg)
+        if (allCached == false)
+          transmitter.send(dataMsg)
+        else
+          println("No data need to be sent, waiting for result")
         revMsg = transmitter.receive()
 
         if (revMsg.getType() == AccMessage.MsgType.ACCFINISH) {
@@ -119,7 +134,7 @@ class AccRDD[U: ClassTag, T: ClassTag](prev: RDD[T], acc: Accelerator[T, U])
           }
           outputAry = new Array[U](dataLength)
   
-          startTime = System.nanoTime
+  //        startTime = System.nanoTime
           // read result
           i = 0
           idx = 0

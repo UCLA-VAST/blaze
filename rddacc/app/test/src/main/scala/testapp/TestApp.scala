@@ -12,6 +12,12 @@ import org.apache.spark.acc_runtime._
 class SimpleAddition extends Accelerator[Double, Double] {
   val id: String = "SimpleAddition"
 
+  def getArgNum(): Int = 0
+
+  def getArg(idx: Int): Option[Broadcast_ACC[_]] = {
+    None
+  }
+
   def call(in: Double): Double = {
     in + 1.0
   }
@@ -20,12 +26,12 @@ class SimpleAddition extends Accelerator[Double, Double] {
 object TestApp {
     def main(args : Array[String]) {
       val sc = get_spark_context("Test App")
-      val rdd = sc.textFile("/curr/cody/test/testInput.txt", 5)
+      val rdd = sc.textFile("/curr/cody/test/testInput.txt", 1)
 
       val acc = new ACCRuntime(sc)
       val rdd_acc = acc.wrap(rdd.map(a => a.toDouble))
 
-//      val b = acc.wrap(sc.broadcast(Array(1, 2, 3)))
+      val b = acc.wrap(sc.broadcast(Array(1, 2, 3)))
 //      val c = acc.wrap(sc.broadcast(5))
 
       rdd_acc.cache
