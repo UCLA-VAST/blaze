@@ -113,8 +113,16 @@ int BlockManager::addShared(
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
   
-  if (scratchSize + block->getSize() >= scratchSize) {
+  if (scratchSize + block->getSize() >= maxScratchSize) {
+
     // cannot add because running out of space
+    logger->logInfo(
+        LOG_HEADER+
+        "cannot add broadcast with size:" + 
+        std::to_string((long long)block->getSize())+
+        ", maxsize is "+
+        std::to_string((long long)maxScratchSize));
+
     return -1;
   }
   else if (scratchTable.find(tag) == scratchTable.end()){

@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string>
 
-#include <boost/filesystem.hpp>
 
 #include "Comm.h"
 #include "QueueManager.h"
@@ -27,44 +26,8 @@ int main(int argc, char** argv) {
   BlockManager block_manager(&logger);
   QueueManager queue_manager(&logger);
 
-  boost::filesystem::path acc_dir("../../task/lib/");
-
-  if ( !boost::filesystem::exists( acc_dir ) ) {
-    printf("Cannot find any accelerators.\n");
-    return -1;
-  }
-
-  boost::filesystem::directory_iterator end_iter;
-  // construct a task for every accelerator in the directory
-  for (boost::filesystem::directory_iterator iter(acc_dir);
-       iter != end_iter; 
-       ++iter)
-  {
-    if (iter->path().extension().compare(".so")==0) {
-      // add task queue to queue manager
-      try {
-        queue_manager.add(
-            iter->path().stem().string(), 
-            acc_dir.string() + iter->path().string());
-      }
-      catch (std::runtime_error &e) {
-        printf("%s\n", e.what());
-        continue;
-      }
-
-      // get the reference to the task queue 
-      TaskManager_ptr task_manager = 
-        queue_manager.get(iter->path().stem().string());
-
-      // start executor and commitor
-      boost::thread executor(
-          boost::bind(&TaskManager::execute, task_manager));
-
-      boost::thread committer(
-          boost::bind(&TaskManager::commit, task_manager));
-
-    }
-  }
+  queue_manager.buildFromPath("../../task/lib/");
+  queue_manager.startAll();
 
   Comm comm(
           &block_manager, 

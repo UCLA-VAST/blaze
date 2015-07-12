@@ -103,6 +103,9 @@ public:
 
       try {
         writeData(data, data_size);
+
+        printf("read data from %s\n", path.c_str());
+
       } catch(std::runtime_error &e) {
         throw e;
       }

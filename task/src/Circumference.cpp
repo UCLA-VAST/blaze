@@ -27,7 +27,7 @@ public:
     double* b = (double*)(out_block->getData());
 
     for (int i = 0; i < data_length; i++) {
-      b[i] = a[i] * pi[0]; // FIXME: How to use broadcast variable?
+      b[i] = a[i] * 2.0 * pi[0]; 
     }
 
     // if there is any error, throw exceptions

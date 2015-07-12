@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
-#include <iostream>
-#include <stdexcept>
 #include <fcntl.h>   
 #include <sys/mman.h>
 #include <sys/stat.h>
+
+#include <iostream>
+#include <stdexcept>
+#include <cstdint>
 
 #include "Comm.h"
 
@@ -119,29 +121,52 @@ void Comm::process(socket_ptr sock) {
       DataMsg *block_info = reply_msg.add_data();
       block_info->set_partition_id(blockId);
 
-      if (!block_manager->isCached(blockId)) {
+      if (blockId >= 0) { // this is an input block
+        if (!block_manager->isCached(blockId)) {
 
-        // allocate a new block without initilizing
-        // this block need to be added to cache later since the
-        // size information may not be available at this point
-        DataBlock_ptr block(new DataBlock());
+          // allocate a new block without initilizing
+          // this block need to be added to cache later since the
+          // size information may not be available at this point
+          DataBlock_ptr block(new DataBlock());
 
-        // add the block to task
-        // this step may be mandatory to guarantee correct block
-        // order
-        task->addInputBlock(blockId, block);
+          // add the block to task
+          // this step may be mandatory to guarantee correct block
+          // order
+          task->addInputBlock(blockId, block);
 
-        // set message flag
-        block_info->set_cached(false);
-        all_cached = false;
+          // set message flag
+          block_info->set_cached(false);
+          all_cached = false;
+        }
+        else {
+          DataBlock_ptr block = block_manager->get(blockId);
+
+          // add cached block to task
+          task->addInputBlock(blockId, block);
+
+          block_info->set_cached(true); 
+        }
       }
       else {
-        DataBlock_ptr block = block_manager->get(blockId);
+        DataBlock_ptr block = 
+          block_manager->getShared(blockId);
+        if (block == NULL_DATA_BLOCK) {
+          // TODO: assuming broadcast data will
+          // always be available?
+          logger->logErr(
+              LOG_HEADER + 
+              std::string("Broadcast is not available"));
+        }
+        else {
+          // add cached block to task
+          task->addInputBlock(blockId, block);
 
-        // add cached block to task
-        task->addInputBlock(blockId, block);
+          logger->logInfo(
+              LOG_HEADER + 
+              std::string("added broadcast data to task"));
 
-        block_info->set_cached(false); 
+          block_info->set_cached(true); 
+        }
       }
     }
 
@@ -176,12 +201,27 @@ void Comm::process(socket_ptr sock) {
           int dataLength = data_msg.data(d).length();
           std::string dataPath = data_msg.data(d).path();
 
-          // get the updated block from task
-          DataBlock_ptr block = 
-            task->onDataReady(blockId, dataLength, dataSize, dataPath);
+          logger->logInfo(
+              LOG_HEADER + 
+              std::string("Received a block infomation of ")+
+              std::to_string((long long)blockId));
 
-          // add the block to cache
-          block_manager->add(blockId, block);
+          if (blockId < 0) {
+            // TODO: should not do anything here
+            //continue;
+
+            DataBlock_ptr block = 
+              block_manager->getShared(blockId);
+            task->addInputBlock(blockId, block);
+          }
+          else {
+            // get the updated block from task
+            DataBlock_ptr block = 
+              task->onDataReady(blockId, dataLength, dataSize, dataPath);
+
+            // add the block to cache
+            block_manager->add(blockId, block);
+          }
         }
       }
       else {
@@ -255,7 +295,8 @@ void Comm::process(socket_ptr sock) {
       const DataMsg blockInfo = task_msg.data(d);
       int blockId = blockInfo.partition_id();
 
-      if (blockInfo.has_length()) {
+      if (blockInfo.has_length()) { // if this is a broadcast array
+
         // add a new block 
         std::string dataPath = blockInfo.path(); 
         int dataLength = blockInfo.length();
@@ -286,6 +327,37 @@ void Comm::process(socket_ptr sock) {
         else {
           // if the block already exists, update it
           block->readFromMem(dataPath);
+        }
+      }
+      else if (blockInfo.has_bval()) { // if this is a broadcast scalar
+
+        int64_t bval = blockInfo.bval();
+         
+        DataBlock_ptr block = block_manager->getShared(blockId);
+
+        if (block == NULL_DATA_BLOCK) {
+          // broadcast block does not exist
+          // create a new block and add it to the manager
+
+          // add the scalar as a new block
+          DataBlock_ptr new_block(new DataBlock(1, 8));
+
+          new_block->writeData((void*)(&bval), 8);
+
+          int err = block_manager->addShared(blockId, new_block);
+
+          if (err != 0) { // not enough space
+            logger->logErr(
+                LOG_HEADER+
+                "Not enough space left in scratch");
+
+            success = false;
+            break;
+          }
+        }
+        else {
+          // if the block already exists, update it
+          block->writeData((void*)(&bval), 8);
         }
       }
       else {
