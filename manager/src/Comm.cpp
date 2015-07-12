@@ -115,7 +115,7 @@ void Comm::process(socket_ptr sock) {
     bool all_cached = true;
 
     // consult BlockManager to see if block is cached
-    for(int i = 0; i < task_msg.data_size(); ++i) {
+    for (int i = 0; i < task_msg.data_size(); ++i) {
       int blockId = task_msg.data(i).partition_id();
 
       DataMsg *block_info = reply_msg.add_data();
@@ -161,10 +161,6 @@ void Comm::process(socket_ptr sock) {
           // add cached block to task
           task->addInputBlock(blockId, block);
 
-          logger->logInfo(
-              LOG_HEADER + 
-              std::string("added broadcast data to task"));
-
           block_info->set_cached(true); 
         }
       }
@@ -201,10 +197,10 @@ void Comm::process(socket_ptr sock) {
           int dataLength = data_msg.data(d).length();
           std::string dataPath = data_msg.data(d).path();
 
-          logger->logInfo(
-              LOG_HEADER + 
-              std::string("Received a block infomation of ")+
-              std::to_string((long long)blockId));
+          //logger->logInfo(
+          //    LOG_HEADER + 
+          //    std::string("Received a block infomation of ")+
+          //    std::to_string((long long)blockId));
 
           if (blockId < 0) {
             // TODO: should not do anything here
@@ -238,10 +234,6 @@ void Comm::process(socket_ptr sock) {
           boost::chrono::microseconds(10)); 
     }
 
-    logger->logInfo(
-        LOG_HEADER + 
-        std::string("Task finished"));
-
     // Initialize finish message
     TaskMsg finish_msg;
     finish_msg.set_type(ACCFINISH);
@@ -259,10 +251,10 @@ void Comm::process(socket_ptr sock) {
         logger->getTid() + 
         std::to_string((long long)outId);
 
-      logger->logInfo(
-          LOG_HEADER + 
-          std::string("Write output block to ") +
-          path);
+      //logger->logInfo(
+      //    LOG_HEADER + 
+      //    std::string("Write output block to ") +
+      //    path);
 
       // write the block to output shared memory
       block->writeToMem(path);
@@ -288,7 +280,7 @@ void Comm::process(socket_ptr sock) {
   else if (task_msg.type() == ACCBROADCAST) {
 
     logger->logInfo(LOG_HEADER + 
-        std::string("Recieved a ACCBROADCAST message")) ; 
+        std::string("Recieved an ACCBROADCAST message")) ; 
 
     bool success = true;
     for (int d=0; d< task_msg.data_size(); d++) {
@@ -307,7 +299,7 @@ void Comm::process(socket_ptr sock) {
         if (block == NULL_DATA_BLOCK) {
           // broadcast block does not exist
           // create a new block and add it to the manager
-
+          
           // not sure smart_ptr can be assigned, so creating a new one
           DataBlock_ptr new_block(new DataBlock(dataLength, dataSize));
 
@@ -332,7 +324,7 @@ void Comm::process(socket_ptr sock) {
       else if (blockInfo.has_bval()) { // if this is a broadcast scalar
 
         int64_t bval = blockInfo.bval();
-         
+
         DataBlock_ptr block = block_manager->getShared(blockId);
 
         if (block == NULL_DATA_BLOCK) {
