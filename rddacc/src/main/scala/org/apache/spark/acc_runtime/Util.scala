@@ -76,9 +76,9 @@ object Util {
       throw new RuntimeException("Unsupported casting type")
   }
 
-  def getBlockID(first: Int, second: Int = -1, third: Int = -1, fourth: Int = -1): Int = {
-    if (second == -1) { // broadcast block
-      -(first + 1)
+  def getBlockID(first: Int, second: Int, third: Int = -1, fourth: Int = -1): Int = {
+    if (third == -1) { // broadcast block
+      -(first + second + 1)
     }
     else { // normal block
       first + (second << RDD_BIT_NUM) + (third << PARTITION_BIT_NUM) + (fourth)
