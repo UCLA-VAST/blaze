@@ -37,7 +37,8 @@ object TestApp {
       rdd_acc.cache
       rdd_acc.collect
       val rdd_acc2 = rdd_acc.map_acc(new SimpleAddition())
-      println(rdd_acc2.reduce((a, b) => (a + b)))
+      println("Result: " + rdd_acc2.reduce((a, b) => (a + b)))
+      println("Expect: " + rdd_acc.map(e => e + 1.0).reduce((a, b) => (a + b)))
 
       acc.stop()
     }

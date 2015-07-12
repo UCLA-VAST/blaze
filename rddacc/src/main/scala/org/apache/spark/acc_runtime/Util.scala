@@ -76,16 +76,16 @@ object Util {
       throw new RuntimeException("Unsupported casting type")
   }
 
-  def getBlockID(first: Int, second: Int = -1, third: Int = -1): Int = {
+  def getBlockID(first: Int, second: Int = -1, third: Int = -1, fourth: Int = -1): Int = {
     if (second == -1) { // broadcast block
       -(first + 1)
     }
     else { // normal block
-      (first << RDD_BIT_NUM) + (second << PARTITION_BIT_NUM) + (third)
+      first + (second << RDD_BIT_NUM) + (third << PARTITION_BIT_NUM) + (fourth)
     }
   }
 
-  def serializePartition[T: ClassTag](prefix: String, input: Array[T], id: Int): (String, Int) = {
+  def serializePartition[T: ClassTag](prefix: Int, input: Array[T], id: Int): (String, Int) = {
     var fileName: String = System.getProperty("java.io.tmpdir") + "/" + prefix
     if (id < 0) // Broadcast data
       fileName = fileName + "_brdcst_" + (-id) + ".dat"

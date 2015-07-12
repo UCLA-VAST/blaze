@@ -15,7 +15,7 @@ import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 
-class AccRDD[U: ClassTag, T: ClassTag](sign: String, prev: RDD[T], acc: Accelerator[T, U]) 
+class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerator[T, U]) 
   extends RDD[U](prev) {
 
   def getPrevRDD() = prev
@@ -30,7 +30,7 @@ class AccRDD[U: ClassTag, T: ClassTag](sign: String, prev: RDD[T], acc: Accelera
     // Generate normal block ID array
     val blockId = new Array[Int](numBlock)
     while (j < numBlock) {
-      blockId(j) = Util.getBlockID(getRDD.id, split.index, j)
+      blockId(j) = Util.getBlockID(appId, getRDD.id, split.index, j)
       j = j + 1
     }
     j = 0
@@ -93,7 +93,7 @@ class AccRDD[U: ClassTag, T: ClassTag](sign: String, prev: RDD[T], acc: Accelera
             requireData = true
             if (isCached == true) { // Send data from memory
               val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
-              val mappedFileInfo = Util.serializePartition(sign, inputAry, blockId(i))
+              val mappedFileInfo = Util.serializePartition(appId, inputAry, blockId(i))
               dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
               transmitter.addData(dataMsg, blockId(i), mappedFileInfo._2,
                   mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)
@@ -177,7 +177,7 @@ class AccRDD[U: ClassTag, T: ClassTag](sign: String, prev: RDD[T], acc: Accelera
   }
 
   def map_acc[V: ClassTag](clazz: Accelerator[U, V]): AccRDD[V, U] = {
-    new AccRDD(sign, this, clazz)
+    new AccRDD(appId, this, clazz)
   }
 
   def inMemoryCheck(split: Partition): Boolean = { 

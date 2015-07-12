@@ -9,7 +9,7 @@ import org.apache.spark.util.Utils
 
 import scala.reflect.ClassTag
 
-class Broadcast_ACC[T: ClassTag](sign: String, bd: Broadcast[T]) extends java.io.Serializable {
+class Broadcast_ACC[T: ClassTag](appId: Int, bd: Broadcast[T]) extends java.io.Serializable {
   var brdcst_id = Util.getBlockID(bd.id.asInstanceOf[Int])
   val data = bd.value
   var isBroadcast: Boolean = false
@@ -20,7 +20,7 @@ class Broadcast_ACC[T: ClassTag](sign: String, bd: Broadcast[T]) extends java.io
  
     if (data.getClass.isArray) {
       val arrayData = data.asInstanceOf[Array[_]]
-      val mappedFileInfo = Util.serializePartition(sign, arrayData, brdcst_id)
+      val mappedFileInfo = Util.serializePartition(appId, arrayData, brdcst_id)
       val typeName = arrayData(0).getClass.getName.replace("java.lang.", "").toLowerCase
       val typeSize = Util.getTypeSizeByName(typeName)
       assert(typeSize != 0, "Cannot find the size of type " + typeName)

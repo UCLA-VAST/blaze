@@ -1,5 +1,6 @@
 package org.apache.spark.acc_runtime
 
+import scala.util.matching.Regex
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
@@ -12,7 +13,8 @@ import org.apache.spark.broadcast._
 
 class ACCRuntime(sc: SparkContext) extends Logging {
 
-  val appSignature: String = sc.appName.replace(" ", "")
+  // FIXME: Not a perfect solution
+  val appSignature: Int = Math.abs(("""\d+""".r findAllIn sc.applicationId).addString(new StringBuilder).toLong.toInt)
   var BroadcastList: List[Broadcast_ACC[_]] = List()
 
   def stop() = {
