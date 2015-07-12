@@ -4,7 +4,9 @@
 #include <string.h>
 #include <string>
 #include <stdexcept>
+
 #include <boost/smart_ptr.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
 
 /*
  * make the base class extendable to manage memory block
@@ -60,6 +62,7 @@ public:
     }
   }
 
+  // write data to an array
   void readData(void* dst, size_t size) {
     if (allocated) {
       memcpy(dst, (void*)data, size);
@@ -83,6 +86,58 @@ public:
 
   bool isReady() {
     return ready; 
+  }
+
+  void readFromMem(std::string path) {
+
+    boost::iostreams::mapped_file_source fin;
+
+    int data_length = length; 
+    int data_size = size;
+
+    fin.open(path, data_size);
+
+    if (fin.is_open()) {
+      
+      void* data = (void*)fin.data();
+
+      try {
+        writeData(data, data_size);
+      } catch(std::runtime_error &e) {
+        throw e;
+      }
+
+      fin.close();
+    }
+    else {
+      throw std::runtime_error("Cannot find file");
+    }
+  }
+
+  void writeToMem(std::string path) {
+
+    int data_length = length; 
+    int data_size = size;
+
+    boost::iostreams::mapped_file_params param(path); 
+    param.flags = boost::iostreams::mapped_file::mapmode::readwrite;
+    param.new_file_size = data_size;
+    param.length = data_size;
+    boost::iostreams::mapped_file_sink fout(param);
+
+    if (fout.is_open()) {
+
+      try {
+        readData((void*)fout.data(), data_size);
+      } catch(std::runtime_error &e) {
+        throw e;
+      }
+
+      fout.close();
+    }
+    else {
+      throw std::runtime_error("Cannot find file");
+    }
   }
 
   ~DataBlock() {

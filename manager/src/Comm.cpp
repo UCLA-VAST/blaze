@@ -27,7 +27,9 @@ void Comm::recv(
   socket_stream.read(reinterpret_cast<char*>(&msg_size), sizeof(int));
 
   if (msg_size<=0) {
-    throw std::runtime_error("Invalid message size");
+    throw std::runtime_error(
+        "Invalid message size of " +
+        std::to_string((long long)msg_size));
   }
 	else
 		fprintf(stderr, "Comm:recv(): Message size %d\n", msg_size);
@@ -225,7 +227,7 @@ void Comm::process(socket_ptr sock) {
           path);
 
       // write the block to output shared memory
-      task->writeToMem(block, path);
+      block->writeToMem(path);
 
       // construct DataMsg
       DataMsg *block_info = finish_msg.add_data();
@@ -246,9 +248,64 @@ void Comm::process(socket_ptr sock) {
 
   }
   else if (task_msg.type() == ACCBROADCAST) {
-    // TODO: handle broadcast message 
+
     logger->logInfo(LOG_HEADER + 
         std::string("Recieved a ACCBROADCAST message")) ; 
+
+    bool success = true;
+    for (int d=0; d< task_msg.data_size(); d++) {
+      const DataMsg *blockInfo = &task_msg.data(d);
+      int blockId = blockInfo->partition_id();
+
+      if (blockInfo->has_length()) {
+        // add a new block 
+        std::string dataPath = blockInfo->path(); 
+        int dataLength = blockInfo->length();
+        int dataSize = blockInfo->size();	
+
+        DataBlock_ptr block = block_manager->getShared(blockId);
+
+        if (block == NULL_DATA_BLOCK) {
+          // broadcast block does not exist
+          // create a new block and add it to the manager
+
+          // not sure smart_ptr can be assigned, so creating a new one
+          DataBlock_ptr new_block(new DataBlock(dataLength, dataSize));
+
+          new_block->readFromMem(dataPath);
+
+          int err = block_manager->addShared(blockId, new_block);
+
+          if (err != 0) { // not enough space
+            success = false;
+            break;
+          }
+        }
+        else {
+          // if the block already exists, update it
+          block->readFromMem(dataPath);
+        }
+      }
+      else {
+        // deleting an existing block
+        int err = block_manager->removeShared(blockId);
+
+        if (err != 0) { // failed to remove
+          success = false;  
+
+          // do not break out of the loop
+        }
+      }
+    }
+
+    TaskMsg finish_msg;
+    if (success) {
+      finish_msg.set_type(ACCFINISH);
+    }
+    else {
+      finish_msg.set_type(ACCFAILURE);
+    }
+    send(finish_msg, socket_stream);
   }
   else {
     std::string msg = 

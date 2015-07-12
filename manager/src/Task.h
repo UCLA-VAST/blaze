@@ -83,58 +83,6 @@ public:
     }
   }
 
-  void readFromMem(DataBlock_ptr block, std::string path) {
-
-    boost::iostreams::mapped_file_source fin;
-
-    int data_length = block->getLength(); 
-    int data_size = block->getSize();
-
-    fin.open(path, data_size);
-
-    if (fin.is_open()) {
-      
-      void* data = (void*)fin.data();
-
-      try {
-        block->writeData(data, data_size);
-      } catch(std::runtime_error &e) {
-        throw e;
-      }
-
-      fin.close();
-    }
-    else {
-      throw std::runtime_error("Cannot find file");
-    }
-  }
-
-  void writeToMem(DataBlock_ptr block, std::string path) {
-
-    int data_length = block->getLength(); 
-    int data_size = block->getSize();
-
-    boost::iostreams::mapped_file_params param(path); 
-    param.flags = boost::iostreams::mapped_file::mapmode::readwrite;
-    param.new_file_size = data_size;
-    param.length = data_size;
-    boost::iostreams::mapped_file_sink fout(param);
-
-    if (fout.is_open()) {
-
-      try {
-        block->readData((void*)fout.data(), data_size);
-      } catch(std::runtime_error &e) {
-        throw e;
-      }
-
-      fout.close();
-    }
-    else {
-      throw std::runtime_error("Cannot find file");
-    }
-  }
-
   // TODO: use this function for both file read and HDFS read
   // possibly provide only one iostream as parameter
   virtual void readFromFile(DataBlock_ptr block, std::string path) { ; }
@@ -158,7 +106,7 @@ public:
         // allocate memory for block
         block->alloc(length, size);
 
-        readFromMem(block, path);
+        block->readFromMem(path);
       }
 
       num_ready++;
