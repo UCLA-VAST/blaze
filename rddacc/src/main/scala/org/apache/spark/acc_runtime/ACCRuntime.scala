@@ -13,7 +13,7 @@ import org.apache.spark.broadcast._
 
 class ACCRuntime(sc: SparkContext) extends Logging {
 
-  // FIXME: Not a perfect solution
+  // Note: Cannot guarantee it is unique
   val appSignature: Int = Math.abs(("""\d+""".r findAllIn sc.applicationId).addString(new StringBuilder).toLong.toInt)
   var BroadcastList: List[Broadcast_ACC[_]] = List()
 

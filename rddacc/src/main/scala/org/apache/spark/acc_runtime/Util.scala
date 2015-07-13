@@ -22,9 +22,11 @@ import org.apache.spark.rdd._
 object Util {
 
   // These config values should be moved to another sutiable place.
-  val PARTITION_BIT_NUM = 12
-  val BLOCK_BIT_NUM = 1
-  val RDD_BIT_NUM = 31 - PARTITION_BIT_NUM - BLOCK_BIT_NUM
+  // Format: | Broadcast, 1 | App ID, 32 | RDD ID, 18 | Partition ID, 12 | Sub-block ID, 1 |
+  val APP_BIT_START = 31
+  val RDD_BIT_START = 13
+  val PARTITION_BIT_START = 1
+  val BLOCK_BIT_START = 0
 
   def getTypeSizeByRDD[T: ClassTag](rdd: RDD[T]): Int = {
     if (classTag[T] == classTag[Byte])        1
@@ -76,16 +78,17 @@ object Util {
       throw new RuntimeException("Unsupported casting type")
   }
 
-  def getBlockID(first: Int, second: Int, third: Int = -1, fourth: Int = -1): Int = {
+  def getBlockID(first: Int, second: Int, third: Int = -1, fourth: Int = -1): Long = {
     if (third == -1) { // broadcast block
-      -(first + second + 1)
+      -((first.toLong << APP_BIT_START) + (second + 1))
     }
     else { // normal block
-      first + (second << RDD_BIT_NUM) + (third << PARTITION_BIT_NUM) + (fourth)
+      (first.toLong << APP_BIT_START) + (second << RDD_BIT_START) + 
+        (third << PARTITION_BIT_START) + (fourth << BLOCK_BIT_START)
     }
   }
 
-  def serializePartition[T: ClassTag](prefix: Int, input: Array[T], id: Int): (String, Int) = {
+  def serializePartition[T: ClassTag](prefix: Int, input: Array[T], id: Long): (String, Int) = {
     var fileName: String = System.getProperty("java.io.tmpdir") + "/" + prefix
     if (id < 0) // Broadcast data
       fileName = fileName + "_brdcst_" + (-id) + ".dat"

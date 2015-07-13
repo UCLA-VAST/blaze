@@ -28,7 +28,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     var j: Int = 0 // Don't use "i" or you will encounter an unknown compiler error.
 
     // Generate normal block ID array
-    val blockId = new Array[Int](numBlock)
+    val blockId = new Array[Long](numBlock)
     while (j < numBlock) {
       blockId(j) = Util.getBlockID(appId, getRDD.id, split.index, j)
       j = j + 1
@@ -36,7 +36,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     j = 0
 
     // Generate broadcast block ID array
-    val brdcstId = new Array[Int](acc.getArgNum)
+    val brdcstId = new Array[Long](acc.getArgNum)
     while (j < brdcstId.length) {
       val arg = acc.getArg(j)
       if (arg.isDefined == false)

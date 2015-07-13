@@ -29,7 +29,7 @@ class Circumference(b_pi: Broadcast_ACC[Double]) extends Accelerator[Double, Dou
 object CircumferenceApp {
     def main(args : Array[String]) {
       val sc = get_spark_context("Circumference App")
-      val rdd = sc.textFile("/curr/cody/test/testInput.txt", 3)
+      val rdd = sc.textFile("/curr/cody/test/testInput.txt", 15)
 
       val acc = new ACCRuntime(sc)
       val rdd_acc = acc.wrap(rdd.map(a => a.toDouble))
