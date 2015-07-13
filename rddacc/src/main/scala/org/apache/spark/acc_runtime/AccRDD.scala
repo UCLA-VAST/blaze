@@ -28,25 +28,15 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     var j: Int = 0 // Don't use "i" or you will encounter an unknown compiler error.
 
     // Generate normal block ID array
-    val blockId = new Array[Int](numBlock)
+    val blockId = new Array[Long](numBlock)
     while (j < numBlock) {
       blockId(j) = Util.getBlockID(appId, getRDD.id, split.index, j)
       j = j + 1
     }
     j = 0
 
-    // Generate broadcast block ID array
-    val brdcstId = new Array[Int](acc.getArgNum)
-    while (j < brdcstId.length) {
-      val arg = acc.getArg(j)
-      if (arg.isDefined == false)
-        throw new RuntimeException("Argument index is out of range.")
-      if (arg.get.isBroadcast == false)
-        throw new RuntimeException("Broadcast data is not prepared.")
-
-      brdcstId(j) = arg.get.brdcst_id
-      j = j + 1
-    }
+    // Generate broadcast block ID array (set later)
+    val brdcstId = new Array[Long](acc.getArgNum)
 
     val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
 
@@ -68,6 +58,18 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
       var dataLength: Int = -1
 
       try {
+
+        // Set broadcast block ID and check available
+        for (j <- 0 until brdcstId.length) {
+          val arg = acc.getArg(j)
+          if (arg.isDefined == false)
+            throw new RuntimeException("Argument index " + j + " is out of range.")
+          if (arg.get.isBroadcast == false)
+            throw new RuntimeException("Broadcast data is not prepared.")
+
+          brdcstId(j) = arg.get.brdcst_id
+        }
+
         val transmitter = new DataTransmitter()
         if (transmitter.isConnect == false)
           throw new RuntimeException("Connection refuse.")
@@ -152,16 +154,9 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
       }
       catch {
         case e: Throwable =>
-          println("Fail to execute on accelerator: " + e)
-          println("Compute partition " + split.index + " using CPU")
-          val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
-          dataLength = inputAry.length
-          outputAry = new Array[U](dataLength)
-          var j: Int = 0
-          while (j < inputAry.length) {
-            outputAry(j) = acc.call(inputAry(j).asInstanceOf[T])
-            j = j + 1
-          }        
+          println("Fail to execute on accelerator: ")
+          e.printStackTrace
+          outputAry = computeOnJTP(split, context)
       }
 
       def hasNext(): Boolean = {
@@ -189,6 +184,19 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     else {
       false
     }
+  }
+
+  def computeOnJTP(split: Partition, context: TaskContext): Array[U] = {
+    println("Compute partition " + split.index + " using CPU")
+    val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
+    val dataLength = inputAry.length
+    val outputAry = new Array[U](dataLength)
+    var j: Int = 0
+    while (j < inputAry.length) {
+      outputAry(j) = acc.call(inputAry(j).asInstanceOf[T])
+      j = j + 1
+    }
+    outputAry
   }
 }
 

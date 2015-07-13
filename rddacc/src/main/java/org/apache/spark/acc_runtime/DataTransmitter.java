@@ -115,17 +115,17 @@ public class DataTransmitter {
 	*		The unique block ID.
 	* @return The message which hasn't been built.
 	**/
-	public AccMessage.TaskMsg.Builder buildRequest(String acc_id, int[] blockId, int[] brdcstId) {
+	public AccMessage.TaskMsg.Builder buildRequest(String acc_id, long[] blockId, long[] brdcstId) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
 			.setType(AccMessage.MsgType.ACCREQUEST)
 			.setAccId(acc_id);
 
-			for (int id: blockId) {
+			for (long id: blockId) {
 				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 					.setPartitionId(id);
 				msg.addData(data);
 			}
-			for (int id: brdcstId) {
+			for (long id: brdcstId) {
 				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 					.setPartitionId(id);
 				msg.addData(data);
@@ -159,7 +159,7 @@ public class DataTransmitter {
 	* @param offset The start position of this block in the file.
 	* @param path The file path.
 	**/
-	public void addData(AccMessage.TaskMsg.Builder msg, int id, int length, int size, int offset, String path) {
+	public void addData(AccMessage.TaskMsg.Builder msg, long id, int length, int size, int offset, String path) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id)
 			.setLength(length)
@@ -180,7 +180,7 @@ public class DataTransmitter {
 	* @param id The unique ID of the data block.
 	* @param value The value of the scalar variable.
 	**/
-	public void addScalarData(AccMessage.TaskMsg.Builder msg, int id, long value) {
+	public void addScalarData(AccMessage.TaskMsg.Builder msg, long id, long value) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id)
 			.setBval(value);
@@ -200,7 +200,7 @@ public class DataTransmitter {
 	* @param id The unique ID of the data block.
 	* @param value The value of the scalar variable.
 	**/
-	public void addBroadcastData(AccMessage.TaskMsg.Builder msg, int id) {
+	public void addBroadcastData(AccMessage.TaskMsg.Builder msg, long id) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id);
 
