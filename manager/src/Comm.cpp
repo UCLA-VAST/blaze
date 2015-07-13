@@ -116,7 +116,7 @@ void Comm::process(socket_ptr sock) {
 
     // consult BlockManager to see if block is cached
     for (int i = 0; i < task_msg.data_size(); ++i) {
-      int blockId = task_msg.data(i).partition_id();
+      int64_t blockId = task_msg.data(i).partition_id();
 
       DataMsg *block_info = reply_msg.add_data();
       block_info->set_partition_id(blockId);
@@ -192,8 +192,8 @@ void Comm::process(socket_ptr sock) {
         // TaskManager.onDataReady(task_id, partition_id);
         for (int d = 0; d < data_msg.data_size(); ++d) {
 
-          int blockId = data_msg.data(d).partition_id();
-          int dataSize = data_msg.data(d).size();
+          int64_t blockId = data_msg.data(d).partition_id();
+          int64_t dataSize = data_msg.data(d).size();
           int dataLength = data_msg.data(d).length();
           std::string dataPath = data_msg.data(d).path();
 
@@ -241,7 +241,7 @@ void Comm::process(socket_ptr sock) {
     // add block information to finish message 
     // for all output blocks
     DataBlock_ptr block;
-    int outId = 0;
+    int64_t outId = 0;
 
     while ((block = task->getOutputBlock()) != NULL_DATA_BLOCK) {
 
@@ -285,14 +285,14 @@ void Comm::process(socket_ptr sock) {
     bool success = true;
     for (int d=0; d< task_msg.data_size(); d++) {
       const DataMsg blockInfo = task_msg.data(d);
-      int blockId = blockInfo.partition_id();
+      int64_t blockId = blockInfo.partition_id();
 
       if (blockInfo.has_length()) { // if this is a broadcast array
 
         // add a new block 
         std::string dataPath = blockInfo.path(); 
         int dataLength = blockInfo.length();
-        int dataSize = blockInfo.size();	
+        int64_t dataSize = blockInfo.size();	
 
         DataBlock_ptr block = block_manager->getShared(blockId);
 

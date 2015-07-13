@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <iostream>
+#include <cstdint>
 
 #include <boost/smart_ptr.hpp>
 #include <boost/thread/thread.hpp>
@@ -52,7 +53,7 @@ public:
   //~BlockManager();
 
   // cache access
-  bool isCached(int tag) {
+  bool isCached(int64_t tag) {
     if (cacheTable.find(tag) == cacheTable.end()) {
       return false;
     }
@@ -60,48 +61,41 @@ public:
       return true;
     }
   }
-  void add(int tag, DataBlock_ptr block);
-  DataBlock_ptr get(int tag);
+  void add(int64_t tag, DataBlock_ptr block);
+  DataBlock_ptr get(int64_t tag);
   //DataBlock_ptr alloc(int tag, int length, int width);
   //DataBlock_ptr getOrAlloc(int tag, int size);
 
   // scratch access
-  DataBlock_ptr getShared(int tag);
-  int addShared(int tag, DataBlock_ptr block);
-  int removeShared(int tag);
+  DataBlock_ptr getShared(int64_t tag);
+  int addShared(int64_t tag, DataBlock_ptr block);
+  int removeShared(int64_t tag);
 
   void printTable() {
 
     int i = 0;
     printf("id,\ttag,\trefcnt\n");
-    std::map<int, std::pair<int, DataBlock_ptr> >::iterator iter; 
+    std::map<int64_t, std::pair<int, DataBlock_ptr> >::iterator iter; 
     for (iter = cacheTable.begin(); 
         iter != cacheTable.end(); 
         iter ++)
     {
-      int tag = iter->first;
+      int64_t tag = iter->first;
       std::pair<int, DataBlock_ptr> v = iter->second;
-      printf("%d,\t%d,\t%d\n", i, tag, v.first);
+      printf("%d,\t%ld,\t%d\n", i, tag, v.first);
       i++;
     }
   }
 
 private:
-  bool cmpLRU(
-      const std::pair<int, DataBlock_ptr> &v1,
-      const std::pair<int, DataBlock_ptr> &v2) 
-  {
-    return (v1.first > v2.first);
-  }
-
   // cache operation
   void evict();
-  void update(int idx);
+  void update(int64_t tag);
 
-  std::map<int, DataBlock_ptr> scratchTable;
+  std::map<int64_t, DataBlock_ptr> scratchTable;
 
   // index to blocks and its access time
-  std::map<int, std::pair<int, DataBlock_ptr> > cacheTable;
+  std::map<int64_t, std::pair<int, DataBlock_ptr> > cacheTable;
 
   // maintaining blocks sorted by access count 
   //std::vector<std::pair<int, DataBlock_ptr>> cacheQueue;

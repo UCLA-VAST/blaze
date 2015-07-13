@@ -14,7 +14,7 @@ enum MsgType {
 }
 
 message DataMsg {
-  optional int32 partition_id = 1;
+  optional int64 partition_id = 1;
   optional int32 length = 2;
   optional int64 size = 3;
   optional string path = 4;

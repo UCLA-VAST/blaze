@@ -44,7 +44,7 @@ public:
     status = FINISHED;
   }
 
-  void addInputBlock(int partition_id, DataBlock_ptr block) {
+  void addInputBlock(int64_t partition_id, DataBlock_ptr block) {
 
     input_blocks.push_back(block);
 
@@ -88,7 +88,7 @@ public:
   virtual void readFromFile(DataBlock_ptr block, std::string path) { ; }
 
   DataBlock_ptr onDataReady(
-      int partition_id, 
+      int64_t partition_id, 
       int length, int size, 
       std::string path) 
   {
@@ -137,7 +137,7 @@ private:
   // number of input blocks that has data initialized
   int num_ready;
 
-  std::map<int, DataBlock_ptr> input_table;
+  std::map<int64_t, DataBlock_ptr> input_table;
 };
 
 }

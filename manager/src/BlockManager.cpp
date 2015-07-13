@@ -8,7 +8,7 @@ namespace acc_runtime {
                     std::string(__func__) +\
                     std::string("(): ")
 
-DataBlock_ptr BlockManager::get(int tag) {
+DataBlock_ptr BlockManager::get(int64_t tag) {
 
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
@@ -16,7 +16,7 @@ DataBlock_ptr BlockManager::get(int tag) {
   // log info
   std::string msg = LOG_HEADER + 
                     std::string("requesting block ") +
-                    std::to_string((long long int)tag);
+                    std::to_string((long long)tag);
   logger->logInfo(msg);
   
   if (cacheTable.find(tag) == cacheTable.end()) {
@@ -32,7 +32,7 @@ DataBlock_ptr BlockManager::get(int tag) {
 }
 
 void BlockManager::add(
-    int tag, 
+    int64_t tag, 
     DataBlock_ptr block)
 {
   // guarantee exclusive access
@@ -93,7 +93,7 @@ DataBlock_ptr BlockManager::getOrAlloc(int tag, int size) {
 }
 */
 
-DataBlock_ptr BlockManager::getShared(int tag) {
+DataBlock_ptr BlockManager::getShared(int64_t tag) {
 
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
@@ -107,7 +107,7 @@ DataBlock_ptr BlockManager::getShared(int tag) {
 }
 
 int BlockManager::addShared(
-    int tag, 
+    int64_t tag, 
     DataBlock_ptr block)
 {
   // guarantee exclusive access
@@ -145,7 +145,7 @@ int BlockManager::addShared(
   }
 }
 
-int BlockManager::removeShared(int tag) {
+int BlockManager::removeShared(int64_t tag) {
 
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
@@ -169,8 +169,8 @@ void BlockManager::evict() {
    
   // find the block that has the least access count
   int min_val = INT_MAX;
-  std::map<int, std::pair<int, DataBlock_ptr> >::iterator min_idx; 
-  std::map<int, std::pair<int, DataBlock_ptr> >::iterator iter; 
+  std::map<int64_t, std::pair<int, DataBlock_ptr> >::iterator min_idx; 
+  std::map<int64_t, std::pair<int, DataBlock_ptr> >::iterator iter; 
   for (iter = cacheTable.begin(); 
        iter != cacheTable.end(); 
        iter ++)
@@ -187,7 +187,7 @@ void BlockManager::evict() {
   }
 
   int size = min_idx->second.second->getSize();
-  int tag = min_idx->first;
+  int64_t tag = min_idx->first;
 
   // remove the block 
   cacheTable.erase(min_idx);
@@ -204,7 +204,7 @@ void BlockManager::evict() {
 
 // update access count for a block, 
 // and then update cacheTable for new indexes
-void BlockManager::update(int tag) {
+void BlockManager::update(int64_t tag) {
 
   // log info
   std::string msg = LOG_HEADER + 
