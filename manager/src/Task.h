@@ -121,21 +121,38 @@ public:
 
 protected:
 
-  DataBlock_ptr createOutputBlock(int length, int data_width) {
-    DataBlock_ptr block(new DataBlock(length, length*data_width));
-    output_blocks.push_back(block);
+  char* getOutput(int idx, int length, int data_width) {
 
-    return block;
+    if (idx < output_blocks.size()) {
+      // if output already exists, return the pointer 
+      // to the existing block
+      return output_blocks[idx]->getData();
+    }
+    else {
+      // if output does not exist, create one
+      DataBlock_ptr block(new DataBlock(length, length*data_width));
+      output_blocks.push_back(block);
+      return block->getData();
+    }
   }
 
-  std::vector<DataBlock_ptr> input_blocks;
-  std::vector<DataBlock_ptr> output_blocks;
+  int getInputLength(int idx) { 
+    return input_blocks[idx]->getLength(); 
+  }
+
+  char* getInput(int idx) {
+    return input_blocks[idx]->getData();      
+  }
 
 private:
   int num_input;
 
   // number of input blocks that has data initialized
   int num_ready;
+
+  // remove the access to ACC programmer
+  std::vector<DataBlock_ptr> input_blocks;
+  std::vector<DataBlock_ptr> output_blocks;
 
   std::map<int64_t, DataBlock_ptr> input_table;
 };

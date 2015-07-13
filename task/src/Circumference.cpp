@@ -16,16 +16,15 @@ public:
   // overwrites the compute function
   virtual void compute() {
      
-    int data_length = input_blocks[0]->getLength();
-    int data_size = input_blocks[0]->getSize();
+    // get input data length
+    int data_length = getInputLength(0);
 
-    //DataBlock_ptr input_block = input[0];
-    DataBlock_ptr out_block = createOutputBlock(data_length, data_size);
+    // get the pointer to input/output data
+    double* a  = (double*)getInput(0);
+    double* pi = (double*)getInput(1);
+    double* b  = (double*)getOutput(0, data_length, sizeof(double));
 
-    double* a = (double*)(input_blocks[0]->getData());
-    double* pi = (double*)(input_blocks[1]->getData());
-    double* b = (double*)(out_block->getData());
-
+    // perform computation
     for (int i = 0; i < data_length; i++) {
       b[i] = a[i] * 2.0 * pi[0]; 
     }
