@@ -18,7 +18,7 @@ message DataMsg {
   optional int32 length = 2;
   optional int64 size = 3;
   optional string path = 4;
-  optional int32 offset = 5;
+  optional int64 offset = 5;
   optional bool cached = 6;
   optional int64 bval = 7;
 }
