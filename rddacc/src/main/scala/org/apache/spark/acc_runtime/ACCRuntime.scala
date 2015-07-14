@@ -18,23 +18,27 @@ class ACCRuntime(sc: SparkContext) extends Logging {
   var BroadcastList: List[Broadcast_ACC[_]] = List()
 
   def stop() = {
-    try {
-      val transmitter = new DataTransmitter()
-      val msg = transmitter.buildMessage(AccMessage.MsgType.ACCBROADCAST)
-
-      for (e <- BroadcastList) {
-        transmitter.addBroadcastData(msg, e.brdcst_id)
+    if (BroadcastList.length == 0)
+      println("No broadcast block to be released")
+    else {
+      try {
+        val transmitter = new DataTransmitter()
+        val msg = transmitter.buildMessage(AccMessage.MsgType.ACCBROADCAST)
+  
+        for (e <- BroadcastList) {
+          transmitter.addBroadcastData(msg, e.brdcst_id)
+        }
+        transmitter.send(msg)
+        val revMsg = transmitter.receive()
+        if (revMsg.getType() == AccMessage.MsgType.ACCFINISH)
+          println("Successfully release broadcast blocks from Manager")
+        else
+          println("Fail to release broadcast blocks from Manager")
       }
-      transmitter.send(msg)
-      val revMsg = transmitter.receive()
-      if (revMsg.getType() == AccMessage.MsgType.ACCFINISH)
-        println("Successfully release broadcast blocks from Manager")
-      else
-        println("Fail to release broadcast blocks from Manager")
-    }
-    catch {
-      case e: Throwable =>
-        println("Fail to release broadcast data: " + e)
+      catch {
+        case e: Throwable =>
+          println("Fail to release broadcast data: " + e)
+      }
     }
     sc.stop
   }
