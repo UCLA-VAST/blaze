@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdexcept>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <sstream>
 
 #include <mkl.h>
 #include "acc_runtime.h" 
@@ -19,6 +23,26 @@ public:
   // are required
   Logistic(): Task(2) {;}
 
+  // overwrites the readLine runction
+  virtual char* readLine(std::string line, size_t &bytes) {
+
+    // allocate return buffer here, the consumer 
+    // will be in charge of freeing the memory
+    float* result = new float[LABEL_SIZE + FEATURE_SIZE];
+
+    bytes = (LABEL_SIZE+FEATURE_SIZE)*sizeof(float);
+
+    std::vector<float>* v = new std::vector<float>;
+
+    std::istringstream iss(line);
+
+    std::copy(std::istream_iterator<float>(iss),
+        std::istream_iterator<float>(),
+        std::back_inserter(*v));
+
+    return (char*)v;
+  }
+
   // overwrites the compute function
   virtual void compute() {
 
@@ -26,6 +50,7 @@ public:
     int data_length = getInputLength(0);
     int weight_length = getInputLength(1);
 
+    printf("data length = %d\n", data_length);
     // check input size
     if (data_length % (LABEL_SIZE+FEATURE_SIZE) != 0 || 
         data_length / (LABEL_SIZE+FEATURE_SIZE) == 0 ||
@@ -47,6 +72,8 @@ public:
 
     // perform computation
     int nsample = data_length / (LABEL_SIZE+FEATURE_SIZE);
+
+    printf("processing %d data points\n", nsample);
 
 		int m = LABEL_SIZE;
 		int n = FEATURE_SIZE;

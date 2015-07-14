@@ -189,12 +189,12 @@ void Comm::process(socket_ptr sock) {
       // Acquire data from Spark
       if (data_msg.type() == ACCDATA) {
 
-        // TaskManager.onDataReady(task_id, partition_id);
         for (int d = 0; d < data_msg.data_size(); ++d) {
 
           int64_t blockId = data_msg.data(d).partition_id();
-          int64_t dataSize = data_msg.data(d).size();
           int dataLength = data_msg.data(d).length();
+          int64_t dataSize = data_msg.data(d).size();
+          int64_t dataOffset = data_msg.data(d).offset();
           std::string dataPath = data_msg.data(d).path();
 
           //logger->logInfo(
@@ -213,7 +213,10 @@ void Comm::process(socket_ptr sock) {
           else {
             // get the updated block from task
             DataBlock_ptr block = 
-              task->onDataReady(blockId, dataLength, dataSize, dataPath);
+              task->onDataReady(
+                  blockId, 
+                  dataLength, dataSize, dataOffset,
+                  dataPath);
 
             // add the block to cache
             block_manager->add(blockId, block);

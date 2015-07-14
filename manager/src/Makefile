@@ -4,15 +4,20 @@ PP=g++
 ACCMSG_DIR=./task_msg
 BOOST_DIR=/curr/diwu/tools/boost_1_55_0/install
 PROTOBUF_DIR=/curr/diwu/tools/protobuf-2.5.0/build/install
+HADOOP_DIR=/curr/diwu/tools/hadoop/hadoop-2.5.2
 
 CFLAGS= -c -fPIC -std=c++0x
 COMPILE= $(CFLAGS) \
 				 -I$(ACCMSG_DIR) \
 				 -I$(BOOST_DIR)/include \
-				 -I$(PROTOBUF_DIR)/include 
+				 -I$(PROTOBUF_DIR)/include \
+				 -I$(HADOOP_DIR)/include 
+
 LINK= -L$(BOOST_DIR)/lib \
 			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \
+			-L$(HADOOP_DIR)/lib/native -lhdfs \
+			-L$(JAVA_HOME)/jre/lib/amd64/server -ljvm \
 			-lpthread -lm -ldl
 
 DEPS= Comm.o \

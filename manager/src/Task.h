@@ -1,9 +1,14 @@
 #ifndef TASK_H
 #define TASK_H
 
+#include <stdio.h>
 #include <map>
 #include <vector>
+#include <cstdlib>
+#include <fstream>
 
+#include "hdfs.h"
+#include <boost/lexical_cast.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
 #include "Block.h"
@@ -83,13 +88,18 @@ public:
     }
   }
 
-  // TODO: use this function for both file read and HDFS read
-  // possibly provide only one iostream as parameter
-  virtual void readFromFile(DataBlock_ptr block, std::string path) { ; }
+  // read one line from file and write to an array
+  // and return the size of bytes put to a buffer
+  virtual char* readLine(std::string line, size_t &bytes) {
+    bytes = 0; 
+    return NULL;
+  }
 
   DataBlock_ptr onDataReady(
       int64_t partition_id, 
-      int length, int size, 
+      int length, 
+      int64_t size, 
+      int64_t offset,
       std::string path) 
   {
     DataBlock_ptr block = input_table[partition_id];
@@ -98,8 +108,106 @@ public:
 
       if (length == -1) { // read from file
 
-        // TODO: obtain iostream from HDFS or file
+        //std::vector<std::string> lines;
+        char* buffer = new char[size];
 
+        if (path.compare(0, 7, "hdfs://") == 0) {
+          // read from HDFS
+          
+          if (!getenv("HDFS_NAMENODE") ||
+              !getenv("HDFS_PORT"))
+          {
+            throw std::runtime_error(
+                "no HDFS_NAMENODE or HDFS_PORT defined");
+          }
+
+          std::string hdfs_name_node = getenv("HDFS_NAMENODE");
+          uint16_t hdfs_port = 
+            boost::lexical_cast<uint16_t>(getenv("HDFS_PORT"));
+
+          hdfsFS fs = hdfsConnect(hdfs_name_node.c_str(), hdfs_port);
+
+          if (!fs) {
+            throw std::runtime_error("Cannot connect to HDFS");
+          }
+
+          hdfsFile fin = hdfsOpenFile(fs, path.c_str(), O_RDONLY, 0, 0, 0); 
+
+          if (!fin) {
+            throw std::runtime_error("Cannot find file in HDFS");
+          }
+
+          int err = hdfsSeek(fs, fin, offset);
+          if (err != 0) {
+            throw std::runtime_error(
+                "Cannot read HDFS from the specific position");
+          }
+
+          int64_t bytes_read = hdfsRead(
+              fs, fin, (void*)buffer, size);
+
+          if (bytes_read != size) {
+            throw std::runtime_error("HDFS read error");
+          }
+
+          hdfsCloseFile(fs, fin);
+        }
+        else {
+          // read from normal file
+          std::ifstream fin(path, std::ifstream::binary); 
+
+          if (!fin) {
+            throw std::runtime_error("Cannot find file");
+          }
+
+          // TODO: error handling
+          fin.seekg(offset);
+          fin.read(buffer, size);
+          fin.close();
+        }
+
+        std::string line_buffer(buffer);
+        delete buffer;
+
+        // buffer for all data
+        std::vector<std::pair<size_t, char*> > data_buf;
+        size_t total_bytes = 0;
+
+        // split the file by newline
+        std::istringstream sstream(line_buffer);
+        std::string line;
+        while(std::getline(sstream, line)) {
+          size_t bytes = 0;      
+          
+          char* data;
+          try {
+            data = readLine(line, bytes);
+          } catch (std::runtime_error &e) {
+            throw e; 
+          }
+
+          if (bytes > 0) {
+            data_buf.push_back(std::make_pair(bytes, data));
+
+            total_bytes += bytes;
+          }
+        }
+
+        if (total_bytes > 0) {
+          // copy data to block
+          block->alloc(data_buf.size(), total_bytes);
+
+          size_t offset = 0;
+          for (int i=0; i<data_buf.size(); i++) {
+            size_t bytes = data_buf[i].first;
+            char* data   = data_buf[i].second;
+
+            block->writeData((void*)data, bytes, offset);
+            offset += bytes;
+
+            delete data;
+          }
+        }
       }
       else {  // read from memory mapped file
 

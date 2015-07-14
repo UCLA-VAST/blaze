@@ -52,10 +52,27 @@ public:
   }
 
   // copy data from an array
-  void writeData(void* src, size_t size) {
+  void writeData(void* src, size_t _size) {
     if (allocated) {
-      memcpy((void*)data, src, size);
+      memcpy((void*)data, src, _size);
       ready = true;
+    }
+    else {
+      throw std::runtime_error("Block memory not allocated");
+    }
+  }
+
+  // copy data from an array with offset
+  void writeData(void* src, size_t _size, size_t offset) {
+    if (allocated) {
+      if (offset+_size > size) {
+        throw std::runtime_error("Exists block size");
+      }
+      memcpy((void*)(data+offset), src, _size);
+
+      if (offset + _size == size) {
+        ready = true;
+      }
     }
     else {
       throw std::runtime_error("Block memory not allocated");
