@@ -26,7 +26,7 @@ class LogisticRegression(b_w: Broadcast_ACC[Array[Float]])
 
   def call(data: Array[Float]): Array[Float] = {
     val _L: Int = 10
-    val _D: Int = 78//4
+    val _D: Int = 784
 
     val grad = new Array[Float](_L * (_D + 1))
     val dot = new Array[Float](1)
@@ -48,7 +48,7 @@ class LogisticRegression(b_w: Broadcast_ACC[Array[Float]])
 
 object LogisticRegression {
     val L = 10
-    val D = 78//4
+    val D = 784
 
     def main(args : Array[String]) {
       val sc = get_spark_context("LogisticRegression")
@@ -70,7 +70,7 @@ object LogisticRegression {
         for (i <- 0 until (L + D))
           points(i) = strArray(i).toFloat
         points
-      }))/*.repartition(reps)*/
+      }).repartition(reps))
       .cache
 
       val pointNum = dataPoints.count

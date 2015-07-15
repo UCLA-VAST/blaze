@@ -1,6 +1,6 @@
 package org.apache.spark.acc_runtime
 
-import java.io.Serializable
+import java.io._
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.SparkException
@@ -42,7 +42,8 @@ class Broadcast_ACC[T: ClassTag](appId: Int, bd: Broadcast[T]) extends java.io.S
   }
   catch {
     case e: Throwable =>
-      println("Fail to broadcast data: ")
-      e.printStackTrace
+      val sw = new StringWriter
+      e.printStackTrace(new PrintWriter(sw))
+      Util.logInfo(this, "Fail to broadcast data: " + sw.toString)
   }  
 }

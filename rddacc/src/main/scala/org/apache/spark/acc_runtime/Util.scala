@@ -1,8 +1,8 @@
 package org.apache.spark.acc_runtime
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io._
+import java.util.Calendar
+import java.text.SimpleDateFormat
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -27,6 +27,23 @@ object Util {
   val RDD_BIT_START = 13
   val PARTITION_BIT_START = 1
   val BLOCK_BIT_START = 0
+
+  val logFile = new PrintWriter(new File("acc_runtime.log"))
+  println("Logging ACCRuntime at acc_runtime.log")
+
+  def logInfo[T: ClassTag](clazz: T, msg: String) = {
+    val clazzName = clazz.getClass.getName.replace("org.apache.spark.acc_runtime.", "")
+    var name = clazzName
+    if (name.indexOf("$") != -1)
+      name = name.substring(0, name.indexOf("$"))
+
+    val time = Calendar.getInstance.getTime
+    logFile.write("[INFO][" + time + "] " + name + ": " + msg + "\n")
+  }
+
+  def closeLog() = {
+    logFile.close
+  }
 
   def getTypeSizeByRDD[T: ClassTag](rdd: RDD[T]): Int = {
     if (classTag[T] == classTag[Byte])        1
@@ -105,7 +122,7 @@ object Util {
       raf = new RandomAccessFile(fileName, "rw")
     } catch {
       case e: IOException =>
-        println("Fail to create memory mapped file " + fileName + ": " + e.toString)
+        logInfo(this, "Fail to create memory mapped file " + fileName + ": " + e.toString)
     }
     val fc: FileChannel = raf.getChannel()
     val buf: ByteBuffer = fc.map(MapMode.READ_WRITE, 0, input.length * typeSize)
@@ -128,7 +145,7 @@ object Util {
       raf.close()
     } catch {
       case e: IOException =>
-        println("Fail to close memory mapped file " + fileName + ": " + e.toString)
+        logInfo(this, "Fail to close memory mapped file " + fileName + ": " + e.toString)
     }
 
     (fileName, input.length)
@@ -151,7 +168,7 @@ object Util {
       raf = new RandomAccessFile(fileName, "r")
     } catch {
       case e: IOException =>
-        println("Fail to read memory mapped file " + fileName + ": " + e.toString)
+        logInfo(this, "Fail to read memory mapped file " + fileName + ": " + e.toString)
     }
 
     val fc: FileChannel = raf.getChannel()
@@ -177,7 +194,7 @@ object Util {
       raf.close()
     } catch {
       case e: IOException =>
-        println("Fail to close memory mapped file " + fileName + ": " + e.toString)
+        logInfo(this, "Fail to close memory mapped file " + fileName + ": " + e.toString)
     }
   }
 }

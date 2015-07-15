@@ -1,7 +1,6 @@
 package org.apache.spark.acc_runtime
 
-import java.io.OutputStream    
-import java.io.FileOutputStream
+import java.io._
 import java.util.ArrayList     
 import java.nio.ByteBuffer     
 import java.nio.ByteOrder      
@@ -37,16 +36,6 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
 
     // Generate broadcast block ID array (set later)
     val brdcstId = new Array[Long](acc.getArgNum)
-
-    val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
-
-    // Parse Hadoop file string: file:<path>:<offset>+<size>
-    val filePath: String = splitInfo.substring(
-        splitInfo.indexOf(':') + 1, splitInfo.lastIndexOf(':'))
-    val fileOffset: Int = splitInfo.substring(
-        splitInfo.lastIndexOf(':') + 1, splitInfo.lastIndexOf('+')).toInt
-    val fileSize: Int = splitInfo.substring(
-        splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
 
     val typeSize: Int = Util.getTypeSizeByRDD(getRDD())
 
@@ -101,6 +90,16 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
                   mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)
             }
             else { // Send HDFS file information: unknown length
+              val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
+
+              // Parse Hadoop file string: file:<path>:<offset>+<size>
+              val filePath: String = splitInfo.substring(
+                  splitInfo.indexOf(':') + 1, splitInfo.lastIndexOf(':'))
+              val fileOffset: Int = splitInfo.substring(
+                  splitInfo.lastIndexOf(':') + 1, splitInfo.lastIndexOf('+')).toInt
+              val fileSize: Int = splitInfo.substring(
+                  splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
+           
               transmitter.addData(dataMsg, blockId(i), -1, 
                   fileSize, fileOffset, filePath)
             }
@@ -154,8 +153,9 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
       }
       catch {
         case e: Throwable =>
-          println("Fail to execute on accelerator: ")
-          e.printStackTrace
+          val sw = new StringWriter
+          e.printStackTrace(new PrintWriter(sw))
+          Util.logInfo(this, "Fail to execute on accelerator: " + sw.toString)
           outputAry = computeOnJTP(split, context)
       }
 
@@ -187,7 +187,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
   }
 
   def computeOnJTP(split: Partition, context: TaskContext): Array[U] = {
-    println("Compute partition " + split.index + " using CPU")
+    Util.logInfo(this, "Compute partition " + split.index + " using CPU")
     val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
     val dataLength = inputAry.length
     val outputAry = new Array[U](dataLength)

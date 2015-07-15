@@ -1,5 +1,6 @@
 package org.apache.spark.acc_runtime
 
+import java.io._
 import scala.util.matching.Regex
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -19,7 +20,7 @@ class ACCRuntime(sc: SparkContext) extends Logging {
 
   def stop() = {
     if (BroadcastList.length == 0)
-      println("No broadcast block to be released")
+      Util.logInfo(this, "No broadcast block to be released")
     else {
       try {
         val transmitter = new DataTransmitter()
@@ -31,16 +32,19 @@ class ACCRuntime(sc: SparkContext) extends Logging {
         transmitter.send(msg)
         val revMsg = transmitter.receive()
         if (revMsg.getType() == AccMessage.MsgType.ACCFINISH)
-          println("Successfully release broadcast blocks from Manager")
+          Util.logInfo(this, "Successfully release broadcast blocks from Manager")
         else
-          println("Fail to release broadcast blocks from Manager")
+          Util.logInfo(this, "Fail to release broadcast blocks from Manager")
       }
       catch {
         case e: Throwable =>
-          println("Fail to release broadcast data: " + e)
+          val sw = new StringWriter
+          e.printStackTrace(new PrintWriter(sw))
+          Util.logInfo(this, "Fail to release broadcast data: " + sw.toString)
       }
     }
     sc.stop
+    Util.closeLog
   }
 
   def wrap[T: ClassTag](rdd : RDD[T]) : ShellRDD[T] = {
