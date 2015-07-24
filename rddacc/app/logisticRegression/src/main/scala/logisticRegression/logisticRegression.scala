@@ -54,12 +54,12 @@ object LogisticRegression {
       val sc = get_spark_context("LogisticRegression")
       val acc = new ACCRuntime(sc)
 
-      if (args.length < 2) {
-        System.err.println("Usage: LogisticRegression <file> <reps>")
+      if (args.length < 3) {
+        System.err.println("Usage: LogisticRegression <file> <reps> <iter>")
         System.exit(1)
       }
       val rand = new Random(42)
-      val ITERATION = 10
+      val ITERATION = args(2).toInt
       val upperbound: Float = 24.0f / (Math.sqrt(L + D + 1)).toFloat;
 
       val reps: Int = args(1).toInt

@@ -37,16 +37,17 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     // Generate broadcast block ID array (set later)
     val brdcstId = new Array[Long](acc.getArgNum)
 
-    val typeSize: Int = Util.getTypeSizeByRDD(getRDD())
-
     val isCached = inMemoryCheck(split)
 
     val outputIter = new Iterator[U] {
       var outputAry: Array[U] = null // Length is unknown before read the input
       var idx: Int = 0
       var dataLength: Int = -1
+      val typeSize: Int = Util.getTypeSizeByRDD(getRDD())
 
       try {
+        if (typeSize == -1)
+          throw new RuntimeException("Cannot recognize RDD data type")
 
         // Set broadcast block ID and check available
         for (j <- 0 until brdcstId.length) {
@@ -117,10 +118,13 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
   //      elapseTime = System.nanoTime - startTime
   //      println("Preprocess time: " + elapseTime + " ns")
 
-        if (requireData == true)
+        if (requireData == true) {
+          Util.logMsg(dataMsg)
           transmitter.send(dataMsg)
+        }
 
         revMsg = transmitter.receive()
+        Util.logMsg(revMsg)
 
         if (revMsg.getType() == AccMessage.MsgType.ACCFINISH) {
           // set length

@@ -45,24 +45,69 @@ object Util {
     logFile.close
   }
 
+  def logMsg(msgBuilder: AccMessage.TaskMsg.Builder) = {
+    val msg = msgBuilder.build()
+    val time = Calendar.getInstance.getTime
+    logFile.write("[INFO][" + time + "] Message: ")
+    logFile.write("Type: " + msg.getType() + ", ")
+    logFile.write("Data: " + msg.getDataCount() + "\n")
+
+    for (i <- 0 until msg.getDataCount()) {
+      logFile.write("Data " + i + ": ")
+      if (msg.getData(i).hasPartitionId())
+        logFile.write("ID: " + msg.getData(i).getPartitionId() + ", ")
+      if (msg.getData(i).hasLength())
+        logFile.write("Length: " + msg.getData(i).getLength() + ", ")
+      if (msg.getData(i).hasSize())
+        logFile.write("Size: " + msg.getData(i).getSize() + ", ")
+      if (msg.getData(i).hasPath())
+        logFile.write("Path: " + msg.getData(i).getPath()) 
+      logFile.write("\n")
+    }
+  }
+
+  def logMsg(msg: AccMessage.TaskMsg) = {
+    val time = Calendar.getInstance.getTime
+    logFile.write("[INFO][" + time + "] Message: ")
+    logFile.write("Type: " + msg.getType() + ", ")
+    logFile.write("Data: " + msg.getDataCount() + "\n")
+
+    for (i <- 0 until msg.getDataCount()) {
+      logFile.write("Data " + i + ": ")
+      if (msg.getData(i).hasPartitionId())
+        logFile.write("ID: " + msg.getData(i).getPartitionId() + ", ")
+      if (msg.getData(i).hasLength())
+        logFile.write("Length: " + msg.getData(i).getLength() + ", ")
+      if (msg.getData(i).hasSize())
+        logFile.write("Size: " + msg.getData(i).getSize() + ", ")
+      if (msg.getData(i).hasPath())
+        logFile.write("Path: " + msg.getData(i).getPath()) 
+      logFile.write("\n")
+    }
+  }
+
+
   def getTypeSizeByRDD[T: ClassTag](rdd: RDD[T]): Int = {
-    if (classTag[T] == classTag[Byte])        1
-    else if (classTag[T] == classTag[Short])  2
-    else if (classTag[T] == classTag[Char])   2
-    else if (classTag[T] == classTag[Int])    4
-    else if (classTag[T] == classTag[Float])  4
-    else if (classTag[T] == classTag[Long])   8
-    else if (classTag[T] == classTag[Double]) 8
-    else 0
+    if (classTag[T] == classTag[Byte] || classTag[T] == classTag[Array[Byte]])          1
+    else if (classTag[T] == classTag[Short] || classTag[T] == classTag[Array[Short]])   2
+    else if (classTag[T] == classTag[Char] || classTag[T] == classTag[Array[Char]])     2
+    else if (classTag[T] == classTag[Int] || classTag[T] == classTag[Array[Int]])       4
+    else if (classTag[T] == classTag[Float] || classTag[T] == classTag[Array[Float]])   4
+    else if (classTag[T] == classTag[Long] || classTag[T] == classTag[Array[Long]])     8
+    else if (classTag[T] == classTag[Double] || classTag[T] == classTag[Array[Double]]) 8
+    else -1
   }
 
   def getTypeSizeByName(dataType: String): Int = {
-    val typeSize: Int = dataType match {
-      case "int" => 4
-      case "integer" => 4
-      case "float" => 4
-      case "long" => 8
-      case "double" => 8
+    var typeName = dataType
+    if (dataType.length > 1)
+      typeName = dataType(0).toString
+
+    val typeSize: Int = typeName match {
+      case "i" => 4
+      case "f" => 4
+      case "l" => 8
+      case "d" => 8
       case _ => 0
     }
     typeSize
@@ -112,8 +157,25 @@ object Util {
     else // Normal data
       fileName = fileName + id + ".dat"
 
-    val dataType: String = input(0).getClass.getName.replace("java.lang.", "").toLowerCase()
+    val typeName = input(0).getClass.getName.replace("java.lang.", "").toLowerCase()
+    val dataType: String = typeName.replace("[", "")(0).toString // Only fetch the initial
     val typeSize: Int = getTypeSizeByName(dataType)
+
+    val isArray: Boolean = typeName.contains("[")
+
+    if ((typeName.split('[').length - 1) > 1)
+      throw new RuntimeException("Unsupport multi-dimension arrays: " + typeName)
+
+    // Calculate buffer length
+    val bufferLength = Array(1)
+    if (isArray) {
+      for (e <- input) {
+        val a = e.asInstanceOf[Array[_]]
+        bufferLength(0) = bufferLength(0) + a.length
+      }
+    }
+    else
+      bufferLength(0) = input.length
 
     // Create and write memory mapped file
     var raf: RandomAccessFile = null
@@ -125,18 +187,31 @@ object Util {
         logInfo(this, "Fail to create memory mapped file " + fileName + ": " + e.toString)
     }
     val fc: FileChannel = raf.getChannel()
-    val buf: ByteBuffer = fc.map(MapMode.READ_WRITE, 0, input.length * typeSize)
+    val buf: ByteBuffer = fc.map(MapMode.READ_WRITE, 0, bufferLength(0) * typeSize)
     buf.order(ByteOrder.LITTLE_ENDIAN)
 
     for (e <- input) {
-      dataType match {
-        case "int" => buf.putInt(e.asInstanceOf[Int].intValue)
-        case "integer" => buf.putInt(e.asInstanceOf[Int].intValue)
-        case "float" => buf.putFloat(e.asInstanceOf[Float].floatValue)
-        case "long" => buf.putLong(e.asInstanceOf[Long].longValue)
-        case "double" => buf.putDouble(e.asInstanceOf[Double].doubleValue)
-        case _ =>
-          throw new RuntimeException("Unsupported type " + dataType)
+      if (isArray) {
+        for (a <- e.asInstanceOf[Array[_]]) {
+          dataType match {
+            case "i" => buf.putInt(a.asInstanceOf[Int].intValue)
+            case "f" => buf.putFloat(a.asInstanceOf[Float].floatValue)
+            case "l" => buf.putLong(a.asInstanceOf[Long].longValue)
+            case "d" => buf.putDouble(a.asInstanceOf[Double].doubleValue)
+            case _ =>
+              throw new RuntimeException("Unsupported type " + dataType)
+          }
+        }
+      }
+      else {
+        dataType match {
+          case "i" => buf.putInt(e.asInstanceOf[Int].intValue)
+          case "f" => buf.putFloat(e.asInstanceOf[Float].floatValue)
+          case "l" => buf.putLong(e.asInstanceOf[Long].longValue)
+          case "d" => buf.putDouble(e.asInstanceOf[Double].doubleValue)
+          case _ =>
+            throw new RuntimeException("Unsupported type " + dataType)
+        }
       }
     }
    
@@ -148,7 +223,7 @@ object Util {
         logInfo(this, "Fail to close memory mapped file " + fileName + ": " + e.toString)
     }
 
-    (fileName, input.length)
+    (fileName, bufferLength(0))
   }
 
   def readMemoryMappedFile[T: ClassTag](
@@ -158,7 +233,10 @@ object Util {
       fileName: String) = {
 
      // Fetch size information
-    val dataType: String = out(0).getClass.getName.replace("java.lang.", "").toLowerCase()
+    val dataType: String = out(0).getClass.getName
+      .replace("java.lang.", "")
+      .toLowerCase()(0)
+      .toString
     val typeSize: Int = getTypeSizeByName(dataType)
 
     // Create and write memory mapped file
@@ -178,11 +256,10 @@ object Util {
     var idx: Int = offset
     while (idx < offset + length) {
       dataType match {
-        case "int" => out(idx) = buf.getInt().asInstanceOf[T]
-        case "integer" => out(idx) = buf.getInt().asInstanceOf[T]
-        case "float" => out(idx) = buf.getFloat().asInstanceOf[T]
-        case "long" => out(idx) = buf.getLong().asInstanceOf[T]
-        case "double" => out(idx) = buf.getDouble().asInstanceOf[T]
+        case "i" => out(idx) = buf.getInt().asInstanceOf[T]
+        case "f" => out(idx) = buf.getFloat().asInstanceOf[T]
+        case "l" => out(idx) = buf.getLong().asInstanceOf[T]
+        case "d" => out(idx) = buf.getDouble().asInstanceOf[T]
         case _ =>
           throw new RuntimeException("Unsupported type" + dataType)
       }
