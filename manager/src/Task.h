@@ -45,6 +45,7 @@ public:
       compute();
     } catch (std::runtime_error &e) {
       status = FAILED; 
+      return;
     }
     status = FINISHED;
   }

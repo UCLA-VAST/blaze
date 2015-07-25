@@ -43,12 +43,20 @@ void TaskManager::execute() {
     // start execution
     task->execute();
 
-    // TODO: retry if task failed
+    if (task->status == Task::FINISHED)  {
 
-    // put task into the retire queue
-    retire_queue.push(task);
+      // put task into the retire queue
+      retire_queue.push(task);
 
-    logger->logInfo(LOG_HEADER + std::string("finished a task"));
+      logger->logInfo(LOG_HEADER + std::string("finished a task"));
+    }
+    else { // task failed, retry 
+
+      // TODO: add a retry counter in task
+      //task_queue.push(task);
+
+      logger->logInfo(LOG_HEADER + std::string("task failed"));
+    }
   }
 }
 

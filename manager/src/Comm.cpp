@@ -232,53 +232,74 @@ void Comm::process(socket_ptr sock) {
     }
 
     // wait on task finish
-    while (task->status != Task::FINISHED) {
+    while (
+        task->status != Task::FINISHED && 
+        task->status != Task::FAILED) 
+    {
       boost::this_thread::sleep_for(
           boost::chrono::microseconds(10)); 
     }
-
+    
     // Initialize finish message
     TaskMsg finish_msg;
-    finish_msg.set_type(ACCFINISH);
 
-    // add block information to finish message 
-    // for all output blocks
-    DataBlock_ptr block;
-    int64_t outId = 0;
+    if (task->status == Task::FINISHED) {
 
-    while ((block = task->getOutputBlock()) != NULL_DATA_BLOCK) {
+      finish_msg.set_type(ACCFINISH);
 
-      // use thread id to create unique output file path
-      std::string path = 
-        "/tmp/" + 
-        logger->getTid() + 
-        std::to_string((long long)outId);
+      // add block information to finish message 
+      // for all output blocks
+      DataBlock_ptr block;
+      int64_t outId = 0;
 
-      //logger->logInfo(
-      //    LOG_HEADER + 
-      //    std::string("Write output block to ") +
-      //    path);
+      while ((block = task->getOutputBlock()) != NULL_DATA_BLOCK) {
 
-      // write the block to output shared memory
-      block->writeToMem(path);
+        // use thread id to create unique output file path
+        std::string path = 
+          "/tmp/" + 
+          logger->getTid() + 
+          std::to_string((long long)outId);
 
-      // construct DataMsg
-      DataMsg *block_info = finish_msg.add_data();
-      block_info->set_partition_id(outId);
-      block_info->set_path(path); 
-      block_info->set_length(block->getLength());	
-      block_info->set_size(block->getSize());	
+        logger->logInfo(
+            LOG_HEADER + 
+            std::string("Write output block to ") +
+            path);
 
-      outId ++;
+        // write the block to output shared memory
+        block->writeToMem(path);
+
+        // construct DataMsg
+        DataMsg *block_info = finish_msg.add_data();
+        block_info->set_partition_id(outId);
+        block_info->set_path(path); 
+        block_info->set_length(block->getLength());	
+        block_info->set_size(block->getSize());	
+
+        logger->logInfo(
+            LOG_HEADER + 
+            std::string("Output block size:") +
+            std::to_string((long long)block->getSize()) +
+            std::string(", length:") +
+            std::to_string((long long)block->getLength()));
+
+        outId ++;
+      }
+
+      std::string msg = 
+        LOG_HEADER + 
+        std::string("Task finished, sent an ACCFINISH.");
+      logger->logInfo(msg);
+    }
+    else {
+      finish_msg.set_type(ACCFAILURE);
+
+      std::string msg = 
+        LOG_HEADER + 
+        std::string("Task failed, sent an ACCFAILURE.");
+      logger->logInfo(msg);
     }
 
     send(finish_msg, socket_stream);
-
-    std::string msg = 
-      LOG_HEADER + 
-      std::string("Sent an ACCFINISH message.");
-    logger->logInfo(msg);
-
   }
   else if (task_msg.type() == ACCBROADCAST) {
 
