@@ -156,6 +156,7 @@ void Comm::process(socket_ptr sock) {
           logger->logErr(
               LOG_HEADER + 
               std::string("Broadcast is not available"));
+          // TODO: here should throw some exception
         }
         else {
           // add cached block to task
@@ -204,22 +205,32 @@ void Comm::process(socket_ptr sock) {
 
           if (blockId < 0) {
             // TODO: should not do anything here
-            //continue;
+            continue;
 
-            DataBlock_ptr block = 
-              block_manager->getShared(blockId);
-            task->addInputBlock(blockId, block);
+            //DataBlock_ptr block = 
+            //  block_manager->getShared(blockId);
+            //task->addInputBlock(blockId, block);
           }
           else {
             // get the updated block from task
-            DataBlock_ptr block = 
-              task->onDataReady(
-                  blockId, 
-                  dataLength, dataSize, dataOffset,
-                  dataPath);
+            try {
+              DataBlock_ptr block = 
+                task->onDataReady(
+                    blockId, 
+                    dataLength, dataSize, dataOffset,
+                    dataPath);
+              // add the block to cache
+              block_manager->add(blockId, block);
 
-            // add the block to cache
-            block_manager->add(blockId, block);
+            } catch ( std::runtime_error &e ) {
+
+              logger->logErr(
+                  LOG_HEADER + 
+                  std::string("Error receiving data of block ") +
+                  std::to_string((long long)blockId) +
+                  std::string(" ") + std::string(e.what()));
+              break;
+            }
           }
         }
       }
@@ -243,9 +254,9 @@ void Comm::process(socket_ptr sock) {
     // Initialize finish message
     TaskMsg finish_msg;
 
-    if (task->status == Task::FINISHED) {
+    bool task_finished = true;
 
-      finish_msg.set_type(ACCFINISH);
+    if (task->status == Task::FINISHED) {
 
       // add block information to finish message 
       // for all output blocks
@@ -265,8 +276,17 @@ void Comm::process(socket_ptr sock) {
             std::string("Write output block to ") +
             path);
 
-        // write the block to output shared memory
-        block->writeToMem(path);
+        try {
+          // write the block to output shared memory
+          block->writeToMem(path);
+        } catch ( std::runtime_error &e ) {
+          task_finished = false;
+          logger->logErr(LOG_HEADER + 
+            std::string("writeToMem error: ") +
+            e.what());
+
+          break;
+        }
 
         // construct DataMsg
         DataMsg *block_info = finish_msg.add_data();
@@ -275,15 +295,15 @@ void Comm::process(socket_ptr sock) {
         block_info->set_length(block->getLength());	
         block_info->set_size(block->getSize());	
 
-        logger->logInfo(
-            LOG_HEADER + 
-            std::string("Output block size:") +
-            std::to_string((long long)block->getSize()) +
-            std::string(", length:") +
-            std::to_string((long long)block->getLength()));
-
         outId ++;
       }
+    }
+    else {
+      task_finished = false;
+    }
+
+    if (task_finished) {
+      finish_msg.set_type(ACCFINISH);
 
       std::string msg = 
         LOG_HEADER + 

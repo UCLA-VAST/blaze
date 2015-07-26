@@ -70,7 +70,7 @@ public:
 
   // push one output block to consumer
   DataBlock_ptr getOutputBlock() {
-
+    
     if (!output_blocks.empty()) {
 
       DataBlock_ptr block = output_blocks.back();

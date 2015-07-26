@@ -40,7 +40,7 @@ void QueueManager::buildFromPath(std::string lib_dir) {
 
 void QueueManager::add(std::string id, std::string lib_path) {
   
-  void* handle = dlopen(lib_path.c_str(), RTLD_LAZY);
+  void* handle = dlopen(lib_path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
 
   if (handle == NULL) {
     logger->logErr(LOG_HEADER + dlerror());
