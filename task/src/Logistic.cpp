@@ -54,8 +54,9 @@ public:
     // check input size
     if (data_length % (LABEL_SIZE+FEATURE_SIZE) != 0 || 
         data_length / (LABEL_SIZE+FEATURE_SIZE) == 0 ||
-        weight_length != LABEL_SIZE*FEATURE_SIZE)
+        weight_length != (LABEL_SIZE*(FEATURE_SIZE+1)))
     {
+			fprintf(stderr, "Invalid input data dimensions\n");
       throw std::runtime_error("Invalid input data dimensions");
       return;
     }

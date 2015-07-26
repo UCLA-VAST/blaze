@@ -167,7 +167,7 @@ object Util {
       throw new RuntimeException("Unsupport multi-dimension arrays: " + typeName)
 
     // Calculate buffer length
-    val bufferLength = Array(1)
+    val bufferLength = Array(0)
     if (isArray) {
       for (e <- input) {
         val a = e.asInstanceOf[Array[_]]

@@ -13,6 +13,8 @@ class Broadcast_ACC[T: ClassTag](appId: Int, bd: Broadcast[T]) extends java.io.S
   var brdcst_id: Long = Util.getBlockID(appId, bd.id.asInstanceOf[Int])
   val data = bd.value
   var isBroadcast: Boolean = false
+  var length: Int = 0
+  var size: Int = 0
 
   try {
     val transmitter = new DataTransmitter()
@@ -27,10 +29,14 @@ class Broadcast_ACC[T: ClassTag](appId: Int, bd: Broadcast[T]) extends java.io.S
 
       transmitter.addData(msg, brdcst_id, arrayData.length,
           arrayData.length * typeSize, 0, mappedFileInfo._1)
+      length = arrayData.length
+      size = arrayData.length * typeSize
     }
     else {
       val longData: Long = Util.casting(data, classOf[Long])
       transmitter.addScalarData(msg, brdcst_id, longData)
+      length = 1
+      size = 4
     }
 
     transmitter.send(msg)
