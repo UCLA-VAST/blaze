@@ -16,11 +16,12 @@ enum MsgType {
 message DataMsg {
   optional int64 partition_id = 1;
   optional int32 length = 2;
-  optional int64 size = 3;
-  optional string path = 4;
-  optional int64 offset = 5;
-  optional bool cached = 6;
-  optional int64 bval = 7;
+  optional int32 item_length = 3;
+  optional int64 size = 4;
+  optional string path = 5;
+  optional int64 offset = 6;
+  optional bool cached = 7;
+  optional int64 bval = 8;
 }
 
 message TaskMsg {
