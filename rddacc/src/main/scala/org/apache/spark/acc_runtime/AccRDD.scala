@@ -29,7 +29,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     // Generate normal block ID array
     val blockId = new Array[Long](numBlock)
     while (j < numBlock) {
-      blockId(j) = Util.getBlockID(appId, getRDD.id, split.index, j)
+      blockId(j) = Util.getBlockID(appId, getPrevRDD.id, split.index, j)
       j = j + 1
     }
     j = 0
@@ -41,7 +41,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     val isCached = inMemoryCheck(split)
 
     val outputIter = new Iterator[U] {
-      var outputAry: Array[U] = null // Length is unknown before read the input
+      var outputAry: Array[U] = null // Length is unknown before reading the input
       var idx: Int = 0
       var dataLength: Int = -1
       val typeSize: Int = Util.getTypeSizeByRDD(getRDD())
@@ -132,22 +132,29 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
           // set length
           i = 0
           dataLength = 0
-          val subLength = new Array[Int](numBlock)
+          val blkLength = new Array[Int](numBlock)
+          val itemLength = new Array[Int](numBlock)
           while (i < numBlock) {
-            subLength(i) = revMsg.getData(i).getLength()
-            dataLength = dataLength + subLength(i)
+            blkLength(i) = revMsg.getData(i).getLength()
+            if (revMsg.getData(i).hasItemLength()) {
+              itemLength(i) = revMsg.getData(i).getItemLength()
+            }
+            else
+              itemLength(i) = 1
+            dataLength = dataLength + blkLength(i)
             i = i + 1
           }
           outputAry = new Array[U](dataLength)
-  
+          if (dataLength == 0)
+            throw new RuntimeException("Manager returns an invalid data length")
+
   //        startTime = System.nanoTime
           // read result
           i = 0
           idx = 0
           while (i < numBlock) { // We just simply concatenate all blocks
-  //          println(split.index + " reads result from " + revMsg.getData(i).getPath())
-            Util.readMemoryMappedFile(outputAry, idx, subLength(i), revMsg.getData(i).getPath())
-            idx = idx + subLength(i)
+            Util.readMemoryMappedFile(outputAry, idx, blkLength(i), itemLength(i), revMsg.getData(i).getPath())
+            idx = idx + blkLength(i)
             i = i + 1
           }
           idx = 0

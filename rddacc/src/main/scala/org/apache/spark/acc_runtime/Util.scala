@@ -108,7 +108,7 @@ object Util {
       case "f" => 4
       case "l" => 8
       case "d" => 8
-      case _ => 0
+      case _ => -1
     }
     typeSize
   }
@@ -230,19 +230,39 @@ object Util {
       out: Array[T], 
       offset: Int, 
       length: Int,
+      itemLength: Int,
       fileName: String) = {
 
-     // Fetch size information
-    val dataType: String = out(0).getClass.getName
-      .replace("java.lang.", "")
-      .toLowerCase()(0)
-      .toString
+    if (out(offset) == null) {
+      if (classTag[T] == classTag[Array[Int]])
+        out(offset) = (new Array[Int](itemLength)).asInstanceOf[T]
+      else if (classTag[T] == classTag[Array[Float]])
+        out(offset) = (new Array[Float](itemLength)).asInstanceOf[T]
+      else if (classTag[T] == classTag[Array[Long]])
+        out(offset) = (new Array[Long](itemLength)).asInstanceOf[T]
+      else if (classTag[T] == classTag[Array[Double]])
+        out(offset) = (new Array[Double](itemLength)).asInstanceOf[T]
+      else
+        throw new RuntimeException("Unsupport type")
+    }
+
+    // Fetch size information
+    val typeName = out(offset).getClass.getName.replace("java.lang.", "").toLowerCase()
+    val dataType: String = typeName.replace("[", "")(0).toString // Only fetch the initial
     val typeSize: Int = getTypeSizeByName(dataType)
+
+    val isArray: Boolean = typeName.contains("[")
 
     // Create and write memory mapped file
     var raf: RandomAccessFile = null
 
     try {
+      if ((typeName.split('[').length - 1) > 1)
+        throw new RuntimeException("Unsupport multi-dimension arrays: " + typeName)
+
+      if (typeSize == -1)
+        throw new RuntimeException("Unsupported type " + dataType)
+
       raf = new RandomAccessFile(fileName, "r")
     } catch {
       case e: IOException =>
@@ -250,20 +270,34 @@ object Util {
     }
 
     val fc: FileChannel = raf.getChannel()
-    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, length * typeSize)
+    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, length * itemLength * typeSize)
     buf.order(ByteOrder.LITTLE_ENDIAN)
 
-    var idx: Int = offset
-    while (idx < offset + length) {
-      dataType match {
-        case "i" => out(idx) = buf.getInt().asInstanceOf[T]
-        case "f" => out(idx) = buf.getFloat().asInstanceOf[T]
-        case "l" => out(idx) = buf.getLong().asInstanceOf[T]
-        case "d" => out(idx) = buf.getDouble().asInstanceOf[T]
-        case _ =>
-          throw new RuntimeException("Unsupported type" + dataType)
+    val idx = Array(offset)
+    while (idx(0) < offset + length) {
+      if (isArray) {
+        for (ii <- 0 until itemLength) {
+          dataType match {
+            case "i" => out(idx(0)).asInstanceOf[Array[Int]](ii) = buf.getInt()
+            case "f" => out(idx(0)).asInstanceOf[Array[Float]](ii) = buf.getFloat()
+            case "l" => out(idx(0)).asInstanceOf[Array[Long]](ii) = buf.getLong()
+            case "d" => out(idx(0)).asInstanceOf[Array[Double]](ii) = buf.getDouble()
+            case _ =>
+              throw new RuntimeException("Unsupported type " + dataType)
+          }
+        }
       }
-      idx = idx + 1
+      else {
+         dataType match {
+          case "i" => out(idx(0)) = buf.getInt().asInstanceOf[T]
+          case "f" => out(idx(0)) = buf.getFloat().asInstanceOf[T]
+          case "l" => out(idx(0)) = buf.getLong().asInstanceOf[T]
+          case "d" => out(idx(0)) = buf.getDouble().asInstanceOf[T]
+          case _ =>
+            throw new RuntimeException("Unsupported type " + dataType)
+        }
+      }
+      idx(0) = idx(0) + 1
     }
    
     try {

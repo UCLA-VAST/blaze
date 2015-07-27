@@ -5,5 +5,5 @@ spark-submit --class LogisticRegression \
 	--driver-memory 64G \
 	--executor-memory 64G \
 	--master local[*] \
-	target/logisticRegression-0.0.0.jar /curr/diwu/prog/logistic/data/train_data.txt 1 1
+	target/logisticRegression-0.0.0.jar /curr/diwu/prog/logistic/data/train_data.txt 1 3
 
