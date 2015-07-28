@@ -28,19 +28,19 @@ class LogisticRegression(b_w: Broadcast_ACC[Array[Float]])
     val _L: Int = 10
     val _D: Int = 784
 
-    val grad = new Array[Float](_L * (_D + 1))
+    val grad = new Array[Float](_L * _D)
     val dot = new Array[Float](1)
     val w = b_w.data
 
     for (i <- 0 until _L) {
       dot(0) = 0.0f
       for (j <- 0 until _D)
-        dot(0) = dot(0) + w(i * (_D + 1) + j) * data(j + _L)
+        dot(0) = dot(0) + w(i * _D + j) * data(j + _L)
       
       val c: Float = (1.0f / (1.0f + Math.exp(-data(i) * dot(0)).toFloat) - 1.0f) * data(i)
 
       for (j <- 0 until _D)
-        grad(i * (_D + 1) + j) = grad(i * (_D + 1) + j) + c * data(j + _L)
+        grad(i * _D + j) = grad(i * _D + j) + c * data(j + _L)
     }
     grad
   }
@@ -60,7 +60,7 @@ object LogisticRegression {
       }
       val rand = new Random(42)
       val ITERATION = args(2).toInt
-      val upperbound: Float = 24.0f / (Math.sqrt(L + D + 1)).toFloat;
+      val upperbound: Float = 24.0f / (Math.sqrt(L + D)).toFloat;
 
       val reps: Int = args(1).toInt
 
@@ -71,42 +71,45 @@ object LogisticRegression {
           points(i) = strArray(i).toFloat
         points
       }).repartition(reps))
-      .cache
+      .cache()
 
       val pointNum = dataPoints.count
       println("Total " + pointNum + " points")
 
-      val w = new Array[Float](L * (D + 1))
+      val w = new Array[Float](L * D)
       for (i <- 0 until L) {
-        for (j <- 0 until (D + 1))
-          w(i * (D + 1) + j) = (rand.nextFloat - 0.5f) * 2.0f * upperbound
+        for (j <- 0 until D)
+          w(i * D + j) = (rand.nextFloat - 0.5f) * 2.0f * upperbound
       }
 
       for (k <- 1 to ITERATION) {
         println("On iteration " + k)
+        var start_time = System.nanoTime
         val b_w = acc.wrap(sc.broadcast(w))
         val gradient = dataPoints
           /*.map(points => runOnJTP(points, w))*/
           .map_acc(new LogisticRegression(b_w))
           .reduce((a, b) => {
-            val res = new Array[Float](L * (D + 1))
+            val res = new Array[Float](L * D)
             for (i <- 0 until L) {
-              for (j <- 0 until (D + 1))
-                res(i * (D + 1) + j) = a(i * (D + 1) + j) + b(i * (D + 1) + j)
+              for (j <- 0 until D)
+                res(i * D + j) = a(i * D + j) + b(i * D + j)
             }
             res
           })
-
+        
         for (i <- 0 until L) {
-          for (j <- 0 until (D + 1))
-            w(i * (D + 1) + j) = w(i * (D + 1) + j) - 0.13f * gradient(i * (D + 1) + j) / pointNum;
+          for (j <- 0 until D)
+            w(i * D + j) = w(i * D + j) - 0.13f * gradient(i * D + j) / pointNum;
         }
+        var elapsed_time = System.nanoTime - start_time
+        System.out.println("Time: "+ elapsed_time/1e6 + "ms")
 
         // Verification 
-        val errNum = dataPoints
-          .map(points => predictor(w, points))
-          .reduce((a, b) => (a + b))
-        println("Error rate: " + ((errNum.toFloat / pointNum.toFloat) * 100) + "%")
+        //val errNum = dataPoints
+        //  .map(points => predictor(w, points))
+        //  .reduce((a, b) => (a + b))
+        //println("Error rate: " + ((errNum.toFloat / pointNum.toFloat) * 100) + "%")
       }
 
       acc.stop()
@@ -121,8 +124,8 @@ object LogisticRegression {
         val dot = new Array[Float](1)
         dot(0) = 0.0f
         for(j <- 0 until D)
-          dot(0) = dot(0) + w(i * (D + 1) + j + 1) * data(L + j)
-        dot(0) = dot(0) + w(i * (D + 1))
+          dot(0) = dot(0) + w(i * D + j) * data(L + j)
+        dot(0) = dot(0) + w(i * D)
         val pred = 1 / (1 + Math.exp(-dot(0)).toFloat)
         if (pred > maxPred(0)) {
           maxPred(0) = pred
