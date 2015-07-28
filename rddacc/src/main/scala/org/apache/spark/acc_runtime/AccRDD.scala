@@ -36,7 +36,6 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
 
     // Generate broadcast block ID array (set later)
     val brdcstId = new Array[Long](acc.getArgNum)
-    val brdcstInfo = new Array[(Int, Int)](acc.getArgNum)
 
     val isCached = inMemoryCheck(split)
 
@@ -51,7 +50,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
           throw new RuntimeException("Cannot recognize RDD data type")
 
         // Set broadcast block info and check available
-        for (j <- 0 until brdcstInfo.length) {
+        for (j <- 0 until brdcstId.length) {
           val arg = acc.getArg(j)
           if (arg.isDefined == false)
             throw new RuntimeException("Argument index " + j + " is out of range.")
@@ -59,7 +58,6 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
             throw new RuntimeException("Broadcast data is not prepared.")
 
           brdcstId(j) = arg.get.brdcst_id
-          brdcstInfo(j) = (arg.get.length, arg.get.size)
         }
 
         val transmitter = new DataTransmitter()
@@ -112,8 +110,8 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
 
         // Prepare broadcast blocks
         i = 0
-        while (i < brdcstInfo.length) {
-          transmitter.addBroadcastData(dataMsg, brdcstId(i), brdcstInfo(i)._1, brdcstInfo(i)._2)
+        while (i < brdcstId.length) {
+          transmitter.addBroadcastData(dataMsg, brdcstId(i))
           i = i + 1
         }
 
@@ -131,7 +129,6 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         if (revMsg.getType() == AccMessage.MsgType.ACCFINISH) {
           // set length
           i = 0
-          //dataLength = 0
           var numItems = 0
 
           val blkLength = new Array[Int](numBlock)
@@ -144,7 +141,6 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
             else {
               itemLength(i) = 1
             }
-            //dataLength = dataLength + blkLength(i)
             numItems += blkLength(i) / itemLength(i)
             i = i + 1
           }

@@ -190,28 +190,6 @@ public class DataTransmitter {
 	}
 
 	/**
-	* Add a broadcast block.
-	* Create and add a broadcast block with broadcast ID. This is only used for 
-	* indicating the Manager about which broadcast data block should be used.
-	*
-	* '''Note''' The broadcast data block must be transmitted to the Manager in advance.
-	*
-	*	@param msg The message that wanted to be added.
-	* @param id The unique ID of the data block.
-	* @param length The length (element #) of broadcast data
-	* @param size The file size of broadcast data mempry mapped file
-	**/
-	public void addBroadcastData(AccMessage.TaskMsg.Builder msg, long id, int length, int size) {
-		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-			.setPartitionId(id)
-			.setLength(length)
-			.setSize(size);
-
-		msg.addData(data);
-		return ;
-	}
-
-	/**
 	* Add a broadcast block with simple information.
 	* Create and add a broadcast block with broadcast ID. This is only used for 
 	* indicating the Manager about which broadcast data block should be used.

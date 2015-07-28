@@ -8,36 +8,38 @@ import java.net._
 
 import org.apache.spark.acc_runtime._
 
-class KMeansClassified(b_centers: Broadcast_ACC[Array[Float]]) 
-  extends Accelerator[Array[Float], Int] {
+class KMeansClassified(
+  b_centers: Broadcast_ACC[Array[Float]], 
+  b_D: Broadcast_ACC[Int]
+  ) extends Accelerator[Array[Float], Int] {
   
   val id: String = "KMeans"
 
-  def getArgNum = 1
+  def getArgNum = 2
 
   def getArg(idx: Int): Option[Broadcast_ACC[_]] = {
     if (idx == 0)
       Some(b_centers)
+    else if (idx == 1)
+      Some(b_D)
     else
       None
   }
 
   def call(in: Array[Float]): Int = {
-    val x = in(0)
-    val y = in(1)
-    val z = in(2)
     val centers = b_centers.data
-    val K: Int = centers.length / 3
+    val D: Int = b_D.data
+    val K: Int = centers.length / D
 
     var closest_center = -1
     var closest_center_dist = -1.0
 
     for (i <- 0 until K) {
-      val diffx = centers(i * 3 + 0) - x
-      val diffy = centers(i * 3 + 1) - y
-      val diffz = centers(i * 3 + 2) - z
-      val dist = sqrt(pow(diffx, 2) + pow(diffy, 2) + pow(diffz, 2))
-
+      var allDiff = 0.0
+      for (j <- 0 until D)
+        allDiff = allDiff + pow(centers(i * D + j) - in(j), 2)
+      val dist = sqrt(allDiff)
+      
       if (closest_center == -1 || dist < closest_center_dist) {
         closest_center = i
         closest_center_dist = dist
@@ -46,30 +48,6 @@ class KMeansClassified(b_centers: Broadcast_ACC[Array[Float]])
 
     closest_center
   }
-}
-
-class Point(x:Float, y:Float, z:Float) extends java.io.Externalizable {
-    private var _x = x
-    private var _y = y
-    private var _z = z
-
-    def this() = this(0.0f, 0.0f, 0.0f)
-
-    def get_x : Float = return _x
-    def get_y : Float = return _y
-    def get_z : Float = return _z
-
-    def readExternal(in:java.io.ObjectInput) {
-        _x = in.readFloat
-        _y = in.readFloat
-        _z = in.readFloat
-    }
-
-    def writeExternal(out:java.io.ObjectOutput) {
-        out.writeFloat(_x)
-        out.writeFloat(_y)
-        out.writeFloat(_z)
-    }
 }
 
 object SparkKMeans {
@@ -94,42 +72,50 @@ object SparkKMeans {
         }))
       points.cache()
 
-      val samples : Array[Array[Float]] = points.takeSample(false, K, 99);
-      var centers = new Array[Float](K * 3)
+      val samples: Array[Array[Float]] = points.takeSample(false, K, 99);
+      val D: Int = samples(0).length
+      println("Dimension: " + D)
+
+      var centers = new Array[Float](K * D)
       for (i <- 0 until K) {
-        for (j <- 0 until 3)
-          centers(i * 3 + j) = samples(i)(j)
+        for (j <- 0 until D)
+          centers(i * D + j) = samples(i)(j)
       }
 
+      val b_D = acc.wrap(sc.broadcast(D))
       for (iter <- 0 until iters) {
         val b_centers = acc.wrap(sc.broadcast(centers))
-        val classified_center = points.map_acc(new KMeansClassified(b_centers))
+        val classified_center = points.map_acc(new KMeansClassified(b_centers, b_D))
         val classified = classified_center.zip(points)
 
         val counts = classified.countByKey()
-        val sums = classified.reduceByKey((a, b) => Array(a(0) + b(0), a(1) + b(1), a(2) + b(2)))
+        val sums = classified.reduceByKey((a, b) => {
+            val ary = new Array[Float](D)
+            for (ii <- 0 until D)
+              ary(ii) = a(ii) + b(ii)
+            ary
+          })
 
         val averages = sums.map(kv => {
             val cluster_index: Int = kv._1;
             val p: Array[Float] = kv._2;
-            Array(
-              p(0) / counts(cluster_index),
-              p(1) / counts(cluster_index),
-              p(2) / counts(cluster_index)) 
+            val ary = new Array[Float](D)
+            for (ii <- 0 until D)
+              ary(ii) = p(ii) / counts(cluster_index)
+            ary
           }).collect
 
-        
         for (i <- 0 until K) {
-          for (j <- 0 until 3)
-            centers(i * 3 + j) = averages(i)(j)
+          for (j <- 0 until D)
+            centers(i * D + j) = averages(i)(j)
         }
 
         println("Iteration " + (iter + 1))
         for (i <- 0 until K) {
           print("  Cluster " + i + ", (")
-          for (j <- 0 until 2)
-            print(centers(i * 3 + j) + ", ")
-          println(centers(i * 3 + 2) + ")")
+          for (j <- 0 until (D - 1))
+            print(centers(i * D + j) + ", ")
+          println(centers(i * D + (D - 1)) + ")")
         }
       }
       acc.stop 

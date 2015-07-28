@@ -106,10 +106,12 @@ object LogisticRegression {
         System.out.println("Time: "+ elapsed_time/1e6 + "ms")
 
         // Verification 
-        //val errNum = dataPoints
-        //  .map(points => predictor(w, points))
-        //  .reduce((a, b) => (a + b))
-        //println("Error rate: " + ((errNum.toFloat / pointNum.toFloat) * 100) + "%")
+        /*
+        val errNum = dataPoints
+          .map(points => predictor(w, points))
+          .reduce((a, b) => (a + b))
+        println("Error rate: " + ((errNum.toFloat / pointNum.toFloat) * 100) + "%")
+        */
       }
 
       acc.stop()

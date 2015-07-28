@@ -9,4 +9,4 @@ spark-submit --class SparkKMeans \
         --jars ${ACC_HOME}/target/ACC_RUNTIME-1.0-SNAPSHOT.jar \
         --master local[*] \
         target/sparkkmeans-0.0.0.jar \
-        3 $1 input.txt
+        3 $1 input_large.txt
