@@ -194,6 +194,8 @@ void Comm::process(socket_ptr sock) {
 
           int64_t blockId = data_msg.data(d).partition_id();
           int dataLength = data_msg.data(d).length();
+          int numItems = data_msg.data(d).has_num_items() ? 
+                          data_msg.data(d).num_items() : 1;
           int64_t dataSize = data_msg.data(d).size();
           int64_t dataOffset = data_msg.data(d).offset();
           std::string dataPath = data_msg.data(d).path();
@@ -212,13 +214,16 @@ void Comm::process(socket_ptr sock) {
             //task->addInputBlock(blockId, block);
           }
           else {
-            // get the updated block from task
+
             try {
+              // get the updated block from task
               DataBlock_ptr block = 
                 task->onDataReady(
                     blockId, 
-                    dataLength, dataSize, dataOffset,
+                    dataLength, numItems,
+                    dataSize, dataOffset,
                     dataPath);
+
               // add the block to cache
               block_manager->add(blockId, block);
 
@@ -263,6 +268,7 @@ void Comm::process(socket_ptr sock) {
       DataBlock_ptr block;
       int64_t outId = 0;
 
+      // NOTE: there should not be more than one block
       while ((block = task->getOutputBlock()) != NULL_DATA_BLOCK) {
 
         // use thread id to create unique output file path
@@ -293,6 +299,7 @@ void Comm::process(socket_ptr sock) {
         block_info->set_partition_id(outId);
         block_info->set_path(path); 
         block_info->set_length(block->getLength());	
+        block_info->set_num_items(block->getNumItems());	
         block_info->set_size(block->getSize());	
 
         outId ++;
@@ -346,6 +353,8 @@ void Comm::process(socket_ptr sock) {
           
           // not sure smart_ptr can be assigned, so creating a new one
           DataBlock_ptr new_block(new DataBlock(dataLength, dataSize));
+
+          printf("created a block of size %d\n", new_block->getSize());
 
           new_block->readFromMem(dataPath);
 

@@ -6,7 +6,7 @@ BOOST_DIR=/curr/diwu/tools/boost_1_55_0/install
 MKL_DIR=/curr/diwu/intel_mkl
 HADOOP_DIR=/curr/diwu/tools/hadoop/hadoop-2.5.2
 
-CFLAGS= -shared -fPIC -std=c++0x -m64
+CFLAGS= -shared -fPIC -std=c++0x -m64 -O3
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/include \
 				 -I$(BOOST_DIR)/include \

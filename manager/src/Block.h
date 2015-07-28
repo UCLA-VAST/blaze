@@ -18,33 +18,37 @@ namespace acc_runtime {
 
 class DataBlock {
 
-// TODO: size may be unknown until read from file
-// need to provide constructor without allocating 
-// memory
 public:
+  // create a single output elements
   DataBlock(int _length, int _size):
     length(_length), 
-    size(_size)
+    num_items(1),
+    size(_size),
+    allocated(true),
+    ready(false)
   {
-    width = _size / _length;
+    //width = _size / _length;
     data = new char[_size];
 
-    ready = false;
-    allocated = true;
   }
 
   DataBlock():
-    length(0), size(0), width(0),
+    length(0), num_items(0), size(0), width(0),
     allocated(false),
     ready(false)
   {
     ;  
   }
 
-  void alloc(int _length, int _size) {
-    length = _length;
+  ~DataBlock() {
+    if (allocated) {
+      delete data; 
+    }
+  }
+
+  void alloc(int _size) {
+
     size = _size;
-    width = size / length;
 
     data = new char[size];
 
@@ -98,18 +102,11 @@ public:
     }
   }
 
-  int getLength() { return length; }
-  int getSize() { return size; }
-
-  bool isReady() {
-    return ready; 
-  }
-
   void readFromMem(std::string path) {
 
     boost::iostreams::mapped_file_source fin;
 
-    int data_length = length; 
+    //int data_length = length; 
     int data_size = size;
 
     fin.open(path, data_size);
@@ -134,7 +131,7 @@ public:
 
   void writeToMem(std::string path) {
 
-    int data_length = length; 
+    //int data_length = length; 
     int data_size = size;
 
     boost::iostreams::mapped_file_params param(path); 
@@ -158,17 +155,28 @@ public:
     }
   }
 
-  ~DataBlock() {
-    if (allocated) {
-      delete data; 
-    }
+  int setLength(int _length) { 
+    length = _length; 
   }
+
+  int setNumItems(int _num) { 
+    num_items = _num; 
+  }
+
+  int getLength() { return length; }
+
+  int getNumItems() { return num_items; }
+
+  int getSize() { return size; }
+
+  bool isReady() { return ready; }
 
 
 protected:
-  int length;
-  int width;
-  int size;
+  int length;       /* total number of elements */
+  int num_items;    /* number of elements per data item */
+  int width;        /* size of a single element */
+  int size;         /* byte size of all the data */
   bool allocated;
   bool ready;
   char* data;

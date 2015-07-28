@@ -75,7 +75,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         if (revMsg.getType() != AccMessage.MsgType.ACCGRANT)
           throw new RuntimeException("Request reject.")
 
-  //      startTime = System.nanoTime
+        var startTime = System.nanoTime
 
         val dataMsg = transmitter.buildMessage(AccMessage.MsgType.ACCDATA)
 
@@ -117,8 +117,8 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
           i = i + 1
         }
 
-  //      elapseTime = System.nanoTime - startTime
-  //      println("Preprocess time: " + elapseTime + " ns")
+        var elapseTime = System.nanoTime - startTime
+        println("Preprocess time: " + elapseTime + " ns");
 
         if (requireData == true) {
           Util.logMsg(dataMsg)
@@ -131,35 +131,46 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         if (revMsg.getType() == AccMessage.MsgType.ACCFINISH) {
           // set length
           i = 0
-          dataLength = 0
+          //dataLength = 0
+          var numItems = 0
+
           val blkLength = new Array[Int](numBlock)
           val itemLength = new Array[Int](numBlock)
           while (i < numBlock) {
             blkLength(i) = revMsg.getData(i).getLength()
-            if (revMsg.getData(i).hasItemLength()) {
-              itemLength(i) = revMsg.getData(i).getItemLength()
+            if (revMsg.getData(i).hasNumItems()) {
+              itemLength(i) = blkLength(i) / revMsg.getData(i).getNumItems()
             }
-            else
+            else {
               itemLength(i) = 1
-            dataLength = dataLength + blkLength(i)
+            }
+            //dataLength = dataLength + blkLength(i)
+            numItems += blkLength(i) / itemLength(i)
             i = i + 1
           }
-          outputAry = new Array[U](dataLength)
-          if (dataLength == 0)
+          if (numItems == 0)
             throw new RuntimeException("Manager returns an invalid data length")
 
-  //        startTime = System.nanoTime
+          outputAry = new Array[U](numItems)
+
+          startTime = System.nanoTime
           // read result
           i = 0
           idx = 0
           while (i < numBlock) { // We just simply concatenate all blocks
-            Util.readMemoryMappedFile(outputAry, idx, blkLength(i), itemLength(i), revMsg.getData(i).getPath())
-            idx = idx + blkLength(i)
+
+            Util.readMemoryMappedFile(
+                outputAry,
+                idx, 
+                blkLength(i), itemLength(i), 
+                revMsg.getData(i).getPath())
+
+            idx = idx + blkLength(i) / itemLength(i)
             i = i + 1
           }
           idx = 0
-  //        elapseTime = System.nanoTime - startTime
-  //        println("Read memory mapped file time: " + elapseTime + " ns")
+          elapseTime = System.nanoTime - startTime
+          println("Read memory mapped file time: " + elapseTime + " ns")
         }
         else
           throw new RuntimeException("Task failed.")

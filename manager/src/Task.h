@@ -91,14 +91,20 @@ public:
 
   // read one line from file and write to an array
   // and return the size of bytes put to a buffer
-  virtual char* readLine(std::string line, size_t &bytes) {
-    bytes = 0; 
+  virtual char* readLine(
+      std::string line, 
+      size_t &num_elements,
+      size_t &num_bytes) 
+  {
+    num_bytes = 0; 
+    num_elements = 0;
     return NULL;
   }
 
   DataBlock_ptr onDataReady(
       int64_t partition_id, 
       int length, 
+      int num_items, 
       int64_t size, 
       int64_t offset,
       std::string path) 
@@ -177,26 +183,30 @@ public:
         // split the file by newline
         std::istringstream sstream(line_buffer);
         std::string line;
+
+        size_t num_bytes = 0;      
+        size_t num_elements = 0;      
+
         while(std::getline(sstream, line)) {
-          size_t bytes = 0;      
           
           char* data;
           try {
-            data = readLine(line, bytes);
+            data = readLine(line, num_elements, num_bytes);
           } catch (std::runtime_error &e) {
             throw e; 
           }
 
-          if (bytes > 0) {
-            data_buf.push_back(std::make_pair(bytes, data));
+          if (num_bytes > 0) {
+            data_buf.push_back(std::make_pair(num_bytes, data));
 
-            total_bytes += bytes;
+            total_bytes += num_bytes;
+
           }
         }
 
         if (total_bytes > 0) {
           // copy data to block
-          block->alloc(data_buf.size(), total_bytes);
+          block->alloc(total_bytes);
 
           size_t offset = 0;
           for (int i=0; i<data_buf.size(); i++) {
@@ -208,12 +218,22 @@ public:
 
             delete data;
           }
+
+          // the number of items is equal to the number of lines
+          block->setNumItems(data_buf.size());
+
+          // the total data length is num_elements * num_lines
+          block->setLength(num_elements*data_buf.size());
         }
+
       }
       else {  // read from memory mapped file
 
+        block->setLength(length);
+        block->setNumItems(num_items);
+
         // allocate memory for block
-        block->alloc(length, size);
+        block->alloc(size);
 
         block->readFromMem(path);
       }
@@ -240,13 +260,22 @@ protected:
     else {
       // if output does not exist, create one
       DataBlock_ptr block(new DataBlock(length, length*data_width));
+
+      // TODO: here make this assumption
+      block->setNumItems(1);
+
       output_blocks.push_back(block);
+
       return block->getData();
     }
   }
 
   int getInputLength(int idx) { 
     return input_blocks[idx]->getLength(); 
+  }
+
+  int getInputNumItems(int idx) { 
+    return input_blocks[idx]->getNumItems() ; 
   }
 
   char* getInput(int idx) {

@@ -7,7 +7,12 @@
 #include <algorithm>
 #include <sstream>
 
+#define USEMKL
+
+#ifdef USEMKL
 #include <mkl.h>
+#endif
+
 #include "acc_runtime.h" 
 
 using namespace acc_runtime;
@@ -24,13 +29,18 @@ public:
   Logistic(): Task(2) {;}
 
   // overwrites the readLine runction
-  virtual char* readLine(std::string line, size_t &bytes) {
+  virtual char* readLine(
+      std::string line, 
+      size_t &num_elements, 
+      size_t &num_bytes) 
+  {
 
     // allocate return buffer here, the consumer 
     // will be in charge of freeing the memory
     float* result = new float[LABEL_SIZE + FEATURE_SIZE];
 
-    bytes = (LABEL_SIZE+FEATURE_SIZE)*sizeof(float);
+    num_bytes = (LABEL_SIZE+FEATURE_SIZE)*sizeof(float);
+    num_elements = (LABEL_SIZE+FEATURE_SIZE);
 
     std::vector<float>* v = new std::vector<float>;
 
@@ -47,18 +57,20 @@ public:
   virtual void compute() {
 
     // get input data length
+    //int nsample = getInputNumItems(0);
     int data_length = getInputLength(0);
     int weight_length = getInputLength(1);
 
-    printf("data length = %d\n", data_length);
+    //printf("data length = %d\n", data_length);
+    //printf("weight length = %d\n", weight_length);
+
     // check input size
     if (data_length % (LABEL_SIZE+FEATURE_SIZE) != 0 || 
         data_length / (LABEL_SIZE+FEATURE_SIZE) == 0 ||
-        weight_length != (LABEL_SIZE*(FEATURE_SIZE+1)))
+        weight_length != (LABEL_SIZE*FEATURE_SIZE))
     {
 			fprintf(stderr, "Invalid input data dimensions\n");
       throw std::runtime_error("Invalid input data dimensions");
-      return;
     }
 
     // get the pointer to input/output data
@@ -69,12 +81,21 @@ public:
                                 weight_length, 
                                 sizeof(float));
 
+    if (!data || !weights || !gradient) {
+			fprintf(stderr, "Cannot get data pointers\n");
+      throw std::runtime_error("Cannot get data pointers");
+    }
+
 	  float label[LABEL_SIZE];
 
     // perform computation
-    int nsample = data_length / (LABEL_SIZE+FEATURE_SIZE);
+    int nsample = data_length / 
+          (LABEL_SIZE+FEATURE_SIZE);
 
-    printf("processing %d data points\n", nsample);
+    //printf("processing %d data points\n", nsample);
+
+    int L = LABEL_SIZE;
+    int D = FEATURE_SIZE;
 
 		int m = LABEL_SIZE;
 		int n = FEATURE_SIZE;
@@ -82,32 +103,42 @@ public:
 		float alpha = 1.0f;
 		float beta = .0f;
 
+    memset(gradient, 0, sizeof(float)*LABEL_SIZE*FEATURE_SIZE);
+
     for(int k = 0; k < nsample; k++ ) {
 
+#ifdef USEMKL
       cblas_sgemv(
           CblasRowMajor, CblasNoTrans, 
           m, n, alpha, 
           weights, n, 
-          data+k*(FEATURE_SIZE+LABEL_SIZE)+LABEL_SIZE, 
+          data+k*(D+L)+L, 
           inc, beta, 
           label, inc);
 
-      for (int i=0; i<LABEL_SIZE; i++) {
-        float coeff = (
-            1. / 
-            (1. + exp(
-                      -data[k*(FEATURE_SIZE+LABEL_SIZE)+i]*
-                      label[i])
-            ) - 1.)* data[k*(FEATURE_SIZE+LABEL_SIZE)+i];
+      for (int i=0; i<L; i++) {
+        float coeff = (1. / 
+            (1. + exp(-data[k*(D+L)+i]*label[i] )) 
+            - 1.)* data[k*(D+L)+i];
 
         cblas_saxpy(
             n, coeff, 
-            data+k*(FEATURE_SIZE+LABEL_SIZE)+LABEL_SIZE, 
-            inc, 
-            gradient+i*FEATURE_SIZE, inc);
+            data+k*(D+L)+L, inc, 
+            gradient+i*D, inc);
       }
+#else
+      for(int i = 0; i < L; i+=1 ) {
+        float dot = 0.;
+        for(int j = 0; j < D; j+=1 ) {
+          dot += weights[i*D+j+0]*data[k*(D+L)+j+0+L];
+        }
+        float coeff = (1. / (1. + exp(-data[k*(D+L)+i]*dot )) - 1.)*data[k*(D+L)+i];
+        for(int j = 0; j < D; j+=1 ) {
+          gradient[i*D+j+0] +=  coeff*data[k*(D+L)+j+0+L];
+        }
+      }
+#endif
     }
-
   }
 };
 

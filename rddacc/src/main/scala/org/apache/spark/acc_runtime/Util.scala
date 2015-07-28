@@ -270,18 +270,17 @@ object Util {
     }
 
     val fc: FileChannel = raf.getChannel()
-    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, length * itemLength * typeSize)
+    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, length * typeSize)
     buf.order(ByteOrder.LITTLE_ENDIAN)
 
-    val idx = Array(offset)
-    while (idx(0) < offset + length) {
+    for (idx <- offset until length/itemLength) {
       if (isArray) {
         for (ii <- 0 until itemLength) {
           dataType match {
-            case "i" => out(idx(0)).asInstanceOf[Array[Int]](ii) = buf.getInt()
-            case "f" => out(idx(0)).asInstanceOf[Array[Float]](ii) = buf.getFloat()
-            case "l" => out(idx(0)).asInstanceOf[Array[Long]](ii) = buf.getLong()
-            case "d" => out(idx(0)).asInstanceOf[Array[Double]](ii) = buf.getDouble()
+            case "i" => out(idx).asInstanceOf[Array[Int]](ii) = buf.getInt()
+            case "f" => out(idx).asInstanceOf[Array[Float]](ii) = buf.getFloat()
+            case "l" => out(idx).asInstanceOf[Array[Long]](ii) = buf.getLong()
+            case "d" => out(idx).asInstanceOf[Array[Double]](ii) = buf.getDouble()
             case _ =>
               throw new RuntimeException("Unsupported type " + dataType)
           }
@@ -289,15 +288,14 @@ object Util {
       }
       else {
          dataType match {
-          case "i" => out(idx(0)) = buf.getInt().asInstanceOf[T]
-          case "f" => out(idx(0)) = buf.getFloat().asInstanceOf[T]
-          case "l" => out(idx(0)) = buf.getLong().asInstanceOf[T]
-          case "d" => out(idx(0)) = buf.getDouble().asInstanceOf[T]
+          case "i" => out(idx) = buf.getInt().asInstanceOf[T]
+          case "f" => out(idx) = buf.getFloat().asInstanceOf[T]
+          case "l" => out(idx) = buf.getLong().asInstanceOf[T]
+          case "d" => out(idx) = buf.getDouble().asInstanceOf[T]
           case _ =>
             throw new RuntimeException("Unsupported type " + dataType)
         }
       }
-      idx(0) = idx(0) + 1
     }
    
     try {
