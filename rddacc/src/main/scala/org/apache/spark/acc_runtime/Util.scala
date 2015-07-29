@@ -48,42 +48,42 @@ object Util {
   def logMsg(msgBuilder: AccMessage.TaskMsg.Builder) = {
     val msg = msgBuilder.build()
     val time = Calendar.getInstance.getTime
-    logFile.write("[INFO][" + time + "] Message: ")
-    logFile.write("Type: " + msg.getType() + ", ")
-    logFile.write("Data: " + msg.getDataCount() + "\n")
+    val logStr: Array[String] = Array("[INFO][" + time + "] Message: Type: ")
+    logStr(0) = logStr(0) + msg.getType() + ", Data: " + msg.getDataCount() + "\n"
 
     for (i <- 0 until msg.getDataCount()) {
-      logFile.write("Data " + i + ": ")
+      logStr(0) = logStr(0) + "Data " + i + ": "
       if (msg.getData(i).hasPartitionId())
-        logFile.write("ID: " + msg.getData(i).getPartitionId() + ", ")
+        logStr(0) = logStr(0) + "ID: " + msg.getData(i).getPartitionId() + ", "
       if (msg.getData(i).hasLength())
-        logFile.write("Length: " + msg.getData(i).getLength() + ", ")
+        logStr(0) = logStr(0) + "Length: " + msg.getData(i).getLength() + ", "
       if (msg.getData(i).hasSize())
-        logFile.write("Size: " + msg.getData(i).getSize() + ", ")
+        logStr(0) = logStr(0) + "Size: " + msg.getData(i).getSize() + ", "
       if (msg.getData(i).hasPath())
-        logFile.write("Path: " + msg.getData(i).getPath()) 
-      logFile.write("\n")
+        logStr(0) = logStr(0) + "Path: " + msg.getData(i).getPath()
+      logStr(0) = logStr(0) + "\n"
     }
+    logFile.write(logStr(0) + "\n")
   }
 
   def logMsg(msg: AccMessage.TaskMsg) = {
     val time = Calendar.getInstance.getTime
-    logFile.write("[INFO][" + time + "] Message: ")
-    logFile.write("Type: " + msg.getType() + ", ")
-    logFile.write("Data: " + msg.getDataCount() + "\n")
+    val logStr: Array[String] = Array("[INFO][" + time + "] Message: Type: ")
+    logStr(0) = logStr(0) + msg.getType() + ", Data: " + msg.getDataCount() + "\n"
 
     for (i <- 0 until msg.getDataCount()) {
-      logFile.write("Data " + i + ": ")
+      logStr(0) = logStr(0) + "Data " + i + ": "
       if (msg.getData(i).hasPartitionId())
-        logFile.write("ID: " + msg.getData(i).getPartitionId() + ", ")
+        logStr(0) = logStr(0) + "ID: " + msg.getData(i).getPartitionId() + ", "
       if (msg.getData(i).hasLength())
-        logFile.write("Length: " + msg.getData(i).getLength() + ", ")
+        logStr(0) = logStr(0) + "Length: " + msg.getData(i).getLength() + ", "
       if (msg.getData(i).hasSize())
-        logFile.write("Size: " + msg.getData(i).getSize() + ", ")
+        logStr(0) = logStr(0) + "Size: " + msg.getData(i).getSize() + ", "
       if (msg.getData(i).hasPath())
-        logFile.write("Path: " + msg.getData(i).getPath()) 
-      logFile.write("\n")
+        logStr(0) = logStr(0) + "Path: " + msg.getData(i).getPath()
+      logStr(0) = logStr(0) + "\n"
     }
+    logFile.write(logStr(0) + "\n")
   }
 
 
