@@ -87,15 +87,13 @@ object LogisticRegression {
         var start_time = System.nanoTime
         val b_w = acc.wrap(sc.broadcast(w))
         val gradient = dataPoints
-          /*.map(points => runOnJTP(points, w))*/
           .map_acc(new LogisticRegression(b_w))
           .reduce((a, b) => {
-            val res = new Array[Float](L * D)
             for (i <- 0 until L) {
               for (j <- 0 until D)
-                res(i * D + j) = a(i * D + j) + b(i * D + j)
+                a(i * D + j) = a(i * D + j) + b(i * D + j)
             }
-            res
+            a
           })
         
         for (i <- 0 until L) {
@@ -139,24 +137,6 @@ object LogisticRegression {
       else
         0
     }
-
-     def runOnJTP(data: Array[Float], w: Array[Float]): Array[Float] = {
-      val grad = new Array[Float](L * (D + 1))
-      val dot = new Array[Float](1)
-
-      for (i <- 0 until L) {
-        dot(0) = 0.0f
-        for (j <- 0 until D)
-          dot(0) = dot(0) + w(i * (D + 1) + j) * data(j + L)
-        
-        val c: Float = (1.0f / (1.0f + Math.exp(-data(i) * dot(0)).toFloat) - 1.0f) * data(i)
-
-        for (j <- 0 until D)
-          grad(i * (D + 1) + j) = grad(i * (D + 1) + j) + c * data(j + L)
-      }
-      grad
-    }
-   
 
     def get_spark_context(appName : String) : SparkContext = {
         val conf = new SparkConf()
