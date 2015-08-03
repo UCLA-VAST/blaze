@@ -25,7 +25,7 @@ object SparkKMeans {
         .map(line => Vectors.dense(line.split(' ').map(_.toDouble)))
         .cache()
 
-      val clusters = KMeans.train(points, K, iters)
+      val clusters = KMeans.train(points, K, iters, 1, "random", 99)
       println("Within set sum of squared errors = " + clusters.computeCost(points))
     }
 
