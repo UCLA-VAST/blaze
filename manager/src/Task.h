@@ -7,11 +7,15 @@
 #include <cstdlib>
 #include <fstream>
 
+#ifdef USEHDFS
 #include "hdfs.h"
+#endif
+
 #include <boost/lexical_cast.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
 #include "Block.h"
+#include "TaskEnv.h"
 
 namespace acc_runtime {
 /**
@@ -30,7 +34,8 @@ public:
     COMMITTED
   } status;
 
-  Task(int _num_input): 
+  Task(TaskEnv *_env, int _num_input): 
+    env(_env),
     status(NOTREADY), 
     num_input(_num_input),
     num_ready(0)
@@ -45,6 +50,7 @@ public:
       compute();
     } catch (std::runtime_error &e) {
       status = FAILED; 
+      printf("Task failed: %s\n", e.what());
       return;
     }
     status = FINISHED;
@@ -121,6 +127,7 @@ public:
         if (path.compare(0, 7, "hdfs://") == 0) {
           // read from HDFS
           
+#ifdef USE_HDFS
           if (!getenv("HDFS_NAMENODE") ||
               !getenv("HDFS_PORT"))
           {
@@ -158,6 +165,9 @@ public:
           }
 
           hdfsCloseFile(fs, fin);
+#else 
+          throw std::runtime_error("HDFS file is not supported");
+#endif
         }
         else {
           // read from normal file
@@ -281,6 +291,10 @@ protected:
   char* getInput(int idx) {
     return input_blocks[idx]->getData();      
   }
+
+  // pointer to task environment
+  // accessable by the extended tasks
+  TaskEnv *env;
 
 private:
   int num_input;

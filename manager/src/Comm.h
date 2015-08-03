@@ -1,3 +1,6 @@
+#ifndef COMM_H
+#define COMM_H
+
 #include <string>
 #include <vector>
 
@@ -59,3 +62,5 @@ private:
   Logger *logger;
 };
 }
+
+#endif

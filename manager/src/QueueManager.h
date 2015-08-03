@@ -11,6 +11,10 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
+#include "acc_conf.pb.h"
+
+#include "Context.h"
+#include "TaskEnv.h"
 #include "Task.h"
 #include "TaskManager.h"
 #include "Logger.h"
@@ -23,13 +27,18 @@ const TaskManager_ptr NULL_TASK_MANAGER;
 class QueueManager {
 
 public:
-  QueueManager(Logger *_logger): logger(_logger) {;}
+  QueueManager(Context *_context, Logger *_logger): 
+    logger(_logger), context(_context)
+  {;}
 
   // build task queues for all libraries in a path
   void buildFromPath(std::string lib_dir);
 
+  // build task queues from a configuration file
+  void buildFromConf(ManagerConf *conf);
+
   // add a new queue regarding an existing accelerator
-  void add(std::string id, std::string lib_path);
+  void add(std::string id, std::string lib_path, TaskEnv *env);
 
   // request the task manager by acc id
   TaskManager_ptr get(std::string id);
@@ -42,6 +51,7 @@ public:
 
 private:
   std::map<std::string, TaskManager_ptr> queue_table;
+  Context *context;
   Logger *logger;
 };
 }

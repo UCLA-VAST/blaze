@@ -1,3 +1,4 @@
+#include <fstream>
 #include <stdexcept>
 #include <dlfcn.h>
 
@@ -9,6 +10,8 @@ namespace acc_runtime {
                     std::string(__func__) +\
                     std::string("(): ")
 
+// depreciated
+// all the libs added by path are CPU tasks
 void QueueManager::buildFromPath(std::string lib_dir) {
 
   boost::filesystem::path acc_dir(lib_dir);
@@ -27,19 +30,52 @@ void QueueManager::buildFromPath(std::string lib_dir) {
     if (iter->path().extension().compare(".so")==0) {
       // add task queue to queue manager
       try {
+        
         add(iter->path().stem().string(), 
-            acc_dir.string() + iter->path().string());
+            iter->path().string(),
+            new TaskEnv());
       }
       catch (std::runtime_error &e) {
         throw e;
-        continue;
       }
     }
   }
 }
 
-void QueueManager::add(std::string id, std::string lib_path) {
+void QueueManager::buildFromConf(ManagerConf *conf) {
   
+  for (int i = 0; i < conf->acc_size(); i++) {
+
+    AccConf acc = conf->acc(i);
+
+    // reference the correponding TaskEnv from Context
+    TaskEnv* env = context->getEnv(acc.type());
+
+    if (!env) {
+      logger->logErr(
+          LOG_HEADER +
+          "cannot find supported TaskEnv");
+      continue;
+    }
+
+    try {
+      // add and setup an accelerator to TaskEnv
+      env->setup(acc);
+
+      // add a TaskManager 
+      add(acc.acc_id(), acc.path(), env);
+
+    } catch (std::runtime_error &e) {
+      logger->logErr(LOG_HEADER + e.what());  
+    }
+  }
+}
+
+void QueueManager::add(
+    std::string id, 
+    std::string lib_path,
+    TaskEnv *env) {
+
   void* handle = dlopen(lib_path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
 
   if (handle == NULL) {
@@ -50,11 +86,11 @@ void QueueManager::add(std::string id, std::string lib_path) {
   dlerror();
 
   // load the symbols
-  Task* (*create_func)();
+  Task* (*create_func)(TaskEnv*);
   void (*destroy_func)(Task*);
 
   // read the custom constructor and destructor  
-  create_func = (Task* (*)())dlsym(handle, "create");
+  create_func = (Task* (*)(TaskEnv*))dlsym(handle, "create");
   destroy_func = (void (*)(Task*))dlsym(handle, "destroy");
 
   const char* error = dlerror();
@@ -65,7 +101,7 @@ void QueueManager::add(std::string id, std::string lib_path) {
 
   // construct the corresponding task queue
   TaskManager_ptr taskManager(
-    new TaskManager(create_func, destroy_func, logger));
+    new TaskManager(create_func, destroy_func, env, logger));
 
   queue_table.insert(std::make_pair(id, taskManager));
 

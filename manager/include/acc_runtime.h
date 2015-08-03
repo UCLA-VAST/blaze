@@ -3,5 +3,7 @@
 
 #include "../src/Block.h"
 #include "../src/Task.h"
+#include "../src/TaskEnv.h"
+#include "../src/OpenCLEnv.h"
 
 #endif 

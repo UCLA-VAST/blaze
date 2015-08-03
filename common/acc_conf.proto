@@ -1,0 +1,25 @@
+package acc_runtime;
+
+enum AccType {
+  CPU = 0;  
+  OpenCL = 1;  
+  CUDA = 2;  
+  ZYNQ = 3;
+}
+
+message AccConf {
+  required AccType type = 1;  
+  required string acc_id = 2;  
+  required string path = 3;
+  optional string impl_name = 4;
+  optional string impl_path = 5;
+  optional string kernel_name = 6;
+}
+
+message ManagerConf {
+  optional string ip_addr = 1 [default = "127.0.0.1"];
+  optional int32 port = 2 [default = 1027];
+  repeated AccType available_acc = 3;
+  repeated AccConf acc = 4;
+  optional int32 verbose = 5;
+}

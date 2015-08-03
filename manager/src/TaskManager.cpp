@@ -9,7 +9,7 @@ namespace acc_runtime {
 
 Task* TaskManager::create() {
   
-  Task* task = (Task*)createTask();
+  Task* task = (Task*)createTask(env);
 
   task_queue.push(task);
 

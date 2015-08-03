@@ -11,6 +11,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
+#include "TaskEnv.h"
 #include "Task.h"
 #include "Block.h"
 #include "Logger.h"
@@ -27,11 +28,13 @@ class TaskManager
 public:
 
   TaskManager(
-    Task* (*create_func)(), 
+    Task* (*create_func)(TaskEnv*), 
     void (*destroy_func)(Task*),
+    TaskEnv *_env, 
     Logger *_logger
   ): createTask(create_func),
      destroyTask(destroy_func),
+     env(_env),
      logger(_logger)
   {
     ;
@@ -53,10 +56,11 @@ public:
 
 private:
   
-  Task* (*createTask)();
+  Task* (*createTask)(TaskEnv*);
   void (*destroyTask)(Task*);
 
-  Logger* logger;
+  TaskEnv *env;
+  Logger  *logger;
 
   boost::lockfree::queue<Task*, boost::lockfree::capacity<1024> > task_queue;
   boost::lockfree::queue<Task*, boost::lockfree::capacity<1024> > retire_queue;

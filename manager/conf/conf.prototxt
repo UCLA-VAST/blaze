@@ -1,0 +1,17 @@
+ip_addr : "127.0.0.1"
+port : 1027
+available_acc : CPU
+available_acc : OpenCL
+acc : {
+  type: CPU
+  acc_id : "Circumference"
+  path : "/curr/diwu/prog/acc_runtime/task/lib/Circumference.so"
+}
+acc : {
+  type : OpenCL 
+  acc_id : "Logistic"
+  path : "/curr/diwu/prog/acc_runtime/task/lib/Logistic_ocl.so"
+  impl_path : "/curr/diwu/prog/acc_runtime/task/lib/logistic.xclbin"
+  kernel_name : "mmult"
+}
+verbose : 3
