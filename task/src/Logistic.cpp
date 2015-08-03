@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <sstream>
 
-#define USEMKL
+//#define USEMKL
 
 #ifdef USEMKL
 #include <mkl.h>
@@ -26,7 +26,7 @@ public:
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  Logistic(): Task(2) {;}
+  Logistic(TaskEnv* env): Task(env, 2) {;}
 
   // overwrites the readLine runction
   virtual char* readLine(
@@ -142,8 +142,8 @@ public:
   }
 };
 
-extern "C" Task* create() {
-  return new Logistic;
+extern "C" Task* create(TaskEnv* env) {
+  return new Logistic(env);
 }
 
 extern "C" void destroy(Task* p) {

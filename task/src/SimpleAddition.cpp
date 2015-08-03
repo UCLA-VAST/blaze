@@ -11,7 +11,7 @@ public:
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  SimpleAddition(): Task(1) {;}
+  SimpleAddition(TaskEnv *env): Task(env, 1) {;}
 
   // overwrites the compute function
   virtual void compute() {
@@ -32,8 +32,8 @@ public:
   }
 };
 
-extern "C" Task* create() {
-  return new SimpleAddition;
+extern "C" Task* create(TaskEnv* env) {
+  return new SimpleAddition(env);
 }
 
 extern "C" void destroy(Task* p) {

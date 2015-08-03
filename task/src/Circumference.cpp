@@ -11,7 +11,7 @@ public:
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  Circumference(): Task(2) {;}
+  Circumference(TaskEnv *env): Task(env, 2) {;}
 
   // overwrites the compute function
   virtual void compute() {
@@ -33,8 +33,8 @@ public:
   }
 };
 
-extern "C" Task* create() {
-  return new Circumference;
+extern "C" Task* create(TaskEnv* env) {
+  return new Circumference(env);
 }
 
 extern "C" void destroy(Task* p) {
