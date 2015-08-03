@@ -5,7 +5,7 @@ if [[ $# != 1 ]]; then
     exit 1
 fi
 
-spark-submit --class SparkKMeans \
+~/spark-1.4.0/bin/spark-submit --class SparkKMeans \
         --master local[*] \
         target/sparkkmeans-0.0.0.jar \
-        3 $1 /curr/cody/Spark_ACC/acc_runtime/rddacc/app/kmeans/input.txt
+        3 $1 hdfs://cdsc0:9000/user/cody/kmeans_input_small.txt

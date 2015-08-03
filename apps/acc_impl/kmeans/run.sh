@@ -9,4 +9,4 @@ spark-submit --class SparkKMeans \
         --jars ${ACC_HOME}/target/ACC_RUNTIME-1.0-SNAPSHOT.jar \
         --master local[*] \
         target/sparkkmeans-0.0.0.jar \
-        3 $1 /curr/cody/Spark_ACC/acc_runtime/rddacc/app/kmeans/input_large.txt
+        3 $1 hdfs://cdsc0:9000/user/cody/kmeans_input_small.txt
