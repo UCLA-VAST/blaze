@@ -15,7 +15,9 @@
 #include <boost/iostreams/device/mapped_file.hpp>
 
 #include "Block.h"
+#include "OpenCLBlock.h"
 #include "TaskEnv.h"
+#include "OpenCLEnv.h"
 
 namespace acc_runtime {
 /**
@@ -260,7 +262,12 @@ public:
 
 protected:
 
-  char* getOutput(int idx, int length, int data_width) {
+  char* getOutput(
+      int idx, 
+      int item_length, 
+      int num_items,
+      int data_width) 
+  {
 
     if (idx < output_blocks.size()) {
       // if output already exists, return the pointer 
@@ -268,11 +275,33 @@ protected:
       return output_blocks[idx]->getData();
     }
     else {
-      // if output does not exist, create one
-      DataBlock_ptr block(new DataBlock(length, length*data_width));
+      int length = num_items*item_length;
 
-      // TODO: here make this assumption
-      block->setNumItems(1);
+      // if output does not exist, create one
+
+      DataBlock_ptr block;
+      
+      switch (env->getType()) {
+        case AccType::CPU: 
+        {
+          DataBlock_ptr bp(new DataBlock(length, length*data_width));
+          block = bp;
+          break;
+        }   
+        case AccType::OpenCL:
+        {
+          DataBlock_ptr bp(new OpenCLBlock(
+              reinterpret_cast<OpenCLEnv*>(env), 
+              length, length*data_width));
+          block = bp;
+          break;
+        }
+        default: {
+          DataBlock_ptr bp(new DataBlock(length, length*data_width));
+          block = bp;
+        }
+      }
+      block->setNumItems(num_items);
 
       output_blocks.push_back(block);
 

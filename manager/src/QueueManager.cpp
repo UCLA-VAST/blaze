@@ -10,67 +10,6 @@ namespace acc_runtime {
                     std::string(__func__) +\
                     std::string("(): ")
 
-// depreciated
-// all the libs added by path are CPU tasks
-void QueueManager::buildFromPath(std::string lib_dir) {
-
-  boost::filesystem::path acc_dir(lib_dir);
-
-  if ( !boost::filesystem::exists( acc_dir ) ) {
-    throw std::runtime_error("Cannot find any accelerators in path");
-    return;
-  }
-
-  boost::filesystem::directory_iterator end_iter;
-  // construct a task for every accelerator in the directory
-  for (boost::filesystem::directory_iterator iter(acc_dir);
-       iter != end_iter; 
-       ++iter)
-  {
-    if (iter->path().extension().compare(".so")==0) {
-      // add task queue to queue manager
-      try {
-        
-        add(iter->path().stem().string(), 
-            iter->path().string(),
-            new TaskEnv());
-      }
-      catch (std::runtime_error &e) {
-        throw e;
-      }
-    }
-  }
-}
-
-void QueueManager::buildFromConf(ManagerConf *conf) {
-  
-  for (int i = 0; i < conf->acc_size(); i++) {
-
-    AccConf acc = conf->acc(i);
-
-    // reference the correponding TaskEnv from Context
-    TaskEnv* env = context->getEnv(acc.type());
-
-    if (!env) {
-      logger->logErr(
-          LOG_HEADER +
-          "cannot find supported TaskEnv");
-      continue;
-    }
-
-    try {
-      // add and setup an accelerator to TaskEnv
-      env->setup(acc);
-
-      // add a TaskManager 
-      add(acc.acc_id(), acc.path(), env);
-
-    } catch (std::runtime_error &e) {
-      logger->logErr(LOG_HEADER + e.what());  
-    }
-  }
-}
-
 void QueueManager::add(
     std::string id, 
     std::string lib_path,

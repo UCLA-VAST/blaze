@@ -50,26 +50,19 @@ int main(int argc, char** argv) {
   if (conf->has_verbose()) {
     verbose = conf->verbose();  
   }
+  // setup Logger
   Logger logger(verbose);
 
+  // setup QueueManager
+  QueueManager queue_manager(&logger);
+
   // setup acc context
-  Context context(&logger);
+  Context context(conf, &logger, &queue_manager);
 
-  for (int i=0; i<conf->available_acc_size(); i++) {
-    context.createEnv(conf->available_acc(i));
-  }
-
-  // TODO: support context with block_manager
-  BlockManager block_manager(&logger);
-
-  // setup queue manager
-  QueueManager queue_manager(&context, &logger);
-
-  queue_manager.buildFromConf(conf);
   queue_manager.startAll();
 
   Comm comm(
-          &block_manager, 
+          &context, 
           &queue_manager, 
           &logger, ip_address, port);
 

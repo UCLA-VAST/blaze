@@ -24,6 +24,7 @@ LINK= -L$(BOOST_DIR)/lib \
 			-lpthread -lm -ldl
 
 DEPS= Comm.o \
+			Context.o \
 			BlockManager.o \
 			QueueManager.o \
 			TaskManager.o \

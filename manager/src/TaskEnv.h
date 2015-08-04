@@ -4,17 +4,25 @@
 #include <boost/smart_ptr.hpp>
 
 #include "proto/acc_conf.pb.h"
+#include "Block.h"
 
 namespace acc_runtime {
 
 class TaskEnv {
 
-  public: 
-    virtual void setup(AccConf &conf) {;}
+public: 
+  TaskEnv(AccType _type): type(_type) {;}
 
-    // TODO
-    virtual void setupContext(AccConf &conf) {;}
-    virtual void setupTask(AccConf &conf) {;}
+  virtual void setup(AccWorker &conf) {;}
+
+  // TODO
+  virtual void setupContext(AccWorker &conf) {;}
+  virtual void setupTask(AccWorker &conf) {;}
+
+  AccType getType() { return type; }
+
+protected:
+  AccType type;
 
 };
 

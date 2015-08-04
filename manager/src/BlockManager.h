@@ -12,7 +12,10 @@
 #include <boost/thread/lockable_adapter.hpp>
 
 #include "Block.h"
+#include "OpenCLBlock.h"
 #include "Logger.h"
+#include "TaskEnv.h"
+#include "OpenCLEnv.h"
 
 /* TODO list:
  * - guarantee an unique partition id shared by possibly multiple
@@ -35,6 +38,7 @@ class BlockManager
 public:
 
   BlockManager(
+      TaskEnv* _env,
       Logger* _logger,
       size_t _maxCacheSize = (1L<<30), 
       size_t _maxScratchSize = (1L<<28)
@@ -42,6 +46,7 @@ public:
     cacheSize(0), scratchSize(0),
     maxCacheSize(_maxCacheSize), 
     maxScratchSize(_maxScratchSize),
+    env(_env),
     logger(_logger)
   {
     //cacheTable    = new std::map<int, int>;
@@ -51,6 +56,11 @@ public:
 
   /* all reference in BlockManager will be automatically removed */
   //~BlockManager();
+
+  // create a block
+  DataBlock_ptr create();
+
+  DataBlock_ptr create(int length, int size);
 
   // cache access
   bool isCached(int64_t tag) {
@@ -105,8 +115,11 @@ private:
   size_t cacheSize;
   size_t scratchSize;
 
+  TaskEnv* env;
   Logger* logger;
 };
+
+typedef boost::shared_ptr<BlockManager> BlockManager_ptr;
 }
 
 #endif

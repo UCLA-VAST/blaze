@@ -22,7 +22,8 @@ public:
     // get the pointer to input/output data
     double* a  = (double*)getInput(0);
     double* pi = (double*)getInput(1);
-    double* b  = (double*)getOutput(0, data_length, sizeof(double));
+    double* b  = (double*)getOutput(0, 1,
+                    data_length, sizeof(double));
 
     // perform computation
     for (int i = 0; i < data_length; i++) {

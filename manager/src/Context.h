@@ -9,9 +9,13 @@
 
 #include "acc_conf.pb.h"
 
+#include "QueueManager.h"
+#include "BlockManager.h"
 #include "Logger.h"
 #include "TaskEnv.h"
 #include "OpenCLEnv.h"
+#include "Block.h"
+#include "OpenCLBlock.h"
 
 namespace acc_runtime {
 
@@ -19,36 +23,18 @@ class Context {
 
 public:
   Context(Logger* _logger): logger(_logger) {;}
+  
+  Context(ManagerConf *conf,
+      Logger *_logger,
+      QueueManager *_manager);
 
-  void createEnv(AccType type) {
-    if (env_table.find(type) != env_table.end()) {
-      return;  
+  TaskEnv* getEnv(std::string acc_id) {
+     if (acc_table.find(acc_id) != acc_table.end()) {
+      return acc_table[acc_id].get();  
     }
-    switch (type) {
-      case AccType::OpenCL :
-        try {
-
-          TaskEnv_ptr env(new OpenCLEnv());
-
-          env_table.insert(std::make_pair(type, env));
-
-          logger->logInfo(
-              std::string("Context::")+
-              std::string(__func__)+
-              std::string("(): created OpenCLEnv()"));
-
-        } catch (std::runtime_error &e) {
-          logger->logErr(
-              std::string("Context::")+
-              std::string(__func__)+
-              std::string("(): cannot create OpenCL env"));
-        }
-        break;
-      default :
-        TaskEnv_ptr env(new TaskEnv());
-        env_table.insert(std::make_pair(type, env));
-        break;
-    }  
+    else {
+      return NULL;
+    }
   }
 
   TaskEnv* getEnv(AccType type) {
@@ -60,9 +46,33 @@ public:
     }
   }
 
+  BlockManager* getBlockManager(std::string acc_id) {
+    if (acc_table.find(acc_id) != acc_table.end()) {
+      return block_manager_table[acc_table[acc_id]->getType()].get();
+    }
+    else {
+      return NULL;
+    }
+  }
+
+  void addShared(int64_t block_id, DataBlock_ptr block);
+
+  DataBlock_ptr getShared(int64_t block_id);
+
+  void removeShared(int64_t block_id);
+
 private:
+  QueueManager *queue_manager;
   Logger *logger;
+
+  // map AccType to TaskEnv
   std::map<AccType, TaskEnv_ptr> env_table;
+
+  // map acc_id to TaskEnv
+  std::map<std::string, TaskEnv_ptr> acc_table;
+
+  // map AccType to BlockManager
+  std::map<AccType, BlockManager_ptr> block_manager_table;
 };
 }
 #endif 

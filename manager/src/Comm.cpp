@@ -51,7 +51,7 @@ void Comm::send(
 {
   int msg_size = task_msg.ByteSize();
 
-  //TODO: why doesn't this work: socket_stream << msg_size;
+  //NOTE: why doesn't this work: socket_stream << msg_size;
   socket_stream.write(reinterpret_cast<char*>(&msg_size), sizeof(int));
 
   task_msg.SerializeToOstream(&socket_stream);
@@ -109,12 +109,17 @@ void Comm::process(socket_ptr sock) {
     // here assuming always accept
     reply_msg.set_type(ACCGRANT);
 
+    // get correponding block manager based on platform
+    BlockManager* block_manager = context->
+      getBlockManager(task_msg.acc_id());
+
     // create a task, which will be automatically enqueued
     Task* task = task_manager->create();
 
     bool all_cached = true;
 
     // consult BlockManager to see if block is cached
+    // TODO: query the block from context
     for (int i = 0; i < task_msg.data_size(); ++i) {
       int64_t blockId = task_msg.data(i).partition_id();
 
@@ -127,7 +132,8 @@ void Comm::process(socket_ptr sock) {
           // allocate a new block without initilizing
           // this block need to be added to cache later since the
           // size information may not be available at this point
-          DataBlock_ptr block(new DataBlock());
+          // TODO: do this with block manager
+          DataBlock_ptr block = block_manager->create();
 
           // add the block to task
           // this step may be mandatory to guarantee correct block
@@ -330,6 +336,10 @@ void Comm::process(socket_ptr sock) {
   }
   else if (task_msg.type() == ACCBROADCAST) {
 
+    // NOTE: 
+    // In this implementation, create the same broadcast variable 
+    // in all block managers
+
     logger->logInfo(LOG_HEADER + 
         std::string("Recieved an ACCBROADCAST message")) ; 
 
@@ -345,25 +355,27 @@ void Comm::process(socket_ptr sock) {
         int dataLength = blockInfo.length();
         int64_t dataSize = blockInfo.size();	
 
-        DataBlock_ptr block = block_manager->getShared(blockId);
+        // check all block managers
+        DataBlock_ptr block = context->getShared(blockId);
 
         if (block == NULL_DATA_BLOCK) {
           // broadcast block does not exist
           // create a new block and add it to the manager
-          
+
           // not sure smart_ptr can be assigned, so creating a new one
           DataBlock_ptr new_block(new DataBlock(dataLength, dataSize));
 
-          printf("created a block of size %d\n", new_block->getSize());
-
+          // read block to CPU first
           new_block->readFromMem(dataPath);
 
-          int err = block_manager->addShared(blockId, new_block);
-
-          if (err != 0) { // not enough space
+          //int err = block_manager->addShared(blockId, new_block);
+          try {
+            context->addShared(blockId, new_block);
+          }
+          catch (std::runtime_error &e) { 
             logger->logErr(
                 LOG_HEADER+
-                "Not enough space left in scratch");
+                e.what());
 
             success = false;
             break;
@@ -378,7 +390,7 @@ void Comm::process(socket_ptr sock) {
 
         int64_t bval = blockInfo.bval();
 
-        DataBlock_ptr block = block_manager->getShared(blockId);
+        DataBlock_ptr block = context->getShared(blockId);
 
         if (block == NULL_DATA_BLOCK) {
           // broadcast block does not exist
@@ -389,12 +401,14 @@ void Comm::process(socket_ptr sock) {
 
           new_block->writeData((void*)(&bval), 8);
 
-          int err = block_manager->addShared(blockId, new_block);
-
-          if (err != 0) { // not enough space
+          //int err = block_manager->addShared(blockId, new_block);
+          try {
+            context->addShared(blockId, new_block);
+          }
+          catch (std::runtime_error &e) { 
             logger->logErr(
                 LOG_HEADER+
-                "Not enough space left in scratch");
+                e.what());
 
             success = false;
             break;
@@ -406,16 +420,16 @@ void Comm::process(socket_ptr sock) {
         }
       }
       else {
-        // deleting an existing block
-        int err = block_manager->removeShared(blockId);
-
-        if (err != 0) { // failed to remove
-          success = false;  
-
+        // deleting an existing blocks from all block manager
+        try {
+          context->removeShared(blockId);
+        }
+        catch (std::runtime_error &e) { 
           logger->logErr(
               LOG_HEADER+
-              "Failed to delete the block");
+              e.what());
 
+          success = false;
           // do not break out of the loop
         }
       }

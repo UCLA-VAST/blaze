@@ -73,26 +73,13 @@ public:
     // check input size
     if (data_length % (LABEL_SIZE+FEATURE_SIZE) != 0 || 
         data_length / (LABEL_SIZE+FEATURE_SIZE) == 0 ||
-        weight_length != (LABEL_SIZE*FEATURE_SIZE))
+        weight_length != (LABEL_SIZE*(FEATURE_SIZE+1)))
     {
       fprintf(stderr, "Invalid input data dimensions\n");
       throw std::runtime_error("Invalid input data dimensions");
     }
 
-    // get the pointer to input/output data
-    float* data      = (float*)getInput(0);
-    float* weights   = (float*)getInput(1);
-    float* gradients = (float*)getOutput(
-        0, 
-        weight_length, 
-        sizeof(float));
-
-    if (!data || !weights || !gradients) {
-      fprintf(stderr, "Cannot get data pointers\n");
-      throw std::runtime_error("Cannot get data pointers");
-    }
-
-    float label[LABEL_SIZE];
+    
 
     // perform computation
     int nsample = data_length / 
@@ -109,51 +96,31 @@ public:
     float alpha = 1.0f;
     float beta = .0f;
 
-    memset(gradients, 0, sizeof(float)*LABEL_SIZE*FEATURE_SIZE);
-
     cl_context       context = ocl_env->getContext();
     cl_kernel        kernel  = ocl_env->getKernel("Logistic");
     cl_command_queue command = ocl_env->getCmdQueue();
 
+    int err;
     cl_event event;
 
+    // get the pointer to input/output data
+    cl_mem data      = *((cl_mem*)getInput(0));
+    cl_mem weights   = *((cl_mem*)getInput(1));
+    cl_mem gradients = *((cl_mem*)getOutput(
+                        0, weight_length, 1,
+                        sizeof(float)));
+
+    //if (!data || !weights || !gradients) {
+    //  fprintf(stderr, "Cannot get data pointers\n");
+    //  throw std::runtime_error("Cannot get data pointers");
+    //}
     gettimeofday(&t1, NULL);
-    // Create the input and output arrays in device memory for our calculation
-    cl_mem input_weights = clCreateBuffer(
-        context, CL_MEM_READ_ONLY,  
-        sizeof(float)*L*(D+1), NULL, NULL);
-
-    cl_mem input_data = clCreateBuffer(
-        context, CL_MEM_READ_ONLY,  
-        sizeof(float)*nsample*(D+L), NULL, NULL);
-
-    cl_mem output_gradient = clCreateBuffer(
-        context, CL_MEM_WRITE_ONLY, 
-        sizeof(float)*L*(D+1), NULL, NULL);
-
-    int err = 0;
-    err |= clEnqueueWriteBuffer(
-        command, input_weights, CL_TRUE, 0, 
-        sizeof(float)*L*D, weights, 0, NULL, NULL);
-
-    err |= clEnqueueWriteBuffer(
-        command, input_data, CL_TRUE, 0, 
-        sizeof(float) * nsample*(D+L), data, 0, NULL, &event);
-
-    if (err != CL_SUCCESS) {
-      throw std::runtime_error("Failed to write to source array");
-    }
-    gettimeofday(&t2, NULL);
-    timersub(&t1, &t2, &tr);
-    clWaitForEvents(1, &event);
-    fprintf(stdout, "Data input takes %.4f ms\n", 
-        fabs(tr.tv_sec*1000.0+(double)tr.tv_usec/1000.0));
 
     // Set the arguments to our compute kernel
     err  = clSetKernelArg(kernel, 0, sizeof(int), &nsample);
-    err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &input_weights);
-    err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &input_data);
-    err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &output_gradient);
+    err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &weights);
+    err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &data);
+    err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &gradients);
 
     if (err != CL_SUCCESS) {
       throw std::runtime_error("Failed to set kernel arguments!");
@@ -176,26 +143,6 @@ public:
         fabs(tr.tv_sec*1000.0+(double)tr.tv_usec/1000.0));
 
     gettimeofday(&t1, NULL);
-    // Read back the results from the device to verify the output
-    err = clEnqueueReadBuffer(
-        command, 
-        output_gradient, 
-        CL_TRUE, 0, sizeof(float)*L*D, 
-        gradients, 0, NULL, &event);  
-
-    if (err != CL_SUCCESS) {
-      throw std::runtime_error("Failed to read output array");
-    }
-    clWaitForEvents(1, &event);
-
-    gettimeofday(&t2, NULL);
-    timersub(&t1, &t2, &tr);
-    fprintf(stdout, "Data output takes %.4f ms\n", 
-        fabs(tr.tv_sec*1000.0+(double)tr.tv_usec/1000.0));
-
-    clReleaseMemObject(input_weights);
-    clReleaseMemObject(input_data);
-    clReleaseMemObject(output_gradient);
   }
 };
 

@@ -8,6 +8,55 @@ namespace acc_runtime {
                     std::string(__func__) +\
                     std::string("(): ")
 
+DataBlock_ptr BlockManager::create() {
+
+  DataBlock_ptr block;
+  switch (env->getType()) {
+    case AccType::CPU: 
+    {
+      DataBlock_ptr bp(new DataBlock());
+      block = bp;
+      break;
+    }
+    case AccType::OpenCL:
+    {
+      DataBlock_ptr bp(new OpenCLBlock(
+          dynamic_cast<OpenCLEnv*>(env)));
+      block = bp;
+      break;
+    }
+    default:
+    {
+      throw std::runtime_error("Invalid platform");
+    }
+  }
+  return block;
+}
+
+DataBlock_ptr BlockManager::create(int length, int size) {
+
+  DataBlock_ptr block;
+  switch (env->getType()) {
+    case AccType::CPU:
+    {
+      DataBlock_ptr bp(new DataBlock(length, size));
+      block = bp;
+      break;
+    }
+    case AccType::OpenCL:
+    {
+      DataBlock_ptr bp(new OpenCLBlock(
+          dynamic_cast<OpenCLEnv*>(env), length, size));
+      block = bp;
+      break;
+    }
+    default: {
+      throw std::runtime_error("Invalid platform");
+    }
+  } 
+  return block;
+}
+
 DataBlock_ptr BlockManager::get(int64_t tag) {
 
   // guarantee exclusive access
@@ -49,21 +98,26 @@ void BlockManager::add(
                     std::to_string((long long int)tag);
   logger->logInfo(msg);
 
-  while (cacheSize + block->getSize() > maxCacheSize) {
+  try {
+    while (cacheSize + block->getSize() > maxCacheSize) {
 
-    // remove block from cache
-    evict();
+      // remove block from cache
+      evict();
+    }
+
+    // add the index to cacheTable
+    cacheTable.insert(
+        std::make_pair(
+          tag, 
+          std::make_pair(0, block)
+          ));
+
+    // increase the current cacheSize
+    cacheSize += block->getSize();
   }
-
-  // add the index to cacheTable
-  cacheTable.insert(
-      std::make_pair(
-        tag, 
-        std::make_pair(0, block)
-        ));
-
-  // increase the current cacheSize
-  cacheSize += block->getSize();
+  catch (std::runtime_error &e) {
+    logger->logErr(LOG_HEADER+e.what());
+  }
 }
 
 
@@ -166,6 +220,10 @@ int BlockManager::removeShared(int64_t tag) {
 }
 
 void BlockManager::evict() {
+
+  if (cacheTable.size()==0) {
+    throw std::runtime_error("no block left");
+  }
    
   // find the block that has the least access count
   int min_val = INT_MAX;

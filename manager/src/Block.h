@@ -9,7 +9,7 @@
 #include <boost/iostreams/device/mapped_file.hpp>
 
 /*
- * make the base class extendable to manage memory block
+ * base class extendable to manage memory block
  * on other memory space (e.g. FPGA device memory)
  *
  */
@@ -35,18 +35,19 @@ public:
   DataBlock():
     length(0), num_items(0), size(0), width(0),
     allocated(false),
-    ready(false)
+    ready(false),
+    data(NULL)
   {
     ;  
   }
 
   ~DataBlock() {
-    if (allocated) {
+    if (allocated && !data) {
       delete data; 
     }
   }
 
-  void alloc(int _size) {
+  virtual void alloc(int _size) {
 
     size = _size;
 
@@ -56,7 +57,7 @@ public:
   }
 
   // copy data from an array
-  void writeData(void* src, size_t _size) {
+  virtual void writeData(void* src, size_t _size) {
     if (allocated) {
       memcpy((void*)data, src, _size);
       ready = true;
@@ -67,7 +68,7 @@ public:
   }
 
   // copy data from an array with offset
-  void writeData(void* src, size_t _size, size_t offset) {
+  virtual void writeData(void* src, size_t _size, size_t offset) {
     if (allocated) {
       if (offset+_size > size) {
         throw std::runtime_error("Exists block size");
@@ -84,7 +85,7 @@ public:
   }
 
   // write data to an array
-  void readData(void* dst, size_t size) {
+  virtual void readData(void* dst, size_t size) {
     if (allocated) {
       memcpy(dst, (void*)data, size);
     }
@@ -93,7 +94,7 @@ public:
     }
   }
 
-  char* getData() { 
+  virtual char* getData() { 
     if (allocated) {
       return data; 
     }
@@ -169,8 +170,9 @@ public:
 
   int getSize() { return size; }
 
+  bool isAllocated() { return allocated; }
+  
   bool isReady() { return ready; }
-
 
 protected:
   int length;       /* total number of elements */
@@ -179,6 +181,8 @@ protected:
   int size;         /* byte size of all the data */
   bool allocated;
   bool ready;
+
+private:
   char* data;
 };
 

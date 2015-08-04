@@ -7,9 +7,17 @@ enum AccType {
   ZYNQ = 3;
 }
 
-message AccConf {
-  required AccType type = 1;  
-  required string acc_id = 2;  
+message AccPlatform {
+  required AccType type = 1; 
+  optional string name = 2;
+  optional AccType cache_loc = 3 [default = CPU];
+  optional int32 cache_limit = 4 [default = 16];
+  optional int32 scratch_limit = 5 [default = 4]; 
+  repeated AccWorker acc = 6;
+}
+
+message AccWorker {
+  required string id = 2;  
   required string path = 3;
   optional string impl_name = 4;
   optional string impl_path = 5;
@@ -19,7 +27,6 @@ message AccConf {
 message ManagerConf {
   optional string ip_addr = 1 [default = "127.0.0.1"];
   optional int32 port = 2 [default = 1027];
-  repeated AccType available_acc = 3;
-  repeated AccConf acc = 4;
-  optional int32 verbose = 5;
+  optional int32 verbose = 3 [default = 3];
+  repeated AccPlatform platform = 4;
 }

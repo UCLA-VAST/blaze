@@ -13,12 +13,14 @@
 
 namespace acc_runtime {
 
+class OpenCLBlock;
+
 class OpenCLEnv : public TaskEnv 
 {
 public:
   
   // TODO: need to differentiate GPU and FPGA OpenCL
-  OpenCLEnv(): TaskEnv() {
+  OpenCLEnv(AccType type): TaskEnv(type) {
 
     // start platform setting up
     int err;
@@ -91,19 +93,14 @@ public:
 
   // TODO: the current version will reprogram FPGA everytime
   // setup is called
-  virtual void setup(AccConf &conf)
+  virtual void setup(AccWorker &conf)
   {
     int err;
 
     // check if corresponding kernel has already been setup
-    if (kernels.find(conf.acc_id()) != kernels.end()) {
+    if (kernels.find(conf.id()) != kernels.end()) {
       return; 
     }
-
-    if (conf.type() != AccType::OpenCL) {
-      throw std::runtime_error("Expecting OpenCL conf");
-    }
-
     // Create Program Objects
 
     // Load binary from disk
@@ -142,7 +139,7 @@ public:
 
     // save program handle to the map table
     programs.insert(std::make_pair(
-          conf.acc_id(), 
+          conf.id(), 
           program));
 
     // Create the compute kernel in the program we wish to run
@@ -158,7 +155,7 @@ public:
 
     // save program handle to the map table
     kernels.insert(std::make_pair(
-          conf.acc_id(), 
+          conf.id(), 
           kernel));
 
   }

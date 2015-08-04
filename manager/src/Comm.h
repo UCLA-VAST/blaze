@@ -10,6 +10,8 @@
 #include <boost/thread/thread.hpp>
 
 #include "task.pb.h"
+
+#include "Context.h"
 #include "BlockManager.h"
 #include "QueueManager.h"
 #include "TaskManager.h"
@@ -29,7 +31,7 @@ class Comm {
 
 public:
   Comm(
-      BlockManager* _block_manager,
+      Context* _context,
       QueueManager* _queue_manager,
       Logger* _logger,
       std::string address = "127.0.0.1",
@@ -37,7 +39,7 @@ public:
     ):
     ip_address(address), 
     srv_port(ip_port), 
-    block_manager(_block_manager),
+    context(_context),
     queue_manager(_queue_manager),
     logger(_logger)
   { 
@@ -54,8 +56,9 @@ private:
   std::string ip_address;
   std::vector<boost::thread> thread_pool;
 
-  // reference to block manager
-  BlockManager *block_manager;
+  // reference to context
+  Context *context;
+
   // reference to queue manager
   QueueManager *queue_manager;
 
