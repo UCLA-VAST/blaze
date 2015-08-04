@@ -80,7 +80,6 @@ class KMeans private (
       while (iteration < maxIterations) {
         val bcCenters = acc.wrap(sc.broadcast(centers))
         val classifiedCenters = points.map_acc(new KMeansClassified(bcCenters, bcDim))
-        println((classifiedCenters.collect).length + " " + (points.collect).length)
         val classified = classifiedCenters.zip(points)
 
         val counts = classified.countByKey()

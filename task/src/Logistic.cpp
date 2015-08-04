@@ -79,6 +79,7 @@ public:
     float* gradient = (float*)getOutput(
                                 0, 
                                 weight_length, 
+																1,
                                 sizeof(float));
 
     if (!data || !weights || !gradient) {

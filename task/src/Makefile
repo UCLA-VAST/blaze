@@ -8,7 +8,7 @@ XILINX_OPENCL_DIR=/space/Xilinx/SDAccel/2015.1
 PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
 CC=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/gcc
 
-CFLAGS= -shared -fPIC -std=c++0x -m64 -O3
+CFLAGS= -shared -fPIC -std=c++0x -O3 -m64
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/include \
 				 -I$(BOOST_DIR)/include \
