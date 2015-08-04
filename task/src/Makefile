@@ -25,7 +25,8 @@ LINK= -L${MKL_DIR}/lib/intel64 \
 ACC = SimpleAddition \
 			Circumference \
 			Logistic \
-			Logistic_ocl 
+			Logistic_ocl \
+			KMeans
 
 OBJS= $(addsuffix .so, $(addprefix ../lib/, $(ACC)))
 
