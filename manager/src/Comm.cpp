@@ -207,6 +207,10 @@ void Comm::process(socket_ptr sock) {
           const DataMsg blockInfo = data_msg.data(d);
           int64_t blockId = blockInfo.partition_id();
 
+          logger->logInfo(LOG_HEADER+
+              "reading data for block "+
+              std::to_string(blockId));
+
           try {
             // get the updated block from task
             DataBlock_ptr block = 
