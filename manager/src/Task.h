@@ -14,7 +14,7 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
-#include "task.pb.h"
+#include "proto/task.pb.h"
 
 #include "Block.h"
 #include "OpenCLBlock.h"
@@ -125,16 +125,22 @@ public:
   DataBlock_ptr onDataReady(const DataMsg &blockInfo)
   {
     int64_t partition_id = blockInfo.partition_id();
+
+    if (input_table.find(partition_id) == input_table.end()) {
+      throw std::runtime_error(
+          "onDataReady(): Did not find block");
+    }
+
     DataBlock_ptr block = input_table[partition_id];
 
-    if (block->isReady()) {
+    if (!block->isReady()) {
 
       if (partition_id < 0) {
         if (blockInfo.has_length()) { // if this is a broadcast array
 
           // TODO: same as branch length > 0
           int length = blockInfo.length();
-          int size = blockInfo.size();
+          int64_t size = blockInfo.size();
           int num_items = blockInfo.num_items();
           std::string path = blockInfo.path(); 
 
@@ -302,14 +308,13 @@ public:
           block->readFromMem(path);
         }
       }
-
-      num_ready++;
-
-      if (num_ready == num_input) {
-        status = READY;
-      }
-
     }
+    num_ready++;
+
+    if (num_ready == num_input) {
+      status = READY;
+    }
+
     return block;
   }
 

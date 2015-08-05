@@ -20,7 +20,7 @@ class DataBlock {
 
 public:
   // create a single output elements
-  DataBlock(int _length, int _size):
+  DataBlock(int _length, int64_t _size):
     length(_length), 
     num_items(1),
     size(_size),
@@ -47,7 +47,7 @@ public:
     }
   }
 
-  virtual void alloc(int _size) {
+  virtual void alloc(int64_t _size) {
 
     size = _size;
 
@@ -135,6 +135,8 @@ public:
     //int data_length = length; 
     int data_size = size;
 
+    printf("data size: %ld\n", size);
+
     boost::iostreams::mapped_file_params param(path); 
     param.flags = boost::iostreams::mapped_file::mapmode::readwrite;
     param.new_file_size = data_size;
@@ -178,7 +180,7 @@ protected:
   int length;       /* total number of elements */
   int num_items;    /* number of elements per data item */
   int width;        /* size of a single element */
-  int size;         /* byte size of all the data */
+  int64_t size;     /* byte size of all the data */
   bool allocated;
   bool ready;
 
