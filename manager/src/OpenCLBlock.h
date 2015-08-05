@@ -71,14 +71,18 @@ public:
     }
   }
 
-  virtual void alloc(int _size) {
+  virtual void alloc(int64_t _size) {
 
     cl_context context = env->getContext();
+    cl_int err = 0;
 
-    // TODO: exception handling
     data = clCreateBuffer(
         context, CL_MEM_READ_ONLY,  
-        _size, NULL, NULL);
+        _size, NULL, &err);
+
+    if (err != CL_SUCCESS) {
+      throw std::runtime_error("Failed to create OpenCL block");
+    }
 
     size = _size;
 
@@ -102,7 +106,9 @@ public:
         _size, src, 0, NULL, &event);
 
       if (err != CL_SUCCESS) {
-        throw std::runtime_error("Failed to write to OpenCL block");
+        throw std::runtime_error(
+            "Failed to write to OpenCL block"+
+            std::to_string((long long)err));
       }
       clWaitForEvents(1, &event);
 

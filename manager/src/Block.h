@@ -135,8 +135,6 @@ public:
     //int data_length = length; 
     int data_size = size;
 
-    printf("data size: %ld\n", size);
-
     boost::iostreams::mapped_file_params param(path); 
     param.flags = boost::iostreams::mapped_file::mapmode::readwrite;
     param.new_file_size = data_size;
