@@ -109,7 +109,7 @@ void Comm::process(socket_ptr sock) {
     // here assuming always accept
     reply_msg.set_type(ACCGRANT);
 
-    // get correponding block manager based on platform
+    // get correponding block manager based on platform context
     BlockManager* block_manager = context->
       getBlockManager(task_msg.acc_id());
 
@@ -119,7 +119,6 @@ void Comm::process(socket_ptr sock) {
     bool all_cached = true;
 
     // consult BlockManager to see if block is cached
-    // TODO: query the block from context
     for (int i = 0; i < task_msg.data_size(); ++i) {
       int64_t blockId = task_msg.data(i).partition_id();
 
@@ -132,7 +131,6 @@ void Comm::process(socket_ptr sock) {
           // allocate a new block without initilizing
           // this block need to be added to cache later since the
           // size information may not be available at this point
-          // TODO: do this with block manager
           DataBlock_ptr block = block_manager->create();
 
           // add the block to task
@@ -212,12 +210,9 @@ void Comm::process(socket_ptr sock) {
           //    std::to_string((long long)blockId));
 
           if (blockId < 0) {
-            // TODO: should not do anything here
+            // should not do anything here assuming broadcast
+            // data will be initialized by only ACCBROADCAST
             continue;
-
-            //DataBlock_ptr block = 
-            //  block_manager->getShared(blockId);
-            //task->addInputBlock(blockId, block);
           }
           else {
 
@@ -271,11 +266,14 @@ void Comm::process(socket_ptr sock) {
 
       // add block information to finish message 
       // for all output blocks
-      DataBlock_ptr block;
       int64_t outId = 0;
+      DataBlock_ptr block;
+      bool block_left = true;
 
       // NOTE: there should not be more than one block
-      while ((block = task->getOutputBlock()) != NULL_DATA_BLOCK) {
+      while (block_left)  {
+
+        block_left = task->getOutputBlock(block);
 
         // use thread id to create unique output file path
         std::string path = 
@@ -283,22 +281,22 @@ void Comm::process(socket_ptr sock) {
           logger->getTid() + 
           std::to_string((long long)outId);
 
-        logger->logInfo(
-            LOG_HEADER + 
-            std::string("Write output block to ") +
-            path);
-
         try {
           // write the block to output shared memory
           block->writeToMem(path);
         } catch ( std::runtime_error &e ) {
           task_finished = false;
           logger->logErr(LOG_HEADER + 
-            std::string("writeToMem error: ") +
-            e.what());
+              std::string("writeToMem error: ") +
+              e.what());
 
           break;
         }
+
+        logger->logInfo(
+            LOG_HEADER + 
+            std::string("Write output block to ") +
+            path);
 
         // construct DataMsg
         DataMsg *block_info = finish_msg.add_data();
@@ -309,7 +307,9 @@ void Comm::process(socket_ptr sock) {
         block_info->set_size(block->getSize());	
 
         outId ++;
+        logger->logInfo("1 here");
       }
+      logger->logInfo("3 here");
     }
     else {
       task_finished = false;

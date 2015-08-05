@@ -77,11 +77,12 @@ public:
   }
 
   // push one output block to consumer
-  DataBlock_ptr getOutputBlock() {
+  // return true if there are more blocks to output
+  bool getOutputBlock(DataBlock_ptr &block) {
     
     if (!output_blocks.empty()) {
 
-      DataBlock_ptr block = output_blocks.back();
+      block = output_blocks.back();
 
       // assuming the blocks are controlled by consumer afterwards
       output_blocks.pop_back();
@@ -89,11 +90,12 @@ public:
       // no more output blocks means all data are consumed
       if (output_blocks.empty()) {
         status = COMMITTED;
+        return false;
       }
-      return block;
+      return true;
     }
     else {
-      return NULL_DATA_BLOCK;
+      return false;
     }
   }
 
@@ -338,5 +340,6 @@ private:
   std::map<int64_t, DataBlock_ptr> input_table;
 };
 
+typedef boost::shared_ptr<Task> Task_ptr;
 }
 #endif

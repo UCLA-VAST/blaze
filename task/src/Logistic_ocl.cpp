@@ -98,7 +98,6 @@ public:
 
     cl_context       context = ocl_env->getContext();
     cl_kernel        kernel  = ocl_env->getKernel("Logistic");
-    cl_command_queue command = ocl_env->getCmdQueue();
 
     int err;
     cl_event event;
@@ -121,11 +120,11 @@ public:
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &weights);
     err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &data);
     err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &gradients);
-
     if (err != CL_SUCCESS) {
-      throw std::runtime_error("Failed to set kernel arguments!");
+      throw std::runtime_error("Failed to set gradients!");
     }
 
+    cl_command_queue command = ocl_env->getCmdQueue();
     gettimeofday(&t1, NULL);
     // Execute the kernel over the entire range of our 1d input data set
     // using the maximum number of work group items for this device

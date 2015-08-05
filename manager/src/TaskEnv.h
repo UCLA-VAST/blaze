@@ -2,14 +2,18 @@
 #define TASKENV_H
 
 #include <boost/smart_ptr.hpp>
+#include <boost/thread/thread.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/lockable_adapter.hpp>
 
 #include "proto/acc_conf.pb.h"
 #include "Block.h"
 
 namespace acc_runtime {
 
-class TaskEnv {
-
+class TaskEnv 
+  : public boost::basic_lockable_adapter<boost::mutex> 
+{
 public: 
   TaskEnv(AccType _type): type(_type) {;}
 

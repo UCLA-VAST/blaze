@@ -1,6 +1,7 @@
 #ifndef OPENCLBLOCK_H
 #define OPENCLBLOCK_H
 
+#include <stdio.h>
 #include <string.h>
 #include <string>
 #include <stdexcept>
@@ -84,13 +85,14 @@ public:
     allocated = true;
   }
 
-  // TODO: maybe enqueueBufferWrite/Read will not be thread safe,
-  // then need to add mutex
-  
   // copy data from an array
   virtual void writeData(void* src, size_t _size) {
 
     if (allocated) {
+
+      // WriteBuffer need to be exclusive
+      // lock env for this 
+      boost::lock_guard<OpenCLEnv> guard(*env);
 
       cl_command_queue command = env->getCmdQueue();
       cl_event event;
@@ -118,6 +120,11 @@ public:
         throw std::runtime_error("Exists block size");
       }
 
+      // WriteBuffer need to be exclusive
+      // lock env for this 
+      boost::lock_guard<OpenCLEnv> guard(*env);
+
+      // get the command queue handler
       cl_command_queue command = env->getCmdQueue();
       cl_event event;
 
@@ -143,6 +150,11 @@ public:
   virtual void readData(void* dst, size_t size) {
     if (allocated) {
 
+      // ReadBuffer need to be exclusive
+      // lock env for this 
+      boost::lock_guard<OpenCLEnv> guard(*env);
+      
+      // get the command queue handler
       cl_command_queue command = env->getCmdQueue();
       cl_event event;
 
@@ -160,10 +172,10 @@ public:
     }
   }
 
-  // TODO: check if this reinterpretive cast is valid
   virtual char* getData() { 
 
     if (allocated) {
+      // this is a reinterpretive cast from cl_mem* to char*
       return (char*)&data; 
     }
     else {
