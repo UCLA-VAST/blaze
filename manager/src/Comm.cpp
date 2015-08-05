@@ -155,12 +155,20 @@ void Comm::process(socket_ptr sock) {
         DataBlock_ptr block = 
           block_manager->getShared(blockId);
         if (block == NULL_DATA_BLOCK) {
-          // TODO: assuming broadcast data will
-          // always be available?
-          logger->logErr(
+          // NOTE: this version does not assume 
+          // broadcast data will always be available
+          logger->logInfo(
               LOG_HEADER + 
               std::string("Broadcast is not available"));
-          // TODO: here should throw some exception
+
+          DataBlock_ptr new_block = block_manager->create();
+
+          // add cached block to task
+          task->addInputBlock(blockId, new_block);
+
+          // set message flag
+          block_info->set_cached(false);
+          all_cached = false;
         }
         else {
           // add cached block to task
@@ -204,39 +212,31 @@ void Comm::process(socket_ptr sock) {
           int64_t dataOffset = data_msg.data(d).offset();
           std::string dataPath = data_msg.data(d).path();
 
-          //logger->logInfo(
-          //    LOG_HEADER + 
-          //    std::string("Received a block infomation of ")+
-          //    std::to_string((long long)blockId));
+          try {
+            // get the updated block from task
+            DataBlock_ptr block = 
+              task->onDataReady(
+                  blockId, 
+                  dataLength, numItems,
+                  dataSize, dataOffset,
+                  dataPath);
 
-          if (blockId < 0) {
-            // should not do anything here assuming broadcast
-            // data will be initialized by only ACCBROADCAST
-            continue;
-          }
-          else {
-
-            try {
-              // get the updated block from task
-              DataBlock_ptr block = 
-                task->onDataReady(
-                    blockId, 
-                    dataLength, numItems,
-                    dataSize, dataOffset,
-                    dataPath);
-
+            if (blockId < 0) {
+              // add the broadcast block to scratch
+              block_manager->addShared(blockId, block);
+            }
+            else {
               // add the block to cache
               block_manager->add(blockId, block);
-
-            } catch ( std::runtime_error &e ) {
-
-              logger->logErr(
-                  LOG_HEADER + 
-                  std::string("Error receiving data of block ") +
-                  std::to_string((long long)blockId) +
-                  std::string(" ") + std::string(e.what()));
-              break;
             }
+          } catch ( std::runtime_error &e ) {
+
+            logger->logErr(
+                LOG_HEADER + 
+                std::string("Error receiving data of block ") +
+                std::to_string((long long)blockId) +
+                std::string(" ") + std::string(e.what()));
+            break;
           }
         }
       }
@@ -307,9 +307,7 @@ void Comm::process(socket_ptr sock) {
         block_info->set_size(block->getSize());	
 
         outId ++;
-        logger->logInfo("1 here");
       }
-      logger->logInfo("3 here");
     }
     else {
       task_finished = false;
