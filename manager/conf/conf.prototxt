@@ -9,6 +9,10 @@ platform : {
     id : "Circumference"
     path : "/curr/diwu/prog/acc_runtime/task/lib/Circumference.so"
   }
+	acc : {
+		id : "KMeans"
+		path : "/curr/cody/Spark_ACC/acc_runtime/task/lib/KMeans.so"
+	}
 }
 platform : {
   type: OpenCL
@@ -21,13 +25,4 @@ platform : {
     impl_path : "/curr/diwu/prog/acc_runtime/task/lib/logistic.xclbin"
     kernel_name : "mmult"
   }
-}
-platform : {
-	type : CPU
-	cache_limit: 16384
-	scratch_limit: 4096
-	acc : {
-		id : "KMeans"
-		path : "/curr/cody/Spark_ACC/acc_runtime/task/lib/KMeans.so"
-	}
 }
