@@ -12,11 +12,13 @@ import scala.reflect.ClassTag
 class Broadcast_ACC[T: ClassTag](appId: Int, bd: Broadcast[T]) extends java.io.Serializable {
   var brdcst_id: Long = Util.getBlockID(appId, bd.id.asInstanceOf[Int])
   val data = bd.value
-  var isBroadcast: Boolean = false
+  var isBroadcast: Boolean = false // Issue #21: Never used now
   var length: Int = 0
   var size: Int = 0
-
+/*
   try {
+    // Issue #21: Don't send broadcast data here because only driver will execute this constructor.
+
     val transmitter = new DataTransmitter()
     val msg = transmitter.buildMessage(AccMessage.MsgType.ACCBROADCAST)
  
@@ -52,4 +54,5 @@ class Broadcast_ACC[T: ClassTag](appId: Int, bd: Broadcast[T]) extends java.io.S
       e.printStackTrace(new PrintWriter(sw))
       Util.logInfo(this, "Fail to broadcast data: " + sw.toString)
   }  
+*/
 }

@@ -54,8 +54,11 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
           val arg = acc.getArg(j)
           if (arg.isDefined == false)
             throw new RuntimeException("Argument index " + j + " is out of range.")
+
+          /* Issue #21: We don't send broadcast data in advance anymore
           if (arg.get.isBroadcast == false)
             throw new RuntimeException("Broadcast data is not prepared.")
+          */
 
           brdcstId(j) = arg.get.brdcst_id
         }
@@ -66,7 +69,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         var msg = transmitter.buildRequest(acc.id, blockId, brdcstId)
 //        var startTime = System.nanoTime
         transmitter.send(msg)
-        var revMsg = transmitter.receive()
+        val revMsg = transmitter.receive()
 //        var elapseTime = System.nanoTime - startTime
 //        println("Communication latency: " + elapseTime + " ns")
 
@@ -78,11 +81,10 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         val dataMsg = transmitter.buildMessage(AccMessage.MsgType.ACCDATA)
 
         // Prepare input data blocks
-        var i = 0
-        var requireData: Boolean = false
-        while (i < numBlock) {
+        val requireData = Array(false)
+        for (i <- 0 until numBlock) {
           if (!revMsg.getData(i).getCached()) {
-            requireData = true
+            requireData(0) = true
             if (isCached == true) { // Send data from memory
               val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
               val mappedFileInfo = Util.serializePartition(appId, inputAry, blockId(i))
@@ -105,44 +107,62 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
                   fileSize, fileOffset, filePath)
             }
           }
-          i = i + 1
         }
 
         // Prepare broadcast blocks
-        i = 0
-        while (i < brdcstId.length) {
-          transmitter.addBroadcastData(dataMsg, brdcstId(i))
-          i = i + 1
+        for (i <- 0 until brdcstId.length) {
+          if (!revMsg.getData(i + numBlock).getCached()) {
+            requireData(0) = true
+            val bcData = acc.getArg(i).get.data
+            if (bcData.getClass.isArray) {
+              val arrayData = bcData.asInstanceOf[Array[_]]
+              val mappedFileInfo = Util.serializePartition(appId, arrayData, brdcstId(i))
+              val typeName = arrayData(0).getClass.getName.replace("java.lang.", "").toLowerCase
+              val typeSize = Util.getTypeSizeByName(typeName)
+              assert(typeSize != 0, "Cannot find the size of type " + typeName)
+
+              transmitter.addData(dataMsg, brdcstId(i), arrayData.length, 
+                arrayData.length * typeSize, 0, mappedFileInfo._1)
+              acc.getArg(i).get.length = arrayData.length
+              acc.getArg(i).get.size = arrayData.length * typeSize
+            }
+            else {
+              val longData: Long = Util.casting(bcData, classOf[Long])
+              transmitter.addScalarData(dataMsg, brdcstId(i), longData)
+              acc.getArg(i).get.length = 1
+              acc.getArg(i).get.size = 4
+            }
+          }
+          else 
+            transmitter.addBroadcastData(dataMsg, brdcstId(i))
         }
 
         var elapseTime = System.nanoTime - startTime
         println("Preprocess time: " + elapseTime + " ns");
 
-        if (requireData == true) {
+        if (requireData(0) == true) {
           Util.logMsg(dataMsg)
           transmitter.send(dataMsg)
         }
 
-        revMsg = transmitter.receive()
-        Util.logMsg(revMsg)
+        val finalRevMsg = transmitter.receive()
+        Util.logMsg(finalRevMsg)
 
-        if (revMsg.getType() == AccMessage.MsgType.ACCFINISH) {
+        if (finalRevMsg.getType() == AccMessage.MsgType.ACCFINISH) {
           // set length
-          i = 0
           var numItems = 0
 
           val blkLength = new Array[Int](numBlock)
           val itemLength = new Array[Int](numBlock)
-          while (i < numBlock) {
-            blkLength(i) = revMsg.getData(i).getLength()
-            if (revMsg.getData(i).hasNumItems()) {
-              itemLength(i) = blkLength(i) / revMsg.getData(i).getNumItems()
+          for (i <- 0 until numBlock) {
+            blkLength(i) = finalRevMsg.getData(i).getLength()
+            if (finalRevMsg.getData(i).hasNumItems()) {
+              itemLength(i) = blkLength(i) / finalRevMsg.getData(i).getNumItems()
             }
             else {
               itemLength(i) = 1
             }
             numItems += blkLength(i) / itemLength(i)
-            i = i + 1
           }
           if (numItems == 0)
             throw new RuntimeException("Manager returns an invalid data length")
@@ -151,18 +171,16 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
 
           startTime = System.nanoTime
           // read result
-          i = 0
           idx = 0
-          while (i < numBlock) { // We just simply concatenate all blocks
+          for (i <- 0 until numBlock) { // We just simply concatenate all blocks
 
             Util.readMemoryMappedFile(
                 outputAry,
                 idx, 
                 blkLength(i), itemLength(i), 
-                revMsg.getData(i).getPath())
+                finalRevMsg.getData(i).getPath())
 
             idx = idx + blkLength(i) / itemLength(i)
-            i = i + 1
           }
           idx = 0
           elapseTime = System.nanoTime - startTime

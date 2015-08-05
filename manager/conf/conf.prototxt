@@ -26,3 +26,12 @@ platform : {
     kernel_name : "mmult"
   }
 }
+platform : {
+	type : CPU
+	cache_limit: 16384
+	scratch_limit: 4096
+	acc : {
+		id : "SimpleAddition"
+		path : "/curr/cody/Spark_ACC/acc_runtime/task/lib/SimpleAddition.so"
+	}
+}
