@@ -175,9 +175,10 @@ int main(int argc, char *argv[]) {
     printf("Test failed\n");
     return EXIT_FAILURE;
   }
+	fprintf(stderr, "kernel ready\n");
 
 	int dims = 3;
-	double data[] = {
+	double data[30] = {
 		714.215313,312.5831474,226.6679658,
 		795.1223308,483.2316382,827.019699,
 		287.0280167,589.0996444,629.6339571,
@@ -191,14 +192,16 @@ int main(int argc, char *argv[]) {
 	int data_length = 30;
 	int num_data = data_length / dims;
 
-	double centers[] = {
+	double centers[6] = {
 		714.215313,312.5831474,226.6679658,
 		464.5121837,376.3328839,799.1458264};
 	int centers_length = 6;
 	int num_centers = centers_length / dims;
 
 	int output_length = num_data;
-	double output[10];
+	int output[10];
+
+	fprintf(stderr, "writing buffers\n");
 
    cl_mem data_buf = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(double) * data_length, NULL, &err);
    if(err != CL_SUCCESS) {
@@ -230,7 +233,7 @@ int main(int argc, char *argv[]) {
 
 	 err = clSetKernelArg(kernel, 4, sizeof(int), &dims);
 
-   cl_mem output_buf = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int) * output_length, NULL, &err);
+   cl_mem output_buf = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(int) * output_length, NULL, &err);
    if(err != CL_SUCCESS) {
    printf("Error: OpenCL host");
    return EXIT_FAILURE;
@@ -243,15 +246,26 @@ int main(int argc, char *argv[]) {
    }
 
    cl_event readevent;
-	 size_t global = 3;
+	 size_t global = 1;
+
+	fprintf(stderr, "running\n");
 
    err = clEnqueueNDRangeKernel(commands, kernel, 1, NULL,
-   		&global, NULL, 0, NULL, &event);
+   		(size_t *) &global, NULL, 0, NULL, &event);
    clWaitForEvents(1, &event);
+
+	fprintf(stderr, "reading results\n");
 
    err = clEnqueueReadBuffer(commands, output_buf, CL_TRUE, 0, sizeof(int) * output_length, output, 0, NULL, &readevent);
    clWaitForEvents(1, &readevent);
  
+	fprintf(stderr, "all done\n");
+
+	int i;
+	for (i = 0; i < output_length; ++i)
+		fprintf(stderr, "%d\t", output[i]);
+	fprintf(stderr, "\n");
+
    clReleaseProgram(program);
    clReleaseKernel(kernel);
    clReleaseCommandQueue(commands);

@@ -150,7 +150,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
 
         if (finalRevMsg.getType() == AccMessage.MsgType.ACCFINISH) {
           // set length
-          var numItems = 0
+          val numItems = Array(0)
 
           val blkLength = new Array[Int](numBlock)
           val itemLength = new Array[Int](numBlock)
@@ -162,12 +162,12 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
             else {
               itemLength(i) = 1
             }
-            numItems += blkLength(i) / itemLength(i)
+            numItems(0) += blkLength(i) / itemLength(i)
           }
-          if (numItems == 0)
+          if (numItems(0) == 0)
             throw new RuntimeException("Manager returns an invalid data length")
 
-          outputAry = new Array[U](numItems)
+          outputAry = new Array[U](numItems(0))
 
           startTime = System.nanoTime
           // read result
