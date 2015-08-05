@@ -204,26 +204,16 @@ void Comm::process(socket_ptr sock) {
 
         for (int d = 0; d < data_msg.data_size(); ++d) {
 
-          int64_t blockId = data_msg.data(d).partition_id();
-          int dataLength = data_msg.data(d).length();
-          int numItems = data_msg.data(d).has_num_items() ? 
-                          data_msg.data(d).num_items() : 1;
-          int64_t dataSize = data_msg.data(d).size();
-          int64_t dataOffset = data_msg.data(d).offset();
-          std::string dataPath = data_msg.data(d).path();
+          const DataMsg blockInfo = data_msg.data(d);
+          int64_t blockId = blockInfo.partition_id();
 
           try {
             // get the updated block from task
             DataBlock_ptr block = 
-              task->onDataReady(
-                  blockId, 
-                  dataLength, numItems,
-                  dataSize, dataOffset,
-                  dataPath);
+              task->onDataReady(blockInfo);
 
             if (blockId < 0) {
-              // add the broadcast block to scratch
-              block_manager->addShared(blockId, block);
+              block_manager->addShared(blockId, block); 
             }
             else {
               // add the block to cache
@@ -256,7 +246,7 @@ void Comm::process(socket_ptr sock) {
       boost::this_thread::sleep_for(
           boost::chrono::microseconds(10)); 
     }
-    
+
     // Initialize finish message
     TaskMsg finish_msg;
 
