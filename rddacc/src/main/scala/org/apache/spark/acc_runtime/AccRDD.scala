@@ -133,8 +133,6 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
               acc.getArg(i).get.size = 4
             }
           }
-          else 
-            transmitter.addBroadcastData(dataMsg, brdcstId(i))
         }
 
         var elapseTime = System.nanoTime - startTime

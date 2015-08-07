@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr, "kernel ready\n");
 
 	int dims = 3;
-	double data[30] = {
+	float data[30] = {
 		714.215313,312.5831474,226.6679658,
 		795.1223308,483.2316382,827.019699,
 		287.0280167,589.0996444,629.6339571,
@@ -192,23 +192,23 @@ int main(int argc, char *argv[]) {
 	int data_length = 30;
 	int num_data = data_length / dims;
 
-	double centers[6] = {
+	float centers[6] = {
 		714.215313,312.5831474,226.6679658,
 		464.5121837,376.3328839,799.1458264};
 	int centers_length = 6;
 	int num_centers = centers_length / dims;
 
 	int output_length = num_data;
-	int output[10];
+	int output[10] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
 	fprintf(stderr, "writing buffers\n");
 
-   cl_mem data_buf = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(double) * data_length, NULL, &err);
+   cl_mem data_buf = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * data_length, NULL, &err);
    if(err != CL_SUCCESS) {
    printf("Error: OpenCL host");
    return EXIT_FAILURE;
    }
-   err = clEnqueueWriteBuffer(commands, data_buf, CL_TRUE, 0, sizeof(double) * data_length, data, 0, NULL, NULL);
+   err = clEnqueueWriteBuffer(commands, data_buf, CL_TRUE, 0, sizeof(float) * data_length, data, 0, NULL, NULL);
 
    err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_buf);
 	 err |= clSetKernelArg(kernel, 1, sizeof(int), &num_data);
@@ -217,12 +217,12 @@ int main(int argc, char *argv[]) {
    return EXIT_FAILURE;
    }
 
-   cl_mem centers_buf = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(double) * centers_length, NULL, &err);
+   cl_mem centers_buf = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * centers_length, NULL, &err);
    if(err != CL_SUCCESS) {
    printf("Error: OpenCL host");
    return EXIT_FAILURE;
    }
-	 err = clEnqueueWriteBuffer(commands, centers_buf, CL_TRUE, 0, sizeof(double) * centers_length, centers, 0, NULL, NULL);
+	 err = clEnqueueWriteBuffer(commands, centers_buf, CL_TRUE, 0, sizeof(float) * centers_length, centers, 0, NULL, NULL);
 
    err  = clSetKernelArg(kernel, 2, sizeof(cl_mem), &centers_buf);
 	 err |= clSetKernelArg(kernel, 3, sizeof(int), &num_centers);
@@ -260,12 +260,13 @@ int main(int argc, char *argv[]) {
    clWaitForEvents(1, &readevent);
  
 	fprintf(stderr, "all done\n");
-
+	fprintf(stderr, "%x\n", *output);
+/*
 	int i;
 	for (i = 0; i < output_length; ++i)
-		fprintf(stderr, "%d\t", output[i]);
+		fprintf(stderr, "%x\t", output[i]);
 	fprintf(stderr, "\n");
-
+*/
    clReleaseProgram(program);
    clReleaseKernel(kernel);
    clReleaseCommandQueue(commands);

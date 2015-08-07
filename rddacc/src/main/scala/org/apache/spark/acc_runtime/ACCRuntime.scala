@@ -32,7 +32,7 @@ class ACCRuntime(sc: SparkContext) extends Logging {
         transmitter.send(msg)
         val revMsg = transmitter.receive()
         if (revMsg.getType() == AccMessage.MsgType.ACCFINISH)
-          Util.logInfo(this, "Successfully release broadcast blocks from Manager")
+          Util.logInfo(this, "Successfully release " + BroadcastList.length + " broadcast blocks from Manager")
         else
           Util.logInfo(this, "Fail to release broadcast blocks from Manager")
       }
