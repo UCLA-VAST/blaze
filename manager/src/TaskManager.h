@@ -32,7 +32,8 @@ public:
     void (*destroy_func)(Task*),
     TaskEnv *_env, 
     Logger *_logger
-  ): createTask(create_func),
+  ): length(0),
+     createTask(create_func),
      destroyTask(destroy_func),
      env(_env),
      logger(_logger)
@@ -51,10 +52,13 @@ public:
 
   //void onDataReady(int task_id, int partition_id);
 
-  int getQueueLength();
+  int getQueueLength() { return length;}
   int getWaitTime();
 
 private:
+
+  // NOTE: experiments
+  int length;
   
   Task* (*createTask)(TaskEnv*);
   void (*destroyTask)(Task*);

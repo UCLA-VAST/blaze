@@ -57,30 +57,40 @@ public:
   /* all reference in BlockManager will be automatically removed */
   //~BlockManager();
 
-  // create a block
-  DataBlock_ptr create();
-
-  DataBlock_ptr create(int length, int size);
-
-  // cache access
-  bool isCached(int64_t tag) {
-    if (cacheTable.find(tag) == cacheTable.end()) {
-      return false;
+  // check scratch and cache table to see if a certain 
+  // block exists
+  bool contains(int64_t tag) {
+    if (tag < 0) {
+      // check scratch table
+      return (scratchTable.find(tag) != scratchTable.end());
     }
     else {
-      return true;
+      // check cache table
+      return (cacheTable.find(tag) != cacheTable.end());
     }
   }
-  void add(int64_t tag, DataBlock_ptr block);
+
+  // create an empty block
+  DataBlock_ptr create();
+
+  // create a block and add it to cache/scratch
+  // return true if a new block is created
+  bool create(
+      //int length, 
+      //int size,
+      int64_t tag,
+      DataBlock_ptr &block);
+
+  // get a block from cache table or scratch table
   DataBlock_ptr get(int64_t tag);
-  //DataBlock_ptr alloc(int tag, int length, int width);
-  //DataBlock_ptr getOrAlloc(int tag, int size);
 
-  // scratch access
-  DataBlock_ptr getShared(int64_t tag);
-  int addShared(int64_t tag, DataBlock_ptr block);
-  int removeShared(int64_t tag);
+  // add a block to cache table or scratch table
+  void add(int64_t tag, DataBlock_ptr block);
 
+  // remove a block from scratch table
+  void remove(int64_t tag);
+
+  // used for tests and debugging
   void printTable() {
 
     int i = 0;
@@ -98,17 +108,15 @@ public:
   }
 
 private:
-  // cache operation
+  // internal cache operations
   void evict();
   void update(int64_t tag);
 
+  // index (tag) to scratch table 
   std::map<int64_t, DataBlock_ptr> scratchTable;
 
-  // index to blocks and its access time
+  // index (tag) to cached block and its access count
   std::map<int64_t, std::pair<int, DataBlock_ptr> > cacheTable;
-
-  // maintaining blocks sorted by access count 
-  //std::vector<std::pair<int, DataBlock_ptr>> cacheQueue;
 
   size_t maxCacheSize;
   size_t maxScratchSize;

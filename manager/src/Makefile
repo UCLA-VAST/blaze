@@ -25,8 +25,11 @@ LINK= -L$(BOOST_DIR)/lib \
 
 DEPS= Comm.o \
 			Context.o \
+			Block.o \
+			OpenCLBlock.o \
 			BlockManager.o \
 			QueueManager.o \
+			Task.o \
 			TaskManager.o \
 			Task_msg.o \
 			Acc_conf.o

@@ -7,6 +7,9 @@
 
 #include <boost/smart_ptr.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
+#include <boost/thread/thread.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/lockable_adapter.hpp>
 
 /*
  * base class extendable to manage memory block
@@ -16,7 +19,9 @@
 
 namespace acc_runtime {
 
-class DataBlock {
+class DataBlock
+: public boost::basic_lockable_adapter<boost::mutex>
+{
 
 public:
   // create a single output elements
@@ -47,52 +52,20 @@ public:
     }
   }
 
-  virtual void alloc(int64_t _size) {
-
-    size = _size;
-
-    data = new char[size];
-
-    allocated = true;
-  }
+  virtual void alloc(int64_t _size);
 
   // copy data from an array
-  virtual void writeData(void* src, size_t _size) {
-    if (allocated) {
-      memcpy((void*)data, src, _size);
-      ready = true;
-    }
-    else {
-      throw std::runtime_error("Block memory not allocated");
-    }
-  }
+  virtual void writeData(void* src, size_t _size);
 
   // copy data from an array with offset
-  virtual void writeData(void* src, size_t _size, size_t offset) {
-    if (allocated) {
-      if (offset+_size > size) {
-        throw std::runtime_error("Exists block size");
-      }
-      memcpy((void*)(data+offset), src, _size);
-
-      if (offset + _size == size) {
-        ready = true;
-      }
-    }
-    else {
-      throw std::runtime_error("Block memory not allocated");
-    }
-  }
+  virtual void writeData(void* src, size_t _size, size_t offset);
 
   // write data to an array
-  virtual void readData(void* dst, size_t size) {
-    if (allocated) {
-      memcpy(dst, (void*)data, size);
-    }
-    else {
-      throw std::runtime_error("Block memory not allocated");
-    }
-  }
+  virtual void readData(void* dst, size_t size);
+
+  void readFromMem(std::string path);
+
+  void writeToMem(std::string path);
 
   virtual char* getData() { 
     if (allocated) {
@@ -100,59 +73,6 @@ public:
     }
     else {
       return NULL;
-    }
-  }
-
-  void readFromMem(std::string path) {
-
-    boost::iostreams::mapped_file_source fin;
-
-    //int data_length = length; 
-    int data_size = size;
-
-    fin.open(path, data_size);
-
-    if (fin.is_open()) {
-      
-      void* data = (void*)fin.data();
-
-      try {
-        writeData(data, data_size);
-
-      } catch(std::runtime_error &e) {
-        throw e;
-      }
-
-      fin.close();
-    }
-    else {
-      throw std::runtime_error("Cannot find file");
-    }
-  }
-
-  void writeToMem(std::string path) {
-
-    //int data_length = length; 
-    int data_size = size;
-
-    boost::iostreams::mapped_file_params param(path); 
-    param.flags = boost::iostreams::mapped_file::mapmode::readwrite;
-    param.new_file_size = data_size;
-    param.length = data_size;
-    boost::iostreams::mapped_file_sink fout(param);
-
-    if (fout.is_open()) {
-
-      try {
-        readData((void*)fout.data(), data_size);
-      } catch(std::runtime_error &e) {
-        throw e;
-      }
-
-      fout.close();
-    }
-    else {
-      throw std::runtime_error("Cannot find file");
     }
   }
 
@@ -170,9 +90,15 @@ public:
 
   int getSize() { return size; }
 
-  bool isAllocated() { return allocated; }
-  
-  bool isReady() { return ready; }
+  // status check of DataBlock needs to be exclusive
+  bool isAllocated() { 
+    boost::lock_guard<DataBlock> guard(*this);
+    return allocated; 
+  }
+  bool isReady() { 
+    boost::lock_guard<DataBlock> guard(*this);
+    return ready; 
+  }
 
 protected:
   int length;       /* total number of elements */

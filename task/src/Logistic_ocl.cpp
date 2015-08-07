@@ -75,7 +75,9 @@ public:
         data_length / (LABEL_SIZE+FEATURE_SIZE) == 0 ||
         weight_length != (LABEL_SIZE*(FEATURE_SIZE+1)))
     {
-      fprintf(stderr, "Invalid input data dimensions\n");
+      fprintf(stderr, "Invalid input data dimensions:\n");
+      fprintf(stderr, "data_length = %d\n", data_length);
+      fprintf(stderr, "weight_length = %d\n", weight_length);
       throw std::runtime_error("Invalid input data dimensions");
     }
 

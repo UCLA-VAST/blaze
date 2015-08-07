@@ -35,12 +35,11 @@ void TaskManager::execute() {
     Task* task;
     task_queue.pop(task);
 
-    logger->logInfo(LOG_HEADER + std::string("Started a new task"));
-
     // polling the status, wait for data to be transferred
     while (task->status != Task::READY) {
       boost::this_thread::sleep_for(boost::chrono::microseconds(10)); 
     }
+    logger->logInfo(LOG_HEADER + std::string("Started a new task"));
 
     // start execution
     task->execute();

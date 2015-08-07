@@ -9,8 +9,9 @@
 
 #include "acc_conf.pb.h"
 
-#include "QueueManager.h"
 #include "BlockManager.h"
+#include "QueueManager.h"
+#include "TaskManager.h"
 #include "Logger.h"
 #include "TaskEnv.h"
 #include "OpenCLEnv.h"

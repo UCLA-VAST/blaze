@@ -33,28 +33,76 @@ DataBlock_ptr BlockManager::create() {
   return block;
 }
 
-DataBlock_ptr BlockManager::create(int length, int size) {
+// create a block if it does not exist in the manager
+// return true if a new block is created
+bool BlockManager::create(
+    int64_t tag,
+    DataBlock_ptr &block)
+{
+  // guarantee exclusive access
+  boost::lock_guard<BlockManager> guard(*this);
 
-  DataBlock_ptr block;
-  switch (env->getType()) {
-    case AccType::CPU:
-    {
-      DataBlock_ptr bp(new DataBlock(length, size));
-      block = bp;
-      break;
+  if (!contains(tag)) {
+    logger->logInfo(LOG_HEADER+
+        "creating block for id="+
+        std::to_string(tag));
+
+    try {
+      switch (env->getType()) {
+        case AccType::CPU:
+          {
+            DataBlock_ptr bp(new DataBlock());
+            block = bp;
+            break;
+          }
+        case AccType::OpenCL:
+          {
+            DataBlock_ptr bp(new OpenCLBlock(
+                  dynamic_cast<OpenCLEnv*>(env)));
+            block = bp;
+            break;
+          }
+        default: ; // never end up here
+      } 
+      // add the block to manager
+      if (scratchSize + block->getSize() >= maxScratchSize) {
+
+        // cannot add because running out of space
+        throw std::runtime_error(LOG_HEADER+
+            "cannot add broadcast with size:" + 
+            std::to_string((long long)block->getSize())+
+            ", maxsize is "+
+            std::to_string((long long)maxScratchSize));
+      }
+
+      /* TODO: remove for experiments
+         if (!block->isAllocated()) {
+         throw std::runtime_error(LOG_HEADER+ 
+         "Block is not allocated cannot be added");
+         }
+         */
+
+      // add the index to cacheTable
+      scratchTable.insert(std::make_pair(tag, block));
+
+      // increase the current scratchSize
+      scratchSize += block->getSize();
+
+      return true;
     }
-    case AccType::OpenCL:
-    {
-      DataBlock_ptr bp(new OpenCLBlock(
-          dynamic_cast<OpenCLEnv*>(env), length, size));
-      block = bp;
-      break;
+    catch (std::runtime_error &e) {
+      throw e;
     }
-    default: {
-      throw std::runtime_error("Invalid platform");
+  }
+  else {
+    if (tag < 0) {
+      block = scratchTable[tag];
     }
-  } 
-  return block;
+    else {
+      block = cacheTable[tag].second;
+    }
+    return false;
+  }
 }
 
 DataBlock_ptr BlockManager::get(int64_t tag) {
@@ -68,15 +116,26 @@ DataBlock_ptr BlockManager::get(int64_t tag) {
                     std::to_string((long long)tag);
   logger->logInfo(msg);
   
-  if (cacheTable.find(tag) == cacheTable.end()) {
-    return NULL_DATA_BLOCK;
+  if (tag < 0) {
+    if (scratchTable.find(tag) == scratchTable.end()) {
+      return NULL_DATA_BLOCK;
+    }
+    else {
+      return scratchTable[tag];
+    }
   }
   else {
-    // accumulate the access count for the block
-    // TODO: should do it async
-    update(tag);
+    if (cacheTable.find(tag) == cacheTable.end()) {
+      return NULL_DATA_BLOCK;
+    }
+    else {
+      // accumulate the access count for the block
+      // NOTE: better performance if this is being
+      // done asynchronously
+      update(tag);
 
-    return cacheTable[tag].second;
+      return cacheTable[tag].second;
+    }
   }
 }
 
@@ -87,135 +146,86 @@ void BlockManager::add(
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
 
-  // check if block already exists
-  if (cacheTable.find(tag) != cacheTable.end()) {
-    return;
-  }
+  if (tag < 0) { // scratch block
+    
+    if (scratchTable.find(tag) != scratchTable.end()) {
+      return;
+    }
+    if (!block->isAllocated()) {
+      throw std::runtime_error(LOG_HEADER+ 
+          "Block is not allocated cannot be added");
+    }
+    if (scratchSize + block->getSize() >= maxScratchSize) {
 
-  // log info
-  std::string msg = LOG_HEADER + 
-                    std::string("adding block ") +
-                    std::to_string((long long int)tag);
-  logger->logInfo(msg);
-
-  try {
-    while (cacheSize + block->getSize() > maxCacheSize) {
-
-      // remove block from cache
-      evict();
+      // cannot add because running out of space
+      throw std::runtime_error(LOG_HEADER+
+          "cannot add broadcast with size:" + 
+          std::to_string((long long)block->getSize())+
+          ", maxsize is "+
+          std::to_string((long long)maxScratchSize));
     }
 
     // add the index to cacheTable
-    cacheTable.insert(
-        std::make_pair(
-          tag, 
-          std::make_pair(0, block)
-          ));
-
-    // increase the current cacheSize
-    cacheSize += block->getSize();
-  }
-  catch (std::runtime_error &e) {
-    logger->logErr(LOG_HEADER+e.what());
-  }
-}
-
-
-// TODO: this function seems to be useless
-/*
-DataBlock_ptr BlockManager::getOrAlloc(int tag, int size) {
-
-  // guarantee exclusive access
-  boost::lock_guard<BlockManager> guard(*this);
-
-  // ISSUE: it is possible that between the block is removed 
-  // while it is being used
-
-  if (cacheTable.find(tag) == cacheTable.end()) {
-    DataBlock_ptr new_block(new DataBlock());
-
-    add(tag, new_block);
-    return new_block;
-  }
-  else {
-    DataBlock_ptr block = cacheTable[tag].second;
-
-    update(tag);
-
-    return block;
-  }
-}
-*/
-
-DataBlock_ptr BlockManager::getShared(int64_t tag) {
-
-  // guarantee exclusive access
-  boost::lock_guard<BlockManager> guard(*this);
-  
-  if (scratchTable.find(tag) == scratchTable.end()) {
-    return NULL_DATA_BLOCK;
-  }
-  else {
-    return scratchTable[tag]; 
-  }
-}
-
-int BlockManager::addShared(
-    int64_t tag, 
-    DataBlock_ptr block)
-{
-  // guarantee exclusive access
-  boost::lock_guard<BlockManager> guard(*this);
-  
-  if (scratchSize + block->getSize() >= maxScratchSize) {
-
-    // cannot add because running out of space
-    logger->logInfo(
-        LOG_HEADER+
-        "cannot add broadcast with size:" + 
-        std::to_string((long long)block->getSize())+
-        ", maxsize is "+
-        std::to_string((long long)maxScratchSize));
-
-    return -1;
-  }
-  else if (scratchTable.find(tag) == scratchTable.end()){
-    // add new block
     scratchTable.insert(std::make_pair(tag, block));
+
+    // increase the current scratchSize
     scratchSize += block->getSize();
-
-    logger->logInfo(
-        LOG_HEADER+
-        "added broadcast block "+
-        std::to_string((long long)tag)+
-        " with size:" + 
-        std::to_string((long long)block->getSize()));
-
-    return 0;
   }
   else {
-    // block already exist
-    return 0;
+    // check if block already exists
+    if (cacheTable.find(tag) != cacheTable.end()) {
+      return;
+    }
+
+    // log info
+    logger->logInfo(LOG_HEADER + 
+        std::string("adding block ") +
+        std::to_string((long long int)tag) + 
+        std::string(" to cache."));
+
+    try {
+      while (cacheSize + block->getSize() > maxCacheSize) {
+        // remove block from cache
+        evict();
+      }
+
+      // add the index to cacheTable
+      cacheTable.insert(
+          std::make_pair(
+            tag, 
+            std::make_pair(0, block)
+            ));
+
+      // increase the current cacheSize
+      cacheSize += block->getSize();
+    }
+    catch (std::runtime_error &e) {
+      throw std::runtime_error(LOG_HEADER+
+          "Caught exception: "+e.what());
+    }
   }
 }
 
-int BlockManager::removeShared(int64_t tag) {
+void BlockManager::remove(int64_t tag) {
 
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
-  
-  if (scratchTable.find(tag) == scratchTable.end()) {
-    // no data match tag; 
-    return 1;
-  }
-  else {
-    DataBlock_ptr block = scratchTable[tag];
-    scratchSize -= block->getSize();
 
-    //delete block;
-    scratchTable.erase(tag);
+  // can only remove scratch data
+  if (tag < 0) {
 
-    return 0;
+    if (scratchTable.find(tag) == scratchTable.end()) {
+      // no data match tag; 
+      throw std::runtime_error(LOG_HEADER+
+          "no matching tag in scratch table");
+    }
+    else {
+      DataBlock_ptr block = scratchTable[tag];
+      scratchSize -= block->getSize();
+
+      //delete block;
+      scratchTable.erase(tag);
+    }
   }
 }
 

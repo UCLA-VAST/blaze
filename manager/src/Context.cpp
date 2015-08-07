@@ -137,7 +137,7 @@ void Context::addShared(
       switch (iter->first) {
         case AccType::CPU :
         {
-          iter->second->addShared(block_id, block);
+          iter->second->add(block_id, block);
           break;
         }
         case AccType::OpenCL :
@@ -148,7 +148,7 @@ void Context::addShared(
                 dynamic_cast<OpenCLEnv*>(env_table[AccType::OpenCL].get()),
                 block.get()));
 
-          iter->second->addShared(block_id, new_block);
+          iter->second->add(block_id, new_block);
           break;
         }
         default: ;
@@ -162,33 +162,43 @@ void Context::addShared(
 
 void Context::removeShared(int64_t block_id)
 {
-  for (std::map<AccType, BlockManager_ptr>::iterator 
-      iter = block_manager_table.begin(); 
-      iter != block_manager_table.end(); 
-      iter ++) 
-  {
-    iter->second->removeShared(block_id);
+  try {
+    for (std::map<AccType, BlockManager_ptr>::iterator 
+        iter = block_manager_table.begin(); 
+        iter != block_manager_table.end(); 
+        iter ++) 
+    {
+      iter->second->remove(block_id);
+    }
+  }
+  catch (std::runtime_error &e) {
+    throw(e);
   }
 }
 
 DataBlock_ptr Context::getShared(int64_t block_id)
 {
-  DataBlock_ptr cpu_block;
+  try {
+    DataBlock_ptr cpu_block;
 
-  for (std::map<AccType, BlockManager_ptr>::iterator 
-      iter = block_manager_table.begin(); 
-      iter != block_manager_table.end(); 
-      iter ++) 
-  {
-    DataBlock_ptr block = iter->second->getShared(block_id);
-    if (block == NULL_DATA_BLOCK) {
-      return NULL_DATA_BLOCK;
+    for (std::map<AccType, BlockManager_ptr>::iterator 
+        iter = block_manager_table.begin(); 
+        iter != block_manager_table.end(); 
+        iter ++) 
+    {
+      DataBlock_ptr block = iter->second->get(block_id);
+      if (block == NULL_DATA_BLOCK) {
+        return NULL_DATA_BLOCK;
+      }
+      if (iter->first == AccType::CPU) {
+        cpu_block = block;
+      }
     }
-    if (iter->first == AccType::CPU) {
-      cpu_block = block;
-    }
+    return cpu_block;
   }
-  return cpu_block;
+  catch (std::runtime_error &e) {
+    throw(e);
+  }
 }
 
 } // namespace acc_runtime

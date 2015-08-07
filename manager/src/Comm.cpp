@@ -118,73 +118,90 @@ void Comm::process(socket_ptr sock) {
 
     bool all_cached = true;
 
-    // consult BlockManager to see if block is cached
-    for (int i = 0; i < task_msg.data_size(); ++i) {
-      int64_t blockId = task_msg.data(i).partition_id();
+    try {
+      // consult BlockManager to see if each block is cached
+      for (int i = 0; i < task_msg.data_size(); ++i) {
+        int64_t blockId = task_msg.data(i).partition_id();
 
-      DataMsg *block_info = reply_msg.add_data();
-      block_info->set_partition_id(blockId);
+        DataMsg *block_info = reply_msg.add_data();
+        block_info->set_partition_id(blockId);
 
-      if (blockId >= 0) { // this is an input block
-        if (!block_manager->isCached(blockId)) {
+        DataBlock_ptr block;
 
-          // allocate a new block without initilizing
-          // this block need to be added to cache later since the
-          // size information may not be available at this point
-          DataBlock_ptr block = block_manager->create();
-
-          // add the block to task
-          // this step may be mandatory to guarantee correct block
-          // order
-          task->addInputBlock(blockId, block);
+        //TODO: issue with multithread access,
+        // both threads will see the block is not cached,
+        // so they will all set cached = false; but only one
+        // need to
+        if (block_manager->contains(blockId)) {
+          // get block from BlockManager
+          block = block_manager->get(blockId);
 
           // set message flag
-          block_info->set_cached(false);
-          all_cached = false;
-        }
-        else {
-          DataBlock_ptr block = block_manager->get(blockId);
-
-          // add cached block to task
-          task->addInputBlock(blockId, block);
-
           block_info->set_cached(true); 
         }
-      }
-      else {
-        DataBlock_ptr block = 
-          block_manager->getShared(blockId);
-        if (block == NULL_DATA_BLOCK) {
-          // NOTE: this version does not assume 
-          // broadcast data will always be available
-          logger->logInfo(
-              LOG_HEADER + 
-              std::string("Broadcast is not available"));
-
-          DataBlock_ptr new_block = block_manager->create();
-
-          // add cached block to task
-          task->addInputBlock(blockId, new_block);
-
-          // set message flag
-          block_info->set_cached(false);
-          all_cached = false;
-        }
         else {
-          // add cached block to task
-          task->addInputBlock(blockId, block);
+          if (blockId >= 0) { // this is an input block
 
-          block_info->set_cached(true); 
+            // allocate a new block without initilizing
+            // this block need to be added to cache later since the
+            // size information may not be available at this point
+            block = block_manager->create();
+            
+            block_info->set_cached(false); 
+            // set message flag
+            all_cached = false;
+          }
+          else { // this is a broadcast block
+
+            // create the block and add it to scratch
+            // NOTE: at this point multiple threads may try 
+            // to add the same block, so create() is locked
+            bool created = block_manager->create(blockId, block);
+
+            if (created) {
+              logger->logInfo(LOG_HEADER+
+                  std::to_string(blockId)+
+                  " not cached");
+            
+              block_info->set_cached(false); 
+              all_cached = false;
+            }
+            else {
+              logger->logInfo(LOG_HEADER+
+                  std::to_string(blockId)+
+                  " cached");
+              block_info->set_cached(true); 
+            }
+            // the block added to task allocated but not ready
+            // at this point
+          }
         }
+        // add block to task
+        task->addInputBlock(blockId, block);
       }
+
+      // send msg back to client
+      send(reply_msg, socket_stream);
+
+      logger->logInfo(
+          LOG_HEADER + 
+          std::string("Replied with an ACCGRANT message."));
     }
+    catch (std::runtime_error &e) {
 
-    // send msg back to client
-    send(reply_msg, socket_stream);
+      // send ACCFAILURE to client
+      TaskMsg reply_msg;
+      reply_msg.set_type(ACCFAILURE);
 
-    logger->logInfo(
-        LOG_HEADER + 
-        std::string("Replied with an ACCGRANT message."));
+      send(reply_msg, socket_stream);
+
+      logger->logErr(
+          LOG_HEADER + 
+          std::string("Exception caught during processing request: ")+
+          e.what()+
+          ", send ACCFAILURE");
+      return;
+    }
 
     // wait for ACCDATA message if not all blocks are cached
     if (!all_cached) {
@@ -208,7 +225,7 @@ void Comm::process(socket_ptr sock) {
           int64_t blockId = blockInfo.partition_id();
 
           logger->logInfo(LOG_HEADER+
-              "reading data for block "+
+              "start reading data for block "+
               std::to_string(blockId));
 
           try {
@@ -216,10 +233,11 @@ void Comm::process(socket_ptr sock) {
             DataBlock_ptr block = 
               task->onDataReady(blockInfo);
 
-            if (blockId < 0) {
-              block_manager->addShared(blockId, block); 
-            }
-            else {
+            logger->logInfo(LOG_HEADER+
+                "finish reading data for block "+
+                std::to_string(blockId));
+
+            if (blockId >= 0) {
               // add the block to cache
               block_manager->add(blockId, block);
             }
@@ -329,112 +347,32 @@ void Comm::process(socket_ptr sock) {
   else if (task_msg.type() == ACCBROADCAST) {
 
     // NOTE: 
-    // In this implementation, create the same broadcast variable 
-    // in all block managers
+    // In this implementation, ACCBROADCAST is used only for 
+    // removing the broadcast block for an application
 
     logger->logInfo(LOG_HEADER + 
         std::string("Recieved an ACCBROADCAST message")) ; 
 
-    bool success = true;
-    for (int d=0; d< task_msg.data_size(); d++) {
-      const DataMsg blockInfo = task_msg.data(d);
-      int64_t blockId = blockInfo.partition_id();
-
-      if (blockInfo.has_length()) { // if this is a broadcast array
-
-        // add a new block 
-        std::string dataPath = blockInfo.path(); 
-        int dataLength = blockInfo.length();
-        int64_t dataSize = blockInfo.size();	
-
-        // check all block managers
-        DataBlock_ptr block = context->getShared(blockId);
-
-        if (block == NULL_DATA_BLOCK) {
-          // broadcast block does not exist
-          // create a new block and add it to the manager
-
-          // not sure smart_ptr can be assigned, so creating a new one
-          DataBlock_ptr new_block(new DataBlock(dataLength, dataSize));
-
-          // read block to CPU first
-          new_block->readFromMem(dataPath);
-
-          //int err = block_manager->addShared(blockId, new_block);
-          try {
-            context->addShared(blockId, new_block);
-          }
-          catch (std::runtime_error &e) { 
-            logger->logErr(
-                LOG_HEADER+
-                e.what());
-
-            success = false;
-            break;
-          }
-        }
-        else {
-          // if the block already exists, update it
-          block->readFromMem(dataPath);
-        }
-      }
-      else if (blockInfo.has_bval()) { // if this is a broadcast scalar
-
-        int64_t bval = blockInfo.bval();
-
-        DataBlock_ptr block = context->getShared(blockId);
-
-        if (block == NULL_DATA_BLOCK) {
-          // broadcast block does not exist
-          // create a new block and add it to the manager
-
-          // add the scalar as a new block
-          DataBlock_ptr new_block(new DataBlock(1, 8));
-
-          new_block->writeData((void*)(&bval), 8);
-
-          //int err = block_manager->addShared(blockId, new_block);
-          try {
-            context->addShared(blockId, new_block);
-          }
-          catch (std::runtime_error &e) { 
-            logger->logErr(
-                LOG_HEADER+
-                e.what());
-
-            success = false;
-            break;
-          }
-        }
-        else {
-          // if the block already exists, update it
-          block->writeData((void*)(&bval), 8);
-        }
-      }
-      else {
-        // deleting an existing blocks from all block manager
-        try {
-          context->removeShared(blockId);
-        }
-        catch (std::runtime_error &e) { 
-          logger->logErr(
-              LOG_HEADER+
-              e.what());
-
-          success = false;
-          // do not break out of the loop
-        }
-      }
-    }
-
     TaskMsg finish_msg;
-    if (success) {
+    try {
+      for (int d=0; d< task_msg.data_size(); d++) {
+        const DataMsg blockInfo = task_msg.data(d);
+        int64_t blockId = blockInfo.partition_id();
+
+        // deleting an existing blocks from all block manager
+        context->removeShared(blockId);
+      }
+
       finish_msg.set_type(ACCFINISH);
       logger->logInfo(
           LOG_HEADER+
           "Replied an ACCFINISH message regarding the broadcast.");
     }
-    else {
+    catch (std::runtime_error &e) { 
+      logger->logErr(
+          LOG_HEADER+
+          e.what());
+
       finish_msg.set_type(ACCFAILURE);
       logger->logInfo(
           LOG_HEADER+
