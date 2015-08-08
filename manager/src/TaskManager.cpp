@@ -36,27 +36,35 @@ void TaskManager::execute() {
     task_queue.pop(task);
 
     // polling the status, wait for data to be transferred
-    while (task->status != Task::READY) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(10)); 
+    while (!task->isReady()) {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
     }
     logger->logInfo(LOG_HEADER + std::string("Started a new task"));
 
-    // start execution
-    task->execute();
+    try {
+      // start execution
+      task->execute();
+    } 
+    catch (std::runtime_error &e) {
+      logger->logErr(LOG_HEADER+ 
+          std::string("task->execute() error: ")+
+          e.what());
+    }
 
     if (task->status == Task::FINISHED)  {
 
       // put task into the retire queue
       retire_queue.push(task);
 
-      logger->logInfo(LOG_HEADER + std::string("finished a task"));
+      logger->logInfo(LOG_HEADER + std::string("Task finished"));
     }
     else { // task failed, retry 
 
       // TODO: add a retry counter in task
       //task_queue.push(task);
 
-      logger->logInfo(LOG_HEADER + std::string("task failed"));
+      logger->logInfo(LOG_HEADER + std::string(
+            "Task failed due to previous error"));
     }
   }
 }

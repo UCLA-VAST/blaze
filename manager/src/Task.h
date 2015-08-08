@@ -51,12 +51,11 @@ public:
   void execute() {
     try {
       compute();
+      status = FINISHED;
     } catch (std::runtime_error &e) {
       status = FAILED; 
-      printf("Task failed: %s\n", e.what());
-      return;
+      throw e;
     }
-    status = FINISHED;
   }
 
 protected:
@@ -147,6 +146,8 @@ private:
   bool getOutputBlock(DataBlock_ptr &block);
    
   DataBlock_ptr onDataReady(const DataMsg &blockInfo);
+
+  bool isReady();
 
   enum {
     NOTREADY,
