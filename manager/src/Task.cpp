@@ -276,6 +276,7 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
 bool Task::isReady() {
 
   bool isReady = true;
+  int num_ready = 0;
   for (std::vector<DataBlock_ptr>::iterator iter = input_blocks.begin();
        iter != input_blocks.end();
        iter ++)
@@ -284,8 +285,9 @@ bool Task::isReady() {
       isReady = false;
       break;
     }
+    num_ready++;
   }
-  if (isReady) {
+  if (isReady && num_ready == num_input) {
     status = READY;
   }
   return isReady;

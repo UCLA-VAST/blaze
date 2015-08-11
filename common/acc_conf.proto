@@ -19,9 +19,10 @@ message AccPlatform {
 message AccWorker {
   required string id = 2;  
   required string path = 3;
-  optional string impl_name = 4;
-  optional string impl_path = 5;
-  optional string kernel_name = 6;
+  optional int32  speedup = 4;
+  optional string impl_name = 5;
+  optional string impl_path = 6;
+  optional string kernel_name = 7;
 }
 
 message ManagerConf {

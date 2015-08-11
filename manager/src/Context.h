@@ -56,6 +56,11 @@ public:
     }
   }
 
+  AccWorker getConfig(std::string acc_id) {
+    // exception should be handled by previous steps
+    return acc_config_table[acc_id];
+  }
+
   void addShared(int64_t block_id, DataBlock_ptr block);
 
   DataBlock_ptr getShared(int64_t block_id);
@@ -71,6 +76,9 @@ private:
 
   // map acc_id to TaskEnv
   std::map<std::string, TaskEnv_ptr> acc_table;
+
+  // map acc_id to AccWorker (acc configuration)
+  std::map<std::string, AccWorker> acc_config_table;
 
   // map AccType to BlockManager
   std::map<AccType, BlockManager_ptr> block_manager_table;

@@ -59,91 +59,88 @@ public:
 
     struct	timeval t1, t2, tr;
 
-    // dynamically cast the TaskEnv to OpenCLTen
-    OpenCLEnv* ocl_env = dynamic_cast<OpenCLEnv*>(env);
+    try {
+      // dynamically cast the TaskEnv to OpenCLTen
+      OpenCLEnv* ocl_env = dynamic_cast<OpenCLEnv*>(env);
 
-    // get input data length
-    //int nsample = getInputNumItems(0);
-    int data_length = getInputLength(0);
-    int weight_length = getInputLength(1);
+      // get input data length
+      //int nsample = getInputNumItems(0);
+      int data_length = getInputLength(0);
+      int weight_length = getInputLength(1);
 
-    //printf("data length = %d\n", data_length);
-    //printf("weight length = %d\n", weight_length);
+      //printf("data length = %d\n", data_length);
+      //printf("weight length = %d\n", weight_length);
 
-    // check input size
-    if (data_length % (LABEL_SIZE+FEATURE_SIZE) != 0 || 
-        data_length / (LABEL_SIZE+FEATURE_SIZE) == 0 ||
-        weight_length != (LABEL_SIZE*(FEATURE_SIZE+1)))
-    {
-      fprintf(stderr, "Invalid input data dimensions:\n");
-      fprintf(stderr, "data_length = %d\n", data_length);
-      fprintf(stderr, "weight_length = %d\n", weight_length);
-      throw std::runtime_error("Invalid input data dimensions");
+      // check input size
+      if (data_length % (LABEL_SIZE+FEATURE_SIZE) != 0 || 
+          data_length / (LABEL_SIZE+FEATURE_SIZE) == 0 ||
+          weight_length != (LABEL_SIZE*(FEATURE_SIZE+1)))
+      {
+        fprintf(stderr, "Invalid input data dimensions:\n");
+        fprintf(stderr, "data_length = %d\n", data_length);
+        fprintf(stderr, "weight_length = %d\n", weight_length);
+        throw std::runtime_error("Invalid input data dimensions");
+      }
+
+      // perform computation
+      int nsample = data_length / 
+        (LABEL_SIZE+FEATURE_SIZE);
+
+      //printf("processing %d data points\n", nsample);
+
+      int L = LABEL_SIZE;
+      int D = FEATURE_SIZE;
+
+      int m = LABEL_SIZE;
+      int n = FEATURE_SIZE;
+      int inc = 1;
+      float alpha = 1.0f;
+      float beta = .0f;
+
+      cl_context       context = ocl_env->getContext();
+      cl_kernel        kernel  = ocl_env->getKernel("Logistic");
+
+      int err;
+      cl_event event;
+
+      // get the pointer to input/output data
+      cl_mem data      = *((cl_mem*)getInput(0));
+      cl_mem weights   = *((cl_mem*)getInput(1));
+      cl_mem gradients = *((cl_mem*)getOutput(
+            0, weight_length, 1,
+            sizeof(float)));
+
+      gettimeofday(&t1, NULL);
+
+      // Set the arguments to our compute kernel
+      err  = clSetKernelArg(kernel, 0, sizeof(int), &nsample);
+      err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &weights);
+      err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &data);
+      err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &gradients);
+      if (err != CL_SUCCESS) {
+        throw std::runtime_error("Failed to set gradients!");
+      }
+
+      cl_command_queue command = ocl_env->getCmdQueue();
+      gettimeofday(&t1, NULL);
+
+      // Execute the kernel over the entire range of our 1d input data set
+      // using the maximum number of work group items for this device
+      err = clEnqueueTask(command, kernel, 0, NULL, &event);
+      clWaitForEvents(1, &event);
+
+      if (err) {
+        throw("Failed to execute kernel!");
+      }
+
+      gettimeofday(&t2, NULL);
+      timersub(&t1, &t2, &tr);
+      fprintf(stdout, "FPGA execution takes %.4f ms\n", 
+          fabs(tr.tv_sec*1000.0+(double)tr.tv_usec/1000.0));
     }
-
-    
-
-    // perform computation
-    int nsample = data_length / 
-      (LABEL_SIZE+FEATURE_SIZE);
-
-    //printf("processing %d data points\n", nsample);
-
-    int L = LABEL_SIZE;
-    int D = FEATURE_SIZE;
-
-    int m = LABEL_SIZE;
-    int n = FEATURE_SIZE;
-    int inc = 1;
-    float alpha = 1.0f;
-    float beta = .0f;
-
-    cl_context       context = ocl_env->getContext();
-    cl_kernel        kernel  = ocl_env->getKernel("Logistic");
-
-    int err;
-    cl_event event;
-
-    // get the pointer to input/output data
-    cl_mem data      = *((cl_mem*)getInput(0));
-    cl_mem weights   = *((cl_mem*)getInput(1));
-    cl_mem gradients = *((cl_mem*)getOutput(
-                        0, weight_length, 1,
-                        sizeof(float)));
-
-    //if (!data || !weights || !gradients) {
-    //  fprintf(stderr, "Cannot get data pointers\n");
-    //  throw std::runtime_error("Cannot get data pointers");
-    //}
-    gettimeofday(&t1, NULL);
-
-    // Set the arguments to our compute kernel
-    err  = clSetKernelArg(kernel, 0, sizeof(int), &nsample);
-    err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &weights);
-    err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &data);
-    err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &gradients);
-    if (err != CL_SUCCESS) {
-      throw std::runtime_error("Failed to set gradients!");
+    catch (std::runtime_error &e) {
+      throw e;
     }
-
-    cl_command_queue command = ocl_env->getCmdQueue();
-    gettimeofday(&t1, NULL);
-    // Execute the kernel over the entire range of our 1d input data set
-    // using the maximum number of work group items for this device
-
-    err = clEnqueueTask(command, kernel, 0, NULL, &event);
-    clWaitForEvents(1, &event);
-
-    if (err) {
-      throw("Failed to execute kernel!");
-    }
-
-    gettimeofday(&t2, NULL);
-    timersub(&t1, &t2, &tr);
-    fprintf(stdout, "FPGA execution takes %.4f ms\n", 
-        fabs(tr.tv_sec*1000.0+(double)tr.tv_usec/1000.0));
-
-    gettimeofday(&t1, NULL);
   }
 };
 

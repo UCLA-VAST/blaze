@@ -65,28 +65,22 @@ bool BlockManager::create(
         default: ; // never end up here
       } 
       // add the block to manager
-      if (scratchSize + block->getSize() >= maxScratchSize) {
+      // TODO: do not control scratch size in the experiments
+      //if (scratchSize + block->getSize() >= maxScratchSize) {
 
-        // cannot add because running out of space
-        throw std::runtime_error(LOG_HEADER+
-            "cannot add broadcast with size:" + 
-            std::to_string((long long)block->getSize())+
-            ", maxsize is "+
-            std::to_string((long long)maxScratchSize));
-      }
-
-      /* TODO: remove for experiments
-         if (!block->isAllocated()) {
-         throw std::runtime_error(LOG_HEADER+ 
-         "Block is not allocated cannot be added");
-         }
-         */
+      //  // cannot add because running out of space
+      //  throw std::runtime_error(LOG_HEADER+
+      //      "cannot add broadcast with size:" + 
+      //      std::to_string((long long)block->getSize())+
+      //      ", current size is "+
+      //      std::to_string((long long)scratchSize));
+      //}
 
       // add the index to cacheTable
       scratchTable.insert(std::make_pair(tag, block));
 
       // increase the current scratchSize
-      scratchSize += block->getSize();
+      //scratchSize += block->getSize();
 
       return true;
     }
@@ -200,8 +194,13 @@ void BlockManager::add(
       cacheSize += block->getSize();
     }
     catch (std::runtime_error &e) {
-      throw std::runtime_error(LOG_HEADER+
-          "Caught exception: "+e.what());
+      // do not throw exceptions, simply log info and return 
+      logger->logInfo(LOG_HEADER + 
+          std::string("Failed to add block ") +
+          std::to_string((long long int)tag));
+      return;
+      //throw std::runtime_error(LOG_HEADER+
+      //    "Caught exception: "+e.what());
     }
   }
 }
@@ -221,7 +220,7 @@ void BlockManager::remove(int64_t tag) {
     }
     else {
       DataBlock_ptr block = scratchTable[tag];
-      scratchSize -= block->getSize();
+      //scratchSize -= block->getSize();
 
       //delete block;
       scratchTable.erase(tag);

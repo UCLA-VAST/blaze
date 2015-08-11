@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <sstream>
 
-//#define USEMKL
+#define USEMKL
 
 #ifdef USEMKL
 #include <mkl.h>
@@ -57,17 +57,13 @@ public:
   virtual void compute() {
 
     // get input data length
-    //int nsample = getInputNumItems(0);
     int data_length = getInputLength(0);
     int weight_length = getInputLength(1);
-
-    //printf("data length = %d\n", data_length);
-    //printf("weight length = %d\n", weight_length);
 
     // check input size
     if (data_length % (LABEL_SIZE+FEATURE_SIZE) != 0 || 
         data_length / (LABEL_SIZE+FEATURE_SIZE) == 0 ||
-        weight_length != (LABEL_SIZE*FEATURE_SIZE))
+        weight_length != (LABEL_SIZE*(FEATURE_SIZE+1)))
     {
 			fprintf(stderr, "Invalid input data dimensions\n");
       throw std::runtime_error("Invalid input data dimensions");
@@ -77,17 +73,13 @@ public:
     float* data     = (float*)getInput(0);
     float* weights  = (float*)getInput(1);
     float* gradient = (float*)getOutput(
-                                0, 
-                                weight_length, 
-																1,
+                                0, weight_length, 1,
                                 sizeof(float));
 
     if (!data || !weights || !gradient) {
 			fprintf(stderr, "Cannot get data pointers\n");
       throw std::runtime_error("Cannot get data pointers");
     }
-
-	  float label[LABEL_SIZE];
 
     // perform computation
     int nsample = data_length / 
@@ -106,9 +98,10 @@ public:
 
     memset(gradient, 0, sizeof(float)*LABEL_SIZE*FEATURE_SIZE);
 
+#ifdef USEMKL
+	  float label[L];
     for(int k = 0; k < nsample; k++ ) {
 
-#ifdef USEMKL
       cblas_sgemv(
           CblasRowMajor, CblasNoTrans, 
           m, n, alpha, 
@@ -127,7 +120,10 @@ public:
             data+k*(D+L)+L, inc, 
             gradient+i*D, inc);
       }
+    }
 #else
+    float label[LABEL_SIZE];
+    for(int k = 0; k < nsample; k++ ) {
       for(int i = 0; i < L; i+=1 ) {
         float dot = 0.;
         for(int j = 0; j < D; j+=1 ) {
@@ -138,8 +134,8 @@ public:
           gradient[i*D+j+0] +=  coeff*data[k*(D+L)+j+0+L];
         }
       }
-#endif
     }
+#endif
   }
 };
 

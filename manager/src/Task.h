@@ -120,15 +120,30 @@ protected:
   }
 
   int getInputLength(int idx) { 
-    return input_blocks[idx]->getLength(); 
+    if (idx < input_blocks.size()) {
+      return input_blocks[idx]->getLength(); 
+    }
+    else {
+      throw std::runtime_error("getInputLength out of bound idx");
+    }
   }
 
   int getInputNumItems(int idx) { 
-    return input_blocks[idx]->getNumItems() ; 
+    if (idx < input_blocks.size()) {
+      return input_blocks[idx]->getNumItems() ; 
+    }
+    else {
+      throw std::runtime_error("getInputNumItems out of bound idx");
+    }
   }
 
   char* getInput(int idx) {
-    return input_blocks[idx]->getData();      
+    if (idx < input_blocks.size()) {
+      return input_blocks[idx]->getData();      
+    }
+    else {
+      throw std::runtime_error("getInput out of bound idx");
+    }
   }
 
   // pointer to task environment
