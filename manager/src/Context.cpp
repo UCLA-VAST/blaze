@@ -108,6 +108,10 @@ Context::Context(
         acc_table.insert(std::make_pair(
               acc.id(), task_env));
 
+        // add acc configuration to table
+        acc_config_table.insert(
+            std::make_pair(acc.id(), acc));
+
         // setup the task environment with ACC conf
         task_env->setup(acc);
 

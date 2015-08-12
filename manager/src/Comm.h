@@ -8,8 +8,11 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/smart_ptr.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/lockable_adapter.hpp>
 
 #include "task.pb.h"
+#include "acc_conf.pb.h"
 
 #include "Context.h"
 #include "BlockManager.h"
@@ -21,14 +24,26 @@ using namespace boost::asio;
 
 typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 
+namespace acc_runtime {
+
+class AccReject : public std::logic_error {
+public:
+  explicit AccReject(const std::string& what_arg):
+    std::logic_error(what_arg) {;}
+};
+
+class AccFailure : public std::logic_error {
+public:
+  explicit AccFailure(const std::string& what_arg):
+    std::logic_error(what_arg) {;}
+};
+
 /*
  * Communicator design for Acc_Manager
- *
  */
-
-namespace acc_runtime {
-class Comm {
-
+class Comm 
+: public boost::basic_lockable_adapter<boost::mutex>
+{
 public:
   Comm(
       Context* _context,
@@ -47,14 +62,21 @@ public:
   }
 
   void recv(TaskMsg&, ip::tcp::iostream&);
+
   void send(TaskMsg&, ip::tcp::iostream&);
+
   void process(socket_ptr); // processing messages
+
   void listen(); // always on kernel to wait for connection
+
+  void addTask(std::string id);
+  void removeTask(std::string id);
   
 private:
   int srv_port;
   std::string ip_address;
-  std::vector<boost::thread> thread_pool;
+
+  std::map<std::string, int> num_tasks;
 
   // reference to context
   Context *context;

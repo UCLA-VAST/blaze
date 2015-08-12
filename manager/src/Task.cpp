@@ -55,6 +55,9 @@ bool Task::getOutputBlock(DataBlock_ptr &block) {
     return false;
   }
 }
+
+// update contents of block by the received block info msg
+// also check all blocks readiness
 DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
 
   int64_t partition_id = blockInfo.partition_id();
@@ -66,20 +69,19 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
 
   DataBlock_ptr block = input_table[partition_id];
 
-  // TODO: 
-  // multithread issues, two threads can check simutaneously and
-  // both see that the block is not ready, and proceed to update
-  // the block
+  // NOTE: two threads can check simutaneously when the block is 
+  // not ready, and both will try update the block
+  // current implmenetation guarantees that this doesn't happen 
+  // by not letting and two tasks send the same block in ACCDATA
   if (!block->isReady()) {
 
     if (partition_id < 0) {
       if (blockInfo.has_length()) { // if this is a broadcast array
 
-        printf("get data for broadcast data\n");
-        // TODO: same as branch length > 0
+        // NOTE: same as branch length > 0
+        int num_items = blockInfo.num_items();
         int length = blockInfo.length();
         int64_t size = blockInfo.size();
-        int num_items = blockInfo.num_items();
         std::string path = blockInfo.path(); 
 
         // lock block for exclusive access
@@ -260,13 +262,35 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
       }
     }
   }
-  num_ready++;
 
-  if (num_ready == num_input) {
-    status = READY;
-  }
+  //num_ready++;
+
+  //if (num_ready == num_input) {
+  //  status = READY;
+  //}
 
   return block;
+}
+
+// check if all the blocks in task's input list is ready
+bool Task::isReady() {
+
+  bool isReady = true;
+  int num_ready = 0;
+  for (std::vector<DataBlock_ptr>::iterator iter = input_blocks.begin();
+       iter != input_blocks.end();
+       iter ++)
+  {
+    if (!(*iter)->isReady()) {
+      isReady = false;
+      break;
+    }
+    num_ready++;
+  }
+  if (isReady && num_ready == num_input) {
+    status = READY;
+  }
+  return isReady;
 }
 
 } // namespace
