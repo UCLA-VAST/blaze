@@ -7,8 +7,10 @@
 #include <vector>
 #include <algorithm>
 #include <sstream>
+#include <CL/opencl.h>
 
-#include "acc_runtime.h" 
+#include "acc_runtime.h"
+#include "../kernels/KMeans_GPU/kernel_gpu_cl.h"
 
 using namespace acc_runtime;
 
@@ -92,11 +94,13 @@ public:
     }
 
     gettimeofday(&t1, NULL);
+		size_t global = num_data * 1024;
+		size_t local = 1024;
+
     // Execute the kernel over the entire range of our 1d input data set
     // using the maximum number of work group items for this device
-
-    err = clEnqueueTask(command, kernel, 0, NULL, &event);
-    clWaitForEvents(1, &event);
+		err = clEnqueueNDRangeKernel(command, kernel, 1, NULL,
+			   (size_t *) &global, (size_t *) &local, 0, NULL, &event);
 
     if (err) {
       throw("Failed to execute kernel!");

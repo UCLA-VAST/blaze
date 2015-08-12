@@ -8,4 +8,6 @@ fi
 ~/spark-1.4.0/bin/spark-submit --class SparkKMeans \
         --master local[*] \
         target/sparkkmeans-0.0.0.jar \
-        3 $1 hdfs://cdsc0:9000/user/cody/kmeans_input_small.txt
+        3 $1 /curr/diwu/prog/logistic/data/train_data.txt
+
+#hdfs://cdsc0:9000/user/cody/kmeans_input_small.txt

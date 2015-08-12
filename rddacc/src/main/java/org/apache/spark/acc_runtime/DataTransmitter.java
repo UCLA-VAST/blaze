@@ -20,7 +20,11 @@ public class DataTransmitter {
 	Socket acc_socket = null;
 
 	public DataTransmitter() {
-		init("localhost", 1027);
+		init("10.0.0.6", 1027);
+	}
+
+	public DataTransmitter(String hostname, int port) {
+		init(hostname, port);
 	}
 
 	/**
@@ -115,7 +119,7 @@ public class DataTransmitter {
 	*		The unique block ID.
 	* @return The message which hasn't been built.
 	**/
-	public AccMessage.TaskMsg.Builder buildRequest(String acc_id, long[] blockId, long[] brdcstId) {
+	public static AccMessage.TaskMsg.Builder buildRequest(String acc_id, long[] blockId, long[] brdcstId) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
 			.setType(AccMessage.MsgType.ACCREQUEST)
 			.setAccId(acc_id);
@@ -141,7 +145,7 @@ public class DataTransmitter {
 	*		The message type.
 	* @see AccMessage.MsgType
 	**/
-	public AccMessage.TaskMsg.Builder buildMessage(AccMessage.MsgType type) {
+	public static AccMessage.TaskMsg.Builder buildMessage(AccMessage.MsgType type) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
 			.setType(type);
 
@@ -159,7 +163,7 @@ public class DataTransmitter {
 	* @param offset The start position of this block in the file.
 	* @param path The file path.
 	**/
-	public void addData(AccMessage.TaskMsg.Builder msg, long id, int length, int size, int offset, String path) {
+	public static void addData(AccMessage.TaskMsg.Builder msg, long id, int length, int size, int offset, String path) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id)
 			.setLength(length)
@@ -180,7 +184,7 @@ public class DataTransmitter {
 	* @param id The unique ID of the data block.
 	* @param value The value of the scalar variable.
 	**/
-	public void addScalarData(AccMessage.TaskMsg.Builder msg, long id, long value) {
+	public static void addScalarData(AccMessage.TaskMsg.Builder msg, long id, long value) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id)
 			.setBval(value);
@@ -199,7 +203,7 @@ public class DataTransmitter {
 	*	@param msg The message that wanted to be added.
 	* @param id The unique ID of the data block.
 	**/
-	public void addBroadcastData(AccMessage.TaskMsg.Builder msg, long id) {
+	public static void addBroadcastData(AccMessage.TaskMsg.Builder msg, long id) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id);
 

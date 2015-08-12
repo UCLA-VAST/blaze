@@ -14,7 +14,15 @@
 #include <stdbool.h>  
 #include <sys/types.h>
 #include <sys/stat.h> 
+#include <time.h>
+
+#define acc
+#define ITERATION	1
+
+#ifdef acc
 #include <CL/opencl.h>
+
+//#include "kernel_cl.h"
 
 int
 load_file_to_memory(const char *filename, char **result)
@@ -30,7 +38,7 @@ load_file_to_memory(const char *filename, char **result)
   size = ftell(f);
   fseek(f, 0, SEEK_SET);
   *result = (char *)malloc(size+1);
-  if (size != fread(*result, sizeof(char), size, f)) 
+  if (size != (int) fread(*result, sizeof(char), size, f)) 
   { 
     free(*result);
     return -2; // -2 means file reading fail 
@@ -39,9 +47,46 @@ load_file_to_memory(const char *filename, char **result)
   (*result)[size] = 0;
   return size;
 }
+#endif
 
 int main(int argc, char *argv[]) {
-   
+
+	int dims = 784;
+	double *data;
+	int data_length = 60000 * 784;
+	int num_data = data_length / dims;
+
+	double *centers;
+	int centers_length = 3 * 784;
+	int num_centers = centers_length / dims;
+
+	int output_length = num_data;
+	int *output;
+
+	data = (double *)malloc(sizeof(double) * data_length);
+	centers = (double *)malloc(sizeof(double) * centers_length);
+	output = (int *)malloc(sizeof(int) * output_length);
+
+	// Read input data from file
+	FILE *infilep = fopen("/curr/diwu/prog/logistic/data/train_data.txt", "r");
+	int i, j;
+	for (i = 0; i < num_data; ++i) {
+		for (j = 0; j < 10; ++j)
+			fscanf(infilep, "%lf", &data[i * dims]);
+		for (j = 0; j < dims; ++j)
+			fscanf(infilep, "%lf", &data[i * dims + j]);
+	}
+	fclose(infilep);
+
+	srand(99);
+	int c = (int) rand() % num_data;
+	for (i = 0; i < num_centers; ++i) {
+		for (j = 0; j < dims; ++j) {
+			centers[i * dims + j] = data[(c + i) * dims + j];
+		}
+	}
+
+#ifdef acc  
   int err;                            // error code returned from api calls
 
   cl_platform_id platform_id;         // platform id
@@ -129,7 +174,7 @@ int main(int argc, char *argv[]) {
 
   // Create Program Objects
   //
-  
+ 
   // Load binary from disk
   unsigned char *kernelbinary;
   char *xclbin=argv[1];
@@ -140,6 +185,7 @@ int main(int argc, char *argv[]) {
     printf("Test failed\n");
     return EXIT_FAILURE;
   }
+
   size_t n = n_i;
   // Create the compute program from offline
   program = clCreateProgramWithBinary(context, 1, &device_id, &n,
@@ -149,6 +195,11 @@ int main(int argc, char *argv[]) {
     printf("Test failed\n");
     return EXIT_FAILURE;
   }
+/*
+	// Create a program with source code (for GPU usage)
+  program = clCreateProgramWithSource(context, 1, 
+											(const char**)&kernel_cl, NULL, &status);
+*/
 
   // Build the program executable
   //
@@ -176,58 +227,32 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 	fprintf(stderr, "kernel ready\n");
-
-	int dims = 3;
-	float data[30] = {
-		714.215313,312.5831474,226.6679658,
-		795.1223308,483.2316382,827.019699,
-		287.0280167,589.0996444,629.6339571,
-		620.5416752,366.4759483,101.9330746,
-		24.44139996,401.1155234,324.7984987,
-		369.279928,197.0198983,304.9355644,
-		407.5329774,739.4780819,702.857867,
-		464.5121837,376.3328839,799.1458264,
-		61.9297265,45.22855646,557.3514078,
-		235.7981744,633.8715081,842.5673189};
-	int data_length = 30;
-	int num_data = data_length / dims;
-
-	float centers[6] = {
-		714.215313,312.5831474,226.6679658,
-		464.5121837,376.3328839,799.1458264};
-	int centers_length = 6;
-	int num_centers = centers_length / dims;
-
-	int output_length = num_data;
-	int output[10] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-
 	fprintf(stderr, "writing buffers\n");
 
-   cl_mem data_buf = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * data_length, NULL, &err);
+   cl_mem data_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(double) * data_length, NULL, &err);
    if(err != CL_SUCCESS) {
-   printf("Error: OpenCL host");
+   printf("Error: OpenCL host 0");
    return EXIT_FAILURE;
    }
-   err = clEnqueueWriteBuffer(commands, data_buf, CL_TRUE, 0, sizeof(float) * data_length, data, 0, NULL, NULL);
+   err = clEnqueueWriteBuffer(commands, data_buf, CL_TRUE, 0, sizeof(double) * data_length, data, 0, NULL, NULL);
 
    err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_buf);
 	 err |= clSetKernelArg(kernel, 1, sizeof(int), &num_data);
    if(err != CL_SUCCESS) {
-   printf("Error: OpenCL host");
+   printf("Error: OpenCL host 01 %d", err);
    return EXIT_FAILURE;
    }
 
-   cl_mem centers_buf = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * centers_length, NULL, &err);
+   cl_mem centers_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(double) * centers_length, NULL, &err);
    if(err != CL_SUCCESS) {
-   printf("Error: OpenCL host");
+   printf("Error: OpenCL host 2");
    return EXIT_FAILURE;
    }
-	 err = clEnqueueWriteBuffer(commands, centers_buf, CL_TRUE, 0, sizeof(float) * centers_length, centers, 0, NULL, NULL);
 
    err  = clSetKernelArg(kernel, 2, sizeof(cl_mem), &centers_buf);
 	 err |= clSetKernelArg(kernel, 3, sizeof(int), &num_centers);
    if(err != CL_SUCCESS) {
-   printf("Error: OpenCL host");
+   printf("Error: OpenCL host 23");
    return EXIT_FAILURE;
    }
 
@@ -235,42 +260,115 @@ int main(int argc, char *argv[]) {
 
    cl_mem output_buf = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(int) * output_length, NULL, &err);
    if(err != CL_SUCCESS) {
-   printf("Error: OpenCL host");
+   printf("Error: OpenCL host 4");
    return EXIT_FAILURE;
    }
 
    err  = clSetKernelArg(kernel, 5, sizeof(cl_mem), &output_buf);
    if(err != CL_SUCCESS) {
-   printf("Error: OpenCL host");
+   printf("Error: OpenCL host 5");
    return EXIT_FAILURE;
    }
 
-   cl_event readevent;
-	 size_t global = 1;
+	 int iter;
+	 for (iter = 0; iter < ITERATION; ++iter) {
+		 err = clEnqueueWriteBuffer(commands, centers_buf, CL_TRUE, 0, sizeof(double) * centers_length, centers, 0, NULL, NULL);
 
-	fprintf(stderr, "running\n");
+	   cl_event readevent;
+		 size_t global = 10;
 
-   err = clEnqueueNDRangeKernel(commands, kernel, 1, NULL,
-   		(size_t *) &global, NULL, 0, NULL, &event);
-   clWaitForEvents(1, &event);
+		 fprintf(stderr, "iteration %d\n", iter);
 
-	fprintf(stderr, "reading results\n");
+		 clock_t start = clock();
+	   err = clEnqueueNDRangeKernel(commands, kernel, 1, NULL,
+  	 		(size_t *) &global, NULL, 0, NULL, &event);
+	   clWaitForEvents(1, &event);
 
-   err = clEnqueueReadBuffer(commands, output_buf, CL_TRUE, 0, sizeof(int) * output_length, output, 0, NULL, &readevent);
-   clWaitForEvents(1, &readevent);
+		 fprintf(stderr, "time: %lf\n", (double) ((clock() - start) / CLOCKS_PER_SEC));
+
+   	 err = clEnqueueReadBuffer(commands, output_buf, CL_TRUE, 0, sizeof(int) * output_length, output, 0, NULL, &readevent);
+   	 clWaitForEvents(1, &readevent);
+
+		 for (i = 0; i < centers_length; ++i)
+		  centers[i] = 0;
+
+		 int count[3] = {0};
+		 for (i = 0; i < output_length; ++i) {
+			 int c = output[i];
+		 	 count[c]++;
+		 	 for (j = 0; j < dims; ++j)
+				 centers[c * dims + j] += data[i * dims + j];
+		 }
+		 for (i = 0; i < num_centers; ++i) {
+			 fprintf(stderr, "Center %d (%d) \t", i, count[i]);
+			 for (j = 0; j < dims; ++j) {
+				 centers[i * dims + j] /= count[i];
+//				 fprintf(stderr, "%.3lf\t", centers[i * dims + j]);
+		 	 }
+		 }
+		 fprintf(stderr, "\n");
+
+
+		 for (i = 0; i < num_centers; ++i) {
+			 fprintf(stderr, "Center %d: ", i);
+			 for (j = 0; j < 10; ++j) {
+				 centers[i * dims + j] = output[i * dims + j];
+				 fprintf(stderr, "%.3lf\t", centers[i * dims + j]);
+			 }
+			 fprintf(stderr, "\n");
+		 }
+	}
  
 	fprintf(stderr, "all done\n");
-	fprintf(stderr, "%x\n", *output);
-/*
-	int i;
-	for (i = 0; i < output_length; ++i)
-		fprintf(stderr, "%x\t", output[i]);
-	fprintf(stderr, "\n");
-*/
-   clReleaseProgram(program);
-   clReleaseKernel(kernel);
-   clReleaseCommandQueue(commands);
-   clReleaseContext(context);
- 
+  clReleaseProgram(program);
+  clReleaseKernel(kernel);
+  clReleaseCommandQueue(commands);
+  clReleaseContext(context);
+#else
+	int d, iter;
+
+	for (iter = 0; iter < ITERATION; ++iter) {
+		fprintf(stderr, "iteration %d\n", iter);
+		for (i = 0; i < num_data; ++i) {
+			int closest_center = -1;
+			double closest_center_dis = 0;
+			for (j = 0; j < num_centers; ++j) {
+				double dis = 0;
+
+				for (d = 0; d < dims; ++d) {
+	 				dis +=  (centers[j * dims + d] - data[i * dims + d]) * 
+	         				(centers[j * dims + d] - data[i * dims + d]);  
+				}
+				if (dis < closest_center_dis || closest_center == -1) { 
+	  			closest_center = j;                                   
+	  			closest_center_dis = dis;                             
+				}                                                       
+			}
+			output[i] = closest_center;
+		}
+
+
+		for (i = 0; i < centers_length; ++i)
+		 centers[i] = 0;
+
+		int count[3] = {0};
+		for (i = 0; i < output_length; ++i) {
+			int c = output[i];
+		 	count[c]++;
+		 	for (j = 0; j < dims; ++j)
+				centers[c * dims + j] += data[i * dims + j];
+		}
+		for (i = 0; i < num_centers; ++i) {
+			fprintf(stderr, "Center %d (%d) \t", i, count[i]);
+			for (j = 0; j < dims; ++j) {
+				centers[i * dims + j] /= count[i];
+//				fprintf(stderr, "%.3lf\t", centers[i * dims + j]);
+		 	}
+		}
+		fprintf(stderr, "\n");
+	}
+
+#endif
+
    return 0;
 }

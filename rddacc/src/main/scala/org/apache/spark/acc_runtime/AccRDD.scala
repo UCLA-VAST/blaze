@@ -66,7 +66,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         val transmitter = new DataTransmitter()
         if (transmitter.isConnect == false)
           throw new RuntimeException("Connection refuse.")
-        var msg = transmitter.buildRequest(acc.id, blockId, brdcstId)
+        var msg = DataTransmitter.buildRequest(acc.id, blockId, brdcstId)
 //        var startTime = System.nanoTime
         transmitter.send(msg)
         val revMsg = transmitter.receive()
@@ -78,7 +78,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
 
         var startTime = System.nanoTime
 
-        val dataMsg = transmitter.buildMessage(AccMessage.MsgType.ACCDATA)
+        val dataMsg = DataTransmitter.buildMessage(AccMessage.MsgType.ACCDATA)
 
         // Prepare input data blocks
         val requireData = Array(false)
@@ -89,7 +89,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
               val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
               val mappedFileInfo = Util.serializePartition(appId, inputAry, blockId(i))
               dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
-              transmitter.addData(dataMsg, blockId(i), mappedFileInfo._2,
+              DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo._2,
                   mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)
             }
             else { // Send HDFS file information: unknown length
@@ -103,7 +103,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
               val fileSize: Int = splitInfo.substring(
                   splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
            
-              transmitter.addData(dataMsg, blockId(i), -1, 
+              DataTransmitter.addData(dataMsg, blockId(i), -1, 
                   fileSize, fileOffset, filePath)
             }
           }
@@ -121,14 +121,14 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
               val typeSize = Util.getTypeSizeByName(typeName)
               assert(typeSize != 0, "Cannot find the size of type " + typeName)
 
-              transmitter.addData(dataMsg, brdcstId(i), arrayData.length, 
+              DataTransmitter.addData(dataMsg, brdcstId(i), arrayData.length, 
                 arrayData.length * typeSize, 0, mappedFileInfo._1)
               acc.getArg(i).get.length = arrayData.length
               acc.getArg(i).get.size = arrayData.length * typeSize
             }
             else {
               val longData: Long = Util.casting(bcData, classOf[Long])
-              transmitter.addScalarData(dataMsg, brdcstId(i), longData)
+              DataTransmitter.addScalarData(dataMsg, brdcstId(i), longData)
               acc.getArg(i).get.length = 1
               acc.getArg(i).get.size = 4
             }

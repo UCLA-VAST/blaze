@@ -60,6 +60,7 @@ create_opencl_binary kmeans
 set_property region "OCL_REGION_0" [get_opencl_binary kmeans]
 create_compute_unit -opencl_binary [get_opencl_binary kmeans] -kernel [get_kernels run] -name k1
 
+#compile_host
 # Compile the design for CPU based emulation
 compile_emulation -flow cpu -opencl_binary [get_opencl_binary kmeans]
 

@@ -3,12 +3,14 @@ package org.apache.spark.acc_runtime
 import java.io._
 import java.util.Calendar
 import java.text.SimpleDateFormat
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileChannel.MapMode;
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.channels.FileChannel
+import java.nio.channels.FileChannel.MapMode
 import java.io.OutputStream    
 import java.io.FileOutputStream
+import java.net.InetAddress
+import java.net.UnknownHostException
 
 import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._         
@@ -86,6 +88,16 @@ object Util {
     logFile.write(logStr(0) + "\n")
   }
 
+  def getIPByHostName(host: String): Option[String] = {
+    try {
+      val inetAddr = InetAddress.getByName(host)
+      Some(inetAddr.getHostAddress)
+    } catch {
+      case e: UnknownHostException =>
+        logInfo(this, "Fail to resolve IP address of " + host + ": " + e.toString)
+        None
+    }
+  }
 
   def getTypeSizeByRDD[T: ClassTag](rdd: RDD[T]): Int = {
     if (classTag[T] == classTag[Byte] || classTag[T] == classTag[Array[Byte]])          1

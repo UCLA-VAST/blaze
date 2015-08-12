@@ -26,7 +26,8 @@ ACC = SimpleAddition \
 			Circumference \
 			Logistic \
 			Logistic_ocl \
-			KMeans
+			KMeans \
+			KMeans_ocl
 
 OBJS= $(addsuffix .so, $(addprefix ../lib/, $(ACC)))
 
