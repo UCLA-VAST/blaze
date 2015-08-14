@@ -16,12 +16,12 @@ class ACCRuntime(sc: SparkContext) extends Logging {
 
   // Note: Cannot guarantee it is unique
   val appSignature: Int = Math.abs(("""\d+""".r findAllIn sc.applicationId).addString(new StringBuilder).toLong.toInt)
-  val WorkerList: Array[(String, Int)] = Array(("n4", 1027))
+  val WorkerList: Array[(String, Int)] = Array() //Array(("n4", 1027))
   var BroadcastList: List[Broadcast_ACC[_]] = List()
 
   def stop() = {
     if (BroadcastList.length == 0)
-      Util.logInfo(this, "No broadcast block to be released")
+      logInfo("No broadcast block to be released")
     else {
       val msg = DataTransmitter.buildMessage(AccMessage.MsgType.ACCBROADCAST)
   
@@ -38,20 +38,19 @@ class ACCRuntime(sc: SparkContext) extends Logging {
           transmitter.send(msg)
           val revMsg = transmitter.receive()
           if (revMsg.getType() == AccMessage.MsgType.ACCFINISH)
-            Util.logInfo(this, "Successfully release " + BroadcastList.length + " broadcast blocks from Manager " + worker._1)
+            logInfo("Successfully release " + BroadcastList.length + " broadcast blocks from Manager " + worker._1)
           else
-            Util.logInfo(this, "Fail to release broadcast blocks from Manager " + worker._1)
+            logInfo("Fail to release broadcast blocks from Manager " + worker._1)
         }
         catch {
           case e: Throwable =>
             val sw = new StringWriter
             e.printStackTrace(new PrintWriter(sw))
-            Util.logInfo(this, "Fail to release broadcast data from Manager " + worker._1 + ": " + sw.toString)
+            logInfo("Fail to release broadcast data from Manager " + worker._1 + ": " + sw.toString)
         }
       }
     }
     sc.stop
-    Util.closeLog
   }
 
   def wrap[T: ClassTag](rdd : RDD[T]) : ShellRDD[T] = {

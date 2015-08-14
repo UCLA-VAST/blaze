@@ -76,7 +76,7 @@ object LogisticRegression {
       val pointNum = dataPoints.count
       println("Total " + pointNum + " points")
 
-      val w = new Array[Float](L * D)
+      val w = new Array[Float](L * (D+1))
       for (i <- 0 until L) {
         for (j <- 0 until D)
           w(i * D + j) = (rand.nextFloat - 0.5f) * 2.0f * upperbound
@@ -105,10 +105,10 @@ object LogisticRegression {
 
         // Verification 
         
-        val errNum = dataPoints
-          .map(points => predictor(w, points))
-          .reduce((a, b) => (a + b))
-        println("Error rate: " + ((errNum.toFloat / pointNum.toFloat) * 100) + "%")
+        //val errNum = dataPoints
+        //  .map(points => predictor(w, points))
+        //  .reduce((a, b) => (a + b))
+        //println("Error rate: " + ((errNum.toFloat / pointNum.toFloat) * 100) + "%")
         
       }
 

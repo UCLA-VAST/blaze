@@ -14,15 +14,13 @@
 #include <stdbool.h>  
 #include <sys/types.h>
 #include <sys/stat.h> 
-#include <time.h>
+#include <sys/time.h>
 
 #define acc
 #define ITERATION	1
 
 #ifdef acc
 #include <CL/opencl.h>
-
-//#include "kernel_cl.h"
 
 int
 load_file_to_memory(const char *filename, char **result)
@@ -47,43 +45,49 @@ load_file_to_memory(const char *filename, char **result)
   (*result)[size] = 0;
   return size;
 }
+
 #endif
 
 int main(int argc, char *argv[]) {
 
+	struct timeval t1, t2, tr;
+
 	int dims = 784;
-	double *data;
+	float *data;
 	int data_length = 60000 * 784;
 	int num_data = data_length / dims;
 
-	double *centers;
+	float *centers;
 	int centers_length = 3 * 784;
 	int num_centers = centers_length / dims;
 
 	int output_length = num_data;
 	int *output;
 
-	data = (double *)malloc(sizeof(double) * data_length);
-	centers = (double *)malloc(sizeof(double) * centers_length);
+	data = (float *)malloc(sizeof(float) * data_length);
+	centers = (float *)malloc(sizeof(float) * centers_length);
 	output = (int *)malloc(sizeof(int) * output_length);
 
 	// Read input data from file
 	FILE *infilep = fopen("/curr/diwu/prog/logistic/data/train_data.txt", "r");
 	int i, j;
+	float tmp;
 	for (i = 0; i < num_data; ++i) {
 		for (j = 0; j < 10; ++j)
-			fscanf(infilep, "%lf", &data[i * dims]);
+			fscanf(infilep, "%f", &tmp);
 		for (j = 0; j < dims; ++j)
-			fscanf(infilep, "%lf", &data[i * dims + j]);
+			fscanf(infilep, "%f", &data[i * dims + j]);
 	}
 	fclose(infilep);
 
 	srand(99);
-	int c = (int) rand() % num_data;
+	int c = (int) rand() % (num_data - num_centers);
+	fprintf(stderr, "center seed %d\n", c);
 	for (i = 0; i < num_centers; ++i) {
 		for (j = 0; j < dims; ++j) {
 			centers[i * dims + j] = data[(c + i) * dims + j];
 		}
+		fprintf(stderr, "centers %f\n", centers[i * dims]);
 	}
 
 #ifdef acc  
@@ -130,13 +134,13 @@ int main(int argc, char *argv[]) {
  
   // Connect to a compute device
   //
-  int fpga = 0;
+	int fpga = 0;
 #if defined (FPGA_DEVICE)
-  fpga = 1;
+	fpga = 1;
 #endif
   err = clGetDeviceIDs(platform_id, 
-			fpga ? CL_DEVICE_TYPE_ACCELERATOR : CL_DEVICE_TYPE_CPU,
-			1, &device_id, NULL);
+		fpga ? CL_DEVICE_TYPE_ACCELERATOR: CL_DEVICE_TYPE_ALL, 
+		1, &device_id, NULL);
   if (err != CL_SUCCESS)
   {
     printf("Error: Failed to create a device group!\n");
@@ -171,10 +175,6 @@ int main(int argc, char *argv[]) {
   }
 
   int status;
-
-  // Create Program Objects
-  //
- 
   // Load binary from disk
   unsigned char *kernelbinary;
   char *xclbin=argv[1];
@@ -195,11 +195,6 @@ int main(int argc, char *argv[]) {
     printf("Test failed\n");
     return EXIT_FAILURE;
   }
-/*
-	// Create a program with source code (for GPU usage)
-  program = clCreateProgramWithSource(context, 1, 
-											(const char**)&kernel_cl, NULL, &status);
-*/
 
   // Build the program executable
   //
@@ -209,7 +204,7 @@ int main(int argc, char *argv[]) {
     size_t len;
     char buffer[2048];
 
-    printf("Error: Failed to build program executable!\n");
+    printf("Error: Failed to build program executable! %d\n", err);
     clGetProgramBuildInfo(program, device_id, 
 				CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
     printf("%s\n", buffer);
@@ -229,12 +224,16 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr, "kernel ready\n");
 	fprintf(stderr, "writing buffers\n");
 
-   cl_mem data_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(double) * data_length, NULL, &err);
+   cl_mem data_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * data_length, NULL, &err);
    if(err != CL_SUCCESS) {
    printf("Error: OpenCL host 0");
    return EXIT_FAILURE;
    }
-   err = clEnqueueWriteBuffer(commands, data_buf, CL_TRUE, 0, sizeof(double) * data_length, data, 0, NULL, NULL);
+	 gettimeofday(&t1, NULL);
+   err = clEnqueueWriteBuffer(commands, data_buf, CL_TRUE, 0, sizeof(float) * data_length, data, 0, NULL, NULL);
+	 gettimeofday(&t2, NULL);
+   timersub(&t1, &t2, &tr);
+   printf("Data transfer time: %.2f sec\n", fabs(tr.tv_sec+(double)tr.tv_usec/1000000.0));
 
    err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_buf);
 	 err |= clSetKernelArg(kernel, 1, sizeof(int), &num_data);
@@ -243,7 +242,7 @@ int main(int argc, char *argv[]) {
    return EXIT_FAILURE;
    }
 
-   cl_mem centers_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(double) * centers_length, NULL, &err);
+   cl_mem centers_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float) * centers_length, NULL, &err);
    if(err != CL_SUCCESS) {
    printf("Error: OpenCL host 2");
    return EXIT_FAILURE;
@@ -272,20 +271,27 @@ int main(int argc, char *argv[]) {
 
 	 int iter;
 	 for (iter = 0; iter < ITERATION; ++iter) {
-		 err = clEnqueueWriteBuffer(commands, centers_buf, CL_TRUE, 0, sizeof(double) * centers_length, centers, 0, NULL, NULL);
+		
+		 gettimeofday(&t1, NULL);
+		 err = clEnqueueWriteBuffer(commands, centers_buf, CL_TRUE, 0, sizeof(float) * centers_length, centers, 0, NULL, NULL);
+		 gettimeofday(&t2, NULL);
+     timersub(&t1, &t2, &tr);
+     printf("Data transfer time: %.2f sec\n", fabs(tr.tv_sec+(double)tr.tv_usec/1000000.0));
 
 	   cl_event readevent;
-		 size_t global = 10;
+		 size_t global = 16 * 1024; //num_data * 1024;
+		 size_t local = 1024;
 
 		 fprintf(stderr, "iteration %d\n", iter);
 
-		 clock_t start = clock();
+		 gettimeofday(&t1, NULL);
 	   err = clEnqueueNDRangeKernel(commands, kernel, 1, NULL,
-  	 		(size_t *) &global, NULL, 0, NULL, &event);
+  	 		(size_t *) &global, (size_t *) &local, 0, NULL, &event);
 	   clWaitForEvents(1, &event);
-
-		 fprintf(stderr, "time: %lf\n", (double) ((clock() - start) / CLOCKS_PER_SEC));
-
+		 gettimeofday(&t2, NULL);
+		 timersub(&t1, &t2, &tr);
+     printf("Execute time: %.2f sec\n", fabs(tr.tv_sec+(double)tr.tv_usec/1000000.0));
+		 
    	 err = clEnqueueReadBuffer(commands, output_buf, CL_TRUE, 0, sizeof(int) * output_length, output, 0, NULL, &readevent);
    	 clWaitForEvents(1, &readevent);
 
@@ -308,7 +314,7 @@ int main(int argc, char *argv[]) {
 		 }
 		 fprintf(stderr, "\n");
 
-
+/*
 		 for (i = 0; i < num_centers; ++i) {
 			 fprintf(stderr, "Center %d: ", i);
 			 for (j = 0; j < 10; ++j) {
@@ -317,6 +323,7 @@ int main(int argc, char *argv[]) {
 			 }
 			 fprintf(stderr, "\n");
 		 }
+*/
 	}
  
 	fprintf(stderr, "all done\n");
@@ -329,11 +336,12 @@ int main(int argc, char *argv[]) {
 
 	for (iter = 0; iter < ITERATION; ++iter) {
 		fprintf(stderr, "iteration %d\n", iter);
+		gettimeofday(&t1, NULL);
 		for (i = 0; i < num_data; ++i) {
 			int closest_center = -1;
-			double closest_center_dis = 0;
+			float closest_center_dis = 0;
 			for (j = 0; j < num_centers; ++j) {
-				double dis = 0;
+				float dis = 0;
 
 				for (d = 0; d < dims; ++d) {
 	 				dis +=  (centers[j * dims + d] - data[i * dims + d]) * 
@@ -346,7 +354,9 @@ int main(int argc, char *argv[]) {
 			}
 			output[i] = closest_center;
 		}
-
+		gettimeofday(&t2, NULL);
+		timersub(&t1, &t2, &tr);
+		printf("Execute time: %.2f sec\n", fabs(tr.tv_sec+(double)tr.tv_usec/1000000.0));
 
 		for (i = 0; i < centers_length; ++i)
 		 centers[i] = 0;

@@ -20,7 +20,7 @@ public class DataTransmitter {
 	Socket acc_socket = null;
 
 	public DataTransmitter() {
-		init("10.0.0.6", 1027);
+		init("127.0.0.1", 1027);
 	}
 
 	public DataTransmitter(String hostname, int port) {

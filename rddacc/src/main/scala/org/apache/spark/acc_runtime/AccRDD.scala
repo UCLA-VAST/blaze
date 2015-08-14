@@ -15,7 +15,7 @@ import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 
 class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerator[T, U]) 
-  extends RDD[U](prev) {
+  extends RDD[U](prev) with Logging {
 
   def getPrevRDD() = prev
   def getRDD() = this
@@ -85,7 +85,10 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         for (i <- 0 until numBlock) {
           if (!revMsg.getData(i).getCached()) {
             requireData(0) = true
-            if (isCached == true) { // Send data from memory
+            if (isCached == true || !split.isInstanceOf[HadoopPartition]) { // Send data from memory
+              // Issue #26: This partition might be a CoalescedRDDPartition, 
+              // which has no file information so we have to load it in advance.
+
               val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
               val mappedFileInfo = Util.serializePartition(appId, inputAry, blockId(i))
               dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
@@ -139,12 +142,12 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         println("Preprocess time: " + elapseTime + " ns");
 
         if (requireData(0) == true) {
-          Util.logMsg(dataMsg)
+          logInfo(Util.logMsg(dataMsg))
           transmitter.send(dataMsg)
         }
 
         val finalRevMsg = transmitter.receive()
-        Util.logMsg(finalRevMsg)
+        logInfo(Util.logMsg(finalRevMsg))
 
         if (finalRevMsg.getType() == AccMessage.MsgType.ACCFINISH) {
           // set length
@@ -191,7 +194,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         case e: Throwable =>
           val sw = new StringWriter
           e.printStackTrace(new PrintWriter(sw))
-          Util.logInfo(this, "Fail to execute on accelerator: " + sw.toString)
+          logInfo("Fail to execute on accelerator: " + sw.toString)
           outputAry = computeOnJTP(split, context)
       }
 
@@ -223,7 +226,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
   }
 
   def computeOnJTP(split: Partition, context: TaskContext): Array[U] = {
-    Util.logInfo(this, "Compute partition " + split.index + " using CPU")
+    logInfo("Compute partition " + split.index + " using CPU")
     val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
     val dataLength = inputAry.length
     val outputAry = new Array[U](dataLength)

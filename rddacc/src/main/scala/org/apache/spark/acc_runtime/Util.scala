@@ -29,9 +29,12 @@ object Util {
   val RDD_BIT_START = 13
   val PARTITION_BIT_START = 1
   val BLOCK_BIT_START = 0
-
-  val logFile = new PrintWriter(new File("acc_runtime.log"))
-  println("Logging ACCRuntime at acc_runtime.log")
+/*
+  val fullHostName = InetAddress.getLocalHost.toString
+  val hostName = fullHostName.substring(0, fullHostName.indexOf("/"))
+  val logPath = "/cdsc_nfs/cdsc0/cody/" + hostName + "acc_runtime.log"
+  val logFile = new PrintWriter(new File(logPath))
+  println("Logging ACCRuntime at " + logPath)
 
   def logInfo[T: ClassTag](clazz: T, msg: String) = {
     val clazzName = clazz.getClass.getName.replace("org.apache.spark.acc_runtime.", "")
@@ -46,11 +49,11 @@ object Util {
   def closeLog() = {
     logFile.close
   }
-
-  def logMsg(msgBuilder: AccMessage.TaskMsg.Builder) = {
+*/
+  def logMsg(msgBuilder: AccMessage.TaskMsg.Builder): String = {
     val msg = msgBuilder.build()
-    val time = Calendar.getInstance.getTime
-    val logStr: Array[String] = Array("[INFO][" + time + "] Message: Type: ")
+//    val time = Calendar.getInstance.getTime
+    val logStr: Array[String] = Array("Message: Type: ")
     logStr(0) = logStr(0) + msg.getType() + ", Data: " + msg.getDataCount() + "\n"
 
     for (i <- 0 until msg.getDataCount()) {
@@ -65,12 +68,11 @@ object Util {
         logStr(0) = logStr(0) + "Path: " + msg.getData(i).getPath()
       logStr(0) = logStr(0) + "\n"
     }
-    logFile.write(logStr(0) + "\n")
+    logStr(0)
   }
 
-  def logMsg(msg: AccMessage.TaskMsg) = {
-    val time = Calendar.getInstance.getTime
-    val logStr: Array[String] = Array("[INFO][" + time + "] Message: Type: ")
+  def logMsg(msg: AccMessage.TaskMsg): String = {
+    val logStr: Array[String] = Array("Message: Type: ")
     logStr(0) = logStr(0) + msg.getType() + ", Data: " + msg.getDataCount() + "\n"
 
     for (i <- 0 until msg.getDataCount()) {
@@ -85,7 +87,7 @@ object Util {
         logStr(0) = logStr(0) + "Path: " + msg.getData(i).getPath()
       logStr(0) = logStr(0) + "\n"
     }
-    logFile.write(logStr(0) + "\n")
+    logStr(0)
   }
 
   def getIPByHostName(host: String): Option[String] = {
@@ -94,7 +96,6 @@ object Util {
       Some(inetAddr.getHostAddress)
     } catch {
       case e: UnknownHostException =>
-        logInfo(this, "Fail to resolve IP address of " + host + ": " + e.toString)
         None
     }
   }
@@ -196,7 +197,7 @@ object Util {
       raf = new RandomAccessFile(fileName, "rw")
     } catch {
       case e: IOException =>
-        logInfo(this, "Fail to create memory mapped file " + fileName + ": " + e.toString)
+        throw new IOException("Fail to create memory mapped file " + fileName + ": " + e.toString)
     }
     val fc: FileChannel = raf.getChannel()
     val buf: ByteBuffer = fc.map(MapMode.READ_WRITE, 0, bufferLength(0) * typeSize)
@@ -232,7 +233,7 @@ object Util {
       raf.close()
     } catch {
       case e: IOException =>
-        logInfo(this, "Fail to close memory mapped file " + fileName + ": " + e.toString)
+        throw new IOException("Fail to close memory mapped file " + fileName + ": " + e.toString)
     }
 
     (fileName, bufferLength(0))
@@ -278,7 +279,7 @@ object Util {
       raf = new RandomAccessFile(fileName, "r")
     } catch {
       case e: IOException =>
-        logInfo(this, "Fail to read memory mapped file " + fileName + ": " + e.toString)
+        throw new IOException("Fail to read memory mapped file " + fileName + ": " + e.toString)
     }
 
     val fc: FileChannel = raf.getChannel()
@@ -315,7 +316,7 @@ object Util {
       raf.close()
     } catch {
       case e: IOException =>
-        logInfo(this, "Fail to close memory mapped file " + fileName + ": " + e.toString)
+        throw new IOException("Fail to close memory mapped file " + fileName + ": " + e.toString)
     }
   }
 }
