@@ -83,7 +83,6 @@ object LogisticRegression {
       }
 
       for (k <- 1 to ITERATION) {
-        println("On iteration " + k)
         var start_time = System.nanoTime
         val b_w = acc.wrap(sc.broadcast(w))
         val gradient = dataPoints
@@ -101,7 +100,7 @@ object LogisticRegression {
             w(i * D + j) = w(i * D + j) - 0.13f * gradient(i * D + j) / pointNum;
         }
         var elapsed_time = System.nanoTime - start_time
-        System.out.println("Time: "+ elapsed_time/1e6 + "ms")
+        System.out.println("On iteration " + k + " Time: "+ elapsed_time/1e6 + "ms")
 
         // Verification 
         

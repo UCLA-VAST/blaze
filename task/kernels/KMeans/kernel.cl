@@ -18,7 +18,7 @@ void run(
 	__attribute__ ((xcl_pipeline_loop))
 	for (int j = 0; j < num_centers; ++j) {
 		__attribute__ ((xcl_pipeline_loop))
-		for (int d = 0; d < 784; ++d) { // FIXME
+		for (int d = 0; d < dims; ++d) {
 			l_centers[j * dims + d] = centers[j * dims + d];
 		}
 	}
@@ -28,20 +28,26 @@ void run(
 		int closest_center = -1;
 		float closest_center_dis = 0;
 
+/*
 		float l_data[784];
 
 		__attribute__ ((xcl_pipeline_loop))
-		for (int d = 0; d < 784; ++d)
+		for (int d = 0; d < dims; ++d)
 			l_data[d] = data[i * dims + d];
+*/
 
 		__attribute__ ((xcl_pipeline_loop))
 		for (int j = 0; j < num_centers; ++j) {
 			float dis = 0;
 
 			__attribute__ ((xcl_pipeline_loop))
-			for (int d = 0; d < 784; ++d) { // FIXME
+			for (int d = 0; d < dims; ++d) {
+				float dis_root = l_centers[j * dims + d] - data[i * dims + d];
+				dis +=  dis_root * dis_root;
+/*
 				dis += 	(l_centers[j * dims + d] - l_data[d]) * 
 								(l_centers[j * dims + d] - l_data[d]);
+*/
 			}
 			if (dis < closest_center_dis || closest_center == -1) {
 				closest_center = j;

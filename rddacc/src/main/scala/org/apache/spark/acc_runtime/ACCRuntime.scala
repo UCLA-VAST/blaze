@@ -15,14 +15,24 @@ import org.apache.spark.broadcast._
 class ACCRuntime(sc: SparkContext) extends Logging {
 
   // Note: Cannot guarantee it is unique
-  val appSignature: Int = Math.abs(("""\d+""".r findAllIn sc.applicationId).addString(new StringBuilder).toLong.toInt)
-  val WorkerList: Array[(String, Int)] = Array() //Array(("n4", 1027))
+  val appSignature: Int = Math
+    .abs(("""\d+""".r findAllIn sc.applicationId)
+    .addString(new StringBuilder).toLong.toInt)
+
   var BroadcastList: List[Broadcast_ACC[_]] = List()
 
   def stop() = {
     if (BroadcastList.length == 0)
       logInfo("No broadcast block to be released")
     else {
+      // FIXME: Currently we use the fixed port number (1027) for all managers
+      val WorkerList: Array[(String, Int)] = (sc.getExecutorStorageStatus)
+        .map(w => w.blockManagerId.host)
+        .distinct
+        .map(w => (w, 1027))
+
+      logInfo("Workers (" + WorkerList.length + "): " + WorkerList.map(w => w._1).mkString(", "))
+
       val msg = DataTransmitter.buildMessage(AccMessage.MsgType.ACCBROADCAST)
   
       for (e <- BroadcastList) {

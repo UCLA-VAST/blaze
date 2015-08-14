@@ -51,9 +51,9 @@ set_property -name host_cflags -value "-g -Wall -D FPGA_DEVICE"  -objects [curre
 # Host Source Files
 add_files "host.c"
 
-# Kernel Definition
-create_kernel run -type clc
-add_files -kernel [get_kernels run] "kernel.cl"
+# Kernel Definition (OpenCL: clc)
+create_kernel run -type c
+add_files -kernel [get_kernels run] "kernel.cpp"
 
 # Define Binary Containers
 create_opencl_binary kmeans
@@ -62,14 +62,14 @@ create_compute_unit -opencl_binary [get_opencl_binary kmeans] -kernel [get_kerne
 
 #compile_host
 # Compile the design for CPU based emulation
-#compile_emulation -flow cpu -opencl_binary [get_opencl_binary kmeans]
+compile_emulation -flow cpu -opencl_binary [get_opencl_binary kmeans]
 
 # Run the compiled application in CPU based emulation mode
-#run_emulation -flow cpu -args "kmeans.xclbin"
+run_emulation -flow cpu -args "kmeans.xclbin"
 
 # Compile the application to run on the accelerator card
-build_system
+#build_system
 
 # Package the application binaries
-package_system
+#package_system
 
