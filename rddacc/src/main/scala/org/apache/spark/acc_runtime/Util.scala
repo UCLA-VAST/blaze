@@ -7,8 +7,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.nio.channels.FileChannel.MapMode
-import java.io.OutputStream    
-import java.io.FileOutputStream
 import java.net.InetAddress
 import java.net.UnknownHostException
 
@@ -312,11 +310,14 @@ object Util {
     }
    
     try {
-      fc.close()
-      raf.close()
+      fc.close
+      raf.close
+
+      // Issue #22: Delete memory mapped file after used.
+      new File(fileName).delete
     } catch {
       case e: IOException =>
-        throw new IOException("Fail to close memory mapped file " + fileName + ": " + e.toString)
+        throw new IOException("Fail to close/delete memory mapped file " + fileName + ": " + e.toString)
     }
   }
 }

@@ -20,6 +20,7 @@
 #define ITERATION	1
 
 #ifdef acc
+#define HLS_KERNEL
 #include <CL/opencl.h>
 
 int
@@ -54,7 +55,7 @@ int main(int argc, char *argv[]) {
 
 	int dims = 784;
 	float *data;
-	int data_length = 60000 * 784;
+	int data_length = 12 * 784; //60000 * 784;
 	int num_data = data_length / dims;
 
 	float *centers;
@@ -279,14 +280,18 @@ int main(int argc, char *argv[]) {
      printf("Data transfer time: %.2f sec\n", fabs(tr.tv_sec+(double)tr.tv_usec/1000000.0));
 
 	   cl_event readevent;
-		 size_t global = 16 * 1024; //num_data * 1024;
+		 size_t global = num_data * 1024;
 		 size_t local = 1024;
 
 		 fprintf(stderr, "iteration %d\n", iter);
 
 		 gettimeofday(&t1, NULL);
+#ifdef HLS_KERNEL
+		 err = clEnqueueTask(commands, kernel, 0, NULL, NULL);
+#else
 	   err = clEnqueueNDRangeKernel(commands, kernel, 1, NULL,
-  	 		(size_t *) &global, (size_t *) &local, 0, NULL, &event);
+  	 		(size_t *) &global, NULL, 0, NULL, &event);
+#endif
 	   clWaitForEvents(1, &event);
 		 gettimeofday(&t2, NULL);
 		 timersub(&t1, &t2, &tr);
@@ -301,10 +306,12 @@ int main(int argc, char *argv[]) {
 		 int count[3] = {0};
 		 for (i = 0; i < output_length; ++i) {
 			 int c = output[i];
+			 fprintf(stderr, "%d ", c);
 		 	 count[c]++;
 		 	 for (j = 0; j < dims; ++j)
 				 centers[c * dims + j] += data[i * dims + j];
 		 }
+		 fprintf(stderr, "\n");
 		 for (i = 0; i < num_centers; ++i) {
 			 fprintf(stderr, "Center %d (%d) \t", i, count[i]);
 			 for (j = 0; j < dims; ++j) {
@@ -364,10 +371,12 @@ int main(int argc, char *argv[]) {
 		int count[3] = {0};
 		for (i = 0; i < output_length; ++i) {
 			int c = output[i];
+			fprintf(stderr, "%d ", c);
 		 	count[c]++;
 		 	for (j = 0; j < dims; ++j)
 				centers[c * dims + j] += data[i * dims + j];
 		}
+		fprintf(stderr, "\n");
 		for (i = 0; i < num_centers; ++i) {
 			fprintf(stderr, "Center %d (%d) \t", i, count[i]);
 			for (j = 0; j < dims; ++j) {
