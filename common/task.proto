@@ -1,6 +1,6 @@
-package acc_runtime;
+package blaze;
 
-option java_package = "org.apache.spark.acc_runtime";
+option java_package = "org.apache.spark.blaze";
 option java_outer_classname = "AccMessage";
 
 enum MsgType {

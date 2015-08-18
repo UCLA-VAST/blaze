@@ -1,4 +1,4 @@
-JAVA_OUT=../rddacc/src/main/java
+JAVA_OUT=../blaze/src/main/java
 CPP_OUT=../manager/src/proto
 
 all: task.proto acc_conf.proto
