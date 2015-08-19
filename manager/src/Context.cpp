@@ -5,7 +5,7 @@
                     std::string(__func__) +\
                     std::string("(): ")
 
-namespace acc_runtime {
+namespace blaze {
 
 Context::Context(
     ManagerConf *conf,
@@ -205,5 +205,5 @@ DataBlock_ptr Context::getShared(int64_t block_id)
   }
 }
 
-} // namespace acc_runtime
+} // namespace blaze
 

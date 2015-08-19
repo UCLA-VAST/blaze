@@ -18,7 +18,7 @@
 #include "TaskManager.h"
 #include "Logger.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 typedef boost::shared_ptr<TaskManager> TaskManager_ptr;
 const TaskManager_ptr NULL_TASK_MANAGER;

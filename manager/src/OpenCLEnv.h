@@ -11,7 +11,7 @@
 #include "proto/acc_conf.pb.h"
 #include "TaskEnv.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 class OpenCLBlock;
 

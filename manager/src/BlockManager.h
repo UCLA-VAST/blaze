@@ -22,7 +22,7 @@
  *   spark context/applications/tasks
  */
 
-namespace acc_runtime {
+namespace blaze {
 
 /**
  * BlockManager holds two spaces of memory

@@ -1,6 +1,6 @@
 #include "Block.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 #define LOG_HEADER  std::string("DataBlock::") + \
                     std::string(__func__) +\

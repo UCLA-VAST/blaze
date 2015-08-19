@@ -1,6 +1,6 @@
 #include "Task.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 #define LOG_HEADER  std::string("Task::") + \
                     std::string(__func__) +\
@@ -95,6 +95,12 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
 
         // read block from memory mapped file
         block->readFromMem(path);
+
+        // delete memory map file after read
+        boost::filesystem::wpath file(path);
+        if (boost::filesystem::exists(file)) {
+          boost::filesystem::remove(file);
+        }
       }
       else if (blockInfo.has_bval()) { // if this is a broadcast scalar
 
@@ -259,6 +265,12 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
         block->alloc(size);
 
         block->readFromMem(path);
+
+        // delete memory map file after read
+        boost::filesystem::wpath file(path);
+        if (boost::filesystem::exists(file)) {
+          boost::filesystem::remove(file);
+        }
       }
     }
   }

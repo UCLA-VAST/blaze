@@ -2,7 +2,7 @@
 
 #include "BlockManager.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 #define LOG_HEADER  std::string("BlockManager::") + \
                     std::string(__func__) +\

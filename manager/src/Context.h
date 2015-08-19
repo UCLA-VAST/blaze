@@ -18,7 +18,7 @@
 #include "Block.h"
 #include "OpenCLBlock.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 class Context {
 
