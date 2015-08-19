@@ -443,8 +443,10 @@ void Comm::listen() {
   ip::tcp::acceptor acceptor(ios, endpoint);
 
   logger->logInfo(LOG_HEADER + 
-      std::string("start listening for new connections"));
+      std::string("Listening for new connections at ")+
+      ip_address + std::string(":") + std::to_string((int64_t)srv_port));
 
+  // TODO: join all thread after termination
   while(1) {
 
     // create socket for connection

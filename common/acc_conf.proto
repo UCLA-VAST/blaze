@@ -26,8 +26,7 @@ message AccWorker {
 }
 
 message ManagerConf {
-  optional string ip_addr = 1 [default = "127.0.0.1"];
-  optional int32 port = 2 [default = 1027];
-  optional int32 verbose = 3 [default = 3];
-  repeated AccPlatform platform = 4;
+  optional int32 port = 1 [default = 1027];
+  optional int32 verbose = 2 [default = 3];
+  repeated AccPlatform platform = 3;
 }

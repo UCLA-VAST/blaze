@@ -58,21 +58,22 @@ public:
     queue_manager(_queue_manager),
     logger(_logger)
   { 
-    ;
+    // asynchronously start listening for new connections
+    boost::thread t(boost::bind(&Comm::listen, this));
   }
-
-  void recv(TaskMsg&, ip::tcp::iostream&);
-
-  void send(TaskMsg&, ip::tcp::iostream&);
-
-  void process(socket_ptr); // processing messages
-
-  void listen(); // always on kernel to wait for connection
 
   void addTask(std::string id);
   void removeTask(std::string id);
   
 private:
+  void recv(TaskMsg&, ip::tcp::iostream&);
+  void send(TaskMsg&, ip::tcp::iostream&);
+
+  // processing messages
+  void process(socket_ptr);
+
+  void listen();
+
   int srv_port;
   std::string ip_address;
 

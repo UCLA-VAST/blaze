@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <ifaddrs.h>
+#include <netinet/in.h> 
+#include <string.h> 
+#include <arpa/inet.h>
 #include <string>
 #include <fstream>
 
@@ -17,9 +22,6 @@ using namespace blaze;
 
 int main(int argc, char** argv) {
   
-  // TODO: load conf from proto
-  //int port = 1027;
-  //std::string ip_address = "127.0.0.1";
   std::string conf_path = "./conf.prototxt";
 
   if (argc < 2) {
@@ -43,9 +45,6 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  std::string ip_address = conf->ip_addr();
-  int port = conf->port();
-
   int verbose = 3;
   if (conf->has_verbose()) {
     verbose = conf->verbose();  
@@ -61,12 +60,52 @@ int main(int argc, char** argv) {
 
   queue_manager.startAll();
 
-  Comm comm(
-          &context, 
-          &queue_manager, 
-          &logger, ip_address, port);
+  // check all network interfaces on this computer, and 
+  // open a communicator on each interface using the same port
+  int port = conf->port();
 
-  comm.listen();
+  struct ifaddrs* ifAddrStruct = NULL;
+  getifaddrs(&ifAddrStruct);
+
+  // hold all pointers to the communicator
+  std::vector<boost::shared_ptr<Comm> > comm_pool;
+
+  for (struct ifaddrs* ifa = ifAddrStruct; 
+       ifa != NULL; 
+       ifa = ifa->ifa_next) 
+  {
+    if (!ifa->ifa_addr) {
+      continue;
+    }
+    // check if is a valid IP4 Address
+    if (ifa->ifa_addr->sa_family == AF_INET) {
+
+      // obtain the ip address as a string
+      void* tmpAddrPtr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+      char addressBuffer[INET_ADDRSTRLEN];
+
+      inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+
+      std::string ip_addr(addressBuffer);
+
+      // create communicator object
+      // it will start listening for new connections automatically
+      boost::shared_ptr<Comm> comm( new Comm(
+            &context, 
+            &queue_manager, 
+            &logger, ip_addr, port));
+
+      // push the communicator pointer to pool to avoid object
+      // being destroyed out of context
+      comm_pool.push_back(comm);
+    }
+  }
+
+  // if no endpoint in the config, skip this part
+  while (1) {
+    // potential place for cleaning stage
+    ;
+  }
 
   return 0;
 }
