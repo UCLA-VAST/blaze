@@ -9,10 +9,10 @@
 #include <sstream>
 #include <CL/opencl.h>
 
-#include "acc_runtime.h"
+#include "blaze.h"
 #include "../kernels/KMeans_GPU/kernel_gpu_cl.h"
 
-using namespace acc_runtime;
+using namespace blaze;
 
 class KMeans : public Task {
 public:

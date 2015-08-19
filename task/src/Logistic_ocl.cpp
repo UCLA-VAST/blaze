@@ -14,9 +14,9 @@
 #include <mkl.h>
 #endif
 
-#include "acc_runtime.h" 
+#include "blaze.h" 
 
-using namespace acc_runtime;
+using namespace blaze;
 
 #define LABEL_SIZE		10
 #define FEATURE_SIZE	784
