@@ -16,7 +16,7 @@
                     std::string(__func__) +\
                     std::string("(): ")
 
-namespace acc_runtime {
+namespace blaze {
 
 // receive one message, bytesize first
 void Comm::recv(
@@ -462,4 +462,4 @@ void Comm::listen() {
     }
   }
 }
-} // namespace acc_runtime
+} // namespace blaze

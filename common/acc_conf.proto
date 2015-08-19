@@ -1,4 +1,4 @@
-package acc_runtime;
+package blaze;
 
 enum AccType {
   CPU = 0;  

@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <sstream>
 
-#include "acc_runtime.h" 
+#include "blaze.h" 
 
-using namespace acc_runtime;
+using namespace blaze;
 
 class KMeans : public Task {
 public:

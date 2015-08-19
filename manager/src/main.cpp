@@ -13,7 +13,7 @@
 #include "BlockManager.h"
 #include "TaskManager.h"
 
-using namespace acc_runtime;
+using namespace blaze;
 
 int main(int argc, char** argv) {
   

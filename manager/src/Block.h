@@ -17,7 +17,7 @@
  *
  */
 
-namespace acc_runtime {
+namespace blaze {
 
 class DataBlock
 : public boost::basic_lockable_adapter<boost::mutex>

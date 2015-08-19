@@ -1,6 +1,6 @@
 #include "OpenCLBlock.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 #define LOG_HEADER  std::string("OpenCLBlock::") + \
                     std::string(__func__) +\

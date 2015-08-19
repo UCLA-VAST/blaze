@@ -10,7 +10,7 @@
 #include <stdexcept>
 #include <boost/lexical_cast.hpp>
 
-namespace acc_runtime {
+namespace blaze {
 class Logger {
 
 public:

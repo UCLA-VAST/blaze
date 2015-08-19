@@ -9,7 +9,7 @@
 #include "proto/acc_conf.pb.h"
 #include "Block.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 class TaskEnv 
   : public boost::basic_lockable_adapter<boost::mutex> 

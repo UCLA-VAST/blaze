@@ -24,7 +24,7 @@ using namespace boost::asio;
 
 typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 
-namespace acc_runtime {
+namespace blaze {
 
 class AccReject : public std::logic_error {
 public:

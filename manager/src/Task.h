@@ -12,6 +12,7 @@
 #endif
 
 #include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
 #include "proto/task.pb.h"
@@ -21,7 +22,7 @@
 #include "TaskEnv.h"
 #include "OpenCLEnv.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 // forward declaration of 
 class TaskManager;

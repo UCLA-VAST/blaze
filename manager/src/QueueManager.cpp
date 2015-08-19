@@ -4,7 +4,7 @@
 
 #include "QueueManager.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 #define LOG_HEADER  std::string("QueueManager::") + \
                     std::string(__func__) +\
@@ -95,5 +95,5 @@ void QueueManager::startAll() {
   }
 }
 
-} // namespace acc_runtime
+} // namespace blaze
 

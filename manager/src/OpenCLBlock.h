@@ -12,7 +12,7 @@
 #include "Block.h"
 #include "OpenCLEnv.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 class OpenCLBlock : public DataBlock 
 {

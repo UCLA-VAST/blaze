@@ -2,7 +2,7 @@
 
 #include "TaskManager.h"
 
-namespace acc_runtime {
+namespace blaze {
 #define LOG_HEADER  std::string("TaskManager::") + \
                     std::string(__func__) +\
                     std::string("(): ")
@@ -96,4 +96,4 @@ void TaskManager::commit() {
   }
 }
 
-} // namespace acc_runtime
+} // namespace blaze

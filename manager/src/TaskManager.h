@@ -16,7 +16,7 @@
 #include "Block.h"
 #include "Logger.h"
 
-namespace acc_runtime {
+namespace blaze {
 
 /**
  * Manages a task queue for one accelerator executor
