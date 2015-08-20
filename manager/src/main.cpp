@@ -62,11 +62,8 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  int verbose = 3;
-  if (conf->has_verbose()) {
-    verbose = conf->verbose();  
-  }
   // setup Logger
+  int verbose = conf->verbose();  
   Logger logger(verbose);
 
   // setup QueueManager

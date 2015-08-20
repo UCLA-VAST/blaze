@@ -30,7 +30,8 @@ namespace blaze {
 void QueueManager::add(
     std::string id, 
     std::string lib_path,
-    TaskEnv *env) {
+    TaskEnv *env) 
+{
 
   void* handle = dlopen(lib_path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
 
@@ -57,7 +58,7 @@ void QueueManager::add(
 
   // construct the corresponding task queue
   TaskManager_ptr taskManager(
-    new TaskManager(create_func, destroy_func, env, logger));
+      new TaskManager(create_func, destroy_func, env, logger));
 
   queue_table.insert(std::make_pair(id, taskManager));
 
@@ -98,8 +99,8 @@ void QueueManager::start(std::string id) {
 void QueueManager::startAll() {
   std::map<std::string, TaskManager_ptr>::iterator iter;
   for (iter = queue_table.begin();
-       iter != queue_table.end();
-       ++iter)
+      iter != queue_table.end();
+      ++iter)
   {
     TaskManager_ptr task_manager = iter->second;
 

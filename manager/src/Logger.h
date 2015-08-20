@@ -31,7 +31,7 @@ namespace blaze {
 class Logger {
 
 public:
-  Logger(int v=3): verbose(v) {
+  Logger(int v=2, int l=2): verbose(v), level(l) {
     // default output direct
     info_out = stdout;
     error_out = stderr;
@@ -94,33 +94,38 @@ public:
   }
 
   void logInfo(const std::string msg) {
-    log(info_out, msg);
+    if (verbose > 1) {
+      log(info_out, msg);
+    }
   }
 
   void logErr(const std::string msg) {
-    log(error_out, msg);
+    if (verbose > 0) {
+      log(error_out, msg);
+    }
   }
 
 private:
 
   void log(FILE* out, const std::string msg) {
-    if (verbose >= 3) {
+    if (level >= 2) {
       fprintf(out, "[%s:%s] %s\n", 
           this->getTS().c_str(), 
           this->getTid().c_str(), 
           msg.c_str());
     }
-    else if (verbose == 2) {
+    else if (level == 1) {
       fprintf(out, "[%s] %s\n", 
           this->getTS().c_str(), 
           msg.c_str());
     }
-    else if (verbose == 1) {
+    else {
       fprintf(out, "%s\n", msg.c_str());
     }   
     fflush(out);
   }
   int verbose;
+  int level;
   bool file_opened;
   FILE* info_out;
   FILE* error_out;

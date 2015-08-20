@@ -135,7 +135,7 @@ Context::Context(
         // create a corresponding task manager 
         queue_manager->add(acc.id(), acc.path(), task_env.get());
       } 
-      catch (std::runtime_error &e) {
+      catch (std::exception &e) {
         logger->logErr(
             LOG_HEADER +
             std::string("cannot create acc ")+
