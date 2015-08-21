@@ -28,7 +28,7 @@ Blaze is an accelerator-aware programming framework for warehouse-scale accelera
 
 ### Contacts
 For any question or discussion, please contact the authors:
-- Di Wu: allwu@cs.ucla.edu
-- Hao Yu: comaniac0422@gmail.com
+* Di Wu: allwu@cs.ucla.edu
+* Hao Yu: comaniac0422@gmail.com
 
   
