@@ -29,15 +29,6 @@ DEPS= Comm.o \
 			Task_msg.o \
 			Acc_conf.o \
 
-ifneq (,$(USE_OPENCL))
-PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
-CC=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/gcc
-
-LINK += -L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lxilinxopencl
-COMPILE += -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
-DEPS += OpenCLBlock.o 
-endif
-
 all: ../bin/acc_manager
 
 ../bin/acc_manager: $(DEPS) main.o

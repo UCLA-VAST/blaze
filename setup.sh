@@ -1,9 +1,2 @@
-JAVA_HOME=
-BOOST_DIR=
-PROTOBUF_DIR=
-HADOOP_DIR=
-
-export BLAZE_HOME=`pwd`/blaze
-export LD_LIBRARY_PATH=$HADOOP_DIR/lib/native:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$JAVA_HOME/jre/lib/amd64/server:$LD_LIBRARY_PATH
+export BLAZE_HOME=`pwd`/accrdd
 
