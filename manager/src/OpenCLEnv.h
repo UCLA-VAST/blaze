@@ -30,7 +30,7 @@
 
 namespace blaze {
 
-class OpenCLBlock;
+//class OpenCLBlock;
 
 class OpenCLEnv : public TaskEnv 
 {

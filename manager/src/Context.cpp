@@ -39,6 +39,7 @@ Context::Context(
 
     switch (type) {
       case AccType::CPU :
+      {
         try {
           TaskEnv_ptr env(new TaskEnv(AccType::CPU));
 
@@ -66,7 +67,10 @@ Context::Context(
               std::string("cannot create OpenCL env"));
         }
         break;
+      }
+#ifdef USE_OPENCL
       case AccType::OpenCL :
+      {
         try {
 
           // create task environment
@@ -112,6 +116,8 @@ Context::Context(
               std::string("cannot create OpenCL env"));
         }
         break;
+      }
+#endif // ifdef USE_OPENCL
       default :
         break;
     }  
@@ -161,6 +167,7 @@ void Context::addShared(
           iter->second->add(block_id, block);
           break;
         }
+#ifdef USE_OPENCL
         case AccType::OpenCL :
         {
           // copy the block to OpenCL env
@@ -172,6 +179,7 @@ void Context::addShared(
           iter->second->add(block_id, new_block);
           break;
         }
+#endif
         default: ;
       }
     }

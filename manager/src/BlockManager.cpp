@@ -35,6 +35,7 @@ DataBlock_ptr BlockManager::create() {
       block = bp;
       break;
     }
+#ifdef USE_OPENCL
     case AccType::OpenCL:
     {
       DataBlock_ptr bp(new OpenCLBlock(
@@ -42,6 +43,7 @@ DataBlock_ptr BlockManager::create() {
       block = bp;
       break;
     }
+#endif
     default:
     {
       throw std::runtime_error("Invalid platform");
@@ -62,23 +64,25 @@ bool BlockManager::create(
   if (!contains(tag)) {
     logger->logInfo(LOG_HEADER+
         "creating block for id="+
-        std::to_string(tag));
+        std::to_string((long long)tag));
 
     try {
       switch (env->getType()) {
         case AccType::CPU:
-          {
-            DataBlock_ptr bp(new DataBlock());
-            block = bp;
-            break;
-          }
+        {
+          DataBlock_ptr bp(new DataBlock());
+          block = bp;
+          break;
+        }
+#ifdef USE_OPENCL
         case AccType::OpenCL:
-          {
-            DataBlock_ptr bp(new OpenCLBlock(
-                  dynamic_cast<OpenCLEnv*>(env)));
-            block = bp;
-            break;
-          }
+        {
+          DataBlock_ptr bp(new OpenCLBlock(
+                dynamic_cast<OpenCLEnv*>(env)));
+          block = bp;
+          break;
+        }
+#endif
         default: ; // never end up here
       } 
       // add the block to manager

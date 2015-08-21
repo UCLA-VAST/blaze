@@ -225,7 +225,7 @@ void Comm::process(socket_ptr sock) {
 
             if (created) {
               logger->logInfo(LOG_HEADER+
-                  std::to_string(blockId)+
+                  std::to_string((long long)blockId)+
                   " not cached");
 
               block_info->set_cached(false); 
@@ -233,7 +233,7 @@ void Comm::process(socket_ptr sock) {
             }
             else {
               logger->logInfo(LOG_HEADER+
-                  std::to_string(blockId)+
+                  std::to_string((long long)blockId)+
                   " cached");
               block_info->set_cached(true); 
             }
@@ -276,7 +276,7 @@ void Comm::process(socket_ptr sock) {
 
             logger->logInfo(LOG_HEADER+
                 "start reading data for block "+
-                std::to_string(blockId));
+                std::to_string((long long)blockId));
 
             try {
               // get the updated block from task
@@ -285,7 +285,7 @@ void Comm::process(socket_ptr sock) {
 
               logger->logInfo(LOG_HEADER+
                   "finish reading data for block "+
-                  std::to_string(blockId));
+                  std::to_string((long long)blockId));
 
               if (blockId >= 0) {
                 // add the block to cache
@@ -461,7 +461,7 @@ void Comm::listen() {
 
   logger->logInfo(LOG_HEADER + 
       std::string("Listening for new connections at ")+
-      ip_address + std::string(":") + std::to_string((int64_t)srv_port));
+      ip_address + std::string(":") + std::to_string((long long)srv_port));
 
   // TODO: join all thread after termination
   while(1) {

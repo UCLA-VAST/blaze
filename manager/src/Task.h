@@ -35,9 +35,12 @@
 #include "proto/task.pb.h"
 
 #include "Block.h"
-#include "OpenCLBlock.h"
 #include "TaskEnv.h"
+
+#ifdef USE_OPENCL
+#include "OpenCLBlock.h"
 #include "OpenCLEnv.h"
+#endif
 
 namespace blaze {
 
@@ -116,6 +119,7 @@ protected:
           block = bp;
           break;
         }   
+#ifdef USE_OPENCL
         case AccType::OpenCL:
         {
           DataBlock_ptr bp(new OpenCLBlock(
@@ -124,6 +128,7 @@ protected:
           block = bp;
           break;
         }
+#endif
         default: {
           DataBlock_ptr bp(new DataBlock(length, length*data_width));
           block = bp;

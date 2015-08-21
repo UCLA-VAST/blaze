@@ -31,9 +31,12 @@
 #include "TaskManager.h"
 #include "Logger.h"
 #include "TaskEnv.h"
-#include "OpenCLEnv.h"
 #include "Block.h"
+
+#ifdef USE_OPENCL
+#include "OpenCLEnv.h"
 #include "OpenCLBlock.h"
+#endif
 
 namespace blaze {
 

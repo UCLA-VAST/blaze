@@ -28,11 +28,14 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
-#include "Block.h"
-#include "OpenCLBlock.h"
 #include "Logger.h"
+#include "Block.h"
 #include "TaskEnv.h"
+
+#ifdef USE_OPENCL
 #include "OpenCLEnv.h"
+#include "OpenCLBlock.h"
+#endif
 
 /* TODO list:
  * - guarantee an unique partition id shared by possibly multiple

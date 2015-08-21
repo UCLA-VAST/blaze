@@ -1,38 +1,42 @@
-PROTO_DIR=./proto
-BOOST_DIR=/curr/diwu/tools/boost_1_55_0/install
-PROTOBUF_DIR=/curr/diwu/tools/protobuf-2.5.0/build/install
-HADOOP_DIR=/curr/diwu/tools/hadoop/hadoop-2.5.2
-XILINX_OPENCL_DIR=/space/Xilinx/SDAccel/2015.1
+include ../../Makefile.config
 
-PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
-CC=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/gcc
+PROTO_DIR=./proto
+
+PP=g++
+CC=gcc
 
 CFLAGS= -c -fPIC -std=c++0x -g
 COMPILE= $(CFLAGS) \
 				 -I$(PROTO_DIR) \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
-				 -I$(HADOOP_DIR)/include \
-				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
+				 -I$(HADOOP_DIR)/include 
 
 LINK= -L$(BOOST_DIR)/lib \
 			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \
 			-L$(HADOOP_DIR)/lib/native -lhdfs \
 			-L$(JAVA_HOME)/jre/lib/amd64/server -ljvm \
-			-L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lxilinxopencl \
 			-lpthread -lm -ldl
 
 DEPS= Comm.o \
 			Context.o \
 			Block.o \
-			OpenCLBlock.o \
 			BlockManager.o \
 			QueueManager.o \
 			Task.o \
 			TaskManager.o \
 			Task_msg.o \
-			Acc_conf.o
+			Acc_conf.o \
+
+ifneq (,$(USE_OPENCL))
+PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
+CC=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/gcc
+
+LINK += -L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lxilinxopencl
+COMPILE += -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
+DEPS += OpenCLBlock.o 
+endif
 
 all: ../bin/acc_manager
 
@@ -50,4 +54,4 @@ Acc_conf.o: $(PROTO_DIR)/acc_conf.pb.cc
 
 clean:
 	rm -rf *.o
-	rm -rf acc_manager
+	rm -rf ../bin/acc_manager

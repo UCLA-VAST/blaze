@@ -40,6 +40,6 @@ NLB.o: NLB.cpp *.h Makefile
 	$(CXX) $(CPPFLAGS) -D__AAL_USER__=1 -c -o $@ NLB.cpp
 
 clean:
-	$(RM) libNLB.so *.o
+	$(RM) ../libNLB.so *.o
 
 .PHONY:all clean
