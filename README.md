@@ -26,9 +26,7 @@ In addition, each accelerator task is compiled with Blaze APIs. Some simple exam
     0. Intel AALSDK 4.1.7
     0. Intel AAL NLB example RTL
 0. **Compiling**
-    0. `cd examples/loopback`
-    0. To compile Spark program: `cd app; mvn package`
-    0. To compile ACCTask: `cd acc_task; make`
+    0. From root directory run `make examples`
 0. **Execution**
     0. Start NLB ASE
     0. On terminal 1 start Manager: `./manager/bin/acc_manager ./examples/loopback/acc_task/conf.prototxt`
