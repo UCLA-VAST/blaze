@@ -18,7 +18,7 @@ In addition, each accelerator task is compiled with Blaze APIs. Some simple exam
     0. Apache Hadoop (tested with 2.5.2)
 0. **Compiling**
     0. Edit Makefile.config
-    0. Edit setup.sh and then `source setup.sh`
+    0. `export BLAZE_HOME=$PWD/accrdd`
     0. run `make`
 
 ### Running Loopback example
