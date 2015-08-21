@@ -292,12 +292,6 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
     }
   }
 
-  //num_ready++;
-
-  //if (num_ready == num_input) {
-  //  status = READY;
-  //}
-
   return block;
 }
 

@@ -24,71 +24,70 @@ import org.apache.spark.rdd._
 import scala.math._
 import java.util._
 
-// comaniac: Import extended package
 import org.apache.spark.blaze._
 
 class LoopBack() 
-  extends Accelerator[Array[Float], Array[Float]] {
+  extends Accelerator[Array[Double], Array[Double]] {
 
-  val id: String = "LoopBack"
-
-  def getArg(idx: Int): Option[BlazeBroadcast[_]] = {
-    None
-  }
-
+  val id: String = "NLB"
+  def getArg(idx: Int): Option[BlazeBroadcast[_]] = None
   def getArgNum(): Int = 0
 
-  def call(data: Array[Float]): Array[Float] = {
-    val D = 768
-    val out = new Array[Float](D)
-    
-    for (i <- 0 until D) {
-      out(i) = data(i)
-    }
+  def call(data: Array[Double]): Array[Double] = {
+    val out = new Array[Double](data.size)
+    Array.copy(data, 0, out, 0, data.size)
     out
   }
 }
 
 object LoopBack {
-    val D = 768
 
-    def main(args : Array[String]) {
-      val sc = get_spark_context("LoopBack")
-      val acc = new BlazeRuntime(sc)
+  def genData(
+      sc: SparkContext,
+      n_elements: Int,
+      n_parts: Int): RDD[Array[Double]] = {
 
-      if (args.length < 1) {
-        System.err.println("Usage: LoopBack <file>")
-        System.exit(1)
-      }
-
-      val reps: Int = 8
-
-      val dataPoints = acc.wrap(sc.textFile(args(0)).map(line => {
-        val strArray = line.split(" ")
-        val points = new Array[Float](D)
-        for (i <- 0 until (D))
-          points(i) = strArray(i).toFloat
-        points
-      }).repartition(reps))
-      .cache()
-
-      val pointNum = dataPoints.count
-      println("Total " + pointNum + " data")
-
-      var start_time = System.nanoTime
-      val result = dataPoints.map_acc(new LoopBack).count
-        
-      var elapsed_time = System.nanoTime - start_time
-      System.out.println("Time: "+ elapsed_time/1e6 + "ms")
-
-      acc.stop()
+    val data = sc.parallelize(0 until n_elements, n_parts).map{ idx =>
+      val rand = new Random(42 + idx)
+      val x = Array.fill[Double](8) { rand.nextGaussian() }
+      x
     }
+    data
+  }
 
-    def get_spark_context(appName : String) : SparkContext = {
-        val conf = new SparkConf()
-        conf.setAppName(appName)
-        
-        return new SparkContext(conf)
+  def main(args : Array[String]) {
+
+    if (args.length != 2) {
+      System.err.println("Usage: LoopBack <#elements> <#parts>")
+      System.exit(1)
     }
+    val sc = get_spark_context("LoopBack")
+    val acc = new BlazeRuntime(sc)
+
+    val n_elements = args(0).toInt
+    val n_parts = args(1).toInt
+
+    val data = acc.wrap(genData(sc, n_elements, n_parts))
+
+    val src = data.collect
+    val dst = data.map_acc(new LoopBack).collect
+
+    if (src.deep == dst.deep) {
+      println("results correct") 
+    }
+    else {
+      println("results incorrect") 
+      println(src.deep.mkString("\n"))
+      println(dst.deep.mkString("\n"))
+    }
+    acc.stop()
+  }
+
+  def get_spark_context(appName : String) : SparkContext = {
+    val conf = new SparkConf()
+      conf.setAppName(appName)
+
+      return new SparkContext(conf)
+  }
 }
 

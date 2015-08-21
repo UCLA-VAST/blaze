@@ -1,11 +1,11 @@
 port : 1027
-verbose : 3
+verbose : 2
 platform : {
   type: CPU 
   cache_limit: 16384
   scratch_limit: 4096
 	acc : {
-		id : "LoopBack"
-		path : "../../../examples/loopback/acc_task/lib/LoopBack.so"
+		id : "NLB"
+		path : "../../../examples/loopback/acc_task/libNLB.so"
 	}
 }
