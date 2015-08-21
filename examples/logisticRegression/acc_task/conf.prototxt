@@ -6,18 +6,6 @@ platform : {
   scratch_limit: 4096
 	acc : {
 		id : "Logistic_cpu"
-		path : "../../../examples/logisticRegression/acc_task/lib/Logistic.so"
+		path : "examples/logisticRegression/acc_task/lib/Logistic.so"
 	}
-}
-platform : {
-  type: OpenCL
-  cache_loc: OpenCL 
-  cache_limit: 8192
-  scratch_limit: 2048
-  acc : {
-    id : "Logistic"
-    path : "../../../examples/logisticRegression/acc_task/lib/Logistic_ocl.so"
-    impl_path : "/curr/diwu/prog/acc_runtime/task/lib/logistic.xclbin"
-    kernel_name : "mmult"
-  }
 }
