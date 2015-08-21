@@ -211,7 +211,7 @@ object Util {
     * @param id The ID of the data block.
     * @return A pair of (file name, size)
     */
-  def serializePartition[T: ClassTag](prefix: Int, input: Array[T], id: Long): (String, Int) = {
+  def serializePartition[T: ClassTag](prefix: Int, input: Array[T], id: Long): (String, Int, Int) = {
     var fileName: String = System.getProperty("java.io.tmpdir") + "/" + prefix
     if (id < 0) // Broadcast data
       fileName = fileName + "_brdcst_" + (-id) + ".dat"
@@ -223,6 +223,7 @@ object Util {
     val typeSize: Int = getTypeSizeByName(dataType)
 
     val isArray: Boolean = typeName.contains("[")
+    val itemNum: Int = if (isArray) input.length else 1
 
     if ((typeName.split('[').length - 1) > 1)
       throw new RuntimeException("Unsupport multi-dimension arrays: " + typeName)
@@ -284,7 +285,7 @@ object Util {
         throw new IOException("Fail to close memory mapped file " + fileName + ": " + e.toString)
     }
 
-    (fileName, bufferLength(0))
+    (fileName, bufferLength(0), itemNum)
   }
 
   /**

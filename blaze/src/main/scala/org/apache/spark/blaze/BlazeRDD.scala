@@ -115,7 +115,7 @@ class BlazeRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelera
               val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
               val mappedFileInfo = Util.serializePartition(appId, inputAry, blockId(i))
               dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
-              DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo._2,
+              DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo._2, mappedFileInfo._3,
                   mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)
             }
             else { // The data hasn't been read by Spark, send HDFS file path directly (data length is unknown)
@@ -129,7 +129,7 @@ class BlazeRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelera
               val fileSize: Int = splitInfo.substring(
                   splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
            
-              DataTransmitter.addData(dataMsg, blockId(i), -1, 
+              DataTransmitter.addData(dataMsg, blockId(i), -1, 1,
                   fileSize, fileOffset, filePath)
             }
           }
@@ -147,7 +147,7 @@ class BlazeRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelera
               val typeSize = Util.getTypeSizeByName(typeName)
               assert(typeSize != 0, "Cannot find the size of type " + typeName)
 
-              DataTransmitter.addData(dataMsg, brdcstId(i), arrayData.length, 
+              DataTransmitter.addData(dataMsg, brdcstId(i), arrayData.length, 1,
                 arrayData.length * typeSize, 0, mappedFileInfo._1)
               acc.getArg(i).get.length = arrayData.length
               acc.getArg(i).get.size = arrayData.length * typeSize
@@ -187,6 +187,7 @@ class BlazeRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelera
             else {
               itemLength(i) = 1
             }
+//            println(blkLength(i) + ", " + finalRevMsg.getData(i).getNumItems())
             numItems(0) += blkLength(i) / itemLength(i)
           }
           if (numItems(0) == 0)

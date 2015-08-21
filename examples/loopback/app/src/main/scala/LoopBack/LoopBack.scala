@@ -76,7 +76,8 @@ object LoopBack {
       println("Total " + pointNum + " data")
 
       var start_time = System.nanoTime
-      val result = dataPoints.map_acc(new LoopBack).count
+      val result = dataPoints.map_acc(new LoopBack).collect.length
+      println("Result " + result + " data")
         
       var elapsed_time = System.nanoTime - start_time
       System.out.println("Time: "+ elapsed_time/1e6 + "ms")

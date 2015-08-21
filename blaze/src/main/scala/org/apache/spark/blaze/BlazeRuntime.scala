@@ -66,6 +66,7 @@ class BlazeRuntime(sc: SparkContext) extends Logging {
   
       for (e <- BroadcastList) {
         DataTransmitter.addBroadcastData(msg, e.brdcst_id)
+        logInfo("Broadcast block to be released: " + e.brdcst_id)
       }
 
       for (worker <- WorkerList) {

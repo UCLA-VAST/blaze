@@ -182,17 +182,29 @@ public class DataTransmitter {
 	*	@param msg The message that wanted to be added.
 	* @param id The unique ID of the data block.
 	* @param length The number of element of the data.
+	* @param item The number of item per element. 
 	* @param size The file size of either memory mapped file or HDFS file.
 	* @param offset The start position of this block in the file.
 	* @param path The file path.
 	**/
-	public static void addData(AccMessage.TaskMsg.Builder msg, long id, int length, int size, int offset, String path) {
+	public static void addData(
+		AccMessage.TaskMsg.Builder msg, 
+		long id, 
+		int length, 
+		int item, 
+		int size, 
+		int offset, 
+		String path
+	) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id)
 			.setLength(length)
 			.setSize(size)
 			.setOffset(offset)
 			.setPath(path);
+
+		if (item != 1)
+			data.setNumItems(item);
 
 		msg.addData(data);
 		return ;
