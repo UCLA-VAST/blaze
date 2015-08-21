@@ -2,6 +2,14 @@
 ### Description
 Blaze is an accelerator-aware programming framework for warehouse-scale accelerator deployment. Blaze provides a programming interface that is compatible to Spark, an in-memory compute engine for large-scale data processing, and a runtime system that provides transparent accelerator management. With Blaze, the deployment effort of accelerator task is reduced by more than 10x compared to traditional frameworks such as OpenCL. Blaze is designed to efficiently manage accelerator platforms with intelligent data caching and task pipelining schemes to minimize the communication and data movement overheads.
 
+### License
+The Blaze runtime system is released under Apache 2.0 license. The Blaze runtime system includes the following components:
+
+* AccRDD: A Spark extension including interface between Spark program and accelerators
+* manager: A accelerator manager that controls all local accelerators including context setup, data transfer and task execution
+
+In addition, each accelerator task is compiled with Blaze APIs. Some simple examples are provided in the `./examples` folder. Those examples are not under license control of this project.
+
 ### Installing Blaze
 0. **Prerequisites**
     0. Boost (tested with 1.55.0)

@@ -27,7 +27,7 @@ import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 
 /**
-  * ShellRDD is only used for wrapping a Spark RDD. It returns a BlazeRDD
+  * ShellRDD is only used for wrapping a Spark RDD. It returns a AccRDD
   * if the developer decides to execute the computation on the accelerator 
   * by calling `map_acc` method.
   *
@@ -55,8 +55,8 @@ class ShellRDD[T: ClassTag](appId: Int, prev: RDD[T])
     iter
   }
 
-  def map_acc[U: ClassTag](clazz: Accelerator[T, U]): BlazeRDD[U, T] = {
-    new BlazeRDD(appId, this, clazz)
+  def map_acc[U: ClassTag](clazz: Accelerator[T, U]): AccRDD[U, T] = {
+    new AccRDD(appId, this, clazz)
   }
 }
 
