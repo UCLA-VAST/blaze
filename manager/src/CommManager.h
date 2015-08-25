@@ -40,11 +40,11 @@ public:
 /*
  * Communicator design for Acc_Manager
  */
-class Comm 
+class CommManager
 : public boost::basic_lockable_adapter<boost::mutex>
 {
 public:
-  Comm(
+  CommManager(
       PlatformManager* _platform,
       Logger* _logger,
       std::string address = "127.0.0.1",
@@ -56,7 +56,7 @@ public:
     logger(_logger)
   { 
     // asynchronously start listening for new connections
-    boost::thread t(boost::bind(&Comm::listen, this));
+    boost::thread t(boost::bind(&CommManager::listen, this));
   }
 
   void addTask(std::string id);

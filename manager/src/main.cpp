@@ -12,7 +12,7 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
-#include "Comm.h"
+#include "CommManager.h"
 #include "PlatformManager.h"
 #include "QueueManager.h"
 #include "BlockManager.h"
@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
   getifaddrs(&ifAddrStruct);
 
   // hold all pointers to the communicator
-  std::vector<boost::shared_ptr<Comm> > comm_pool;
+  std::vector<boost::shared_ptr<CommManager> > comm_pool;
 
   for (struct ifaddrs* ifa = ifAddrStruct; 
        ifa != NULL; 
@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
 
       // create communicator object
       // it will start listening for new connections automatically
-      boost::shared_ptr<Comm> comm( new Comm(
+      boost::shared_ptr<CommManager> comm( new CommManager(
             &platform_manager, 
             &logger, ip_addr, port));
 

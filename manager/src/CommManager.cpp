@@ -9,17 +9,17 @@
 #include <stdexcept>
 #include <cstdint>
 
-#include "Comm.h"
+#include "CommManager.h"
 
 #define MAX_MSGSIZE 4096
-#define LOG_HEADER  std::string("Comm::") + \
+#define LOG_HEADER  std::string("CommManager::") + \
                     std::string(__func__) +\
                     std::string("(): ")
 
 namespace blaze {
 
 // receive one message, bytesize first
-void Comm::recv(
+void CommManager::recv(
     TaskMsg &task_msg, 
     ip::tcp::iostream &socket_stream) 
 {
@@ -45,7 +45,7 @@ void Comm::recv(
 }
 
 // send one message, bytesize first
-void Comm::send(
+void CommManager::send(
     TaskMsg &task_msg, 
     ip::tcp::iostream &socket_stream) 
 {
@@ -57,9 +57,9 @@ void Comm::send(
   task_msg.SerializeToOstream(&socket_stream);
 }
 
-void Comm::addTask(std::string id) {
+void CommManager::addTask(std::string id) {
   // guarantee exclusive access
-  boost::lock_guard<Comm> guard(*this);
+  boost::lock_guard<CommManager> guard(*this);
   if (num_tasks.find(id) == num_tasks.end()) {
     num_tasks.insert(std::make_pair(id, 0));
   }
@@ -68,15 +68,15 @@ void Comm::addTask(std::string id) {
   }
 }
 
-void Comm::removeTask(std::string id) {
+void CommManager::removeTask(std::string id) {
   // guarantee exclusive access
-  boost::lock_guard<Comm> guard(*this);
+  boost::lock_guard<CommManager> guard(*this);
   if (num_tasks.find(id) != num_tasks.end()) {
     num_tasks[id] -= 1;
   }
 }
 
-void Comm::process(socket_ptr sock) {
+void CommManager::process(socket_ptr sock) {
 
   // This may not be the best available method
   boost::system::error_code err;
@@ -412,7 +412,7 @@ void Comm::process(socket_ptr sock) {
       "thread exiting.");
 }
 
-void Comm::listen() {
+void CommManager::listen() {
 
   io_service ios;
 
@@ -437,7 +437,7 @@ void Comm::listen() {
       acceptor.accept(*sock);
 
       //acceptor.accept(*socket_stream.rdbuf());
-      boost::thread t(boost::bind(&Comm::process, this, sock));
+      boost::thread t(boost::bind(&CommManager::process, this, sock));
     }
     catch (boost::system::system_error const &e) {
       logger->logErr(LOG_HEADER+e.what());

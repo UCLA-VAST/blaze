@@ -24,7 +24,7 @@ namespace blaze {
 
 // forward declaration of 
 class TaskManager;
-class Comm;
+class CommManager;
 
 /**
  * Task is the base clase of an accelerator task
@@ -33,7 +33,7 @@ class Comm;
 class Task {
 
 friend class TaskManager;
-friend class Comm;
+friend class CommManager;
 
 public:
   Task(int _num_input): 
