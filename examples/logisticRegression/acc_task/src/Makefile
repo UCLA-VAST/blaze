@@ -1,6 +1,6 @@
-MANAGER_DIR=$(BLAZE_HOME)/../manager
-BOOST_DIR=/curr/diwu/tools/boost_1_55_0/install
-PROTOBUF_DIR=/curr/diwu/tools/protobuf-2.5.0/build/install
+MANAGER_DIR=../../../../manager
+PLATFORM_DIR=../../../../platforms
+include ../../../../Makefile.config
 MKL_DIR=/curr/diwu/intel_mkl
 HADOOP_DIR=/curr/diwu/tools/hadoop/hadoop-2.5.2
 XILINX_OPENCL_DIR=/space/Xilinx/SDAccel/2015.1
@@ -8,9 +8,11 @@ XILINX_OPENCL_DIR=/space/Xilinx/SDAccel/2015.1
 PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
 CC=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/gcc
 
-CFLAGS= -shared -fPIC -std=c++0x -m64 -g
+CFLAGS= -shared -fPIC -std=c++0x -m64 -g 
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/include \
+				 -I$(MANAGER_DIR)/src \
+				 -I$(PLATFORM_DIR)/include \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
 				 -I$(HADOOP_DIR)/include \
@@ -22,14 +24,14 @@ LINK= -L${MKL_DIR}/lib/intel64 \
 			-lmkl_intel_lp64 -lmkl_core -lmkl_sequential \
 			-lpthread -lm
 
-ACC = Logistic 
-#			Logistic_ocl
+ACC = Logistic \
+			Logistic_ocl
 
-OBJS= $(addsuffix .so, $(addprefix ../lib/, $(ACC)))
+OBJS= $(addsuffix .so, $(addprefix ../, $(ACC)))
 
 all: $(OBJS)
 
-../lib/%.so: %.cpp
+../%.so: %.cpp Makefile
 	$(PP) $(COMPILE) $(LINK) $< -o $@
 
 clean:

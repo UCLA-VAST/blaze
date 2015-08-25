@@ -26,7 +26,7 @@ public:
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  Logistic(TaskEnv* env): Task(env, 2) {;}
+  Logistic(): Task(2) {;}
 
   // overwrites the readLine runction
   virtual char* readLine(
@@ -139,8 +139,8 @@ public:
   }
 };
 
-extern "C" Task* create(TaskEnv* env) {
-  return new Logistic(env);
+extern "C" Task* create() {
+  return new Logistic();
 }
 
 extern "C" void destroy(Task* p) {

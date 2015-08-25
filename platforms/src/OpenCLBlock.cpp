@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include "OpenCLBlock.h"
 
 namespace blaze {
@@ -25,9 +8,10 @@ namespace blaze {
 
 void OpenCLBlock::alloc(int64_t _size) {
 
-  //boost::lock_guard<OpenCLBlock> guard(*this);
 
   if (!allocated) {
+    //NOTE: assuming buffer allocation is thread-safe
+    //boost::lock_guard<OpenCLBlock> guard(*env);
     cl_context context = env->getContext();
     cl_int err = 0;
 
@@ -36,9 +20,8 @@ void OpenCLBlock::alloc(int64_t _size) {
         _size, NULL, &err);
 
     if (err != CL_SUCCESS) {
-      throw std::runtime_error("Failed to create OpenCL block");
+      throw std::runtime_error("Failed to allocate OpenCL block");
     }
-
     size = _size;
 
     allocated = true;
@@ -46,10 +29,6 @@ void OpenCLBlock::alloc(int64_t _size) {
 }
 
 void OpenCLBlock::writeData(void* src, size_t _size) {
-
-  // NOTE: two locks in the same function, is it possible
-  // for deadlocks?
-  //boost::lock_guard<OpenCLBlock> guard(*this);
 
   if (allocated) {
 
@@ -79,10 +58,6 @@ void OpenCLBlock::writeData(void* src, size_t _size) {
 }
 
 void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
-
-  // NOTE: two locks in the same function, is it possible
-  // for deadlocks?
-  //boost::lock_guard<OpenCLBlock> guard(*this);
 
   if (allocated) {
     if (offset+_size > size) {

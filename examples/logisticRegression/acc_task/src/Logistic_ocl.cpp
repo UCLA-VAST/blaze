@@ -15,6 +15,7 @@
 #endif
 
 #include "blaze.h" 
+#include "blaze_ocl.h" 
 
 using namespace blaze;
 
@@ -27,7 +28,7 @@ public:
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  Logistic(TaskEnv* env): Task(env, 2) {;}
+  Logistic(): Task(2) {;}
 
   // overwrites the readLine runction
   virtual char* readLine(
@@ -61,7 +62,7 @@ public:
 
     try {
       // dynamically cast the TaskEnv to OpenCLTen
-      OpenCLEnv* ocl_env = dynamic_cast<OpenCLEnv*>(env);
+      OpenCLEnv* ocl_env = dynamic_cast<OpenCLEnv*>(getEnv());
 
       // get input data length
       //int nsample = getInputNumItems(0);
@@ -86,8 +87,6 @@ public:
       int nsample = data_length / 
         (LABEL_SIZE+FEATURE_SIZE);
 
-      //printf("processing %d data points\n", nsample);
-
       int L = LABEL_SIZE;
       int D = FEATURE_SIZE;
 
@@ -98,7 +97,8 @@ public:
       float beta = .0f;
 
       cl_context       context = ocl_env->getContext();
-      cl_kernel        kernel  = ocl_env->getKernel("Logistic");
+      cl_kernel        kernel  = ocl_env->getKernel();
+      cl_command_queue command = ocl_env->getCmdQueue();
 
       int err;
       cl_event event;
@@ -110,7 +110,9 @@ public:
             0, weight_length, 1,
             sizeof(float)));
 
-      gettimeofday(&t1, NULL);
+      if (!data || !weights || !gradients) {
+        throw std::runtime_error("Buffer are not allocated");
+      }
 
       // Set the arguments to our compute kernel
       err  = clSetKernelArg(kernel, 0, sizeof(int), &nsample);
@@ -121,7 +123,6 @@ public:
         throw std::runtime_error("Failed to set gradients!");
       }
 
-      cl_command_queue command = ocl_env->getCmdQueue();
       gettimeofday(&t1, NULL);
 
       // Execute the kernel over the entire range of our 1d input data set
@@ -144,8 +145,8 @@ public:
   }
 };
 
-extern "C" Task* create(TaskEnv* env) {
-  return new Logistic(env);
+extern "C" Task* create() {
+  return new Logistic();
 }
 
 extern "C" void destroy(Task* p) {

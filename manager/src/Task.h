@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #ifndef TASK_H
 #define TASK_H
 
@@ -35,12 +18,7 @@
 #include "proto/task.pb.h"
 
 #include "Block.h"
-#include "TaskEnv.h"
-
-#ifdef USE_OPENCL
-#include "OpenCLBlock.h"
-#include "OpenCLEnv.h"
-#endif
+#include "Platform.h"
 
 namespace blaze {
 
@@ -58,12 +36,15 @@ friend class TaskManager;
 friend class Comm;
 
 public:
-  Task(TaskEnv *_env, int _num_input): 
-    env(_env),
+  Task(int _num_input): 
     status(NOTREADY), 
     num_input(_num_input),
     num_ready(0)
   {;}
+
+  void setPlatform(Platform *_platform) {
+    platform = _platform;  
+  }
 
   // main function to be overwritten by accelerator implementations
   virtual void compute() {;}
@@ -93,6 +74,10 @@ protected:
     return NULL;
   }
 
+  TaskEnv* getEnv() {
+    return platform->getEnv();  
+  }
+
   char* getOutput(
       int idx, 
       int item_length, 
@@ -106,34 +91,13 @@ protected:
       return output_blocks[idx]->getData();
     }
     else {
+      // if output does not exist, create one
+      
       int length = num_items*item_length;
 
-      // if output does not exist, create one
-
-      DataBlock_ptr block;
-      
-      switch (env->getType()) {
-        case AccType::CPU: 
-        {
-          DataBlock_ptr bp(new DataBlock(length, length*data_width));
-          block = bp;
-          break;
-        }   
-#ifdef USE_OPENCL
-        case AccType::OpenCL:
-        {
-          DataBlock_ptr bp(new OpenCLBlock(
-              reinterpret_cast<OpenCLEnv*>(env), 
-              length, length*data_width));
-          block = bp;
-          break;
-        }
-#endif
-        default: {
-          DataBlock_ptr bp(new DataBlock(length, length*data_width));
-          block = bp;
-        }
-      }
+      // create platform-specific block object
+      DataBlock_ptr block = platform->createBlock(length, length*data_width);
+     
       block->setNumItems(num_items);
 
       output_blocks.push_back(block);
@@ -169,10 +133,6 @@ protected:
     }
   }
 
-  // pointer to task environment
-  // accessable by the extended tasks
-  TaskEnv *env;
-
 private:
 
   void addInputBlock(int64_t partition_id, DataBlock_ptr block);
@@ -194,6 +154,9 @@ private:
     FAILED,
     COMMITTED
   } status;
+
+  // pointer to the platform
+  Platform *platform;
 
   // number of total input blocks
   int num_input;

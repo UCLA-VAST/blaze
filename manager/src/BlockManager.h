@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #ifndef BLOCK_MANAGER_H
 #define BLOCK_MANAGER_H
 
@@ -30,16 +13,13 @@
 
 #include "Logger.h"
 #include "Block.h"
-#include "TaskEnv.h"
-
-#ifdef USE_OPENCL
-#include "OpenCLEnv.h"
-#include "OpenCLBlock.h"
-#endif
+#include "Platform.h"
 
 /* TODO list:
  * - guarantee an unique partition id shared by possibly multiple
  *   spark context/applications/tasks
+ * - allow update the scratch size after add an empty block, if the space is run out
+ *   throw an exception and let the Comm to send ACCFailure
  */
 
 namespace blaze {
@@ -58,7 +38,7 @@ class BlockManager
 public:
 
   BlockManager(
-      TaskEnv* _env,
+      Platform* _platform,
       Logger* _logger,
       size_t _maxCacheSize = (1L<<30), 
       size_t _maxScratchSize = (1L<<28)
@@ -66,7 +46,7 @@ public:
     cacheSize(0), scratchSize(0),
     maxCacheSize(_maxCacheSize), 
     maxScratchSize(_maxScratchSize),
-    env(_env),
+    platform(_platform),
     logger(_logger)
   {
     //cacheTable    = new std::map<int, int>;
@@ -143,7 +123,7 @@ private:
   size_t cacheSize;
   size_t scratchSize;
 
-  TaskEnv* env;
+  Platform* platform;
   Logger* logger;
 };
 

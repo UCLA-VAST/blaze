@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include <fstream>
 #include <stdexcept>
 #include <dlfcn.h>
@@ -29,10 +12,8 @@ namespace blaze {
 
 void QueueManager::add(
     std::string id, 
-    std::string lib_path,
-    TaskEnv *env) 
+    std::string lib_path)
 {
-
   void* handle = dlopen(lib_path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
 
   if (handle == NULL) {
@@ -43,11 +24,11 @@ void QueueManager::add(
   dlerror();
 
   // load the symbols
-  Task* (*create_func)(TaskEnv*);
+  Task* (*create_func)();
   void (*destroy_func)(Task*);
 
   // read the custom constructor and destructor  
-  create_func = (Task* (*)(TaskEnv*))dlsym(handle, "create");
+  create_func = (Task* (*)())dlsym(handle, "create");
   destroy_func = (void (*)(Task*))dlsym(handle, "destroy");
 
   const char* error = dlerror();
@@ -58,7 +39,7 @@ void QueueManager::add(
 
   // construct the corresponding task queue
   TaskManager_ptr taskManager(
-      new TaskManager(create_func, destroy_func, env, logger));
+      new TaskManager(create_func, destroy_func, platform, logger));
 
   queue_table.insert(std::make_pair(id, taskManager));
 

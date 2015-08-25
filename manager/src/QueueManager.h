@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #ifndef QUEUE_MANAGER_H
 #define QUEUE_MANAGER_H
 
@@ -30,7 +13,7 @@
 
 #include "acc_conf.pb.h"
 
-#include "TaskEnv.h"
+#include "Platform.h"
 #include "Task.h"
 #include "TaskManager.h"
 #include "Logger.h"
@@ -43,19 +26,15 @@ const TaskManager_ptr NULL_TASK_MANAGER;
 class QueueManager {
 
 public:
-  QueueManager(Logger *_logger): logger(_logger) {;}
-
-  // build task queues for all libraries in a path
-  //void buildFromPath(std::string lib_dir);
-
-  // build task queues from a configuration file
-  //void buildFromConf(ManagerConf *conf);
+  QueueManager(Platform *_platform, Logger *_logger): 
+    platform(_platform),
+    logger(_logger) 
+  {;}
 
   // add a new queue regarding an existing accelerator
   void add(
     std::string id, 
-    std::string lib_path, 
-    TaskEnv *env);
+    std::string lib_path);
 
   // request the task manager by acc id
   TaskManager_ptr get(std::string id);
@@ -68,8 +47,11 @@ public:
 
 private:
   std::map<std::string, TaskManager_ptr> queue_table;
+  Platform *platform;
   Logger *logger;
 };
+
+typedef boost::shared_ptr<QueueManager> QueueManager_ptr;
 }
 
 #endif

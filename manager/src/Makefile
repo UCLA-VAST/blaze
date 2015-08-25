@@ -20,14 +20,14 @@ LINK= -L$(BOOST_DIR)/lib \
 			-lpthread -lm -ldl
 
 DEPS= Comm.o \
-			Context.o \
+			PlatformManager.o \
 			Block.o \
 			BlockManager.o \
 			QueueManager.o \
 			Task.o \
 			TaskManager.o \
 			Task_msg.o \
-			Acc_conf.o \
+			Acc_conf.o 
 
 ifneq (,$(USE_OPENCL))
 PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
@@ -38,7 +38,10 @@ COMPILE += -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
 DEPS += OpenCLBlock.o 
 endif
 
-all: ../bin/acc_manager
+all: ../bin/acc_manager ../lib/libblaze.a
+
+../lib/libblaze.a: Block.o Task.o
+	ar rvs $@ Block.o Task.o
 
 ../bin/acc_manager: $(DEPS) main.o
 	$(PP) -o $@ $(DEPS) main.o $(LINK) 

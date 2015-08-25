@@ -18,7 +18,7 @@ public:
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  NLB(TaskEnv* env): Task(env, 1) {;}
+  NLB(): Task(1) {;}
 
   // overwrites the compute function
   virtual void compute() {
@@ -59,8 +59,8 @@ public:
   }
 };
 
-extern "C" Task* create(TaskEnv* env) {
-  return new NLB(env);
+extern "C" Task* create() {
+  return new NLB();
 }
 
 extern "C" void destroy(Task* p) {

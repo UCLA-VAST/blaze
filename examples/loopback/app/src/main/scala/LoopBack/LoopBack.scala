@@ -72,6 +72,7 @@ object LoopBack {
     val src = data.collect
     val dst = data.map_acc(new LoopBack).collect
 
+
     if (src.deep == dst.deep) {
       println("results correct") 
     }

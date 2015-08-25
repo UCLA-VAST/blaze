@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include <climits>
 
 #include "BlockManager.h"
@@ -27,28 +10,7 @@ namespace blaze {
 
 DataBlock_ptr BlockManager::create() {
 
-  DataBlock_ptr block;
-  switch (env->getType()) {
-    case AccType::CPU: 
-    {
-      DataBlock_ptr bp(new DataBlock());
-      block = bp;
-      break;
-    }
-#ifdef USE_OPENCL
-    case AccType::OpenCL:
-    {
-      DataBlock_ptr bp(new OpenCLBlock(
-          dynamic_cast<OpenCLEnv*>(env)));
-      block = bp;
-      break;
-    }
-#endif
-    default:
-    {
-      throw std::runtime_error("Invalid platform");
-    }
-  }
+  DataBlock_ptr block = platform->createBlock();
   return block;
 }
 
@@ -67,26 +29,9 @@ bool BlockManager::create(
         std::to_string((long long)tag));
 
     try {
-      switch (env->getType()) {
-        case AccType::CPU:
-        {
-          DataBlock_ptr bp(new DataBlock());
-          block = bp;
-          break;
-        }
-#ifdef USE_OPENCL
-        case AccType::OpenCL:
-        {
-          DataBlock_ptr bp(new OpenCLBlock(
-                dynamic_cast<OpenCLEnv*>(env)));
-          block = bp;
-          break;
-        }
-#endif
-        default: ; // never end up here
-      } 
-      // add the block to manager
-      // TODO: do not control scratch size in the experiments
+
+      block = platform->createBlock();
+      // TODO: need to add block size when received the data
       //if (scratchSize + block->getSize() >= maxScratchSize) {
 
       //  // cannot add because running out of space
@@ -97,7 +42,7 @@ bool BlockManager::create(
       //      std::to_string((long long)scratchSize));
       //}
 
-      // add the index to cacheTable
+      // add the index to scratchTable
       scratchTable.insert(std::make_pair(tag, block));
 
       // increase the current scratchSize
