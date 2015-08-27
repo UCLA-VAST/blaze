@@ -17,5 +17,13 @@ platform : {
 	acc : {
 		id : "Logistic"
 		path : "examples/logisticRegression/acc_task/lib/Logistic_ocl.so"
+    param : {
+      key : "ocl_program_path"
+      value : "/curr/diwu/prog/logistic/sdaccel/cpu_emu.xclbin"
+    }
+    param : {
+      key : "ocl_kernel_name"
+      value : "mmult"
+    }
 	}
 }

@@ -7,6 +7,11 @@ enum AccType {
   ZYNQ = 3;
 }
 
+message KeyValue {
+  required string key = 1; 
+  required string value = 2;
+}
+
 message AccPlatform {
   optional string id = 1 [default = "cpu"]; 
   optional string path = 2 [default = ""];
@@ -19,10 +24,7 @@ message AccPlatform {
 message AccWorker {
   required string id = 1;  
   required string path = 2;
-  optional int32  speedup = 3;
-  optional string impl_name = 4;
-  optional string impl_path = 5;
-  optional string kernel_name = 6;
+  repeated KeyValue param = 3;
 }
 
 message ManagerConf {

@@ -114,6 +114,22 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
 
     int err;
 
+    // get specific ACC Conf from key-value pair
+    std::string program_path;
+    std::string kernel_name;
+    for (int i=0; i<conf.param_size(); i++) {
+      if (conf.param(i).key().compare("ocl_program_path")==0) {
+        program_path = conf.param(i).value();
+      }
+      else if (conf.param(i).key().compare("ocl_kernel_name")==0) {
+        kernel_name = conf.param(i).value();
+      }
+    }
+
+    if (program_path.empty() || kernel_name.empty()) {
+      throw std::runtime_error("Invalid configuration");
+    }
+
     OpenCLEnv* ocl_env = dynamic_cast<OpenCLEnv*>(env);
 
     // lock OpenCL Context
@@ -123,7 +139,7 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
     unsigned char *kernelbinary;
 
     int n_i = load_file(
-        conf.impl_path().c_str(), 
+        program_path.c_str(), 
         (char **) &kernelbinary);
 
     if (n_i < 0) {
@@ -161,7 +177,7 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
     // Create the compute kernel in the program we wish to run
     cl_kernel kernel = clCreateKernel(
         program, 
-        conf.kernel_name().c_str(), 
+        kernel_name.c_str(), 
         &err);
 
     if (!kernel || err != CL_SUCCESS) {
