@@ -63,6 +63,8 @@ public class DataTransmitter {
 	public void init(String hostname, int port) {
 		try {
 	  	acc_socket = new Socket(hostname, port); 
+      // turn off Negal algorithm to improve latency
+      acc_socket.setTcpNoDelay(true);
 		}
 		catch (Exception e) {
 			; // do nothing
