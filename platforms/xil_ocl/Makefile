@@ -22,9 +22,9 @@ LINK= -L$(MANAGER_DIR)/lib -lblaze \
 DEPS= OpenCLPlatform.o \
 			OpenCLBlock.o 
 
-all: ../lib/xil_ocl.so
+all: xil_ocl.so
 
-../lib/xil_ocl.so: $(DEPS)
+xil_ocl.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS) $(LINK) 
 
 %.o: %.cpp *.h Makefile

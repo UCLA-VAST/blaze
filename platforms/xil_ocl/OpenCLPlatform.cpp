@@ -92,7 +92,7 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
 
     int err;
 
-    OpenCLEnv* ocl_env = dynamic_cast<OpenCLEnv*>(env);
+    OpenCLEnv* ocl_env = (OpenCLEnv*)env;
 
     // lock OpenCL Context
     boost::lock_guard<OpenCLEnv> guard(*ocl_env);
@@ -130,7 +130,7 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
       throw std::runtime_error("Invalid configuration");
     }
 
-    OpenCLEnv* ocl_env = dynamic_cast<OpenCLEnv*>(env);
+    OpenCLEnv* ocl_env = (OpenCLEnv*)env;
 
     // lock OpenCL Context
     boost::lock_guard<OpenCLEnv> guard(*ocl_env);

@@ -49,13 +49,13 @@ public:
 
   virtual DataBlock_ptr createBlock() {
     DataBlock_ptr block(
-        new OpenCLBlock(dynamic_cast<OpenCLEnv*>(env)));  
+        new OpenCLBlock((OpenCLEnv*)env));  
     return block;
   }
 
   virtual DataBlock_ptr createBlock(size_t length, size_t size) {
     DataBlock_ptr block(
-        new OpenCLBlock(dynamic_cast<OpenCLEnv*>(env), length, size));  
+        new OpenCLBlock((OpenCLEnv*)env, length, size));  
     return block;
   }
 

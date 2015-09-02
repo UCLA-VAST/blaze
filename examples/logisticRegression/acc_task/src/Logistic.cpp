@@ -118,7 +118,7 @@ public:
         cblas_saxpy(
             n, coeff, 
             data+k*(D+L)+L, inc, 
-            gradient+i*D, inc);
+            gradient+i*(D+1), inc);
       }
     }
 #else

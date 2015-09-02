@@ -21,21 +21,28 @@ namespace blaze {
 // receive one message, bytesize first
 void CommManager::recv(
     TaskMsg &task_msg, 
-    ip::tcp::iostream &socket_stream) 
+    socket_ptr socket) 
 {
   int msg_size = 0;
 
-  //TODO: why doesn't this work: socket_stream >> msg_size;
-  socket_stream.read(reinterpret_cast<char*>(&msg_size), sizeof(int));
+  socket->receive(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)), 0);
 
   if (msg_size<=0) {
     throw std::runtime_error(
         "Invalid message size of " +
         std::to_string((long long)msg_size));
   }
-
   char* msg_data = new char[msg_size];
-  socket_stream.read(msg_data, msg_size);
+
+  logger->logInfo(LOG_HEADER + 
+      std::string("receiving data of size: ")+
+      std::to_string((long long)msg_size));
+
+  socket->receive(buffer(msg_data, msg_size), 0);
+
+  logger->logInfo(LOG_HEADER + 
+      std::string("received data of size: ")+
+      std::to_string((long long)msg_size));
 
   if (!task_msg.ParseFromArray(msg_data, msg_size)) {
     throw std::runtime_error("Failed to parse input message");
@@ -47,14 +54,18 @@ void CommManager::recv(
 // send one message, bytesize first
 void CommManager::send(
     TaskMsg &task_msg, 
-    ip::tcp::iostream &socket_stream) 
+    socket_ptr socket) 
 {
   int msg_size = task_msg.ByteSize();
 
   //NOTE: why doesn't this work: socket_stream << msg_size;
-  socket_stream.write(reinterpret_cast<char*>(&msg_size), sizeof(int));
+  socket->send(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)),0);
 
-  task_msg.SerializeToOstream(&socket_stream);
+  char* msg_data = new char[msg_size];
+
+  task_msg.SerializeToArray(msg_data, msg_size);
+
+  socket->send(buffer(msg_data, msg_size),0);
 }
 
 void CommManager::addTask(std::string id) {
@@ -78,21 +89,9 @@ void CommManager::removeTask(std::string id) {
 
 void CommManager::process(socket_ptr sock) {
 
-  // This may not be the best available method
-  boost::system::error_code err;
-
-  ip::tcp::iostream socket_stream;
-  try {
-    socket_stream.rdbuf()->assign( ip::tcp::v4(), sock->native());
-  }
-  catch (boost::system::system_error const &e) {
-    logger->logErr(LOG_HEADER+e.what()); 
-
-    return;
-  }
+  // turn off Nagle Algorithm to improve latency
+  sock->set_option(ip::tcp::no_delay(true));
   
-  srand(time(NULL));
-
   // log info
   std::string msg = 
     LOG_HEADER + 
@@ -106,7 +105,7 @@ void CommManager::process(socket_ptr sock) {
     TaskMsg task_msg;
 
     try {
-      recv(task_msg, socket_stream);
+      recv(task_msg, sock);
     }
     catch (std::runtime_error &e){
       throw AccFailure("Error in receiving ACCREQUEST");
@@ -126,7 +125,12 @@ void CommManager::process(socket_ptr sock) {
 
       if (task_manager == NULL_TASK_MANAGER) { 
         // if there is no matching acc
-        throw AccReject("No matching accelerators, rejecting request"); 
+        logger->logErr(LOG_HEADER+
+            std::string("Requested acc ")+
+            task_msg.acc_id()+
+            std::string(" does not exist"));
+
+        throw AccReject("No matching accelerator, rejecting request"); 
       }
       else { 
         // Calculating scheduling decisions
@@ -211,7 +215,7 @@ void CommManager::process(socket_ptr sock) {
       // send msg back to client
       reply_msg.set_type(ACCGRANT);
 
-      send(reply_msg, socket_stream);
+      send(reply_msg, sock);
 
       logger->logInfo(
           LOG_HEADER + 
@@ -223,7 +227,11 @@ void CommManager::process(socket_ptr sock) {
         TaskMsg data_msg;
 
         try {
-          recv(data_msg, socket_stream);
+          recv(data_msg, sock);
+          logger->logInfo(
+              LOG_HEADER + 
+              std::string("Received an ACCDATA message."));
+
         }
         catch (std::runtime_error &e) {
           throw AccFailure("Error in receiving ACCDATA");
@@ -327,7 +335,7 @@ void CommManager::process(socket_ptr sock) {
           outId ++;
         }
         finish_msg.set_type(ACCFINISH);
-        send(finish_msg, socket_stream);
+        send(finish_msg, sock);
 
         logger->logInfo(LOG_HEADER + 
           std::string("Task finished, sent an ACCFINISH."));
@@ -359,7 +367,7 @@ void CommManager::process(socket_ptr sock) {
           LOG_HEADER+
           "Replied an ACCFINISH message regarding the broadcast.");
 
-      send(finish_msg, socket_stream);
+      send(finish_msg, sock);
     }
     else {
       throw (AccFailure("Unknown message type, discarding message."));
@@ -376,7 +384,7 @@ void CommManager::process(socket_ptr sock) {
         std::string("Send ACCREJECT because: ")+
         e.what());
 
-    send(reply_msg, socket_stream);
+    send(reply_msg, sock);
   }
   catch (AccFailure &e)  {
   
@@ -389,7 +397,7 @@ void CommManager::process(socket_ptr sock) {
         std::string("Send ACCFAILURE because: ")+
         e.what());
 
-    send(reply_msg, socket_stream);
+    send(reply_msg, sock);
   }
   catch (std::runtime_error &e)  {
   
@@ -402,7 +410,7 @@ void CommManager::process(socket_ptr sock) {
         std::string("Send ACCFAILURE because: ")+
         e.what());
 
-    send(reply_msg, socket_stream);
+    send(reply_msg, sock);
   }
   if (do_task) {
     removeTask(task_id);
@@ -414,34 +422,35 @@ void CommManager::process(socket_ptr sock) {
 
 void CommManager::listen() {
 
-  io_service ios;
+  try {
+    io_service ios;
 
-  ip::tcp::endpoint endpoint(
-      ip::address::from_string(ip_address),
-      srv_port);
+    ip::tcp::endpoint endpoint(
+        ip::address::from_string(ip_address),
+        srv_port);
 
-  ip::tcp::acceptor acceptor(ios, endpoint);
+    ip::tcp::acceptor acceptor(ios, endpoint);
 
-  logger->logInfo(LOG_HEADER + 
-      std::string("Listening for new connections at ")+
-      ip_address + std::string(":") + std::to_string((long long)srv_port));
+    logger->logInfo(LOG_HEADER + 
+        std::string("Listening for new connections at ")+
+        ip_address + std::string(":") + std::to_string((long long)srv_port));
 
-  // TODO: join all thread after termination
-  while(1) {
+    // TODO: join all thread after termination
+    while(1) {
 
-    // create socket for connection
-    socket_ptr sock(new ip::tcp::socket(ios));
+      // create socket for connection
+      socket_ptr sock(new ip::tcp::socket(ios));
 
-    try {
       // accept incoming connection
       acceptor.accept(*sock);
 
       //acceptor.accept(*socket_stream.rdbuf());
       boost::thread t(boost::bind(&CommManager::process, this, sock));
     }
-    catch (boost::system::system_error const &e) {
-      logger->logErr(LOG_HEADER+e.what());
-    }
+  }
+  catch (std::exception &e) {
+    // do not throw exception, just end current thread
+    logger->logErr(LOG_HEADER+e.what());
   }
 }
 } // namespace blaze

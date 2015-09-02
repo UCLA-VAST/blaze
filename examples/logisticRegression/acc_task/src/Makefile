@@ -1,5 +1,5 @@
 MANAGER_DIR=../../../../manager
-PLATFORM_DIR=../../../../platforms
+PLATFORM_DIR=../../../../platforms/xil_ocl
 include ../../../../Makefile.config
 MKL_DIR=/curr/diwu/intel_mkl
 HADOOP_DIR=/curr/diwu/tools/hadoop/hadoop-2.5.2
@@ -12,7 +12,7 @@ CFLAGS= -shared -fPIC -std=c++0x -m64 -g
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/include \
 				 -I$(MANAGER_DIR)/src \
-				 -I$(PLATFORM_DIR)/include \
+				 -I$(PLATFORM_DIR) \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
 				 -I$(HADOOP_DIR)/include \

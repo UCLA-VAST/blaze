@@ -15,7 +15,7 @@
 #endif
 
 #include "blaze.h" 
-#include "blaze_ocl.h" 
+#include "OpenCLEnv.h" 
 
 using namespace blaze;
 
@@ -61,8 +61,8 @@ public:
     struct	timeval t1, t2, tr;
 
     try {
-      // dynamically cast the TaskEnv to OpenCLTen
-      OpenCLEnv* ocl_env = dynamic_cast<OpenCLEnv*>(getEnv());
+      // dynamically cast the TaskEnv to OpenCLEnv
+      OpenCLEnv* ocl_env = (OpenCLEnv*)getEnv();
 
       // get input data length
       //int nsample = getInputNumItems(0);
@@ -114,6 +114,18 @@ public:
         throw std::runtime_error("Buffer are not allocated");
       }
 
+      // added part for debugging
+      /*
+      float* weight_scope = (float*)malloc(10*sizeof(float));
+      float* gradient_scope = (float*)malloc(10*sizeof(float));
+
+      err = clEnqueueReadBuffer(command, 
+          weights, CL_TRUE, 0, sizeof(float) * 10, 
+          weight_scope, 0, NULL, &event );  
+
+      clWaitForEvents(1, &event);
+      */
+
       // Set the arguments to our compute kernel
       err  = clSetKernelArg(kernel, 0, sizeof(int), &nsample);
       err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &weights);
@@ -133,6 +145,18 @@ public:
       if (err) {
         throw("Failed to execute kernel!");
       }
+
+      /*
+      err = clEnqueueReadBuffer(command, 
+          gradients, CL_TRUE, 0, sizeof(float) * 10, 
+          gradient_scope, 0, NULL, &event );  
+
+      clWaitForEvents(1, &event);
+
+      for (int i=0; i<10; i++) {
+        printf("%f, %f\n", weight_scope[i], gradient_scope[i]);
+      }
+      */
 
       gettimeofday(&t2, NULL);
       timersub(&t1, &t2, &tr);

@@ -63,8 +63,8 @@ public:
   void removeTask(std::string id);
   
 private:
-  void recv(TaskMsg&, ip::tcp::iostream&);
-  void send(TaskMsg&, ip::tcp::iostream&);
+  void recv(TaskMsg&, socket_ptr);
+  void send(TaskMsg&, socket_ptr);
 
   // processing messages
   void process(socket_ptr);
