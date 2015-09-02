@@ -181,8 +181,7 @@ void BlockManager::remove(int64_t tag) {
 
     if (scratchTable.find(tag) == scratchTable.end()) {
       // no data match tag; 
-      throw std::runtime_error(LOG_HEADER+
-          "no matching tag in scratch table");
+      // do nothing
     }
     else {
       DataBlock_ptr block = scratchTable[tag];
@@ -190,6 +189,10 @@ void BlockManager::remove(int64_t tag) {
 
       //delete block;
       scratchTable.erase(tag);
+
+      logger->logInfo(LOG_HEADER+
+          std::string("Removed block ")+
+          std::to_string((long long)tag));
     }
   }
 }

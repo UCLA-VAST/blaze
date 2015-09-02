@@ -34,15 +34,7 @@ void CommManager::recv(
   }
   char* msg_data = new char[msg_size];
 
-  logger->logInfo(LOG_HEADER + 
-      std::string("receiving data of size: ")+
-      std::to_string((long long)msg_size));
-
   socket->receive(buffer(msg_data, msg_size), 0);
-
-  logger->logInfo(LOG_HEADER + 
-      std::string("received data of size: ")+
-      std::to_string((long long)msg_size));
 
   if (!task_msg.ParseFromArray(msg_data, msg_size)) {
     throw std::runtime_error("Failed to parse input message");
