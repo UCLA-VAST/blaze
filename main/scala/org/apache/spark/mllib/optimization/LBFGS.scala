@@ -215,17 +215,30 @@ object LBFGS extends Logging {
       val bcW = data.context.broadcast(w)
       val localGradient = gradient
 
-      var (gradientSum, lossSum) = data.map( x => x match {
-          case (label, features) => 
-            var grad = Vectors.zeros(n)
-            val loss = localGradient.compute(
-              features, label, bcW.value, grad)
+      var (gradientSum, lossSum) = data.mapPartitions( (iter: Iterator[(Double, Vector)]) => {
+        def res_iter = new Iterator[(Vector, Double)] {
+          var idx = 0
+          var grad = Vectors.zeros(n)
+          var loss = 0.0
+          while (iter.hasNext) {
+            iter.next() match { case (label, features) =>
+              val l = localGradient.compute(
+                features, label, bcW.value, grad)
+              loss = loss + l
+            }
+          }
+          def hasNext = (idx < 1)
+          def next = {
+            idx = idx + 1
             (grad, loss) 
-        }).reduce( (a, b) => (a , b) match { 
-          case ((grad1, loss1), (grad2, loss2)) => 
-            axpy(1.0, grad2, grad1)
-            (grad1, loss1 + loss2)
-        })
+          }
+        }
+        res_iter
+      }).reduce( (a, b) => (a , b) match { 
+        case ((grad1, loss1), (grad2, loss2)) => 
+          axpy(1.0, grad2, grad1)
+          (grad1, loss1 + loss2)
+      })
 
       /**
        * regVal is sum of weight squares if it's L2 updater;
