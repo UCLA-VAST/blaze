@@ -25,7 +25,8 @@ LINK= -L${MKL_DIR}/lib/intel64 \
 			-lpthread -lm
 
 ACC = Logistic \
-			Logistic_ocl
+			Logistic_ocl \
+			LogisticGradientWithLoss
 
 OBJS= $(addsuffix .so, $(addprefix ../, $(ACC)))
 
