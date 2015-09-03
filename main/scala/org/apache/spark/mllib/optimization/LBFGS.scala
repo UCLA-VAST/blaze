@@ -28,6 +28,7 @@ import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.mllib.linalg.BLAS.axpy
 import org.apache.spark.rdd.RDD
+import org.apache.spark.blaze._
 
 /**
  * :: DeveloperApi ::
@@ -169,8 +170,22 @@ object LBFGS extends Logging {
 
     val numExamples = data.count()
 
+    /**
+     * Setup Blaze runtime to allow accelerator of CostFun
+     */
+    val blaze = new BlazeRuntime(data.context)
+
+    /**
+     * Provide acceleration of costFun.calculate
+     * with the following modifications:
+     * 1. change input data format to Array[Double]
+     * 2. change output format to Array[Double] 
+     * 3. add a private class LogisticGradientWithACC, including an acc_id
+     *    and a map function for CPU calculation
+     */
+
     val costFun =
-      new CostFun(data, gradient, updater, regParam, numExamples)
+      new CostFun(data, blaze, gradient, updater, regParam, numExamples)
 
     val lbfgs = new BreezeLBFGS[BDV[Double]](maxNumIterations, numCorrections, convergenceTol)
 
@@ -198,11 +213,44 @@ object LBFGS extends Logging {
   }
 
   /**
+   * LogisticGradientWithACC implements Blaze Accelerator[T, T],
+   * it calculates the gradient and loss from input data using accelerator matching the 
+   * ID of "LogisticGradientAndLoss", and if the accelerator is not available, it will 
+   * implements a straightforward map function
+   */
+  private class LogisticGradientWithACC(
+    n: Int,
+    localGradient: Gradient,
+    weights: BlazeBroadcast[Array[Double]]
+  ) extends Accelerator[Array[Double], Array[Double]] {
+    
+    val id = "LogisticGradientAndLoss"
+    def getArg(idx: Int): Option[BlazeBroadcast[Array[Double]]] = {
+      if (idx == 0) {
+        Some(weights)
+      }
+      else {
+        None
+      }
+    }
+    def getArgNum(): Int = 1
+    def call(input: Array[Double]): Array[Double] = {
+      var grad = Vectors.zeros(n) 
+      var label = input(0)
+      var features = Vectors.dense(input.slice(1, input.length))
+      var loss = localGradient.compute(
+        features, label, Vectors.dense(weights.data), grad)
+      grad.toArray :+ loss
+    }
+  }
+
+  /**
    * CostFun implements Breeze's DiffFunction[T], which returns the loss and gradient
    * at a particular point (weights). It's used in Breeze's convex optimization routines.
    */
   private class CostFun(
     data: RDD[(Double, Vector)],
+    blaze: BlazeRuntime,
     gradient: Gradient,
     updater: Updater,
     regParam: Double,
@@ -212,34 +260,24 @@ object LBFGS extends Logging {
       // Have a local copy to avoid the serialization of CostFun object which is not serializable.
       val w = Vectors.fromBreeze(weights)
       val n = w.size
-      val bcW = data.context.broadcast(w)
       val localGradient = gradient
 
-      var (gradientSum, lossSum) = data.mapPartitions( (iter: Iterator[(Double, Vector)]) => {
-        def res_iter = new Iterator[(Vector, Double)] {
-          var idx = 0
-          var grad = Vectors.zeros(n)
-          var loss = 0.0
-          while (iter.hasNext) {
-            iter.next() match { case (label, features) =>
-              val l = localGradient.compute(
-                features, label, bcW.value, grad)
-              loss = loss + l
-            }
-          }
-          def hasNext = (idx < 1)
-          def next = {
-            idx = idx + 1
-            (grad, loss) 
-          }
-        }
-        res_iter
-      }).reduce( (a, b) => (a , b) match { 
-        case ((grad1, loss1), (grad2, loss2)) => 
-          axpy(1.0, grad2, grad1)
-          (grad1, loss1 + loss2)
-      })
+      val bcW = data.context.broadcast(w.toArray)
+      var blaze_weight = blaze.wrap(bcW);
+      var blaze_data = blaze.wrap(data.map( x => x match {
+        case (label, features) => label +: features.toArray
+      }))
 
+      var (gradientSum, lossSum) = blaze_data.map_acc(
+          new LogisticGradientWithACC(n, localGradient, blaze_weight)
+        ).map( 
+          a => (Vectors.dense(a.slice(0, a.length-1)), a(a.length-1))
+        ).reduce( (a, b) => (a , b) match { 
+          case ((grad1, loss1), (grad2, loss2)) => 
+            axpy(1.0, grad2, grad1)
+            (grad1, loss1 + loss2)
+        })
+      
       /**
        * regVal is sum of weight squares if it's L2 updater;
        * for other updater, the same logic is followed.
