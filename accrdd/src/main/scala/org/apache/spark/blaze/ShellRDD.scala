@@ -58,5 +58,9 @@ class ShellRDD[T: ClassTag](appId: Int, prev: RDD[T])
   def map_acc[U: ClassTag](clazz: Accelerator[T, U]): AccRDD[U, T] = {
     new AccRDD(appId, this, clazz)
   }
+
+  def mapPartitions_acc[U: ClassTag](clazz: Accelerator[T, U]): AccMapPartitionsRDD[U, T] = {
+    new AccMapPartitionsRDD(appId, this, clazz)
+  }
 }
 
