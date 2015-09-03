@@ -184,8 +184,12 @@ object LBFGS extends Logging {
      *    and a map function for CPU calculation
      */
 
+    var blaze_data = blaze.wrap(data.map( x => x match {
+          case (label, features) => label +: features.toArray
+          }))
+
     val costFun =
-      new CostFun(data, blaze, gradient, updater, regParam, numExamples)
+      new CostFun(blaze_data, blaze, gradient, updater, regParam, numExamples)
 
     val lbfgs = new BreezeLBFGS[BDV[Double]](maxNumIterations, numCorrections, convergenceTol)
 
@@ -274,7 +278,7 @@ object LBFGS extends Logging {
    * at a particular point (weights). It's used in Breeze's convex optimization routines.
    */
   private class CostFun(
-    data: RDD[(Double, Vector)],
+    data: ShellRDD[Array[Double]],
     blaze: BlazeRuntime,
     gradient: Gradient,
     updater: Updater,
@@ -290,11 +294,8 @@ object LBFGS extends Logging {
       // setup for Blaze execution
       val bcW = data.context.broadcast(w.toArray)
       var blaze_weight = blaze.wrap(bcW);
-      var blaze_data = blaze.wrap(data.map( x => x match {
-        case (label, features) => label +: features.toArray
-      }))
 
-      var (gradientSum, lossSum) = blaze_data.mapPartitions_acc(
+      var (gradientSum, lossSum) = data.mapPartitions_acc(
           new LogisticGradientWithACC(n, localGradient, blaze_weight)
         ).map( 
           a => (Vectors.dense(a.slice(0, a.length-1)), a(a.length-1))
