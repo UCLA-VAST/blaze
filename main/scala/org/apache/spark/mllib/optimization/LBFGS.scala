@@ -234,13 +234,38 @@ object LBFGS extends Logging {
       }
     }
     def getArgNum(): Int = 1
-    def call(input: Array[Double]): Array[Double] = {
+
+    // function for AccRDD.map_acc()
+    override def call(input: Array[Double]): Array[Double] = {
       var grad = Vectors.zeros(n) 
       var label = input(0)
       var features = Vectors.dense(input.slice(1, input.length))
       var loss = localGradient.compute(
         features, label, Vectors.dense(weights.data), grad)
       grad.toArray :+ loss
+    }
+
+    // function for AccRDD.mapParititions_acc()
+    override def call(iter: Iterator[Array[Double]]): Iterator[Array[Double]] = {
+      var result_iter = new Iterator[Array[Double]] {
+        var idx = 0
+        var grad = Vectors.zeros(n)
+        var loss = 0.0
+        while (iter.hasNext) {
+          val array = iter.next()
+          var label = array(0)
+          var features = Vectors.dense(array.slice(1, array.length))
+          val l = localGradient.compute(
+            features, label, Vectors.dense(weights.data), grad)
+          loss = loss + l
+        }
+        def hasNext = (idx < 1)
+        def next = {
+          idx = idx + 1
+          grad.toArray :+ loss
+        }
+      }
+      result_iter
     }
   }
 
@@ -262,13 +287,14 @@ object LBFGS extends Logging {
       val n = w.size
       val localGradient = gradient
 
+      // setup for Blaze execution
       val bcW = data.context.broadcast(w.toArray)
       var blaze_weight = blaze.wrap(bcW);
       var blaze_data = blaze.wrap(data.map( x => x match {
         case (label, features) => label +: features.toArray
       }))
 
-      var (gradientSum, lossSum) = blaze_data.map_acc(
+      var (gradientSum, lossSum) = blaze_data.mapPartitions_acc(
           new LogisticGradientWithACC(n, localGradient, blaze_weight)
         ).map( 
           a => (Vectors.dense(a.slice(0, a.length-1)), a(a.length-1))
