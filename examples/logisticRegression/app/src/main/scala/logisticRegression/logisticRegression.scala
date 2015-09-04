@@ -30,7 +30,7 @@ import org.apache.spark.blaze._
 class LogisticRegression(b_w: BlazeBroadcast[Array[Float]]) 
   extends Accelerator[Array[Float], Array[Float]] {
 
-  val id: String = "Logistic_cpu"
+  val id: String = "Logistic"
 
   def getArg(idx: Int): Option[BlazeBroadcast[Array[Float]]] = {
     if (idx == 0)
@@ -41,7 +41,7 @@ class LogisticRegression(b_w: BlazeBroadcast[Array[Float]])
 
   def getArgNum(): Int = 1
 
-  def call(data: Array[Float]): Array[Float] = {
+  override def call(data: Array[Float]): Array[Float] = {
     val _L: Int = 10
     val _D: Int = 784
 

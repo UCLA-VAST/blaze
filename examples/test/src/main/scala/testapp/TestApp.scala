@@ -35,8 +35,19 @@ class SimpleAddition extends Accelerator[Double, Double] {
     None
   }
 
-  def call(in: Double): Double = {
+  override def call(in: Double): Double = {
     in + 1.0
+  }
+
+  override def call(in: Iterator[Double]): Iterator[Double] = {
+    val inAry = in.toArray
+    val length: Int = inAry.length
+    val outAry = new Array[Double](length)
+
+    for (i <- 0 until length)
+      outAry(i) = inAry(i) + 1.0
+
+    outAry.iterator
   }
 }
 
@@ -49,11 +60,10 @@ object TestApp {
       val rdd_acc = acc.wrap(rdd.map(a => a.toDouble))
 
       val b = acc.wrap(sc.broadcast(Array(1, 2, 3)))
-//      val c = acc.wrap(sc.broadcast(5))
 
       rdd_acc.cache
       rdd_acc.collect
-      val rdd_acc2 = rdd_acc.map_acc(new SimpleAddition())
+      val rdd_acc2 = rdd_acc.mapPartitions_acc(new SimpleAddition())
       println("Result: " + rdd_acc2.reduce((a, b) => (a + b)))
       println("Expect: " + rdd_acc.map(e => e + 1.0).reduce((a, b) => (a + b)))
 
