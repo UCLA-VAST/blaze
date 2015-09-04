@@ -1,6 +1,6 @@
 include ../../Makefile.config
 
-XILINX_OPENCL_DIR=/space/Xilinx/SDAccel/2015.1
+XILINX_OPENCL_DIR=/home/Xilinx/SDAccel_2015.1.3/SDAccel/2015.1
 MANAGER_DIR=../../manager
 
 PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
