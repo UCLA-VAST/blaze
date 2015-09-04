@@ -73,6 +73,9 @@ public:
   // create an empty block
   DataBlock_ptr create();
 
+  // create and allocate a new block
+  DataBlock_ptr create(size_t length, size_t size);
+
   // create a block and add it to cache/scratch
   // return true if a new block is created
   bool create(
