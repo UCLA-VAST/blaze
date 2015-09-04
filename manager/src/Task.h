@@ -25,6 +25,7 @@ namespace blaze {
 // forward declaration of 
 class TaskManager;
 class CommManager;
+template <typename U, typename T> class BlazeTest;
 
 /**
  * Task is the base clase of an accelerator task
@@ -34,6 +35,8 @@ class Task {
 
 friend class TaskManager;
 friend class CommManager;
+template <typename U, typename T> 
+friend class BlazeTest;
 
 public:
   Task(int _num_input): 

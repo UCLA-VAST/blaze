@@ -14,6 +14,12 @@ DataBlock_ptr BlockManager::create() {
   return block;
 }
 
+DataBlock_ptr BlockManager::create(size_t length, size_t size) {
+
+  DataBlock_ptr block = platform->createBlock(length, size);
+  return block;
+}
+
 // create a block if it does not exist in the manager
 // return true if a new block is created
 bool BlockManager::create(
