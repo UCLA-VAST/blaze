@@ -1,21 +1,33 @@
 include ../../Makefile.config
 
-XILINX_OPENCL_DIR=/home/Xilinx/SDAccel_2015.1.3/SDAccel/2015.1
-MANAGER_DIR=../../manager
+# check all variables
+ifeq ($(XILINX_OPENCL_DIR),)
+$(error XILINK_OPENCL_DIR not set properly in Makefile.config)
+endif
+ifeq ($(BOOST_DIR),)
+$(error BOOST_DIR not set properly in Makefile.config)
+endif
+ifeq ($(PROTOBUF_DIR),)
+$(error PROTOBUF_DIR not set properly in Makefile.config)
+endif
 
 PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
 CC=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/gcc
 
+ifeq ("$(wildcard $(PP))","")
+	$(error XILINK_OPENCL_DIR not set properly)
+endif
+
+MANAGER_DIR=../../manager
+
 CFLAGS= -c -fPIC -std=c++0x -g
 COMPILE= $(CFLAGS) \
-				 -I../../manager/src \
+				 -I$(MANAGER_DIR)/include \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
 				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
 				 
 LINK= -L$(MANAGER_DIR)/lib -lblaze \
-			-L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
 			-L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lxilinxopencl \
 			-lpthread -lm -ldl
 

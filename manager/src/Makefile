@@ -1,6 +1,18 @@
 include ../../Makefile.config
 
-PROTO_DIR=./proto
+# check all variables
+ifeq ($(BOOST_DIR),)
+$(error BOOST_DIR not set properly in Makefile.config)
+endif
+ifeq ($(HADOOP_DIR),)
+$(error HADOOP_DIR not set properly in Makefile.config)
+endif
+ifeq ($(PROTOBUF_DIR),)
+$(error PROTOBUF_DIR not set properly in Makefile.config)
+endif
+ifeq ($(JAVA_HOME),)
+$(error JAVA_HOME not set properly in Makefile.config)
+endif
 
 PP=g++
 CC=gcc
@@ -8,12 +20,12 @@ AR=ar
 
 CFLAGS= -c -fPIC -std=c++0x -g
 COMPILE= $(CFLAGS) \
-				 -I$(PROTO_DIR) \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
 				 -I$(HADOOP_DIR)/include 
 
-LINK= -L$(BOOST_DIR)/lib \
+LINK= -L../lib -lblaze \
+			-L$(BOOST_DIR)/lib \
 			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \
 			-L$(HADOOP_DIR)/lib/native -lhdfs \
@@ -27,24 +39,24 @@ DEPS= CommManager.o \
 			QueueManager.o \
 			Task.o \
 			TaskManager.o \
-			Task_msg.o \
-			Acc_conf.o 
+			task.pb.o \
+			acc_conf.pb.o 
 
-all: ../bin/acc_manager ../lib/libblaze.a
+all: ../bin/acc_manager ../lib/libblaze.so
 
-../lib/libblaze.a: Block.o Task.o
-	$(AR) rvs $@ Block.o Task.o
+../lib/libblaze.so: $(DEPS)
+	$(PP) -shared -o $@ $(DEPS)
 
-../bin/acc_manager: $(DEPS) main.o
-	$(PP) -o $@ $(DEPS) main.o $(LINK) 
+../bin/acc_manager: ../lib/libblaze.so main.o
+	$(PP) -o $@ main.o $(LINK) 
 
-Task_msg.o: $(PROTO_DIR)/task.pb.cc
+task.pb.o: proto/task.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 
 
-Acc_conf.o: $(PROTO_DIR)/acc_conf.pb.cc
+acc_conf.pb.o: proto/acc_conf.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 
 
-%.o: %.cpp *.h Makefile
+%.o: %.cpp *.h 
 	$(PP) $(COMPILE) $< -o $@
 
 clean:

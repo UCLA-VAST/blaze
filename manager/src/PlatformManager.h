@@ -7,7 +7,7 @@
 
 #include <boost/smart_ptr.hpp>
 
-#include "acc_conf.pb.h"
+#include "proto/acc_conf.pb.h"
 
 #include "BlockManager.h"
 #include "QueueManager.h"

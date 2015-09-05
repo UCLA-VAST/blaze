@@ -3,12 +3,12 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
-#include "Task.h"
-#include "Block.h"
-#include "CommManager.h"
-#include "BlockManager.h"
-#include "TaskManager.h"
-#include "PlatformManager.h"
+#include "../src/Task.h"
+#include "../src/Block.h"
+#include "../src/CommManager.h"
+#include "../src/BlockManager.h"
+#include "../src/TaskManager.h"
+#include "../src/PlatformManager.h"
 
 namespace blaze {
 
