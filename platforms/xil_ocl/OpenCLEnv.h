@@ -8,7 +8,7 @@
 
 #include <CL/opencl.h>
 
-#include "TaskEnv.h"
+#include "blaze.h"
 
 namespace blaze {
 

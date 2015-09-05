@@ -11,7 +11,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
-#include "acc_conf.pb.h"
+#include "proto/acc_conf.pb.h"
 
 #include "Platform.h"
 #include "Task.h"

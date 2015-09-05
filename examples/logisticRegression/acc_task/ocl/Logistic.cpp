@@ -8,12 +8,6 @@
 #include <algorithm>
 #include <sstream>
 
-//#define USEMKL
-
-#ifdef USEMKL
-#include <mkl.h>
-#endif
-
 #include "blaze.h" 
 #include "OpenCLEnv.h" 
 
