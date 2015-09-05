@@ -8,8 +8,7 @@
 
 #include <CL/opencl.h>
 
-#include "proto/acc_conf.pb.h"
-#include "Platform.h"
+#include "blaze.h"
 #include "OpenCLBlock.h"
 #include "OpenCLEnv.h"
 

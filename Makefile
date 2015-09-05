@@ -1,7 +1,7 @@
 
 all:
 	make -C ./common
-	cd blaze; mvn package
+	cd accrdd; mvn package; mvn install
 	make -C ./manager/src
 
 examples:
