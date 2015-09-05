@@ -14,10 +14,10 @@
   License.
   -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-  <groupId>testapp</groupId>
-  <artifactId>testapp</artifactId>
+  <groupId>test</groupId>
+  <artifactId>test</artifactId>
   <packaging>jar</packaging>
-  <name>"Test App"</name>
+  <name>"SimpleAddition"</name>
   <modelVersion>4.0.0</modelVersion>
   <version>0.0.0</version>
   
@@ -86,7 +86,7 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_2.10</artifactId>
-      <version>1.2.1</version>
+      <version>1.3.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.spark.blaze</groupId>

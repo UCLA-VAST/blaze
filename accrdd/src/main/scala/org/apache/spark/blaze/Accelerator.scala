@@ -72,5 +72,7 @@ trait Accelerator[T, U] extends java.io.Serializable {
     * @param in An element of the input.
     * @return A corresponding element of the output.
   **/
-  def call(in: T): U
+  def call(in: T): U = in.asInstanceOf[U]
+
+  def call(in: Iterator[T]): Iterator[U] = in.asInstanceOf[Iterator[U]]
 }

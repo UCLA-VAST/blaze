@@ -3,7 +3,7 @@ PLATFORM_DIR=../../../../platforms/xil_ocl
 include ../../../../Makefile.config
 MKL_DIR=/curr/diwu/intel_mkl
 HADOOP_DIR=/curr/diwu/tools/hadoop/hadoop-2.5.2
-XILINX_OPENCL_DIR=/space/Xilinx/SDAccel/2015.1
+XILINX_OPENCL_DIR=/home/Xilinx/SDAccel_2015.1.3/SDAccel/2015.1
 
 PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
 CC=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/gcc

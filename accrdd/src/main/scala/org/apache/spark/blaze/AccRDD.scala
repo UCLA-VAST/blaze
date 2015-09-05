@@ -61,9 +61,9 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
 
     val isCached = inMemoryCheck(split)
 
-    val outputIter = new Iterator[U] {
+    val resultIter = new Iterator[U] {
+      var outputIter: Iterator[U] = null
       var outputAry: Array[U] = null // Length is unknown before reading the input
-      var idx: Int = 0
       var dataLength: Int = -1
       val typeSize: Int = Util.getTypeSizeByRDD(getRDD())
 
@@ -102,10 +102,10 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         val dataMsg = DataTransmitter.buildMessage(AccMessage.MsgType.ACCDATA)
 
         // Prepare input data blocks
-        val requireData = Array(false)
+        var requireData: Boolean = false
         for (i <- 0 until numBlock) {
           if (!revMsg.getData(i).getCached()) { // Send data block if Blaze manager hasn't cached it.
-            requireData(0) = true
+            requireData = true
 
             // The data has been read and cached by Spark, serialize it and send memory mapped file path.
             if (isCached == true || !split.isInstanceOf[HadoopPartition]) {
@@ -138,7 +138,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         // Prepare broadcast blocks
         for (i <- 0 until brdcstId.length) {
           if (!revMsg.getData(i + numBlock).getCached()) {
-            requireData(0) = true
+            requireData = true
             val bcData = acc.getArg(i).get.data
             if (bcData.getClass.isArray) { // Serialize array and use memory mapped file to send the data.
               val arrayData = bcData.asInstanceOf[Array[_]]
@@ -165,7 +165,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         logInfo("Partition " + split.index + " preprocesses time: " + elapseTime + " ns");
 
         // Send ACCDATA message only when it is required.
-        if (requireData(0) == true) {
+        if (requireData == true) {
           logInfo(Util.logMsg(dataMsg))
           transmitter.send(dataMsg)
         }
@@ -174,7 +174,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         logInfo(Util.logMsg(finalRevMsg))
 
         if (finalRevMsg.getType() == AccMessage.MsgType.ACCFINISH) {
-          val numItems = Array(0)
+          var numItems: Int = 0
           val blkLength = new Array[Int](numBlock)
           val itemLength = new Array[Int](numBlock)
 
@@ -187,18 +187,17 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
             else {
               itemLength(i) = 1
             }
-//            println(blkLength(i) + ", " + finalRevMsg.getData(i).getNumItems())
-            numItems(0) += blkLength(i) / itemLength(i)
+            numItems += blkLength(i) / itemLength(i)
           }
-          if (numItems(0) == 0)
+          if (numItems == 0)
             throw new RuntimeException("Manager returns an invalid data length")
 
-          outputAry = new Array[U](numItems(0))
+          outputAry = new Array[U](numItems)
 
           startTime = System.nanoTime
           
           // Second read: Read outputs from memory mapped file.
-          idx = 0
+          var idx = 0
           for (i <- 0 until numBlock) { // Concatenate all blocks (currently only 1 block)
 
             Util.readMemoryMappedFile(
@@ -209,7 +208,8 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
 
             idx = idx + blkLength(i) / itemLength(i)
           }
-          idx = 0
+          outputIter = outputAry.iterator
+
           elapseTime = System.nanoTime - startTime
           logInfo("Partition " + split.index + " reads memory mapped file: " + elapseTime + " ns")
         }
@@ -221,19 +221,18 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
           val sw = new StringWriter
           e.printStackTrace(new PrintWriter(sw))
           logInfo("Partition " + split.index + " fails to be executed on accelerator: " + sw.toString)
-          outputAry = computeOnJTP(split, context)
+          outputIter = computeOnJTP(split, context)
       }
 
       def hasNext(): Boolean = {
-        idx < outputAry.length
+        outputIter.hasNext
       }
 
       def next(): U = {
-        idx = idx + 1
-        outputAry(idx - 1)
+        outputIter.next
       }
     }
-    outputIter
+    resultIter
   }
 
   /**
@@ -245,6 +244,17 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     */
   def map_acc[V: ClassTag](clazz: Accelerator[U, V]): AccRDD[V, U] = {
     new AccRDD(appId, this, clazz)
+  }
+
+  /**
+    * A method for the developer to execute the computation on the accelerator.
+    * The original Spark API `mapPartition` is still available.
+    *
+    * @param clazz Extended accelerator class.
+    * @return A transformed AccMapPartitionsRDD.
+    */
+  def mapPartitions_acc[V: ClassTag](clazz: Accelerator[U, V]): AccRDD[V, U] = {
+    new AccMapPartitionsRDD(appId, this.asInstanceOf[RDD[U]], clazz)
   }
 
   /**
@@ -274,7 +284,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     * @param context TaskContext of Spark.
     * @return The output array
     */
-  def computeOnJTP(split: Partition, context: TaskContext): Array[U] = {
+  def computeOnJTP(split: Partition, context: TaskContext): Iterator[U] = {
     logInfo("Compute partition " + split.index + " using CPU")
     val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
     val dataLength = inputAry.length
@@ -284,7 +294,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
       outputAry(j) = acc.call(inputAry(j).asInstanceOf[T])
       j = j + 1
     }
-    outputAry
+    outputAry.iterator
   }
 }
 
