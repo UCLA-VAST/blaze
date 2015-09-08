@@ -28,7 +28,8 @@ using namespace boost::asio;
 
 namespace blaze {
 
-typedef boost::shared_ptr<ip::tcp::iostream> iostream_ptr;
+typedef boost::shared_ptr<io_service> ios_ptr;
+typedef boost::shared_ptr<ip::tcp::endpoint> endpoint_ptr;
 typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 
 class BlazeClient {
@@ -47,6 +48,14 @@ public:
 
     logger = new Logger(verbose);
 
+    // setup socket connection
+    ios_ptr _ios(new io_service);
+    endpoint_ptr _endpoint(new ip::tcp::endpoint(
+        ip::address::from_string(ip_address),
+        srv_port));
+
+    ios = _ios;
+    endpoint = _endpoint;
   }
 
   // allocate a new block and return the pointer
@@ -73,8 +82,8 @@ private:
   void prepareData(TaskMsg &data_msg, TaskMsg &reply_msg);
   void processOutput(TaskMsg &msg);
 
-  void recv(TaskMsg&);
-  void send(TaskMsg&);
+  void recv(TaskMsg&, socket_ptr);
+  void send(TaskMsg&, socket_ptr);
 
   // accelerator id
   std::string acc_id;
@@ -82,8 +91,8 @@ private:
   // connection
   int srv_port;
   std::string ip_address;
-  iostream_ptr socket_stream;
-  socket_ptr  socket;
+  ios_ptr ios;
+  endpoint_ptr endpoint;
 
   // input/output data blocks
   std::vector<std::pair<int, DataBlock_ptr> > blocks;
@@ -134,38 +143,30 @@ void BlazeClient::readBlock(int idx, void* dst, size_t size) {
 
 void BlazeClient::start() {
   
-  io_service ios;
-
-  // setup socket connection
-  ip::tcp::endpoint endpoint(
-      ip::address::from_string(ip_address),
-      srv_port);
 
   // create socket for connection
-  socket_ptr sock(new ip::tcp::socket(ios));
-  sock->connect(endpoint);
+  socket_ptr sock(new ip::tcp::socket(*ios));
+  sock->connect(*endpoint);
   sock->set_option(ip::tcp::no_delay(true));
-
-  socket = sock;
 
   try {
 
     // send request
     TaskMsg request_msg;
     prepareRequest(request_msg);
-    send(request_msg);
+    send(request_msg, sock);
 
     logger->logInfo(LOG_HEADER+std::string("Sent a request"));
 
     // wait on reply for ACCREQUEST
     TaskMsg reply_msg;
-    recv(reply_msg);
+    recv(reply_msg, sock);
 
     if (reply_msg.type() == ACCGRANT) {
 
       TaskMsg data_msg;
       prepareData(data_msg, reply_msg);
-      send(data_msg);
+      send(data_msg, sock);
       logger->logInfo(LOG_HEADER+std::string("Sent data"));
     }
     else {
@@ -174,7 +175,7 @@ void BlazeClient::start() {
 
     TaskMsg finish_msg;
     // wait on reply for ACCDATA
-    recv(finish_msg);
+    recv(finish_msg, sock);
 
     if (finish_msg.type() == ACCFINISH) {
       processOutput(finish_msg);
@@ -281,7 +282,7 @@ void BlazeClient::processOutput(TaskMsg &msg) {
       std::string("Finish reading output blocks"));
 }
 
-void BlazeClient::recv(TaskMsg &task_msg)
+void BlazeClient::recv(TaskMsg &task_msg, socket_ptr socket)
 {
   int msg_size = 0;
 
@@ -304,7 +305,7 @@ void BlazeClient::recv(TaskMsg &task_msg)
 }
 
 // send one message, bytesize first
-void BlazeClient::send(TaskMsg &task_msg)
+void BlazeClient::send(TaskMsg &task_msg, socket_ptr socket)
 {
   int msg_size = task_msg.ByteSize();
 

@@ -287,22 +287,25 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
 // check if all the blocks in task's input list is ready
 bool Task::isReady() {
 
-  bool isReady = true;
+  bool ready = true;
   int num_ready = 0;
   for (std::vector<DataBlock_ptr>::iterator iter = input_blocks.begin();
        iter != input_blocks.end();
        iter ++)
   {
     if (!(*iter)->isReady()) {
-      isReady = false;
+      ready = false;
       break;
     }
     num_ready++;
   }
-  if (isReady && num_ready == num_input) {
+  if (ready && num_ready == num_input) {
     status = READY;
+    return true;
   }
-  return isReady;
+  else {
+    return false;
+  }
 }
 
 } // namespace
