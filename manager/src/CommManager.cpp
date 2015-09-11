@@ -145,63 +145,81 @@ void CommManager::process(socket_ptr sock) {
 
       // consult BlockManager to see if each block is cached
       for (int i = 0; i < task_msg.data_size(); ++i) {
-        int64_t blockId = task_msg.data(i).partition_id();
 
-        DataMsg *block_info = reply_msg.add_data();
-        block_info->set_partition_id(blockId);
+        if (task_msg.data(i).has_bval()) { 
+          // if this is a broadcast scalar
+          // then skip cache and directly add it to task
+          int64_t bval = task_msg.data(i).bval();
 
-        DataBlock_ptr block;
+          // add the scalar as a new block
+          DataBlock_ptr block(new DataBlock(1, 8));
+          block->writeData((void*)&bval, 8);
 
-        // both threads will see the block is not cached,
-        // so they will all set cached = false; but only one
-        // need to
-        if (block_manager->contains(blockId)) {
-          // get block from BlockManager
-          block = block_manager->get(blockId);
-
-          // set message flag
-          block_info->set_cached(true); 
+          // add block to task
+          // TODO: use naive block id here, since the id is only
+          // used to differentiate the blocks in a single task
+          task->addInputBlock(i, block);
         }
         else {
-          if (blockId >= 0) { // this is an input block
+          // if this is not a scalar
+          int64_t blockId = task_msg.data(i).partition_id();
 
-            // allocate a new block without initilizing
-            // this block need to be added to cache later since the
-            // size information may not be available at this point
-            block = block_manager->create();
+          DataMsg *block_info = reply_msg.add_data();
+          block_info->set_partition_id(blockId);
 
-            block_info->set_cached(false); 
+          DataBlock_ptr block;
+
+          // both threads will see the block is not cached,
+          // so they will all set cached = false; but only one
+          // need to
+          if (block_manager->contains(blockId)) {
+            // get block from BlockManager
+            block = block_manager->get(blockId);
 
             // set message flag
-            all_cached = false;
+            block_info->set_cached(true); 
           }
-          else { // this is a broadcast block
+          else {
+            if (blockId >= 0) { // this is an input block
 
-            // create the block and add it to scratch
-            // NOTE: at this point multiple threads may try 
-            // to add the same block, so create() is locked
-            bool created = block_manager->create(blockId, block);
-
-            if (created) {
-              logger->logInfo(LOG_HEADER+
-                  std::to_string((long long)blockId)+
-                  " not cached");
+              // allocate a new block without initilizing
+              // this block need to be added to cache later since the
+              // size information may not be available at this point
+              block = block_manager->create();
 
               block_info->set_cached(false); 
+
+              // set message flag
               all_cached = false;
             }
-            else {
-              logger->logInfo(LOG_HEADER+
-                  std::to_string((long long)blockId)+
-                  " cached");
-              block_info->set_cached(true); 
+            else { // this is a broadcast block
+
+              // create the block and add it to scratch
+              // NOTE: at this point multiple threads may try 
+              // to add the same block, so create() is locked
+              bool created = block_manager->create(blockId, block);
+
+              if (created) {
+                logger->logInfo(LOG_HEADER+
+                    std::to_string((long long)blockId)+
+                    " not cached");
+
+                block_info->set_cached(false); 
+                all_cached = false;
+              }
+              else {
+                logger->logInfo(LOG_HEADER+
+                    std::to_string((long long)blockId)+
+                    " cached");
+                block_info->set_cached(true); 
+              }
+              // the block added to task allocated but not ready
+              // at this point
             }
-            // the block added to task allocated but not ready
-            // at this point
           }
+          // add block to task
+          task->addInputBlock(blockId, block);
         }
-        // add block to task
-        task->addInputBlock(blockId, block);
       }
 
       // send msg back to client

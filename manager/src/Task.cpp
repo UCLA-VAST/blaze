@@ -108,21 +108,6 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
           boost::filesystem::remove(file);
         }
       }
-      else if (blockInfo.has_bval()) { // if this is a broadcast scalar
-
-        int64_t bval = blockInfo.bval();
-
-        // lock block for exclusive access
-        boost::lock_guard<DataBlock> guard(*block);
-
-        block->setLength(1);
-        block->setNumItems(1);
-
-        block->alloc(8);
-
-        // add the scalar as a new block
-        block->writeData((void*)&bval, 8);
-      }
       else {
         throw std::runtime_error(
             "onDataReady(): Invalid broadcast data msg");
