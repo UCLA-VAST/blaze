@@ -132,6 +132,8 @@ private:
 
     U diff=0.0;
     for (int k=0; k<output_base->getLength(); k++) {
+      if (k<10)
+        printf("%f, %f\n", result_base[k], result_test[k]);
       diff += abs(result_base[k]-result_test[k]);
     }
     if (diff>thresh) {

@@ -9,6 +9,12 @@ namespace blaze {
 
 void Task::addInputBlock(int64_t partition_id, DataBlock_ptr block) {
 
+  if (input_blocks.size() >= num_input) {
+    throw std::runtime_error(
+        "Inconsistancy between num_args in ACC Task"
+        " with the number of blocks in ACCREQUEST");
+  }
+
   input_blocks.push_back(block);
 
   // add the same block to a map table to provide fast access

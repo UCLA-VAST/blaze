@@ -1,5 +1,5 @@
-include ../Makefile.config
-MANAGER_DIR=../manager
+MANAGER_DIR=../../manager
+include ../../Makefile.config
 
 # check all variables
 ifeq ($(BOOST_DIR),)

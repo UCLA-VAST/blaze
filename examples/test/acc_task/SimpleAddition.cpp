@@ -11,7 +11,7 @@ public:
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  SimpleAddition(): Task(1) {;}
+  SimpleAddition(): Task(2) {;}
 
   // overwrites the compute function
   virtual void compute() {
