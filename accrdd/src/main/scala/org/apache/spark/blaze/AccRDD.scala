@@ -52,7 +52,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     val numBlock: Int = 1 // Now we just use 1 block for an input partition.
 
     val blockId = new Array[Long](numBlock)
-    val brdcstId = new Array[Long](acc.getArgNum)
+    val brdcstIdOrValue = new Array[(Long, Boolean)](acc.getArgNum)
 
     // Generate an input data block ID array
     for (j <- 0 until numBlock) {
@@ -75,18 +75,23 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
           throw new RuntimeException("Cannot recognize RDD data type")
 
         // Get broadcast block IDs
-        for (j <- 0 until brdcstId.length) {
+        for (j <- 0 until brdcstIdOrValue.length) {
           val arg = acc.getArg(j)
           if (arg.isDefined == false)
             throw new RuntimeException("Argument index " + j + " is out of range.")
 
-          brdcstId(j) = arg.get.brdcst_id
+          // Set as true if it is the ID
+          if (arg.get.isInstanceOf[Long])
+            brdcstIdOrValue(j) = (arg.get.asInstanceOf[Long], false) 
+          else 
+            brdcstIdOrValue(j) = ((arg.get.asInstanceOf[BlazeBroadcast[_]]).brdcst_id, true)
         }
 
         val transmitter = new DataTransmitter()
         if (transmitter.isConnect == false)
           throw new RuntimeException("Connection refuse.")
-        var msg = DataTransmitter.buildRequest(acc.id, blockId, brdcstId)
+        var msg = DataTransmitter.buildRequest(acc.id, blockId, brdcstIdOrValue.unzip._1.toArray, 
+          brdcstIdOrValue.unzip._2.toArray)
 
         startTime = System.nanoTime
         transmitter.send(msg)
@@ -136,28 +141,30 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
         }
 
         // Prepare broadcast blocks
-        for (i <- 0 until brdcstId.length) {
-          if (!revMsg.getData(i + numBlock).getCached()) {
+        var numBrdcstBlock: Int = 0
+        for (i <- 0 until brdcstIdOrValue.length) {
+          if (brdcstIdOrValue(i)._2 == true && !revMsg.getData(numBrdcstBlock + numBlock).getCached()) {
             requireData = true
-            val bcData = acc.getArg(i).get.data
+            val bcData = (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).data // Uncached data must be BlazeBroadcast.
             if (bcData.getClass.isArray) { // Serialize array and use memory mapped file to send the data.
               val arrayData = bcData.asInstanceOf[Array[_]]
-              val mappedFileInfo = Util.serializePartition(appId, arrayData, brdcstId(i))
+              val mappedFileInfo = Util.serializePartition(appId, arrayData, brdcstIdOrValue(i)._1)
               val typeName = arrayData(0).getClass.getName.replace("java.lang.", "").toLowerCase
               val typeSize = Util.getTypeSizeByName(typeName)
               assert(typeSize != 0, "Cannot find the size of type " + typeName)
 
-              DataTransmitter.addData(dataMsg, brdcstId(i), arrayData.length, 1,
+              DataTransmitter.addData(dataMsg, brdcstIdOrValue(i)._1, arrayData.length, 1,
                 arrayData.length * typeSize, 0, mappedFileInfo._1)
-              acc.getArg(i).get.length = arrayData.length
-              acc.getArg(i).get.size = arrayData.length * typeSize
+              (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).length = arrayData.length
+              (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).size = arrayData.length * typeSize
             }
             else { // Send a scalar data through the socket directly.
               val longData: Long = Util.casting(bcData, classOf[Long])
-              DataTransmitter.addScalarData(dataMsg, brdcstId(i), longData)
-              acc.getArg(i).get.length = 1
-              acc.getArg(i).get.size = 4
+              DataTransmitter.addScalarData(dataMsg, brdcstIdOrValue(i)._1, longData)
+              (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).length = 1
+              (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).size = 4
             }
+            numBrdcstBlock += 1
           }
         }
 

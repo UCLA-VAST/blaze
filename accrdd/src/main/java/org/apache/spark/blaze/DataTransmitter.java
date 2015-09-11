@@ -140,11 +140,11 @@ public class DataTransmitter {
 	*
 	* @param acc_id
 	*		The accelerator ID. Should be provided by accelerator library.
-	* @param blockId
-	*		The unique block ID.
+	* @param blockIdOrValue
+	*		The unique block ID or the scalar value.
 	* @return The message which hasn't been built.
 	**/
-	public static AccMessage.TaskMsg.Builder buildRequest(String acc_id, long[] blockId, long[] brdcstId) {
+	public static AccMessage.TaskMsg.Builder buildRequest(String acc_id, long[] blockId, long[] brdcst, boolean[] IdOrValue) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
 			.setType(AccMessage.MsgType.ACCREQUEST)
 			.setAccId(acc_id);
@@ -154,9 +154,13 @@ public class DataTransmitter {
 					.setPartitionId(id);
 				msg.addData(data);
 			}
-			for (long id: brdcstId) {
-				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-					.setPartitionId(id);
+			for (int i = 0; i < brdcst.length; i += 1) {
+				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder();
+
+				if (IdOrValue[i] == true)
+					data.setPartitionId(brdcst[i]);
+				else
+					data.setBval(brdcst[i]);
 				msg.addData(data);
 			}
 		

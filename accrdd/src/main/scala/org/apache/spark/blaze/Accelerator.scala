@@ -59,7 +59,7 @@ trait Accelerator[T, U] extends java.io.Serializable {
     * @return The corresponding variable within Some. Return None if 
     *         the index is out of range.
   **/
-  def getArg(idx: Int): Option[BlazeBroadcast[_]]
+  def getArg(idx: Int): Option[_]
 
   /** Report the total number of reference (broadcast) variables.
     * @return The total number of reference variables.
