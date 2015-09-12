@@ -26,17 +26,20 @@ import java.net._
 // comaniac: Import extended package
 import org.apache.spark.blaze._
 
-class SimpleAddition extends Accelerator[Double, Double] {
+class SimpleAddition(v: Int) extends Accelerator[Double, Double] {
   val id: String = "SimpleAddition"
 
-  def getArgNum(): Int = 0
+  def getArgNum(): Int = 1
 
-  def getArg(idx: Int): Option[BlazeBroadcast[_]] = {
-    None
+  def getArg(idx: Int): Option[_] = {
+    if (idx == 0)
+      Some(v)
+    else
+      None
   }
 
   override def call(in: Double): Double = {
-    in + 1.0
+    in + v
   }
 
   override def call(in: Iterator[Double]): Iterator[Double] = {
@@ -45,7 +48,7 @@ class SimpleAddition extends Accelerator[Double, Double] {
     val outAry = new Array[Double](length)
 
     for (i <- 0 until length)
-      outAry(i) = inAry(i) + 1.0
+      outAry(i) = inAry(i) + v
 
     outAry.iterator
   }
@@ -60,12 +63,13 @@ object TestApp {
       val rdd_acc = acc.wrap(rdd.map(a => a.toDouble))
 
       val b = acc.wrap(sc.broadcast(Array(1, 2, 3)))
+      val v = 2
 
       rdd_acc.cache
       rdd_acc.collect
-      val rdd_acc2 = rdd_acc.mapPartitions_acc(new SimpleAddition())
+      val rdd_acc2 = rdd_acc.mapPartitions_acc(new SimpleAddition(v))
       println("Result: " + rdd_acc2.reduce((a, b) => (a + b)))
-      println("Expect: " + rdd_acc.map(e => e + 1.0).reduce((a, b) => (a + b)))
+      println("Expect: " + rdd_acc.map(e => e + v.toDouble).reduce((a, b) => (a + b)))
 
       acc.stop()
     }

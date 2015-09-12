@@ -24,7 +24,8 @@ class DataBlock
 {
 
 public:
-  // create a single output elements
+
+  // create basic data block with one item
   DataBlock(int _length, int64_t _size):
     length(_length), 
     num_items(1),

@@ -9,6 +9,12 @@ namespace blaze {
 
 void Task::addInputBlock(int64_t partition_id, DataBlock_ptr block) {
 
+  if (input_blocks.size() >= num_input) {
+    throw std::runtime_error(
+        "Inconsistancy between num_args in ACC Task"
+        " with the number of blocks in ACCREQUEST");
+  }
+
   input_blocks.push_back(block);
 
   // add the same block to a map table to provide fast access
@@ -107,21 +113,6 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
         if (boost::filesystem::exists(file)) {
           boost::filesystem::remove(file);
         }
-      }
-      else if (blockInfo.has_bval()) { // if this is a broadcast scalar
-
-        int64_t bval = blockInfo.bval();
-
-        // lock block for exclusive access
-        boost::lock_guard<DataBlock> guard(*block);
-
-        block->setLength(1);
-        block->setNumItems(1);
-
-        block->alloc(8);
-
-        // add the scalar as a new block
-        block->writeData((void*)&bval, 8);
       }
       else {
         throw std::runtime_error(
@@ -293,7 +284,8 @@ bool Task::isReady() {
        iter != input_blocks.end();
        iter ++)
   {
-    if (!(*iter)->isReady()) {
+    // a block may be added but not initialized
+    if ((*iter).get()==0 || !(*iter)->isReady()) {
       ready = false;
       break;
     }
