@@ -76,15 +76,16 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
 
         // Get broadcast block IDs
         for (j <- 0 until brdcstIdOrValue.length) {
-          val arg = acc.getArg(j)
-          if (arg.isDefined == false)
-            throw new RuntimeException("Argument index " + j + " is out of range.")
 
-          // Set as true if it is the ID
-          if (arg.get.isInstanceOf[Long])
-            brdcstIdOrValue(j) = (arg.get.asInstanceOf[Long], false) 
-          else 
-            brdcstIdOrValue(j) = ((arg.get.asInstanceOf[BlazeBroadcast[_]]).brdcst_id, true)
+          // a tuple of (val, isID)
+          brdcstIdOrValue(j) = acc.getArg(j) match {
+            case Some(v: BlazeBroadcast[_]) => (v.brdcst_id, true)
+            case Some(v: Long) => (Util.casting(v, classOf[Long]), false)
+            case Some(v: Int) => (Util.casting(v, classOf[Long]), false)
+            case Some(v: Double) => (Util.casting(v, classOf[Long]), false)
+            case Some(v: Float) => (Util.casting(v, classOf[Long]), false)
+            case _ => throw new RuntimeException("Invalid Broadcast arguement "+j)
+          }
         }
 
         val transmitter = new DataTransmitter()

@@ -26,7 +26,7 @@ import java.net._
 // comaniac: Import extended package
 import org.apache.spark.blaze._
 
-class SimpleAddition(v: Long) extends Accelerator[Double, Double] {
+class SimpleAddition(v: Int) extends Accelerator[Double, Double] {
   val id: String = "SimpleAddition"
 
   def getArgNum(): Int = 1
@@ -63,7 +63,7 @@ object TestApp {
       val rdd_acc = acc.wrap(rdd.map(a => a.toDouble))
 
       val b = acc.wrap(sc.broadcast(Array(1, 2, 3)))
-      val v: Long = 2L
+      val v = 2
 
       rdd_acc.cache
       rdd_acc.collect
