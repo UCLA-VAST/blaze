@@ -284,7 +284,8 @@ bool Task::isReady() {
        iter != input_blocks.end();
        iter ++)
   {
-    if (!(*iter)->isReady()) {
+    // a block may be added but not initialized
+    if ((*iter).get()==0 || !(*iter)->isReady()) {
       ready = false;
       break;
     }
