@@ -22,6 +22,7 @@ message DataMsg {
   optional int64 offset = 6;
   optional bool cached = 7;
   optional int64 bval = 8;
+  optional string mask_path = 9;
 }
 
 message TaskMsg {
