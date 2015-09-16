@@ -99,7 +99,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
         }
 
         // Sample data if necessary
-        if (inSampler != null) {
+        if (inSampler != null && partitionMask == null) {
           partitionMask = samplePartition(split, context)
         }
 
