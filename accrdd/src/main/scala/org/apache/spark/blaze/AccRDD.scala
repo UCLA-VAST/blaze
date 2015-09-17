@@ -165,7 +165,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
           else if (partitionMask != null) {
             requireData = true
             val maskFileInfo = Util.serialization(appId, partitionMask, numBlock + blockId(i))
-            DataTransmitter.addData(dataMsg, blockId(i), maskFileInfo._1)
+            DataTransmitter.addData(dataMsg, blockId(i), 0, maskFileInfo._3, 0, 0, maskFileInfo._1)
           }
         }
 

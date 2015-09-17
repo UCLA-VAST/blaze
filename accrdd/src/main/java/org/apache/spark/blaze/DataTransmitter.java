@@ -208,8 +208,10 @@ public class DataTransmitter {
 			.setPartitionId(id)
 			.setLength(length)
 			.setSize(size)
-			.setOffset(offset)
-			.setPath(path);
+			.setOffset(offset);
+
+		if (path != null)
+			data.setPath(path);
 
 		if (maskPath != null)
 			data.setMaskPath(maskPath);
@@ -244,24 +246,6 @@ public class DataTransmitter {
 	) {
 
 		addData(msg, id, length, item, size, offset, path, null);
-		return ;
-	}
-
-	/**
-	* Add a data block.
-	* Create and add a data block to assigned message with only mask path.
-	*
-	*	@param msg The message that wanted to be added.
-	* @param id The unique ID of the data block.
-	* @param maskPath The mask file path.
-	**/
-	public static void addData(
-		AccMessage.TaskMsg.Builder msg, 
-		long id, 
-		String maskPath
-	) {
-
-		addData(msg, id, 0, 0, 0, 0, null, maskPath);
 		return ;
 	}
 

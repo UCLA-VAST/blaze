@@ -67,8 +67,12 @@ object Util {
         logStr = logStr + "Length: " + msg.getData(i).getLength() + ", "
       if (msg.getData(i).hasSize())
         logStr = logStr + "Size: " + msg.getData(i).getSize() + ", "
+      if (msg.getData(i).hasNumItems())
+        logStr = logStr + "NumItems: " + msg.getData(i).getNumItems() + ", "
       if (msg.getData(i).hasPath())
-        logStr = logStr + "Path: " + msg.getData(i).getPath()
+        logStr = logStr + "Path: " + msg.getData(i).getPath() + ", "
+      if (msg.getData(i).hasMaskPath())
+        logStr = logStr + "Mask_Path: " + msg.getData(i).getMaskPath()
       logStr = logStr + "\n"
     }
     logStr
@@ -227,7 +231,7 @@ object Util {
     val typeSize: Int = getTypeSizeByName(dataType)
 
     val isArray: Boolean = typeName.contains("[")
-    val itemNum: Int = if (isArray) input.length else 1
+    val itemNum: Int = input.length
 
     if ((typeName.split('[').length - 1) > 1)
       throw new RuntimeException("Unsupport multi-dimension arrays: " + typeName)
