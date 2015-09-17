@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include "Block.h"
 
 namespace blaze {
@@ -75,10 +58,40 @@ void DataBlock::readData(void* dst, size_t size) {
   }
 }
 
+DataBlock_ptr DataBlock::sample(char* mask) {
+
+  int item_length = length / num_items;
+  int item_size   = size / num_items;
+
+  // count the total number of 
+  int masked_items = 0;
+  for (int i=0; i<num_items; i++) {
+    if (mask[i]!=0) {
+      masked_items ++;
+    }
+  }
+  
+  DataBlock_ptr block(new DataBlock(
+        item_length*masked_items, 
+        item_size*masked_items));
+
+  block->setNumItems(masked_items);
+  
+  char* masked_data = block->getData();
+
+  int k=0;
+  for (int i=0; i<num_items; i++) {
+    if (mask[i] != 0) {
+      memcpy(masked_data+k*item_size, 
+             data+i*item_size, 
+             item_size);
+      k++;
+    }
+  }
+  return block;
+}
+
 void DataBlock::readFromMem(std::string path) {
-  // guarantee exclusive access by outside lock
-  // to avoid reading memory for the same block simutainously
-  //boost::lock_guard<DataBlock> guard(*this);
 
   if (ready) {
     return;

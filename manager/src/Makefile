@@ -56,7 +56,7 @@ task.pb.o: proto/task.pb.cc
 acc_conf.pb.o: proto/acc_conf.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 
 
-%.o: %.cpp *.h 
+%.o: %.cpp *.h proto/*.h
 	$(PP) $(COMPILE) $< -o $@
 
 clean:

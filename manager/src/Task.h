@@ -138,7 +138,7 @@ protected:
 
 private:
 
-  void addInputBlock(int64_t partition_id, DataBlock_ptr block);
+  void addInputBlock(int64_t partition_id, DataBlock_ptr &block);
 
   DataBlock_ptr getInputBlock(int64_t block_id);
 
@@ -167,11 +167,12 @@ private:
   // number of input blocks that has data initialized
   int num_ready;
 
-  // input and output data block
+  // list of input and output blocks
   std::vector<DataBlock_ptr> input_blocks;
   std::vector<DataBlock_ptr> output_blocks;
 
-  std::map<int64_t, DataBlock_ptr> input_table;
+  // a mapping between partition_id to the idx into input_blocks
+  std::map<int64_t, int> input_table;
 };
 
 typedef boost::shared_ptr<Task> Task_ptr;

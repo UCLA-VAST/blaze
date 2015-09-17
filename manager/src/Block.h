@@ -33,7 +33,7 @@ public:
     allocated(true),
     ready(false)
   {
-    //width = _size / _length;
+    width = _size / _length;
     data = new char[_size];
 
   }
@@ -64,10 +64,7 @@ public:
   // write data to an array
   virtual void readData(void* dst, size_t size);
 
-  void readFromMem(std::string path);
-
-  void writeToMem(std::string path);
-
+  // get the pointer to data
   virtual char* getData() { 
     if (allocated) {
       return data; 
@@ -76,6 +73,12 @@ public:
       return NULL;
     }
   }
+
+  // sample the items in the block by a mask
+  virtual boost::shared_ptr<DataBlock> sample(char* mask);
+
+  void readFromMem(std::string path);
+  void writeToMem(std::string path);
 
   int setLength(int _length) { 
     length = _length; 

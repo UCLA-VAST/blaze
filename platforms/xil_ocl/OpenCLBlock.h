@@ -87,6 +87,9 @@ public:
   // write data to an array
   virtual void readData(void* dst, size_t size);
 
+  // sample the items in the block by a mask
+  virtual DataBlock_ptr sample(char* mask);
+
   virtual char* getData() { 
 
     if (allocated) {

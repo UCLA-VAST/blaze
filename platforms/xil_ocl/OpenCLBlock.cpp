@@ -116,5 +116,65 @@ void OpenCLBlock::readData(void* dst, size_t size) {
   }
 }
 
+DataBlock_ptr OpenCLBlock::sample(char* mask) {
+
+  int item_length = length / num_items;
+  int item_size   = size / num_items;
+
+  // count the total number of 
+  int masked_items = 0;
+  for (int i=0; i<num_items; i++) {
+    if (mask[i]!=0) {
+      masked_items ++;
+    }
+  }
+
+  DataBlock_ptr block(new OpenCLBlock(env,
+        item_length*masked_items, 
+        item_size*masked_items));
+
+  block->setNumItems(masked_items);
+  
+  cl_mem masked_data = *((cl_mem*)(block->getData()));
+
+  // get the command queue handler
+  cl_command_queue command = env->getCmdQueue();
+  cl_int err = 0;
+
+  // start copy the masked data items to the new block,
+  // since the current block is read-only, do not need to enforce lock
+  int k=0;
+
+  // array of cl_event to wait until all buffer copy is finished
+  cl_event *events = new cl_event[num_items];
+
+  for (int i=0; i<num_items; i++) {
+    if (mask[i] != 0) {
+      err = clEnqueueCopyBuffer(command, 
+          data, masked_data,
+          i*item_size, k*item_size,
+          item_size, 
+          0, NULL, events+k);
+
+      if (err != CL_SUCCESS) {
+        throw std::runtime_error(LOG_HEADER +
+            std::string("error in clEnqueueCopyBuffer()"));
+      }
+
+      k++;
+    }
+  }
+  err = clWaitForEvents(num_items, events);
+
+  if (err != CL_SUCCESS) {
+    throw std::runtime_error(LOG_HEADER +
+        std::string("error during sampling"));
+  }
+
+  delete events;
+
+  return block;
+}
+
 } // namespace
 
