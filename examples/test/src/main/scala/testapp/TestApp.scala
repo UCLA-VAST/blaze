@@ -72,7 +72,6 @@ object TestApp {
       sampled_rdd_acc.cache
       sampled_rdd_acc.collect
       val rdd_acc2 = sampled_rdd_acc.mapPartitions_acc(new SimpleAddition(v))
-
       println("Result: " + rdd_acc2.reduce((a, b) => (a + b)))
 
       acc.stop()

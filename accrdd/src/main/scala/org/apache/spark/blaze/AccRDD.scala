@@ -46,11 +46,11 @@ class AccRDD[U: ClassTag, T: ClassTag](
   appId: Int, 
   prev: RDD[T], 
   acc: Accelerator[T, U],
-  inSampler: RandomSampler[T, T]
+  sampler: RandomSampler[T, T]
 ) extends RDD[U](prev) with Logging {
 
   // Sampler for continued usage
-  var outSampler: RandomSampler[U, U] = null
+//  var outSampler: RandomSampler[U, U] = null
 
   def getPrevRDD() = prev
   def getRDD() = this
@@ -99,7 +99,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
         }
 
         // Sample data if necessary
-        if (inSampler != null && partitionMask == null) {
+        if (sampler != null && partitionMask == null) {
           partitionMask = samplePartition(split, context)
         }
 
@@ -129,7 +129,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
             requireData = true
 
             // The data has been read and cached by Spark, serialize it and send memory mapped file path.
-            if (isCached == true || !split.isInstanceOf[HadoopPartition] || inSampler != null) {
+            if (isCached == true || !split.isInstanceOf[HadoopPartition] || partitionMask != null) {
               // Issue #26: This partition might be a CoalescedRDDPartition, 
               // which has no file information so we have to load it in advance.
 
@@ -161,6 +161,11 @@ class AccRDD[U: ClassTag, T: ClassTag](
               DataTransmitter.addData(dataMsg, blockId(i), -1, 1,
                   fileSize, fileOffset, filePath)
             }
+          }
+          else if (partitionMask != null) {
+            requireData = true
+            val maskFileInfo = Util.serialization(appId, partitionMask, numBlock + blockId(i))
+            DataTransmitter.addData(dataMsg, blockId(i), maskFileInfo._1)
           }
         }
 
@@ -274,7 +279,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
     * @return A transformed AccRDD.
     */
   def map_acc[V: ClassTag](clazz: Accelerator[U, V]): AccRDD[V, U] = {
-    new AccRDD(appId, this, clazz, outSampler)
+    new AccRDD(appId, this, clazz, null)
   }
 
   /**
@@ -285,12 +290,11 @@ class AccRDD[U: ClassTag, T: ClassTag](
     * @return A transformed AccMapPartitionsRDD.
     */
   def mapPartitions_acc[V: ClassTag](clazz: Accelerator[U, V]): AccMapPartitionsRDD[V, U] = {
-    new AccMapPartitionsRDD(appId, this.asInstanceOf[RDD[U]], clazz, outSampler)
+    new AccMapPartitionsRDD(appId, this.asInstanceOf[RDD[U]], clazz, null)
   }
 
-  def sample(newSampler: RandomSampler[U, U]): AccRDD[U, T] = {
-    outSampler = newSampler
-    this
+  def sample(newSampler: RandomSampler[T, T]): ShellRDD[T] = {
+    new ShellRDD(appId, this.asInstanceOf[RDD[T]], newSampler)
   }
 
   /**
@@ -311,8 +315,8 @@ class AccRDD[U: ClassTag, T: ClassTag](
   }
 
   def samplePartition(split: Partition, context: TaskContext): Array[Char] = {
-    require(inSampler != null)
-    val thisSampler = inSampler.clone
+    require(sampler != null)
+    val thisSampler = sampler.clone
     thisSampler.setSeed(904401792)
     val sampledIter = thisSampler.sample(firstParent[T].iterator(split, context))
     val inputIter = firstParent[T].iterator(split, context)

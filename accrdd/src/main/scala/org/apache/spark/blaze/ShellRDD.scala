@@ -36,10 +36,13 @@ import org.apache.spark.util.random.RandomSampler
   * @param appId The application ID.
   * @param prev The original Spark RDD.
   */
-class ShellRDD[T: ClassTag](appId: Int, prev: RDD[T]) 
-  extends RDD[T](prev) {
+class ShellRDD[T: ClassTag](
+  appId: Int, 
+  prev: RDD[T],
+  sampler: RandomSampler[T, T]
+) extends RDD[T](prev) {
 
-  var sampler: RandomSampler[T, T] = null
+  def this(id: Int, prev: RDD[T]) = this(id, prev, null)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -63,10 +66,8 @@ class ShellRDD[T: ClassTag](appId: Int, prev: RDD[T])
     new AccRDD(appId, this, clazz, sampler)
   }
 
-  // FIXME: Only ShellRDD can sample
   def sample(s: RandomSampler[T, T]): ShellRDD[T] = { 
-    sampler = s
-    this
+    new ShellRDD(appId, this, s)
   }
 
   def mapPartitions_acc[U: ClassTag](clazz: Accelerator[T, U]): AccMapPartitionsRDD[U, T] = {
