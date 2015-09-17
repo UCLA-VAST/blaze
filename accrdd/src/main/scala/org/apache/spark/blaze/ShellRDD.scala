@@ -19,12 +19,14 @@ package org.apache.spark.blaze
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
+import scala.collection.mutable._
 
 import org.apache.spark._
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
+import org.apache.spark.util.random.RandomSampler
 
 /**
   * ShellRDD is only used for wrapping a Spark RDD. It returns a AccRDD
@@ -34,8 +36,13 @@ import org.apache.spark.scheduler._
   * @param appId The application ID.
   * @param prev The original Spark RDD.
   */
-class ShellRDD[T: ClassTag](appId: Int, prev: RDD[T]) 
-  extends RDD[T](prev) {
+class ShellRDD[T: ClassTag](
+  appId: Int, 
+  prev: RDD[T],
+  sampler: RandomSampler[T, T]
+) extends RDD[T](prev) {
+
+  def this(id: Int, prev: RDD[T]) = this(id, prev, null)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -56,11 +63,15 @@ class ShellRDD[T: ClassTag](appId: Int, prev: RDD[T])
   }
 
   def map_acc[U: ClassTag](clazz: Accelerator[T, U]): AccRDD[U, T] = {
-    new AccRDD(appId, this, clazz)
+    new AccRDD(appId, this, clazz, sampler)
+  }
+
+  def sample(s: RandomSampler[T, T]): ShellRDD[T] = { 
+    new ShellRDD(appId, this, s)
   }
 
   def mapPartitions_acc[U: ClassTag](clazz: Accelerator[T, U]): AccMapPartitionsRDD[U, T] = {
-    new AccMapPartitionsRDD(appId, this, clazz)
+    new AccMapPartitionsRDD(appId, this, clazz, sampler)
   }
 }
 

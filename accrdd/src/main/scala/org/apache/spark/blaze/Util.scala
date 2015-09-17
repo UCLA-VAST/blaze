@@ -26,6 +26,7 @@ import java.nio.channels.FileChannel
 import java.nio.channels.FileChannel.MapMode
 import java.net.InetAddress
 import java.net.UnknownHostException
+import java.util.Random
 
 import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._         
@@ -48,49 +49,51 @@ object Util {
   val PARTITION_BIT_START = 1
   val BLOCK_BIT_START = 0
 
+  def random = new Random()
+
   /**
     * Generate a string of message information.
     */
   def logMsg(msgBuilder: AccMessage.TaskMsg.Builder): String = {
     val msg = msgBuilder.build()
-    val logStr: Array[String] = Array("Message: Type: ")
-    logStr(0) = logStr(0) + msg.getType() + ", Data: " + msg.getDataCount() + "\n"
+    var logStr = "Message: Type: "
+    logStr = logStr + msg.getType() + ", Data: " + msg.getDataCount() + "\n"
 
     for (i <- 0 until msg.getDataCount()) {
-      logStr(0) = logStr(0) + "Data " + i + ": "
+      logStr = logStr + "Data " + i + ": "
       if (msg.getData(i).hasPartitionId())
-        logStr(0) = logStr(0) + "ID: " + msg.getData(i).getPartitionId() + ", "
+        logStr = logStr + "ID: " + msg.getData(i).getPartitionId() + ", "
       if (msg.getData(i).hasLength())
-        logStr(0) = logStr(0) + "Length: " + msg.getData(i).getLength() + ", "
+        logStr = logStr + "Length: " + msg.getData(i).getLength() + ", "
       if (msg.getData(i).hasSize())
-        logStr(0) = logStr(0) + "Size: " + msg.getData(i).getSize() + ", "
+        logStr = logStr + "Size: " + msg.getData(i).getSize() + ", "
       if (msg.getData(i).hasPath())
-        logStr(0) = logStr(0) + "Path: " + msg.getData(i).getPath()
-      logStr(0) = logStr(0) + "\n"
+        logStr = logStr + "Path: " + msg.getData(i).getPath()
+      logStr = logStr + "\n"
     }
-    logStr(0)
+    logStr
   }
 
   /**
     * Generate a string of message information.
     */
   def logMsg(msg: AccMessage.TaskMsg): String = {
-    val logStr: Array[String] = Array("Message: Type: ")
-    logStr(0) = logStr(0) + msg.getType() + ", Data: " + msg.getDataCount() + "\n"
+    var logStr = "Message: Type: "
+    logStr = logStr + msg.getType() + ", Data: " + msg.getDataCount() + "\n"
 
     for (i <- 0 until msg.getDataCount()) {
-      logStr(0) = logStr(0) + "Data " + i + ": "
+      logStr = logStr + "Data " + i + ": "
       if (msg.getData(i).hasPartitionId())
-        logStr(0) = logStr(0) + "ID: " + msg.getData(i).getPartitionId() + ", "
+        logStr = logStr + "ID: " + msg.getData(i).getPartitionId() + ", "
       if (msg.getData(i).hasLength())
-        logStr(0) = logStr(0) + "Length: " + msg.getData(i).getLength() + ", "
+        logStr = logStr + "Length: " + msg.getData(i).getLength() + ", "
       if (msg.getData(i).hasSize())
-        logStr(0) = logStr(0) + "Size: " + msg.getData(i).getSize() + ", "
+        logStr = logStr + "Size: " + msg.getData(i).getSize() + ", "
       if (msg.getData(i).hasPath())
-        logStr(0) = logStr(0) + "Path: " + msg.getData(i).getPath()
-      logStr(0) = logStr(0) + "\n"
+        logStr = logStr + "Path: " + msg.getData(i).getPath()
+      logStr = logStr + "\n"
     }
-    logStr(0)
+    logStr
   }
 
   /**
@@ -117,8 +120,8 @@ object Util {
     */
   def getTypeSizeByRDD[T: ClassTag](rdd: RDD[T]): Int = {
     if (classTag[T] == classTag[Byte] || classTag[T] == classTag[Array[Byte]])          1
-    else if (classTag[T] == classTag[Short] || classTag[T] == classTag[Array[Short]])   2
     else if (classTag[T] == classTag[Char] || classTag[T] == classTag[Array[Char]])     2
+    else if (classTag[T] == classTag[Short] || classTag[T] == classTag[Array[Short]])   2
     else if (classTag[T] == classTag[Int] || classTag[T] == classTag[Array[Int]])       4
     else if (classTag[T] == classTag[Float] || classTag[T] == classTag[Array[Float]])   4
     else if (classTag[T] == classTag[Long] || classTag[T] == classTag[Array[Long]])     8
@@ -138,6 +141,7 @@ object Util {
       typeName = dataType(0).toString
 
     val typeSize: Int = typeName match {
+      case "c" => 2
       case "i" => 4
       case "f" => 4
       case "l" => 8
@@ -204,14 +208,14 @@ object Util {
   }
 
   /**
-    * Serialize a partition and write the data to memory mapped file.
+    * Serialize and write the data to memory mapped file.
     *
     * @param prefix The prefix of memory mapped file. Usually use application ID.
     * @param input The data to be serialized.
-    * @param id The ID of the data block.
-    * @return A pair of (file name, size)
+    * @param id The ID of the serialized data.
+    * @return A pair of (file name, size, item number)
     */
-  def serializePartition[T: ClassTag](prefix: Int, input: Array[T], id: Long): (String, Int, Int) = {
+  def serialization[T: ClassTag](prefix: Int, input: Array[T], id: Long): (String, Int, Int) = {
     var fileName: String = System.getProperty("java.io.tmpdir") + "/" + prefix
     if (id < 0) // Broadcast data
       fileName = fileName + "_brdcst_" + (-id) + ".dat"
@@ -229,15 +233,15 @@ object Util {
       throw new RuntimeException("Unsupport multi-dimension arrays: " + typeName)
 
     // Calculate buffer length
-    val bufferLength = Array(0)
+    var bufferLength = 0
     if (isArray) {
       for (e <- input) {
         val a = e.asInstanceOf[Array[_]]
-        bufferLength(0) = bufferLength(0) + a.length
+        bufferLength = bufferLength + a.length
       }
     }
     else
-      bufferLength(0) = input.length
+      bufferLength = input.length
 
     // Create and write memory mapped file
     var raf: RandomAccessFile = null
@@ -249,13 +253,14 @@ object Util {
         throw new IOException("Fail to create memory mapped file " + fileName + ": " + e.toString)
     }
     val fc: FileChannel = raf.getChannel()
-    val buf: ByteBuffer = fc.map(MapMode.READ_WRITE, 0, bufferLength(0) * typeSize)
+    val buf: ByteBuffer = fc.map(MapMode.READ_WRITE, 0, bufferLength * typeSize)
     buf.order(ByteOrder.LITTLE_ENDIAN)
 
     for (e <- input) {
       if (isArray) {
         for (a <- e.asInstanceOf[Array[_]]) {
           dataType match {
+            case "c" => buf.putChar(a.asInstanceOf[Char].charValue)
             case "i" => buf.putInt(a.asInstanceOf[Int].intValue)
             case "f" => buf.putFloat(a.asInstanceOf[Float].floatValue)
             case "l" => buf.putLong(a.asInstanceOf[Long].longValue)
@@ -267,6 +272,7 @@ object Util {
       }
       else {
         dataType match {
+          case "c" => buf.putChar(e.asInstanceOf[Char].charValue)
           case "i" => buf.putInt(e.asInstanceOf[Int].intValue)
           case "f" => buf.putFloat(e.asInstanceOf[Float].floatValue)
           case "l" => buf.putLong(e.asInstanceOf[Long].longValue)
@@ -285,7 +291,7 @@ object Util {
         throw new IOException("Fail to close memory mapped file " + fileName + ": " + e.toString)
     }
 
-    (fileName, bufferLength(0), itemNum)
+    (fileName, bufferLength, itemNum)
   }
 
   /**
@@ -348,6 +354,7 @@ object Util {
       if (isArray) {
         for (ii <- 0 until itemLength) {
           dataType match {
+            case "c" => out(idx).asInstanceOf[Array[Char]](ii) = buf.getChar()
             case "i" => out(idx).asInstanceOf[Array[Int]](ii) = buf.getInt()
             case "f" => out(idx).asInstanceOf[Array[Float]](ii) = buf.getFloat()
             case "l" => out(idx).asInstanceOf[Array[Long]](ii) = buf.getLong()
@@ -359,6 +366,7 @@ object Util {
       }
       else {
          dataType match {
+          case "c" => out(idx) = buf.getChar().asInstanceOf[T]
           case "i" => out(idx) = buf.getInt().asInstanceOf[T]
           case "f" => out(idx) = buf.getFloat().asInstanceOf[T]
           case "l" => out(idx) = buf.getLong().asInstanceOf[T]

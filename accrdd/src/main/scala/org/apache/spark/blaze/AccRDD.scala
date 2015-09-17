@@ -24,12 +24,14 @@ import java.nio.ByteOrder
 
 import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
+import scala.collection.mutable._
 
 import org.apache.spark._
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
+import org.apache.spark.util.random.RandomSampler
 
 /**
   * A RDD that uses accelerator to accelerate the computation. The behavior of AccRDD is 
@@ -40,8 +42,15 @@ import org.apache.spark.scheduler._
   * @param prev The original RDD of Spark.
   * @param acc The developer extended accelerator class.
   */
-class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerator[T, U]) 
-  extends RDD[U](prev) with Logging {
+class AccRDD[U: ClassTag, T: ClassTag](
+  appId: Int, 
+  prev: RDD[T], 
+  acc: Accelerator[T, U],
+  sampler: RandomSampler[T, T]
+) extends RDD[U](prev) with Logging {
+
+  // Sampler for continued usage
+//  var outSampler: RandomSampler[U, U] = null
 
   def getPrevRDD() = prev
   def getRDD() = this
@@ -66,6 +75,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
       var outputAry: Array[U] = null // Length is unknown before reading the input
       var dataLength: Int = -1
       val typeSize: Int = Util.getTypeSizeByRDD(getRDD())
+      var partitionMask: Array[Char] = null
 
       var startTime: Long = 0
       var elapseTime: Long = 0
@@ -86,6 +96,11 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
             case Some(v: Float) => (Util.casting(v, classOf[Long]), false)
             case _ => throw new RuntimeException("Invalid Broadcast arguement "+j)
           }
+        }
+
+        // Sample data if necessary
+        if (sampler != null && partitionMask == null) {
+          partitionMask = samplePartition(split, context)
         }
 
         val transmitter = new DataTransmitter()
@@ -114,15 +129,23 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
             requireData = true
 
             // The data has been read and cached by Spark, serialize it and send memory mapped file path.
-            if (isCached == true || !split.isInstanceOf[HadoopPartition]) {
+            if (isCached == true || !split.isInstanceOf[HadoopPartition] || partitionMask != null) {
               // Issue #26: This partition might be a CoalescedRDDPartition, 
               // which has no file information so we have to load it in advance.
 
               val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
-              val mappedFileInfo = Util.serializePartition(appId, inputAry, blockId(i))
+              val mappedFileInfo = Util.serialization(appId, inputAry, blockId(i))
               dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
-              DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo._2, mappedFileInfo._3,
-                  mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)
+
+              if (partitionMask != null) {
+                val maskFileInfo = Util.serialization(appId, partitionMask, numBlock + blockId(i))
+                DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo._2, mappedFileInfo._3,
+                    mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1, maskFileInfo._1)
+              }
+              else {
+                DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo._2, mappedFileInfo._3,
+                    mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)
+              }
             }
             else { // The data hasn't been read by Spark, send HDFS file path directly (data length is unknown)
               val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
@@ -139,6 +162,11 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
                   fileSize, fileOffset, filePath)
             }
           }
+          else if (partitionMask != null) {
+            requireData = true
+            val maskFileInfo = Util.serialization(appId, partitionMask, numBlock + blockId(i))
+            DataTransmitter.addData(dataMsg, blockId(i), maskFileInfo._1)
+          }
         }
 
         // Prepare broadcast blocks
@@ -149,7 +177,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
             val bcData = (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).data // Uncached data must be BlazeBroadcast.
             if (bcData.getClass.isArray) { // Serialize array and use memory mapped file to send the data.
               val arrayData = bcData.asInstanceOf[Array[_]]
-              val mappedFileInfo = Util.serializePartition(appId, arrayData, brdcstIdOrValue(i)._1)
+              val mappedFileInfo = Util.serialization(appId, arrayData, brdcstIdOrValue(i)._1)
               val typeName = arrayData(0).getClass.getName.replace("java.lang.", "").toLowerCase
               val typeSize = Util.getTypeSizeByName(typeName)
               assert(typeSize != 0, "Cannot find the size of type " + typeName)
@@ -229,7 +257,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
           val sw = new StringWriter
           e.printStackTrace(new PrintWriter(sw))
           logInfo("Partition " + split.index + " fails to be executed on accelerator: " + sw.toString)
-          outputIter = computeOnJTP(split, context)
+          outputIter = computeOnJTP(split, context, partitionMask)
       }
 
       def hasNext(): Boolean = {
@@ -251,7 +279,7 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     * @return A transformed AccRDD.
     */
   def map_acc[V: ClassTag](clazz: Accelerator[U, V]): AccRDD[V, U] = {
-    new AccRDD(appId, this, clazz)
+    new AccRDD(appId, this, clazz, null)
   }
 
   /**
@@ -261,8 +289,12 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     * @param clazz Extended accelerator class.
     * @return A transformed AccMapPartitionsRDD.
     */
-  def mapPartitions_acc[V: ClassTag](clazz: Accelerator[U, V]): AccRDD[V, U] = {
-    new AccMapPartitionsRDD(appId, this.asInstanceOf[RDD[U]], clazz)
+  def mapPartitions_acc[V: ClassTag](clazz: Accelerator[U, V]): AccMapPartitionsRDD[V, U] = {
+    new AccMapPartitionsRDD(appId, this.asInstanceOf[RDD[U]], clazz, null)
+  }
+
+  def sample(newSampler: RandomSampler[T, T]): ShellRDD[T] = {
+    new ShellRDD(appId, this.asInstanceOf[RDD[T]], newSampler)
   }
 
   /**
@@ -282,6 +314,25 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     }
   }
 
+  def samplePartition(split: Partition, context: TaskContext): Array[Char] = {
+    require(sampler != null)
+    val thisSampler = sampler.clone
+    thisSampler.setSeed(904401792)
+    val sampledIter = thisSampler.sample(firstParent[T].iterator(split, context))
+    val inputIter = firstParent[T].iterator(split, context)
+    val inputAry = inputIter.toArray
+    var idx: Int = 0
+
+    val mask = Array.fill[Char](inputAry.length)('0')
+
+    while (sampledIter.hasNext) {
+      val ii = inputAry.indexOf(sampledIter.next)
+      require (ii != -1, "Sampled data doesn't match the original dataset!")
+      mask(ii) = '1'
+    }
+    mask
+  }
+
   /**
     * In case of failing to execute the computation on accelerator, 
     * Blaze will execute the computation on JVM instead to guarantee the
@@ -292,17 +343,22 @@ class AccRDD[U: ClassTag, T: ClassTag](appId: Int, prev: RDD[T], acc: Accelerato
     * @param context TaskContext of Spark.
     * @return The output array
     */
-  def computeOnJTP(split: Partition, context: TaskContext): Iterator[U] = {
+  def computeOnJTP(split: Partition, context: TaskContext, partitionMask: Array[Char]): Iterator[U] = {
     logInfo("Compute partition " + split.index + " using CPU")
     val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
     val dataLength = inputAry.length
-    val outputAry = new Array[U](dataLength)
+    var outputList = List[U]()
+
+    if (partitionMask == null)
+      logWarning("Partition " + split.index + " has no mask")
+
     var j: Int = 0
     while (j < inputAry.length) {
-      outputAry(j) = acc.call(inputAry(j).asInstanceOf[T])
+      if (partitionMask(j) != '0')
+        outputList = outputList :+ acc.call(inputAry(j).asInstanceOf[T])
       j = j + 1
     }
-    outputAry.iterator
+    outputList.iterator
   }
 }
 

@@ -192,6 +192,46 @@ public class DataTransmitter {
 	* @param size The file size of either memory mapped file or HDFS file.
 	* @param offset The start position of this block in the file.
 	* @param path The file path.
+	* @param maskPath The mask file path.
+	**/
+	public static void addData(
+		AccMessage.TaskMsg.Builder msg, 
+		long id, 
+		int length, 
+		int item, 
+		int size, 
+		int offset, 
+		String path,
+		String maskPath
+	) {
+		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
+			.setPartitionId(id)
+			.setLength(length)
+			.setSize(size)
+			.setOffset(offset)
+			.setPath(path);
+
+		if (maskPath != null)
+			data.setMaskPath(maskPath);
+
+		if (item != 1)
+			data.setNumItems(item);
+
+		msg.addData(data);
+		return ;
+	}
+
+	/**
+	* Add a data block.
+	* Create and add a data block to assigned message with without mask. 
+	*
+	*	@param msg The message that wanted to be added.
+	* @param id The unique ID of the data block.
+	* @param length The number of element of the data.
+	* @param item The number of item per element. 
+	* @param size The file size of either memory mapped file or HDFS file.
+	* @param offset The start position of this block in the file.
+	* @param path The file path.
 	**/
 	public static void addData(
 		AccMessage.TaskMsg.Builder msg, 
@@ -202,17 +242,26 @@ public class DataTransmitter {
 		int offset, 
 		String path
 	) {
-		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-			.setPartitionId(id)
-			.setLength(length)
-			.setSize(size)
-			.setOffset(offset)
-			.setPath(path);
 
-		if (item != 1)
-			data.setNumItems(item);
+		addData(msg, id, length, item, size, offset, path, null);
+		return ;
+	}
 
-		msg.addData(data);
+	/**
+	* Add a data block.
+	* Create and add a data block to assigned message with only mask path.
+	*
+	*	@param msg The message that wanted to be added.
+	* @param id The unique ID of the data block.
+	* @param maskPath The mask file path.
+	**/
+	public static void addData(
+		AccMessage.TaskMsg.Builder msg, 
+		long id, 
+		String maskPath
+	) {
+
+		addData(msg, id, 0, 0, 0, 0, null, maskPath);
 		return ;
 	}
 

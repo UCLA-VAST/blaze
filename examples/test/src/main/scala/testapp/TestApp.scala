@@ -18,6 +18,7 @@
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
+import org.apache.spark.util.random._
 import Array._
 import scala.math._
 import org.apache.spark.rdd._
@@ -67,9 +68,11 @@ object TestApp {
 
       rdd_acc.cache
       rdd_acc.collect
-      val rdd_acc2 = rdd_acc.mapPartitions_acc(new SimpleAddition(v))
+      val sampled_rdd_acc = rdd_acc.sample(new PoissonSampler[Double](0.4))
+      sampled_rdd_acc.cache
+      sampled_rdd_acc.collect
+      val rdd_acc2 = sampled_rdd_acc.mapPartitions_acc(new SimpleAddition(v))
       println("Result: " + rdd_acc2.reduce((a, b) => (a + b)))
-      println("Expect: " + rdd_acc.map(e => e + v.toDouble).reduce((a, b) => (a + b)))
 
       acc.stop()
     }
