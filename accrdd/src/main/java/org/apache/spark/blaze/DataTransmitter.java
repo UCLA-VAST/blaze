@@ -140,18 +140,34 @@ public class DataTransmitter {
 	*
 	* @param acc_id
 	*		The accelerator ID. Should be provided by accelerator library.
-	* @param blockIdOrValue
+	* @param blockId
+	*		The unique ID of each sub-block.
+	* @param hasMask
+	*		The boolean value to indicate if the block has a mask or not.
+	* @param brdcst
 	*		The unique block ID or the scalar value.
+	* @param IdOrValue
+	*		The boolean value to indicate if the brdcst is ID (true) or value (false).
 	* @return The message which hasn't been built.
 	**/
-	public static AccMessage.TaskMsg.Builder buildRequest(String acc_id, long[] blockId, long[] brdcst, boolean[] IdOrValue) {
+	public static AccMessage.TaskMsg.Builder buildRequest(
+		String acc_id, 
+		long[] blockId, 
+		boolean hasMask, 
+		long[] brdcst, 
+		boolean[] IdOrValue
+	) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
 			.setType(AccMessage.MsgType.ACCREQUEST)
 			.setAccId(acc_id);
 
-			for (long id: blockId) {
+			for (int i = 0; i < brdcst.length; i += 1) {
 				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-					.setPartitionId(id);
+					.setPartitionId(blockId[i]);
+			
+				if (hasMask)
+					data.setSampled(true);
+	
 				msg.addData(data);
 			}
 			for (int i = 0; i < brdcst.length; i += 1) {

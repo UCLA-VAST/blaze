@@ -68,7 +68,7 @@ object TestApp {
 
       rdd_acc.cache
       rdd_acc.collect
-      val sampled_rdd_acc = rdd_acc.sample(new PoissonSampler[Double](0.4))
+      val sampled_rdd_acc = rdd_acc.sample_acc(true, 0.4, 904401792)
       sampled_rdd_acc.cache
       sampled_rdd_acc.collect
       val rdd_acc2 = sampled_rdd_acc.mapPartitions_acc(new SimpleAddition(v))
