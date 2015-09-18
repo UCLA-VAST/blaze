@@ -23,6 +23,7 @@ message DataMsg {
   optional bool cached = 7;
   optional int64 bval = 8;
   optional string mask_path = 9;
+	optional bool sampled = 10;
 }
 
 message TaskMsg {

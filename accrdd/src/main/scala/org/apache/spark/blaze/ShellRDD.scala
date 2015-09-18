@@ -26,7 +26,7 @@ import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
-import org.apache.spark.util.random.RandomSampler
+import org.apache.spark.util.random._
 
 /**
   * ShellRDD is only used for wrapping a Spark RDD. It returns a AccRDD
@@ -66,8 +66,21 @@ class ShellRDD[T: ClassTag](
     new AccRDD(appId, this, clazz, sampler)
   }
 
-  def sample(s: RandomSampler[T, T]): ShellRDD[T] = { 
-    new ShellRDD(appId, this, s)
+  def sample_acc(
+    withReplacement: Boolean,
+    fraction: Double,
+    seed: Long = Util.random.nextLong): ShellRDD[T] = { 
+    require(fraction >= 0.0, "Negative fraction value: " + fraction)
+
+    var thisSampler: RandomSampler[T, T] = null
+
+    if (withReplacement)
+      thisSampler = new PoissonSampler[T](fraction)
+    else
+      thisSampler = new BernoulliSampler[T](fraction)
+    thisSampler.setSeed(seed)
+
+    new ShellRDD(appId, this, thisSampler)
   }
 
   def mapPartitions_acc[U: ClassTag](clazz: Accelerator[T, U]): AccMapPartitionsRDD[U, T] = {

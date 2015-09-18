@@ -31,7 +31,7 @@ import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
-import org.apache.spark.util.random.RandomSampler
+import org.apache.spark.util.random._
 
 /**
   * A RDD that uses accelerator to accelerate the computation. The behavior of AccRDD is 
@@ -76,6 +76,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
       var dataLength: Int = -1
       val typeSize: Int = Util.getTypeSizeByRDD(getRDD())
       var partitionMask: Array[Char] = null
+      var isSampled: Boolean = false
 
       var startTime: Long = 0
       var elapseTime: Long = 0
@@ -98,16 +99,17 @@ class AccRDD[U: ClassTag, T: ClassTag](
           }
         }
 
-        // Sample data if necessary
+        // Sample data if necessary (only support one sub-block now)
         if (sampler != null && partitionMask == null) {
           partitionMask = samplePartition(split, context)
+          isSampled = true
         }
 
         val transmitter = new DataTransmitter()
         if (transmitter.isConnect == false)
           throw new RuntimeException("Connection refuse.")
-        var msg = DataTransmitter.buildRequest(acc.id, blockId, brdcstIdOrValue.unzip._1.toArray, 
-          brdcstIdOrValue.unzip._2.toArray)
+        var msg = DataTransmitter.buildRequest(acc.id, blockId, isSampled, 
+          brdcstIdOrValue.unzip._1.toArray, brdcstIdOrValue.unzip._2.toArray)
 
         startTime = System.nanoTime
         transmitter.send(msg)
@@ -129,7 +131,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
             requireData = true
 
             // The data has been read and cached by Spark, serialize it and send memory mapped file path.
-            if (isCached == true || !split.isInstanceOf[HadoopPartition] || partitionMask != null) {
+            if (isCached == true || !split.isInstanceOf[HadoopPartition]) {
               // Issue #26: This partition might be a CoalescedRDDPartition, 
               // which has no file information so we have to load it in advance.
 
@@ -137,7 +139,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
               val mappedFileInfo = Util.serialization(appId, inputAry, blockId(i))
               dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
 
-              if (partitionMask != null) {
+              if (isSampled) {
                 val maskFileInfo = Util.serialization(appId, partitionMask, numBlock + blockId(i))
                 DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo._2, mappedFileInfo._3,
                     mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1, maskFileInfo._1)
@@ -162,7 +164,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
                   fileSize, fileOffset, filePath)
             }
           }
-          else if (partitionMask != null) {
+          else if (revMsg.getData(i).getSampled()) {
             requireData = true
             val maskFileInfo = Util.serialization(appId, partitionMask, numBlock + blockId(i))
             DataTransmitter.addData(dataMsg, blockId(i), 0, maskFileInfo._3, 0, 0, maskFileInfo._1)
@@ -292,11 +294,33 @@ class AccRDD[U: ClassTag, T: ClassTag](
   def mapPartitions_acc[V: ClassTag](clazz: Accelerator[U, V]): AccMapPartitionsRDD[V, U] = {
     new AccMapPartitionsRDD(appId, this.asInstanceOf[RDD[U]], clazz, null)
   }
+  
 
-  def sample(newSampler: RandomSampler[T, T]): ShellRDD[T] = {
-    new ShellRDD(appId, this.asInstanceOf[RDD[T]], newSampler)
+  /**
+    * A method for developer to sample a part of RDD.
+    *
+    * @param withReplacement 
+    * @param fraction The fraction of sampled data.
+    * @param seed The optinal value for developer to assign a random seed.
+    * @return A RDD with a specific sampler.
+    */
+  def sample_acc(
+    withReplacement: Boolean,
+    fraction: Double,
+    seed: Long = Util.random.nextLong): ShellRDD[T] = { 
+    require(fraction >= 0.0, "Negative fraction value: " + fraction)
+
+    var thisSampler: RandomSampler[T, T] = null
+
+    if (withReplacement)
+      thisSampler = new PoissonSampler[T](fraction)
+    else
+      thisSampler = new BernoulliSampler[T](fraction)
+    thisSampler.setSeed(seed)
+
+    new ShellRDD(appId, this.asInstanceOf[RDD[T]], thisSampler)
   }
-
+ 
   /**
     * Consult Spark block manager to see if the partition is cached or not.
     *
