@@ -49,9 +49,6 @@ class AccRDD[U: ClassTag, T: ClassTag](
   sampler: RandomSampler[T, T]
 ) extends RDD[U](prev) with Logging {
 
-  // Sampler for continued usage
-//  var outSampler: RandomSampler[U, U] = null
-
   def getPrevRDD() = prev
   def getRDD() = this
 
@@ -341,7 +338,6 @@ class AccRDD[U: ClassTag, T: ClassTag](
   def samplePartition(split: Partition, context: TaskContext): Array[Char] = {
     require(sampler != null)
     val thisSampler = sampler.clone
-    thisSampler.setSeed(904401792)
     val sampledIter = thisSampler.sample(firstParent[T].iterator(split, context))
     val inputIter = firstParent[T].iterator(split, context)
     val inputAry = inputIter.toArray
@@ -378,7 +374,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
     var j: Int = 0
     while (j < inputAry.length) {
-      if (partitionMask(j) != '0')
+      if (partitionMask == null || partitionMask(j) != '0')
         outputList = outputList :+ acc.call(inputAry(j).asInstanceOf[T])
       j = j + 1
     }

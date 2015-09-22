@@ -120,7 +120,7 @@ object Util {
     * Get a primitive type size of a RDD.
     *
     * @param rdd RDD.
-    * @return Type size of the RDD in byte.
+    * @return Type size of the RDD in byte, return 0 for Tuple2, return -1 for non-supported.
     */
   def getTypeSizeByRDD[T: ClassTag](rdd: RDD[T]): Int = {
     if (classTag[T] == classTag[Byte] || classTag[T] == classTag[Array[Byte]])          1
@@ -130,6 +130,7 @@ object Util {
     else if (classTag[T] == classTag[Float] || classTag[T] == classTag[Array[Float]])   4
     else if (classTag[T] == classTag[Long] || classTag[T] == classTag[Array[Long]])     8
     else if (classTag[T] == classTag[Double] || classTag[T] == classTag[Array[Double]]) 8
+    else if (classTag[T] == classTag[Tuple2[_,_]]) 0
     else -1
   }
 

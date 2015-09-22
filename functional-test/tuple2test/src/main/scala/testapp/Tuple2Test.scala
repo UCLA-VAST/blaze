@@ -27,29 +27,24 @@ import java.net._
 // comaniac: Import extended package
 import org.apache.spark.blaze._
 
-class SimpleAddition(v: Int) extends Accelerator[Double, Double] {
-  val id: String = "SimpleAddition"
+class Tuple2Test extends Accelerator[Tuple2[Double, Double], Double] {
+  val id: String = "Tuple2Test"
 
-  def getArgNum(): Int = 1
+  def getArgNum(): Int = 0
 
-  def getArg(idx: Int): Option[_] = {
-    if (idx == 0)
-      Some(v)
-    else
-      None
+  def getArg(idx: Int): Option[_] = None
+
+  override def call(in: Tuple2[Double, Double]): Double = {
+    in._1 + in._2
   }
 
-  override def call(in: Double): Double = {
-    in + v
-  }
-
-  override def call(in: Iterator[Double]): Iterator[Double] = {
+  override def call(in: Iterator[Tuple2[Double, Double]]): Iterator[Double] = {
     val inAry = in.toArray
     val length: Int = inAry.length
     val outAry = new Array[Double](length)
 
     for (i <- 0 until length)
-      outAry(i) = inAry(i) + v
+      outAry(i) = inAry(i)._1 + inAry(i)._2
 
     outAry.iterator
   }
@@ -57,21 +52,15 @@ class SimpleAddition(v: Int) extends Accelerator[Double, Double] {
 
 object TestApp {
     def main(args : Array[String]) {
-      val sc = get_spark_context("Test App")
-      val rdd = sc.textFile("/curr/cody/test/testInput.txt", 15)
+      val sc = get_spark_context("Tuple2 Test")
+      val rdd = sc.parallelize(0 until 1024, 8).map({ i =>
+        (random, random)
+      }).cache
 
       val acc = new BlazeRuntime(sc)
-      val rdd_acc = acc.wrap(rdd.map(a => a.toDouble))
+      val rdd_acc = acc.wrap(rdd)
 
-      val b = acc.wrap(sc.broadcast(Array(1, 2, 3)))
-      val v = 2
-
-      rdd_acc.cache
-      rdd_acc.collect
-      val sampled_rdd_acc = rdd_acc.sample_acc(true, 0.4, 904401792)
-      sampled_rdd_acc.cache
-      sampled_rdd_acc.collect
-      val rdd_acc2 = sampled_rdd_acc.mapPartitions_acc(new SimpleAddition(v))
+      val rdd_acc2 = rdd_acc.map_acc(new Tuple2Test)
       println("Result: " + rdd_acc2.reduce((a, b) => (a + b)))
 
       acc.stop()

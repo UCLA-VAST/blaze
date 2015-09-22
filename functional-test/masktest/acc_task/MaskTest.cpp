@@ -5,13 +5,13 @@
 
 using namespace blaze;
 
-class SimpleAddition : public Task {
+class MaskTest : public Task {
 public:
 
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  SimpleAddition(): Task(2) {;}
+  MaskTest(): Task(2) {;}
 
   // overwrites the compute function
   virtual void compute() {
@@ -34,7 +34,7 @@ public:
 };
 
 extern "C" Task* create() {
-  return new SimpleAddition();
+  return new MaskTest();
 }
 
 extern "C" void destroy(Task* p) {
