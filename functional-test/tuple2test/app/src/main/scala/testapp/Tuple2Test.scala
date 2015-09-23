@@ -28,21 +28,21 @@ import java.net._
 import org.apache.spark.blaze._
 
 // TODO: Tuple2 as an output type
-class Tuple2Test extends Accelerator[Tuple2[Int, Int], Int] {
+class Tuple2Test extends Accelerator[Tuple2[Double, Double], Double] {
   val id: String = "Tuple2Test"
 
   def getArgNum(): Int = 0
 
   def getArg(idx: Int): Option[_] = None
 
-  override def call(in: Tuple2[Int, Int]): Int = {
+  override def call(in: Tuple2[Double, Double]): Double = {
     in._1 + in._2
   }
 
-  override def call(in: Iterator[Tuple2[Int, Int]]): Iterator[Int] = {
+  override def call(in: Iterator[Tuple2[Double, Double]]): Iterator[Double] = {
     val inAry = in.toArray
     val length: Int = inAry.length
-    val outAry = new Array[Int](length)
+    val outAry = new Array[Double](length)
 
     for (i <- 0 until length)
       outAry(i) = inAry(i)._1 + inAry(i)._2
@@ -54,16 +54,13 @@ class Tuple2Test extends Accelerator[Tuple2[Int, Int], Int] {
 object TestApp {
     def main(args : Array[String]) {
       val sc = get_spark_context("Tuple2 Test")
-      val rdd = sc.parallelize(0 until 1024, 8).map({ i =>
-        ((random * 10).toInt, (random * 10).toInt)
-      }).cache
+      val data = new Array[Double](1024).map(e => (random, random))
+      val rdd = sc.parallelize(data, 8).cache
 
       val acc = new BlazeRuntime(sc)
       val rdd_acc = acc.wrap(rdd)
 
-      // NOTE: map_acc and mapPartitions_acc cannot be tested at the same time due to 
-      // conflicted block IDs.
-//      println("map Result: " + rdd_acc.map_acc(new Tuple2Test).reduce((a, b) => (a + b)))
+      println("map Result: " + rdd_acc.map_acc(new Tuple2Test).reduce((a, b) => (a + b)))
       println("mapPartition Result: " + rdd_acc.mapPartitions_acc(new Tuple2Test).reduce((a, b) => (a + b)))
       println("CPU Result: " + rdd_acc.map({case (a, b) => (a + b)}).reduce((a, b) => (a + b)))
 
