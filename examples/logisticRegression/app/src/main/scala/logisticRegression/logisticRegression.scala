@@ -30,7 +30,7 @@ import org.apache.spark.blaze._
 class LogisticRegression(b_w: BlazeBroadcast[Array[Float]]) 
   extends Accelerator[Array[Float], Array[Float]] {
 
-  val id: String = "Logistic"
+  val id: String = "Logistic_cpu"
 
   def getArg(idx: Int): Option[BlazeBroadcast[Array[Float]]] = {
     if (idx == 0)
