@@ -49,24 +49,24 @@ class AccRDD[U: ClassTag, T: ClassTag](
   sampler: RandomSampler[T, T]
 ) extends RDD[U](prev) with Logging {
 
-  // Sampler for continued usage
-//  var outSampler: RandomSampler[U, U] = null
-
   def getPrevRDD() = prev
   def getRDD() = this
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
-    val numBlock: Int = 1 // Now we just use 1 block for an input partition.
-
-    val blockId = new Array[Long](numBlock)
     val brdcstIdOrValue = new Array[(Long, Boolean)](acc.getArgNum)
 
-    // Generate an input data block ID array
+    // Generate an input data block ID array.
+    // (only Tuple types cause multiple sub-blocks. Now we support to Tuple2)
+    val numBlock: Int = Util.getBlockNum(getRDD.asInstanceOf[RDD[T]])
+    val blockId = new Array[Long](numBlock)  
     for (j <- 0 until numBlock) {
       blockId(j) = Util.getBlockID(appId, getPrevRDD.id, split.index, j)
     }
+
+    // Followed by a mask ID
+    val maskId: Long = Util.getBlockID(appId, getPrevRDD.id, split.index, numBlock)
 
     val isCached = inMemoryCheck(split)
 
@@ -74,7 +74,8 @@ class AccRDD[U: ClassTag, T: ClassTag](
       var outputIter: Iterator[U] = null
       var outputAry: Array[U] = null // Length is unknown before reading the input
       var dataLength: Int = -1
-      val typeSize: Int = Util.getTypeSizeByRDD(getRDD())
+      val isPrimitiveType: Boolean = Util.isPrimitiveTypeRDD(getRDD)
+      val isModeledType: Boolean = Util.isModeledTypeRDD(getRDD)
       var partitionMask: Array[Char] = null
       var isSampled: Boolean = false
 
@@ -82,8 +83,8 @@ class AccRDD[U: ClassTag, T: ClassTag](
       var elapseTime: Long = 0
 
       try {
-        if (typeSize == -1)
-          throw new RuntimeException("Cannot recognize RDD data type")
+        if (!isPrimitiveType && !isModeledType)
+          throw new RuntimeException("RDD data type is not supported")
 
         // Get broadcast block IDs
         for (j <- 0 until brdcstIdOrValue.length) {
@@ -99,7 +100,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
           }
         }
 
-        // Sample data if necessary (only support one sub-block now)
+        // Sample data if necessary (all sub-blocks use the same mask)
         if (sampler != null && partitionMask == null) {
           partitionMask = samplePartition(split, context)
           isSampled = true
@@ -126,27 +127,45 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
         // Prepare input data blocks
         var requireData: Boolean = false
+
+        val maskFileInfo: BlazeMemoryFileHandler = if (isSampled) {
+          val handler = new BlazeMemoryFileHandler(partitionMask)
+          handler.serialization(appId, maskId) 
+          handler
+        } else { 
+          null
+        }
+
         for (i <- 0 until numBlock) {
           if (!revMsg.getData(i).getCached()) { // Send data block if Blaze manager hasn't cached it.
             requireData = true
 
-            // The data has been read and cached by Spark, serialize it and send memory mapped file path.
-            if (isCached == true || !split.isInstanceOf[HadoopPartition]) {
-              // Issue #26: This partition might be a CoalescedRDDPartition, 
-              // which has no file information so we have to load it in advance.
-
+            // Serialize it and send memory mapped file path if:
+            // 1. The data has been read and cached by Spark.
+            // 2. The data is not a HadoopPartition which we cannot process without reading it first. (Issue #26)
+            // 3. The type is not primitive so that we have to read it first for detail information.
+            if (isCached == true || !split.isInstanceOf[HadoopPartition] || !isPrimitiveType) {
               val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
-              val mappedFileInfo = Util.serialization(appId, inputAry, blockId(i))
-              dataLength = dataLength + mappedFileInfo._2 // We know element # by reading the file
+
+              // Get real input array considering Tuple types
+              val subInputAry = if (numBlock == 1) inputAry else {
+                i match {
+                  case 0 => inputAry.asInstanceOf[Array[Tuple2[_,_]]].map(e => e._1)
+                  case 1 => inputAry.asInstanceOf[Array[Tuple2[_,_]]].map(e => e._2)
+                }
+              }
+              val mappedFileInfo = new BlazeMemoryFileHandler(subInputAry)
+              mappedFileInfo.serialization(appId, blockId(i))
+
+              dataLength = dataLength + mappedFileInfo.eltNum // We know element # by reading the file
 
               if (isSampled) {
-                val maskFileInfo = Util.serialization(appId, partitionMask, numBlock + blockId(i))
-                DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo._2, mappedFileInfo._3,
-                    mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1, maskFileInfo._1)
+                DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo.eltNum, mappedFileInfo.itemNum,
+                    mappedFileInfo.eltNum * mappedFileInfo.typeSize, 0, mappedFileInfo.fileName, maskFileInfo.fileName)
               }
               else {
-                DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo._2, mappedFileInfo._3,
-                    mappedFileInfo._2 * typeSize, 0, mappedFileInfo._1)
+                DataTransmitter.addData(dataMsg, blockId(i), mappedFileInfo.eltNum, mappedFileInfo.itemNum,
+                    mappedFileInfo.eltNum * mappedFileInfo.typeSize, 0, mappedFileInfo.fileName)
               }
             }
             else { // The data hasn't been read by Spark, send HDFS file path directly (data length is unknown)
@@ -166,8 +185,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
           }
           else if (revMsg.getData(i).getSampled()) {
             requireData = true
-            val maskFileInfo = Util.serialization(appId, partitionMask, numBlock + blockId(i))
-            DataTransmitter.addData(dataMsg, blockId(i), 0, maskFileInfo._3, 0, 0, maskFileInfo._1)
+            DataTransmitter.addData(dataMsg, blockId(i), 0, maskFileInfo.itemNum, 0, 0, maskFileInfo.fileName)
           }
         }
 
@@ -179,15 +197,16 @@ class AccRDD[U: ClassTag, T: ClassTag](
             val bcData = (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).data // Uncached data must be BlazeBroadcast.
             if (bcData.getClass.isArray) { // Serialize array and use memory mapped file to send the data.
               val arrayData = bcData.asInstanceOf[Array[_]]
-              val mappedFileInfo = Util.serialization(appId, arrayData, brdcstIdOrValue(i)._1)
-              val typeName = arrayData(0).getClass.getName.replace("java.lang.", "").toLowerCase
-              val typeSize = Util.getTypeSizeByName(typeName)
+              val mappedFileInfo = new BlazeMemoryFileHandler(arrayData)
+              mappedFileInfo.serialization(appId, brdcstIdOrValue(i)._1)
+              val typeName = mappedFileInfo.typeName
+              val typeSize = mappedFileInfo.typeSize
               assert(typeSize != 0, "Cannot find the size of type " + typeName)
 
-              DataTransmitter.addData(dataMsg, brdcstIdOrValue(i)._1, arrayData.length, 1,
-                arrayData.length * typeSize, 0, mappedFileInfo._1)
-              (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).length = arrayData.length
-              (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).size = arrayData.length * typeSize
+              DataTransmitter.addData(dataMsg, brdcstIdOrValue(i)._1, mappedFileInfo.eltNum, 1,
+                mappedFileInfo.eltNum * typeSize, 0, mappedFileInfo.fileName)
+              (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).length = mappedFileInfo.eltNum
+              (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).size = mappedFileInfo.eltNum * typeSize
             }
             else { // Send a scalar data through the socket directly.
               val longData: Long = Util.casting(bcData, classOf[Long])
@@ -212,12 +231,13 @@ class AccRDD[U: ClassTag, T: ClassTag](
         logInfo(Util.logMsg(finalRevMsg))
 
         if (finalRevMsg.getType() == AccMessage.MsgType.ACCFINISH) {
+          val numOutputBlock: Int = finalRevMsg.getDataCount
           var numItems: Int = 0
-          val blkLength = new Array[Int](numBlock)
-          val itemLength = new Array[Int](numBlock)
+          val blkLength = new Array[Int](numOutputBlock)
+          val itemLength = new Array[Int](numOutputBlock)
 
           // First read: Compute the correct number of output items.
-          for (i <- 0 until numBlock) {
+          for (i <- 0 until numOutputBlock) {
             blkLength(i) = finalRevMsg.getData(i).getLength()
             if (finalRevMsg.getData(i).hasNumItems()) {
               itemLength(i) = blkLength(i) / finalRevMsg.getData(i).getNumItems()
@@ -230,19 +250,35 @@ class AccRDD[U: ClassTag, T: ClassTag](
           if (numItems == 0)
             throw new RuntimeException("Manager returns an invalid data length")
 
+          // Allocate output array
           outputAry = new Array[U](numItems)
+          if (outputAry.isInstanceOf[Array[Array[_]]]) {
+            for (i <- 0 until numItems) {
+              if (classTag[U] == classTag[Array[Int]])
+                outputAry(i) = (new Array[Int](itemLength(i))).asInstanceOf[U]
+              else if (classTag[U] == classTag[Array[Float]])
+                outputAry(i) = (new Array[Float](itemLength(i))).asInstanceOf[U]
+              else if (classTag[U] == classTag[Array[Long]])
+                outputAry(i) = (new Array[Long](itemLength(i))).asInstanceOf[U]
+              else if (classTag[U] == classTag[Array[Double]])
+                outputAry(i) = (new Array[Double](itemLength(i))).asInstanceOf[U]
+              else
+                throw new RuntimeException("Unsupported output type.")
+            }
+          }
 
           startTime = System.nanoTime
           
           // Second read: Read outputs from memory mapped file.
           var idx = 0
-          for (i <- 0 until numBlock) { // Concatenate all blocks (currently only 1 block)
+          for (i <- 0 until numOutputBlock) { // Concatenate all blocks (currently only 1 block)
 
-            Util.readMemoryMappedFile(
-                outputAry,
-                idx, 
-                blkLength(i), itemLength(i), 
-                finalRevMsg.getData(i).getPath())
+            val mappedFileInfo = new BlazeMemoryFileHandler(outputAry)
+            mappedFileInfo.readMemoryMappedFile(
+              idx, 
+              blkLength(i), 
+              itemLength(i), 
+              finalRevMsg.getData(i).getPath())
 
             idx = idx + blkLength(i) / itemLength(i)
           }
@@ -341,7 +377,6 @@ class AccRDD[U: ClassTag, T: ClassTag](
   def samplePartition(split: Partition, context: TaskContext): Array[Char] = {
     require(sampler != null)
     val thisSampler = sampler.clone
-    thisSampler.setSeed(904401792)
     val sampledIter = thisSampler.sample(firstParent[T].iterator(split, context))
     val inputIter = firstParent[T].iterator(split, context)
     val inputAry = inputIter.toArray
@@ -378,7 +413,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
     var j: Int = 0
     while (j < inputAry.length) {
-      if (partitionMask(j) != '0')
+      if (partitionMask == null || partitionMask(j) != '0')
         outputList = outputList :+ acc.call(inputAry(j).asInstanceOf[T])
       j = j + 1
     }

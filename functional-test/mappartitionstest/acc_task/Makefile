@@ -1,12 +1,5 @@
-ifeq ($(BLAZE_HOME),)
-$(error BLAZE_HOME not set)
-endif
-ifeq ("$(wildcard $(BLAZE_HOME)/Makefile.config)","")
-$(error BLAZE_HOME not set properly in environment)
-endif
-
-MANAGER_DIR=$(BLAZE_HOME)/manager
-include $(BLAZE_HOME)/Makefile.config
+MANAGER_DIR=../../../manager
+include ../../../Makefile.config
 
 # check all variables
 ifeq ($(BOOST_DIR),)
@@ -24,7 +17,7 @@ COMPILE= $(CFLAGS) \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include 
 
-ACC = SimpleAddition 
+ACC = MapPartitionsTest 
 
 OBJS= $(addsuffix .so, $(addprefix ../, $(ACC)))
 

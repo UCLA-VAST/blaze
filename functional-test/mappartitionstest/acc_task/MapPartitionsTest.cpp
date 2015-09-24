@@ -5,13 +5,13 @@
 
 using namespace blaze;
 
-class SimpleAddition : public Task {
+class MapPartitionsTest : public Task {
 public:
 
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  SimpleAddition(): Task(2) {;}
+  MapPartitionsTest(): Task(2) {;}
 
   // overwrites the compute function
   virtual void compute() {
@@ -21,7 +21,7 @@ public:
 
     // get the pointer to input/output data
     double* a = (double*)getInput(0);
-		double val = (double) *(reinterpret_cast<long*>(getInput(1)));
+		int val = (int) *(reinterpret_cast<long*>(getInput(1)));
     double* b = (double*)getOutput(0, 1, data_length, sizeof(double));
 
     // perform computation
@@ -34,7 +34,7 @@ public:
 };
 
 extern "C" Task* create() {
-  return new SimpleAddition();
+  return new MapPartitionsTest();
 }
 
 extern "C" void destroy(Task* p) {

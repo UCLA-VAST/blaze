@@ -116,23 +116,56 @@ object Util {
     }
   }
 
-  /**
-    * Get a primitive type size of a RDD.
+    /**
+    * Calculate the number of blocks needed by the RDD.
+    * (Now only support Tuple2)
     *
     * @param rdd RDD.
-    * @return Type size of the RDD in byte.
+    * @return the number of blocks.
     */
-  def getTypeSizeByRDD[T: ClassTag](rdd: RDD[T]): Int = {
-    if (classTag[T] == classTag[Byte] || classTag[T] == classTag[Array[Byte]])          1
-    else if (classTag[T] == classTag[Char] || classTag[T] == classTag[Array[Char]])     2
-    else if (classTag[T] == classTag[Short] || classTag[T] == classTag[Array[Short]])   2
-    else if (classTag[T] == classTag[Int] || classTag[T] == classTag[Array[Int]])       4
-    else if (classTag[T] == classTag[Float] || classTag[T] == classTag[Array[Float]])   4
-    else if (classTag[T] == classTag[Long] || classTag[T] == classTag[Array[Long]])     8
-    else if (classTag[T] == classTag[Double] || classTag[T] == classTag[Array[Double]]) 8
-    else -1
+  def getBlockNum[T: ClassTag](rdd: RDD[T]): Int = {
+    if (classTag[T] == classTag[Tuple2[_, _]])
+      2
+    else
+      1
   }
 
+  /**
+    * Get a type size of the input variable.
+    *
+    * @param in Input variable.
+    * @return Type size of the variable in byte, return -1 for non-supported types.
+    */
+  def getTypeSize[T: ClassTag](in: T): Int = in match {
+    case _: Byte =>   1
+    case _: Char =>   2
+    case _: Short =>  2
+    case _: Int =>    4
+    case _: Float =>  4
+    case _: Long =>   8
+    case _: Double => 8
+    case _ =>        -1
+  }
+
+   /**
+    * Get a type name initial of the input variable.
+    *
+    * @param in Input variable.
+    * @return Type name initial of the variable in byte, 
+    * return an empty string for non-supported types.
+    */
+  def getTypeName[T: ClassTag](in: T): String = in match {
+    case _: Byte =>   "bype"
+    case _: Char =>   "char"
+    case _: Short =>  "short"
+    case _: Int =>    "int"
+    case _: Float =>  "float"
+    case _: Long =>   "long"
+    case _: Double => "double"
+    case _: Any => "any"
+    case _ =>         ""
+  }
+ 
   /**
     * Get a primitive type size by type name.
     *
@@ -155,6 +188,38 @@ object Util {
     typeSize
   }
 
+   /**
+    * Check the type of the RDD is primitive or not.
+    *
+    * @param rdd RDD.
+    * @return true for primitive type, false otherwise.
+    */
+  def isPrimitiveTypeRDD[T: ClassTag](rdd: RDD[T]): Boolean = {
+    if ((classTag[T] == classTag[Byte] || classTag[T] == classTag[Array[Byte]])   ||
+        (classTag[T] == classTag[Char] || classTag[T] == classTag[Array[Char]])   ||
+        (classTag[T] == classTag[Short] || classTag[T] == classTag[Array[Short]]) ||  
+        (classTag[T] == classTag[Int] || classTag[T] == classTag[Array[Int]])     ||
+        (classTag[T] == classTag[Float] || classTag[T] == classTag[Array[Float]]) ||  
+        (classTag[T] == classTag[Long] || classTag[T] == classTag[Array[Long]])   ||
+        (classTag[T] == classTag[Double] || classTag[T] == classTag[Array[Double]])) 
+      true
+    else
+      false
+  }
+
+   /**
+    * Check the type of the RDD is modeled by Blaze or not.
+    *
+    * @param rdd RDD.
+    * @return true for the modeled type, false otherwise.
+    */
+  def isModeledTypeRDD[T: ClassTag](rdd: RDD[T]): Boolean = {
+    if (classTag[T] == classTag[Tuple2[_,_]])
+      true
+    else
+      false
+  }
+ 
   /**
     * Casting a primitive scalar value to another primitive scalar value.
     *
@@ -217,7 +282,7 @@ object Util {
     * @param prefix The prefix of memory mapped file. Usually use application ID.
     * @param input The data to be serialized.
     * @param id The ID of the serialized data.
-    * @return A pair of (file name, size, item number)
+    * @return A triple pair of (file name, size, item number)
     */
   def serialization[T: ClassTag](prefix: Int, input: Array[T], id: Long): (String, Int, Int) = {
     var fileName: String = System.getProperty("java.io.tmpdir") + "/" + prefix
@@ -226,15 +291,15 @@ object Util {
     else // Partition data
       fileName = fileName + id + ".dat"
 
-    val typeName = input(0).getClass.getName.replace("java.lang.", "").toLowerCase()
-    val dataType: String = typeName.replace("[", "")(0).toString // Fetch the element data type.
-    val typeSize: Int = getTypeSizeByName(dataType)
+    val isArray: Boolean = input(0).isInstanceOf[Array[_]]
+    val sampledData: Any = if (isArray) input(0).asInstanceOf[Array[_]](0) else input(0)
+    val typeSize: Int = getTypeSize(sampledData)
+    val dataType: String = getTypeName(sampledData)
 
-    val isArray: Boolean = typeName.contains("[")
     val itemNum: Int = input.length
 
-    if ((typeName.split('[').length - 1) > 1)
-      throw new RuntimeException("Unsupport multi-dimension arrays: " + typeName)
+    if (typeSize == -1)
+      throw new RuntimeException("Unsupported input data type.")
 
     // Calculate buffer length
     var bufferLength = 0

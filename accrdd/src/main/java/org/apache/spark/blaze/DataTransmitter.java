@@ -161,7 +161,7 @@ public class DataTransmitter {
 			.setType(AccMessage.MsgType.ACCREQUEST)
 			.setAccId(acc_id);
 
-			for (int i = 0; i < brdcst.length; i += 1) {
+			for (int i = 0; i < blockId.length; i += 1) {
 				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 					.setPartitionId(blockId[i]);
 			
