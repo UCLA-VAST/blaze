@@ -15,10 +15,10 @@ void Task::addInputBlock(int64_t partition_id, DataBlock_ptr &block) {
   }
 
   int idx = input_blocks.size();
-  input_blocks.push_back(block);
+  input_blocks.push_back(partition_id);
 
   // add the same block to a map table to provide fast access
-  input_table.insert(std::make_pair(partition_id, idx));
+  input_table.insert(std::make_pair(partition_id, block));
 
   // automatically trace all the blocks,
   // if all blocks are initialized with data, 
@@ -33,7 +33,7 @@ void Task::addInputBlock(int64_t partition_id, DataBlock_ptr &block) {
 
 DataBlock_ptr Task::getInputBlock(int64_t block_id) {
   if (input_table.find(block_id) != input_table.end()) {
-    return input_blocks[input_table[block_id]];
+    return input_table[block_id];
   }
   else {
     return NULL_DATA_BLOCK;
@@ -74,7 +74,7 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
         "onDataReady(): Did not find block");
   }
 
-  DataBlock_ptr block = input_blocks[input_table[partition_id]];
+  DataBlock_ptr block = input_table[partition_id];
 
   // NOTE: two threads can check simutaneously when the block is 
   // not ready, and both will try update the block
@@ -255,11 +255,23 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
         // lock block for exclusive access
         boost::lock_guard<DataBlock> guard(*block);
 
-        block->setLength(length);
-        block->setNumItems(num_items);
-
         // allocate memory for block
-        block->alloc(size);
+        // check config_table to see if data needs to be aligned
+        // TODO: need to be better organized
+        if (!getConfig("align_width").empty()) {
+          int align_width = stoi(getConfig("align_width"));
+          block->alloc(
+              num_items, 
+              length/num_items,
+              size/length,
+              align_width);
+        }
+        else {
+          block->setLength(length);
+          block->setNumItems(num_items);
+
+          block->alloc(size);
+        }
 
         block->readFromMem(path);
 
@@ -282,17 +294,19 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
 
     std::string path = blockInfo.mask_path();
     int data_size = blockInfo.num_items();
+    //printf("%s, %d\n", path.c_str(), data_size);
 
     fin.open(path, data_size);
 
     if (fin.is_open()) {
       char* mask = (char*)fin.data();
 
-      input_blocks[input_table[partition_id]] = block->sample(mask);
+      input_table[partition_id] = block->sample(mask);
     }
     else {
       throw std::runtime_error("Cannot find file containing the mask");
     }
+    //printf("finish sampling of data of %d items\n", blockInfo.num_items());
   }
 
   return block;
@@ -303,12 +317,12 @@ bool Task::isReady() {
 
   bool ready = true;
   int num_ready = 0;
-  for (std::vector<DataBlock_ptr>::iterator iter = input_blocks.begin();
-       iter != input_blocks.end();
+  for (std::map<int64_t, DataBlock_ptr>::iterator iter = input_table.begin();
+       iter != input_table.end();
        iter ++)
   {
     // a block may be added but not initialized
-    if (!(*iter) || !(*iter)->isReady()) {
+    if (iter->second == NULL_DATA_BLOCK || !iter->second->isReady()) {
       ready = false;
       break;
     }

@@ -22,6 +22,7 @@ DataBlock_ptr BlockManager::create(size_t length, size_t size) {
 
 // create a block if it does not exist in the manager
 // return true if a new block is created
+// TODO: name should be differentiated with create but not add
 bool BlockManager::create(
     int64_t tag,
     DataBlock_ptr &block)

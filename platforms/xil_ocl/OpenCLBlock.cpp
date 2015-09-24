@@ -28,6 +28,7 @@ void OpenCLBlock::alloc(int64_t _size) {
   }
 }
 
+/*
 void OpenCLBlock::writeData(void* src, size_t _size) {
 
   if (allocated) {
@@ -56,6 +57,7 @@ void OpenCLBlock::writeData(void* src, size_t _size) {
     throw std::runtime_error("Block memory not allocated");
   }
 }
+*/
 
 void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
 
@@ -79,7 +81,7 @@ void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
     if (err != CL_SUCCESS) {
       throw std::runtime_error("Failed to write to OpenCL block");
     }
-    clWaitForEvents(1, &event);
+    //clWaitForEvents(1, &event);
 
     if (offset + _size == size) {
       ready = true;
@@ -129,13 +131,15 @@ DataBlock_ptr OpenCLBlock::sample(char* mask) {
     }
   }
 
-  DataBlock_ptr block(new OpenCLBlock(env,
-        item_length*masked_items, 
-        item_size*masked_items));
+  OpenCLBlock* ocl_block = new OpenCLBlock(env,
+      item_length*masked_items, 
+      item_size*masked_items);
+
+  DataBlock_ptr block(ocl_block);
 
   block->setNumItems(masked_items);
   
-  cl_mem masked_data = *((cl_mem*)(block->getData()));
+  cl_mem masked_data = *((cl_mem*)(ocl_block->getData()));
 
   // get the command queue handler
   cl_command_queue command = env->getCmdQueue();
@@ -170,6 +174,7 @@ DataBlock_ptr OpenCLBlock::sample(char* mask) {
     throw std::runtime_error(LOG_HEADER +
         std::string("error during sampling"));
   }
+  ocl_block->ready = true;
 
   delete events;
 

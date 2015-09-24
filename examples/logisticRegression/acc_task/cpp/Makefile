@@ -1,5 +1,12 @@
-MANAGER_DIR=../../../../manager
-include ../../../../Makefile.config
+ifeq ($(BLAZE_HOME),)
+$(error BLAZE_HOME not set)
+endif
+ifeq ("$(wildcard $(BLAZE_HOME)/Makefile.config)","")
+$(error BLAZE_HOME not set properly in environment)
+endif
+
+MANAGER_DIR=$(BLAZE_HOME)/manager
+include $(BLAZE_HOME)/Makefile.config
 
 # check all variables
 ifeq ($(BOOST_DIR),)

@@ -1,6 +1,7 @@
 #ifndef BLOCK_H
 #define BLOCK_H
 
+#include <stdio.h>
 #include <string.h>
 #include <string>
 #include <stdexcept>
@@ -27,19 +28,20 @@ public:
 
   // create basic data block with one item
   DataBlock(int _length, int64_t _size):
-    length(_length), 
+    item_length(_length),
+    item_size(_size),
     num_items(1),
+    length(_length), 
     size(_size),
     allocated(true),
     ready(false)
   {
-    width = _size / _length;
+    data_width = _size / _length;
     data = new char[_size];
-
   }
 
   DataBlock():
-    length(0), num_items(0), size(0), width(0),
+    length(0), num_items(0), size(0), data_width(0),
     allocated(false),
     ready(false),
     data(NULL)
@@ -53,10 +55,19 @@ public:
     }
   }
 
-  virtual void alloc(int64_t _size);
 
-  // copy data from an array
-  virtual void writeData(void* src, size_t _size);
+  // allocate data aligned to a given width
+  void alloc(
+      int _num_items, 
+      int _item_length,
+      int _data_width,
+      int _align_width);
+
+  // copy data from an array, use writeData with offset as subroutine
+  void writeData(void* src, size_t _size);
+
+  // allocate data of given size
+  virtual void alloc(int64_t _size);
 
   // copy data from an array with offset
   virtual void writeData(void* src, size_t _size, size_t offset);
@@ -105,11 +116,16 @@ public:
   }
 
 protected:
+  
+  int item_length;  /* number of elements per data item */
+  int item_size;    /* byte size per data item */
+  int num_items;    /* number of data items per data block */
+  int data_width;   /* byte size per element */
   int length;       /* total number of elements */
-  int num_items;    /* number of elements per data item */
-  int width;        /* size of a single element */
-  int64_t size;     /* byte size of all the data */
+  int64_t size;     /* total byte size of the data block */
+
   bool allocated;
+  bool aligned;
   bool ready;
 
 private:

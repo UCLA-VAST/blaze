@@ -8,9 +8,6 @@ namespace blaze {
 
 void DataBlock::alloc(int64_t _size) {
 
-  // guarantee exclusive access by outside lock
-  //boost::lock_guard<DataBlock> guard(*this);
-
   if (!allocated) {
     size = _size;
     data = new char[size];
@@ -18,16 +15,60 @@ void DataBlock::alloc(int64_t _size) {
   }
 }
 
-void DataBlock::writeData(void* src, size_t _size) {
-  if (allocated) {
-    memcpy((void*)data, src, _size);
-    ready = true;
+void DataBlock::alloc(
+    int _num_items,
+    int _item_length, 
+    int _data_width,
+    int _align_width) 
+{
+  // input checks
+  if (_num_items <= 0 || 
+      _item_length <= 0 || 
+      _align_width <= 0 ||
+      _data_width <= 0) 
+  {
+    throw std::runtime_error("Invalid input");
+  }
+  item_length = _item_length;
+  num_items   = _num_items;
+  data_width  = _data_width;
+  length      = _item_length * num_items;
+
+  if (item_length*data_width % _align_width == 0) {
+    item_size = item_length * data_width;
+    alloc(item_size * num_items);
+    aligned = false;
   }
   else {
+    item_size = (item_length*data_width + _align_width - 1) /
+                _align_width * _align_width;
+    alloc(item_size * num_items);
+    aligned = true;
+    printf("aligning item_size=%d to %d\n", item_length*data_width, item_size);
+  }
+} 
+
+void DataBlock::writeData(void* src, size_t _size) {
+  if (!allocated) {
     throw std::runtime_error("Block memory not allocated");
   }
+  if (!aligned) {
+    writeData(src, _size, 0);
+  }
+  else {
+    for (int k=0; k<num_items; k++) {
+      int data_size = item_length*data_width;
+      writeData((void*)((char*)src + k*data_size), 
+          data_size, k*item_size);
+    }  
+    // TODO: this part should be automatics
+    ready = true;
+  }
 }
+
 // copy data from an array with offset
+// TODO: this is used to write data item by item, so it should be used
+// to put aligned data
 void DataBlock::writeData(
     void* src, 
     size_t _size, 
@@ -88,6 +129,8 @@ DataBlock_ptr DataBlock::sample(char* mask) {
       k++;
     }
   }
+  block->ready = false;
+
   return block;
 }
 

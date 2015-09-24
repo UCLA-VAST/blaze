@@ -3,7 +3,8 @@
 
 #include <stdio.h>
 #include <boost/smart_ptr.hpp>
-
+#include <string>
+#include <map>
 
 #include "TaskEnv.h"
 #include "Block.h"
@@ -39,11 +40,23 @@ public:
     return block;
   }
 
+  // get an entry in the config_table matching the key
+  std::string getConfig(std::string &key) {
+    if (config_table.find(key)==config_table.end()) {
+      return std::string();
+    } else {
+      return config_table[key];
+    }
+  }
+
   // get TaskEnv to pass to Task
   TaskEnv* getEnv() {return env;}
 
 protected:
   TaskEnv* env;
+  
+  // a table storing platform configurations mapped by key
+  std::map<std::string, std::string> config_table;
 };
 
 typedef boost::shared_ptr<Platform> Platform_ptr;
