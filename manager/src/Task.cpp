@@ -1,5 +1,4 @@
 #include "Task.h"
-#include "Platform.h"
 
 namespace blaze {
 
@@ -7,7 +6,7 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
-void Task::addInputBlock(int64_t partition_id, DataBlock_ptr block) {
+void Task::addInputBlock(int64_t partition_id, DataBlock_ptr &block) {
 
   if (input_blocks.size() >= num_input) {
     throw std::runtime_error(
@@ -15,7 +14,8 @@ void Task::addInputBlock(int64_t partition_id, DataBlock_ptr block) {
         " with the number of blocks in ACCREQUEST");
   }
 
-  input_blocks.push_back(block);
+  int idx = input_blocks.size();
+  input_blocks.push_back(partition_id);
 
   // add the same block to a map table to provide fast access
   input_table.insert(std::make_pair(partition_id, block));
@@ -95,14 +95,14 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
         boost::lock_guard<DataBlock> guard(*block);
 
         try {
-        block->setLength(length);
-        block->setNumItems(num_items);
+          block->setLength(length);
+          block->setNumItems(num_items);
 
-        // allocate memory for block
-        block->alloc(size);
+          // allocate memory for block
+          block->alloc(size);
 
-        // read block from memory mapped file
-        block->readFromMem(path);
+          // read block from memory mapped file
+          block->readFromMem(path);
         } 
         catch (std::exception &e){
           throw e; 
@@ -123,7 +123,7 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
 
       int length = blockInfo.length();
       int num_items = blockInfo.has_num_items() ? 
-        blockInfo.num_items() : 1;
+                        blockInfo.num_items() : 1;
       int64_t size = blockInfo.size();	
       int64_t offset = blockInfo.offset();
       std::string path = blockInfo.path();
@@ -250,16 +250,28 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
         }
 
       }
-      else {  // read from memory mapped file
+      else {  // read input data block from memory mapped file
 
         // lock block for exclusive access
         boost::lock_guard<DataBlock> guard(*block);
 
-        block->setLength(length);
-        block->setNumItems(num_items);
-
         // allocate memory for block
-        block->alloc(size);
+        // check config_table to see if data needs to be aligned
+        // TODO: need to be better organized
+        if (!getConfig("align_width").empty()) {
+          int align_width = stoi(getConfig("align_width"));
+          block->alloc(
+              num_items, 
+              length/num_items,
+              size/length,
+              align_width);
+        }
+        else {
+          block->setLength(length);
+          block->setNumItems(num_items);
+
+          block->alloc(size);
+        }
 
         block->readFromMem(path);
 
@@ -271,6 +283,31 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
       }
     }
   }
+  /* at this point the block is ready with valid data, start data sampling 
+   * if a mask is presented. Note that even if the block is already cached, 
+   * the sampling will still happen and replacing the origin DataBlock
+   */
+  if (blockInfo.has_mask_path()) {
+
+    // read mask from memory mapped file
+    boost::iostreams::mapped_file_source fin;
+
+    std::string path = blockInfo.mask_path();
+    int data_size = blockInfo.num_items();
+    //printf("%s, %d\n", path.c_str(), data_size);
+
+    fin.open(path, data_size);
+
+    if (fin.is_open()) {
+      char* mask = (char*)fin.data();
+
+      input_table[partition_id] = block->sample(mask);
+    }
+    else {
+      throw std::runtime_error("Cannot find file containing the mask");
+    }
+    //printf("finish sampling of data of %d items\n", blockInfo.num_items());
+  }
 
   return block;
 }
@@ -280,12 +317,12 @@ bool Task::isReady() {
 
   bool ready = true;
   int num_ready = 0;
-  for (std::vector<DataBlock_ptr>::iterator iter = input_blocks.begin();
-       iter != input_blocks.end();
+  for (std::map<int64_t, DataBlock_ptr>::iterator iter = input_table.begin();
+       iter != input_table.end();
        iter ++)
   {
     // a block may be added but not initialized
-    if ((*iter).get()==0 || !(*iter)->isReady()) {
+    if (iter->second == NULL_DATA_BLOCK || !iter->second->isReady()) {
       ready = false;
       break;
     }

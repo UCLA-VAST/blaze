@@ -43,7 +43,7 @@ public:
     status(NOTREADY), 
     num_input(_num_input),
     num_ready(0)
-  {;}
+  {; }
 
   void setPlatform(Platform *_platform) {
     platform = _platform;  
@@ -60,6 +60,14 @@ public:
     } catch (std::runtime_error &e) {
       status = FAILED; 
       throw e;
+    }
+  }
+  
+  std::string getConfig(std::string key) {
+    if (config_table.find(key) != config_table.end()) {
+      return config_table[key];
+    } else {
+      return std::string();
     }
   }
 
@@ -87,7 +95,6 @@ protected:
       int num_items,
       int data_width) 
   {
-
     if (idx < output_blocks.size()) {
       // if output already exists, return the pointer 
       // to the existing block
@@ -111,7 +118,7 @@ protected:
 
   int getInputLength(int idx) { 
     if (idx < input_blocks.size()) {
-      return input_blocks[idx]->getLength(); 
+      return input_table[input_blocks[idx]]->getLength(); 
     }
     else {
       throw std::runtime_error("getInputLength out of bound idx");
@@ -120,7 +127,7 @@ protected:
 
   int getInputNumItems(int idx) { 
     if (idx < input_blocks.size()) {
-      return input_blocks[idx]->getNumItems() ; 
+      return input_table[input_blocks[idx]]->getNumItems() ; 
     }
     else {
       throw std::runtime_error("getInputNumItems out of bound idx");
@@ -128,17 +135,26 @@ protected:
   }
 
   char* getInput(int idx) {
+    
     if (idx < input_blocks.size()) {
-      return input_blocks[idx]->getData();      
+      return input_table[input_blocks[idx]]->getData();      
     }
     else {
       throw std::runtime_error("getInput out of bound idx");
     }
   }
 
+  void addConfig(std::string key, std::string val) {
+    if (config_table.find(key) != config_table.end()) {
+      config_table[key] = val;
+    } else {
+      config_table.insert(std::make_pair(key, val));
+    }
+  }
+
 private:
 
-  void addInputBlock(int64_t partition_id, DataBlock_ptr block);
+  void addInputBlock(int64_t partition_id, DataBlock_ptr &block);
 
   DataBlock_ptr getInputBlock(int64_t block_id);
 
@@ -167,11 +183,17 @@ private:
   // number of input blocks that has data initialized
   int num_ready;
 
-  // input and output data block
-  std::vector<DataBlock_ptr> input_blocks;
+  // a mapping between partition_id to the input blocks
+  std::map<int64_t, DataBlock_ptr> input_table;
+
+  // a list of input blocks to its partition_id
+  std::vector<int64_t> input_blocks;
+
+  // list of output blocks
   std::vector<DataBlock_ptr> output_blocks;
 
-  std::map<int64_t, DataBlock_ptr> input_table;
+  // a table storing configuration mapped by keys
+  std::map<std::string, std::string> config_table;
 };
 
 typedef boost::shared_ptr<Task> Task_ptr;

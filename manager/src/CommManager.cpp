@@ -90,11 +90,15 @@ void CommManager::process(socket_ptr sock) {
     std::string("Start processing a new connection.");
   logger->logInfo(msg);
 
+  // recording whether the task is active or not
   bool do_task = false;
   std::string task_id;
+  srand(time(NULL));
 
   try {
+    // 1. Handle ACCREQUEST
     TaskMsg task_msg;
+    TaskMsg reply_msg;
 
     try {
       recv(task_msg, sock);
@@ -102,16 +106,19 @@ void CommManager::process(socket_ptr sock) {
     catch (std::runtime_error &e){
       throw AccFailure("Error in receiving ACCREQUEST");
     }
-
     if (task_msg.type() == ACCREQUEST) {
 
       logger->logInfo(
           LOG_HEADER + 
           std::string("Received an ACCREQUEST message."));
 
-      TaskMsg reply_msg;
+      /* Receive acc_id to identify the corresponding TaskManager, 
+       * with which create a new Task. 
+       * Check the list of DataMsg to register input data blocks in the 
+       * task's input table, in order to get the correct order
+       */
 
-      // query the queue manager to find matching acc
+      // 1.1 query the queue manager to find matching acc
       TaskManager_ptr task_manager = 
         platform_manager->getTaskManager(task_msg.acc_id());
 
@@ -127,6 +134,9 @@ void CommManager::process(socket_ptr sock) {
       else { 
         // Calculating scheduling decisions
         // TODO: use a separate class for this part
+        //if (rand() % 2 == 0) {
+        //  throw AccReject("Rejecting ACC to balance workload");
+        //}
       }
 
       // keep track of a new active task
@@ -134,87 +144,118 @@ void CommManager::process(socket_ptr sock) {
       do_task = true;
       task_id = task_msg.acc_id();
 
-      // get correponding block manager based on platform 
+      // 1.2 get correponding block manager based on platform of queried Task
       BlockManager* block_manager = platform_manager->
         getBlockManager(task_msg.acc_id());
 
-      // create a task, which will be automatically enqueued
+      // create a new task, which will be automatically added to the task queue
       Task* task = task_manager->create();
 
-      bool all_cached = true;
+      bool wait_accdata = false;
 
-      // consult BlockManager to see if each block is cached
-      for (int i = 0; i < task_msg.data_size(); ++i) {
+      // 1.3 iterate through each input block
+      for (int i = 0; i < task_msg.data_size(); i++) {
 
-        if (task_msg.data(i).has_bval()) { 
-          // if this is a broadcast scalar
-          // then skip cache and directly add it to task
-          int64_t bval = task_msg.data(i).bval();
+        DataMsg recv_block = task_msg.data(i);
+
+        // 1.3.1 if input is a scalar
+        if (recv_block.has_bval()) { 
+
+          int64_t bval = recv_block.bval();
 
           // add the scalar as a new block
           DataBlock_ptr block(new DataBlock(1, 8));
           block->writeData((void*)&bval, 8);
 
-          // add block to task
-          // TODO: use naive block id here, since the id is only
-          // used to differentiate the blocks in a single task
+          /* skip cache and directly add it to task
+           * NOTE: use naive block id here, since the id is only
+           * used to differentiate the blocks in a single task
+           */
           task->addInputBlock(i, block);
         }
+        // 1.3.2 if this is not a scalar, then its an array
         else {
-          // if this is not a scalar
-          int64_t blockId = task_msg.data(i).partition_id();
 
-          DataMsg *block_info = reply_msg.add_data();
-          block_info->set_partition_id(blockId);
+          int64_t blockId = recv_block.partition_id();
 
+          // reply entry in ACCGRANT
+          DataMsg *reply_block = reply_msg.add_data();
+          reply_block->set_partition_id(blockId);
+
+          // reference block to add to the task's input table
           DataBlock_ptr block;
 
-          // both threads will see the block is not cached,
-          // so they will all set cached = false; but only one
-          // need to
-          if (block_manager->contains(blockId)) {
-            // get block from BlockManager
-            block = block_manager->get(blockId);
+          // 1.3.2.1 if the input is a broadcast block
+          if (blockId < 0) {
 
-            // set message flag
-            block_info->set_cached(true); 
-          }
-          else {
-            if (blockId >= 0) { // this is an input block
+            // 1.3.2.1.1: if the broadcast block is cached
+            if (block_manager->contains(blockId)) {
 
-              // allocate a new block without initilizing
-              // this block need to be added to cache later since the
-              // size information may not be available at this point
-              block = block_manager->create();
-
-              block_info->set_cached(false); 
-
-              // set message flag
-              all_cached = false;
+              block = block_manager->get(blockId);
+              reply_block->set_cached(true); 
             }
-            else { // this is a broadcast block
+            // 1.3.2.1.2 if the broadcast block is not cached
+            else {
 
-              // create the block and add it to scratch
-              // NOTE: at this point multiple threads may try 
-              // to add the same block, so create() is locked
+              /* create a new empty block and add it to broadcast cache
+               * NOTE: at this point multiple threads may try 
+               * to create the same block, only one can be successful
+               */
               bool created = block_manager->create(blockId, block);
 
+              /* the return boolean indicates whether this is the 
+               * task successfully created the block, and it will be
+               * responsible of initializing the block
+               */
               if (created) {
-                logger->logInfo(LOG_HEADER+
-                    std::to_string((long long)blockId)+
-                    " not cached");
+                reply_block->set_cached(false); 
 
-                block_info->set_cached(false); 
-                all_cached = false;
+                // wait for data in ACCDATA 
+                wait_accdata = true; 
               }
               else {
-                logger->logInfo(LOG_HEADER+
-                    std::to_string((long long)blockId)+
-                    " cached");
-                block_info->set_cached(true); 
+                reply_block->set_cached(true); 
               }
-              // the block added to task allocated but not ready
-              // at this point
+            }
+          }
+          // 1.3.2.2 if the input is a normal input block
+          else {
+            // 1.3.2.2.1 if the input block is cached
+            if (block_manager->contains(blockId)) {
+
+              // 1.3.2.2.1.1 if the input block is sampled
+              if (recv_block.has_sampled() && recv_block.sampled()) {
+
+                // add an empty block to task
+                block = block_manager->create();
+
+                // wait for mask in ACCDATA 
+                wait_accdata = true; 
+                 
+                reply_block->set_sampled(true);
+              }
+              // 1.3.2.2.1.2 if the input block is not sampled
+              else {
+                block = block_manager->get(blockId);
+                reply_block->set_sampled(false);
+              }
+              reply_block->set_cached(true); 
+            }
+            // 1.3.2.2.2 if the input block is not cached
+            else {
+              // add an empty block to task
+              block = block_manager->create();
+
+              // 1.3.2.2.2.1 if the input block is sampled
+              if (recv_block.has_sampled() && recv_block.sampled()) {
+                reply_block->set_sampled(true);
+              }
+              // 1.3.2.2.2.2 if the input block is not sampled
+              else {
+                reply_block->set_sampled(false);
+              }
+              reply_block->set_cached(false); 
+              wait_accdata = true;
             }
           }
           // add block to task
@@ -222,69 +263,60 @@ void CommManager::process(socket_ptr sock) {
         }
       }
 
-      // send msg back to client
+      // 1.4 send msg back to client
       reply_msg.set_type(ACCGRANT);
-
       send(reply_msg, sock);
-
       logger->logInfo(
           LOG_HEADER + 
           std::string("Replied with an ACCGRANT message."));
 
-      // wait for ACCDATA message if not all blocks are cached
-      if (!all_cached) {
+      // 2. Handle ACCDATA
+      if (wait_accdata) {
 
         TaskMsg data_msg;
-
         try {
           recv(data_msg, sock);
-          logger->logInfo(
-              LOG_HEADER + 
-              std::string("Received an ACCDATA message."));
-
         }
         catch (std::runtime_error &e) {
           throw AccFailure("Error in receiving ACCDATA");
         }
+        logger->logInfo(LOG_HEADER + 
+            std::string("Received an ACCDATA message."));
 
         // Acquire data from Spark
-        if (data_msg.type() == ACCDATA) {
+        if (data_msg.type() != ACCDATA) {
+          throw AccFailure("Expecting an ACCDATA");
+        }
 
-          for (int d = 0; d < data_msg.data_size(); ++d) {
+        for (int i=0; i<data_msg.data_size(); i++) {
 
-            const DataMsg blockInfo = data_msg.data(d);
-            int64_t blockId = blockInfo.partition_id();
+          DataMsg recv_block = data_msg.data(i);
+
+          int64_t blockId = recv_block.partition_id();
+
+          logger->logInfo(LOG_HEADER+
+              "start reading data for block "+
+              std::to_string((long long)blockId));
+
+          try {
+            // get the updated block from task
+            DataBlock_ptr block = 
+              task->onDataReady(recv_block);
 
             logger->logInfo(LOG_HEADER+
-                "start reading data for block "+
+                "finish reading data for block "+
                 std::to_string((long long)blockId));
 
-            try {
-              // get the updated block from task
-              DataBlock_ptr block = 
-                task->onDataReady(blockInfo);
-
-              logger->logInfo(LOG_HEADER+
-                  "finish reading data for block "+
-                  std::to_string((long long)blockId));
-
-              if (blockId >= 0) {
-                // add the block to cache
-                block_manager->add(blockId, block);
-              }
-            } 
-            catch ( std::runtime_error &e ) {
-
-              throw AccFailure(
-                  std::string("Error receiving data of block ") +
-                  std::to_string((long long)blockId) +
-                  std::string(" ") + std::string(e.what()));
+            if (blockId >= 0) {
+              // add the block to cache
+              block_manager->add(blockId, block);
             }
+          } catch ( std::runtime_error &e ) {
+            throw AccFailure(
+                std::string("Error receiving data of block ") +
+                std::to_string((long long)blockId) +
+                std::string(" ") + std::string(e.what()));
           }
-        }
-        else {
-          throw AccFailure(
-              "Unknown message type, discarding message.");
         }
       }
 
@@ -297,7 +329,7 @@ void CommManager::process(socket_ptr sock) {
             boost::chrono::microseconds(10)); 
       }
 
-      // Initialize finish message
+      // 3. Handle ACCFINISH message and output data
       TaskMsg finish_msg;
 
       if (task->status == Task::FINISHED) {
@@ -354,6 +386,7 @@ void CommManager::process(socket_ptr sock) {
         throw AccFailure("Task failed");
       }
     }
+    // 4. Handle ACCBROADCAST
     else if (task_msg.type() == ACCBROADCAST) {
 
       // NOTE: 
@@ -371,10 +404,8 @@ void CommManager::process(socket_ptr sock) {
         // deleting an existing blocks from all block manager
         platform_manager->removeShared(blockId);
       }
-
       finish_msg.set_type(ACCFINISH);
-      logger->logInfo(
-          LOG_HEADER+
+      logger->logInfo(LOG_HEADER+
           "Replied an ACCFINISH message regarding the broadcast.");
 
       send(finish_msg, sock);
@@ -402,8 +433,7 @@ void CommManager::process(socket_ptr sock) {
     
     reply_msg.set_type(ACCFAILURE);
 
-    logger->logInfo(
-        LOG_HEADER+
+    logger->logInfo(LOG_HEADER+
         std::string("Send ACCFAILURE because: ")+
         e.what());
 
@@ -415,8 +445,7 @@ void CommManager::process(socket_ptr sock) {
     
     reply_msg.set_type(ACCFAILURE);
 
-    logger->logInfo(
-        LOG_HEADER+
+    logger->logInfo(LOG_HEADER+
         std::string("Send ACCFAILURE because: ")+
         e.what());
 
@@ -425,9 +454,7 @@ void CommManager::process(socket_ptr sock) {
   if (do_task) {
     removeTask(task_id);
   }
-  logger->logInfo(
-      LOG_HEADER+
-      "thread exiting.");
+  logger->logInfo(LOG_HEADER+"thread exiting.");
 }
 
 void CommManager::listen() {

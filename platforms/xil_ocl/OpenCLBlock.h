@@ -65,7 +65,7 @@ public:
     }
     // if ready, copy the data over
     if (block->isReady()) {
-      writeData((void*)block->getData(), size);
+      DataBlock::writeData((void*)block->getData(), size);
       ready = true;
     }
   }
@@ -79,13 +79,16 @@ public:
   virtual void alloc(int64_t _size);
 
   // copy data from an array
-  virtual void writeData(void* src, size_t _size);
+  //virtual void writeData(void* src, size_t _size);
 
   // copy data from an array with offset
   virtual void writeData(void* src, size_t _size, size_t offset);
 
   // write data to an array
   virtual void readData(void* dst, size_t size);
+
+  // sample the items in the block by a mask
+  virtual DataBlock_ptr sample(char* mask);
 
   virtual char* getData() { 
 

@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include "Block.h"
 
 namespace blaze {
@@ -25,9 +8,6 @@ namespace blaze {
 
 void DataBlock::alloc(int64_t _size) {
 
-  // guarantee exclusive access by outside lock
-  //boost::lock_guard<DataBlock> guard(*this);
-
   if (!allocated) {
     size = _size;
     data = new char[size];
@@ -35,16 +15,60 @@ void DataBlock::alloc(int64_t _size) {
   }
 }
 
-void DataBlock::writeData(void* src, size_t _size) {
-  if (allocated) {
-    memcpy((void*)data, src, _size);
-    ready = true;
+void DataBlock::alloc(
+    int _num_items,
+    int _item_length, 
+    int _data_width,
+    int _align_width) 
+{
+  // input checks
+  if (_num_items <= 0 || 
+      _item_length <= 0 || 
+      _align_width <= 0 ||
+      _data_width <= 0) 
+  {
+    throw std::runtime_error("Invalid input");
+  }
+  item_length = _item_length;
+  num_items   = _num_items;
+  data_width  = _data_width;
+  length      = _item_length * num_items;
+
+  if (item_length*data_width % _align_width == 0) {
+    item_size = item_length * data_width;
+    alloc(item_size * num_items);
+    aligned = false;
   }
   else {
+    item_size = (item_length*data_width + _align_width - 1) /
+                _align_width * _align_width;
+    alloc(item_size * num_items);
+    aligned = true;
+    printf("aligning item_size=%d to %d\n", item_length*data_width, item_size);
+  }
+} 
+
+void DataBlock::writeData(void* src, size_t _size) {
+  if (!allocated) {
     throw std::runtime_error("Block memory not allocated");
   }
+  if (!aligned) {
+    writeData(src, _size, 0);
+  }
+  else {
+    for (int k=0; k<num_items; k++) {
+      int data_size = item_length*data_width;
+      writeData((void*)((char*)src + k*data_size), 
+          data_size, k*item_size);
+    }  
+    // TODO: this part should be automatics
+    ready = true;
+  }
 }
+
 // copy data from an array with offset
+// TODO: this is used to write data item by item, so it should be used
+// to put aligned data
 void DataBlock::writeData(
     void* src, 
     size_t _size, 
@@ -75,10 +99,42 @@ void DataBlock::readData(void* dst, size_t size) {
   }
 }
 
+DataBlock_ptr DataBlock::sample(char* mask) {
+
+  int item_length = length / num_items;
+  int item_size   = size / num_items;
+
+  // count the total number of 
+  int masked_items = 0;
+  for (int i=0; i<num_items; i++) {
+    if (mask[i]!=0) {
+      masked_items ++;
+    }
+  }
+  
+  DataBlock_ptr block(new DataBlock(
+        item_length*masked_items, 
+        item_size*masked_items));
+
+  block->setNumItems(masked_items);
+  
+  char* masked_data = block->getData();
+
+  int k=0;
+  for (int i=0; i<num_items; i++) {
+    if (mask[i] != 0) {
+      memcpy(masked_data+k*item_size, 
+             data+i*item_size, 
+             item_size);
+      k++;
+    }
+  }
+  block->ready = false;
+
+  return block;
+}
+
 void DataBlock::readFromMem(std::string path) {
-  // guarantee exclusive access by outside lock
-  // to avoid reading memory for the same block simutainously
-  //boost::lock_guard<DataBlock> guard(*this);
 
   if (ready) {
     return;
