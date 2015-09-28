@@ -17,7 +17,7 @@ COMPILE= $(CFLAGS) \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include 
 
-ACC = MapPartitionsTest 
+ACC = ArrayTest 
 
 OBJS= $(addsuffix .so, $(addprefix ../, $(ACC)))
 

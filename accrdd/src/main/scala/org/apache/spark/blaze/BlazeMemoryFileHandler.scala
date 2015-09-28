@@ -124,20 +124,22 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
   /**
     * Read and deserialize the data from memory mapped file.
     *
-    * @param offset The offset of memory mapped file.
     * @param bufferLength The total element # of output.
     * @param itemLength The length of a item. If not 1, means array type.
     * @param fileName File name of memory mapped file.
     */
   def readMemoryMappedFile (
-      offset: Int, 
+      sample: Any,
       bufferLength: Int,
       itemLength: Int,
       fileName: String): Unit = {
 
+    require(sample != null || data(0) != null)
+
     // Fetch size information
-    val isArray: Boolean = data(0).isInstanceOf[Array[_]]
-    val sampledData: Any = if (isArray) data(0).asInstanceOf[Array[_]](0) else data(0)
+    val mySample: Any = if (sample != null) sample else data(0)
+    val isArray: Boolean = mySample.isInstanceOf[Array[_]]
+    val sampledData: Any = if (isArray) mySample.asInstanceOf[Array[_]](0) else mySample
     val typeSize: Int = Util.getTypeSize(sampledData)
     val dataType: String = Util.getTypeName(sampledData)
 
@@ -158,7 +160,7 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
     val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, bufferLength * typeSize)
     buf.order(ByteOrder.LITTLE_ENDIAN)
 
-    for (idx <- offset until bufferLength / itemLength) {
+    for (idx <- 0 until bufferLength / itemLength) {
       if (isArray) {
         for (ii <- 0 until itemLength) {
           dataType(0) match {

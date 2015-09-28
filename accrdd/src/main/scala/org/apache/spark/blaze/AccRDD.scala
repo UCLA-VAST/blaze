@@ -232,7 +232,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
         if (finalRevMsg.getType() == AccMessage.MsgType.ACCFINISH) {
           val numOutputBlock: Int = finalRevMsg.getDataCount
-          var numItems: Int = 0
+          var numItems: Int = -1
           val blkLength = new Array[Int](numOutputBlock)
           val itemLength = new Array[Int](numOutputBlock)
 
@@ -245,42 +245,92 @@ class AccRDD[U: ClassTag, T: ClassTag](
             else {
               itemLength(i) = 1
             }
-            numItems += blkLength(i) / itemLength(i)
+
+            val thisNumItems = blkLength(i) / itemLength(i)
+            if (numItems != -1 && numItems != thisNumItems)
+              throw new RuntimeException("Item number is not consist!")
+            numItems = thisNumItems
           }
           if (numItems == 0)
             throw new RuntimeException("Manager returns an invalid data length")
 
           // Allocate output array
           outputAry = new Array[U](numItems)
-          if (outputAry.isInstanceOf[Array[Array[_]]]) {
-            for (i <- 0 until numItems) {
-              if (classTag[U] == classTag[Array[Int]])
-                outputAry(i) = (new Array[Int](itemLength(i))).asInstanceOf[U]
-              else if (classTag[U] == classTag[Array[Float]])
-                outputAry(i) = (new Array[Float](itemLength(i))).asInstanceOf[U]
-              else if (classTag[U] == classTag[Array[Long]])
-                outputAry(i) = (new Array[Long](itemLength(i))).asInstanceOf[U]
-              else if (classTag[U] == classTag[Array[Double]])
-                outputAry(i) = (new Array[Double](itemLength(i))).asInstanceOf[U]
-              else
-                throw new RuntimeException("Unsupported output type.")
-            }
-          }
 
           startTime = System.nanoTime
-          
+
           // Second read: Read outputs from memory mapped file.
-          var idx = 0
-          for (i <- 0 until numOutputBlock) { // Concatenate all blocks (currently only 1 block)
+          if (!outputAry.isInstanceOf[Array[Tuple2[_,_]]]) { // Primitive/Array type
+            if (outputAry.isInstanceOf[Array[Array[_]]]) { // Array type
+              for (i <- 0 until numItems) {
+                if (classTag[U] == classTag[Array[Int]])
+                  outputAry(i) = (new Array[Int](itemLength(i))).asInstanceOf[U]
+                else if (classTag[U] == classTag[Array[Float]])
+                  outputAry(i) = (new Array[Float](itemLength(i))).asInstanceOf[U]
+                else if (classTag[U] == classTag[Array[Long]])
+                  outputAry(i) = (new Array[Long](itemLength(i))).asInstanceOf[U]
+                else if (classTag[U] == classTag[Array[Double]])
+                  outputAry(i) = (new Array[Double](itemLength(i))).asInstanceOf[U]
+                else
+                  throw new RuntimeException("Unsupported output type.")
+              }
+            }
 
             val mappedFileInfo = new BlazeMemoryFileHandler(outputAry)
             mappedFileInfo.readMemoryMappedFile(
-              idx, 
-              blkLength(i), 
-              itemLength(i), 
-              finalRevMsg.getData(i).getPath())
+              null,
+              blkLength(0),
+              itemLength(0),
+              finalRevMsg.getData(0).getPath())
+          }
+          else { // Tuple2 type
+            val tmpOutputAry = new Array[Any](numOutputBlock)
+            val inputAry: Array[T] = ((firstParent[T].iterator(split, context)).toArray)
+            var sampledIn: Option[T] = Some(inputAry(0))
+            var sampledOut: Option[Any] = Some(acc.call(sampledIn.get).asInstanceOf[Any])
+         
+            for (j <- 0 until 2) {
+              val s = if (j == 0) sampledOut.get.asInstanceOf[Tuple2[_,_]]._1 
+                      else sampledOut.get.asInstanceOf[Tuple2[_,_]]._2
 
-            idx = idx + blkLength(i) / itemLength(i)
+              if (s.isInstanceOf[Array[_]]) {
+                tmpOutputAry(j) = new Array[Array[Any]](numItems)
+                for (i <- 0 until numItems) {
+                  if (s.isInstanceOf[Array[Int]])
+                    tmpOutputAry(j).asInstanceOf[Array[Any]](i) = new Array[Int](itemLength(i))
+                  else if (s.isInstanceOf[Array[Float]])
+                    tmpOutputAry(j).asInstanceOf[Array[Any]](i) = new Array[Float](itemLength(i))
+                  else if (s.isInstanceOf[Array[Long]])
+                    tmpOutputAry(j).asInstanceOf[Array[Any]](i) = new Array[Long](itemLength(i))
+                  else if (s.isInstanceOf[Array[Double]])
+                    tmpOutputAry(j).asInstanceOf[Array[Any]](i) = new Array[Double](itemLength(i))
+                  else
+                    throw new RuntimeException("Unsupported output type.")
+                }
+              }
+              else {
+                if (s.isInstanceOf[Int])
+                  tmpOutputAry(j) = new Array[Int](numItems)
+                else if (s.isInstanceOf[Float])
+                  tmpOutputAry(j) = new Array[Float](numItems)
+                else if (s.isInstanceOf[Long])
+                  tmpOutputAry(j) = new Array[Long](numItems)
+                else if (s.isInstanceOf[Double])
+                  tmpOutputAry(j) = new Array[Double](numItems)
+                else
+                  throw new RuntimeException("Unsupported output type.")
+              }
+
+              val mappedFileInfo = new BlazeMemoryFileHandler(tmpOutputAry(j).asInstanceOf[Array[_]])
+              mappedFileInfo.readMemoryMappedFile(
+                s,
+                blkLength(j), 
+                itemLength(j), 
+                finalRevMsg.getData(j).getPath())
+            }
+            outputAry = tmpOutputAry(0).asInstanceOf[Array[_]]
+                                       .zip(tmpOutputAry(1).asInstanceOf[Array[_]])
+                                       .asInstanceOf[Array[U]]
           }
           outputIter = outputAry.iterator
 

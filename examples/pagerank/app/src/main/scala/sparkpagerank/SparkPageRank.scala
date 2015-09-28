@@ -40,22 +40,36 @@ object SparkPageRank {
     val sparkConf = new SparkConf().setAppName("PageRank")
     val iters = if (args.length > 0) args(2).toInt else 1
     val sc = new SparkContext(sparkConf)
+    val acc = new BlazeRuntime(sc)
 
     val lines = sc.textFile(args(0), 10)
     val links = lines.map{ s =>
       val parts = s.split("\\s+")
-      (parts(0), parts(1))
+      (parts(0).toInt, parts(1).toInt)
     }.distinct().groupByKey().cache()
-    var ranks = links.mapValues(v => 1.0)
+    var ranks = links.mapValues(v => 1.0f)
 
     println("Total " + links.count + " links")
 
     for (i <- 1 to iters) {
-      val contribs = links.join(ranks).values.flatMap{ case (urls, rank) =>
-        val size = urls.size
-        urls.map(url => (url, rank / size))
-      }
-      ranks = contribs.reduceByKey(_ + _).mapValues(0.15 + 0.85 * _)
+      val contribs = links.join(ranks).values.map({
+        case (urls, rank) => 
+        (urls.toArray, rank)
+      })
+      val new_rank = acc.wrap(contribs).map_acc(new PageRank)
+//      val new_rank = contribs.map({ case (urls, rank) => 
+//        rank / urls.length
+//      })
+      
+      val real_contribs = contribs.zip(new_rank).map({
+        case ((urls, old_rank), new_rank) =>
+        (urls, new_rank)
+      })
+      .flatMap({ 
+        case (urls, rank) =>
+        urls.map(url => (url, rank))
+      })
+      ranks = real_contribs.reduceByKey(_ + _).mapValues(0.15f + 0.85f * _)
 
       println("Iteration " + i + " done.")
     }
@@ -64,8 +78,20 @@ object SparkPageRank {
     val output = ranks.collect()
     println(output(0)._1 + " has rank: " + output(0)._2 + ".")
 
-    sc.stop()
+    acc.stop()
   }
 }
 
-//class PageRank extends Accelerator[Tuple2[Int, Int], ]
+class PageRank extends Accelerator[Tuple2[Array[Int], Float], Float] {
+  val id: String = "PageRank"
+
+  def getArgNum = 0
+
+  def getArg(idx: Int) = None
+
+  override def call(in: (Array[Int], Float)): Float = {
+    in._2 / in._1.length
+  }
+}
+
+

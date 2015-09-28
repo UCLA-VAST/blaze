@@ -27,8 +27,10 @@ import java.net._
 // comaniac: Import extended package
 import org.apache.spark.blaze._
 
-class MapPartitionsTest(v: Int) extends Accelerator[Double, Double] {
-  val id: String = "MapPartitionsTest"
+class ArrayTest(v: BlazeBroadcast[Array[Double]]) 
+  extends Accelerator[Array[Double], Array[Double]] {
+
+  val id: String = "ArrayTest"
 
   def getArgNum(): Int = 1
 
@@ -39,17 +41,27 @@ class MapPartitionsTest(v: Int) extends Accelerator[Double, Double] {
       None
   }
 
-  override def call(in: Double): Double = {
-    in + v
+  override def call(in: Array[Double]): Array[Double] = {
+    val ary = new Array[Double](in.length)
+    val s = v.data.sum
+    for (i <- 0 until in.length) {
+      ary(i) = in(i) + s
+    }
+    ary
   }
 
-  override def call(in: Iterator[Double]): Iterator[Double] = {
+  override def call(in: Iterator[Array[Double]]): Iterator[Array[Double]] = {
     val inAry = in.toArray
     val length: Int = inAry.length
-    val outAry = new Array[Double](length)
+    val itemLength: Int = inAry(0).length
+    val outAry = new Array[Array[Double]](length)
+    val s = v.data.sum
 
-    for (i <- 0 until length)
-      outAry(i) = inAry(i) + v
+    for (i <- 0 until length) {
+      outAry(i) = new Array[Double](itemLength)
+      for (j <- 0 until itemLength)
+        outAry(i)(j) = inAry(i)(j) + s
+    }
 
     outAry.iterator
   }
@@ -58,16 +70,25 @@ class MapPartitionsTest(v: Int) extends Accelerator[Double, Double] {
 object TestApp {
     def main(args : Array[String]) {
       val sc = get_spark_context("Test App")
-      val data = new Array[Double](20000).map(e => random)
-      val rdd = sc.parallelize(data, 10)
-
       val acc = new BlazeRuntime(sc)
-      val rdd_acc = acc.wrap(rdd)
 
-      val v: Int = 2
+      val v = Array(1.1, 2.2, 3.3)
 
-      println("Result: " + rdd_acc.mapPartitions_acc(new MapPartitionsTest(v)).reduce((a, b) => (a + b)))
-      println("CPU result: " + rdd.map(e => e + v).reduce((a, b) => (a + b)))
+      println("Functional test: array type AccRDD with array type broadcast value")
+      val data = new Array[Array[Double]](20000)
+      for (i <- 0 until 20000) {
+        data(i) = new Array[Double](15).map(e => random)
+      }
+      val rdd = sc.parallelize(data, 10)
+      val rdd_acc = acc.wrap(rdd)    
+      val brdcst_v = acc.wrap(sc.broadcast(v))
+      val rdd2 = rdd_acc.map_acc(new ArrayTest(brdcst_v))
+      val res0 = rdd2.collect
+      println("Map result: " + res0(0)(0))
+      val res1 = rdd_acc.mapPartitions_acc(new ArrayTest(brdcst_v)).collect
+      println("MapPartitions result: " + res1(0)(0))
+      val res2 = rdd.map(e => e.map(ee => ee + v.sum)).collect
+      println("CPU result: " + res2(0)(0))
 
       acc.stop()
     }

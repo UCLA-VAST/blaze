@@ -12,7 +12,11 @@ platform : {
 		path : "functional-test/masktest/MaskTest.so"
 	}
 	acc : {
-		id : "MapPartitionsTest"
-		path : "functional-test/mappartitionstest/MapPartitionsTest.so"
+		id : "MapTest"
+		path : "functional-test/maptest/MapTest.so"
+	}
+	acc : {
+		id : "ArrayTest"
+		path : "functional-test/arraytest/ArrayTest.so"
 	}
 }
