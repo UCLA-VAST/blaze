@@ -444,7 +444,6 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
     val mask = Array.fill[Char](inputAry.length)('0')
 
-    println("AccRDD.mask: ")
     while (sampledIter.hasNext) {
       val ii = inputAry.indexOf(sampledIter.next)
       require (ii != -1, "Sampled data doesn't match the original dataset!")
