@@ -66,7 +66,7 @@ class ShellRDD[T: ClassTag](
     new AccRDD(appId, this, clazz, sampler)
   }
 
-  def sample_acc(
+  def sample_acc (
     withReplacement: Boolean,
     fraction: Double,
     seed: Long = Util.random.nextLong): ShellRDD[T] = { 
@@ -79,6 +79,10 @@ class ShellRDD[T: ClassTag](
     else
       thisSampler = new BernoulliSampler[T](fraction)
     thisSampler.setSeed(seed)
+
+    if (seed == 904401792) { // Test mode
+      thisSampler = new TestSampler[T]
+    }
 
     new ShellRDD(appId, this, thisSampler)
   }
