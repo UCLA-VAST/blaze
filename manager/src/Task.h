@@ -63,9 +63,21 @@ public:
     }
   }
   
-  std::string getConfig(std::string key) {
-    if (config_table.find(key) != config_table.end()) {
-      return config_table[key];
+  std::string getConfig(int64_t id, std::string key) {
+
+    // search input_blocks for matching partition
+    int idx;
+    for (idx=0; idx<input_blocks.size(); idx++) {
+      if (input_blocks[idx] == id) {
+        break;
+      } 
+    }
+    // matching block is not found
+    if (idx == input_blocks.size()) {
+      return std::string(); 
+    }
+    if (config_table[idx].find(key) != config_table[idx].end()) {
+      return config_table[idx][key];
     } else {
       return std::string();
     }
@@ -144,17 +156,17 @@ protected:
     }
   }
 
-  void addConfig(std::string key, std::string val) {
-    if (config_table.find(key) != config_table.end()) {
-      config_table[key] = val;
-    } else {
-      config_table.insert(std::make_pair(key, val));
-    }
+  // add a configuration for a dedicated block 
+  void addConfig(int idx, std::string key, std::string val) {
+
+    config_table[idx][key] = val;
   }
 
 private:
 
-  void addInputBlock(int64_t partition_id, DataBlock_ptr &block);
+  void addInputBlock(int64_t partition_id, DataBlock_ptr block);
+
+  void inputBlockReady(int64_t partition_id, DataBlock_ptr block);
 
   DataBlock_ptr getInputBlock(int64_t block_id);
 
@@ -192,8 +204,8 @@ private:
   // list of output blocks
   std::vector<DataBlock_ptr> output_blocks;
 
-  // a table storing configuration mapped by keys
-  std::map<std::string, std::string> config_table;
+  // a table that maps block index to configurations
+  std::map<int, std::map<std::string, std::string> > config_table;
 };
 
 typedef boost::shared_ptr<Task> Task_ptr;

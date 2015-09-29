@@ -130,6 +130,7 @@ protected:
 
 private:
   char* data;
+  boost::shared_ptr<DataBlock> base_block;
 };
 
 typedef boost::shared_ptr<DataBlock> DataBlock_ptr;

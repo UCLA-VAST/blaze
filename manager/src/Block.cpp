@@ -129,7 +129,7 @@ DataBlock_ptr DataBlock::sample(char* mask) {
       k++;
     }
   }
-  block->ready = false;
+  block->ready = true;
 
   return block;
 }

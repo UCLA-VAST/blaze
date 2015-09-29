@@ -6,24 +6,45 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
-void Task::addInputBlock(int64_t partition_id, DataBlock_ptr &block) {
-
+void Task::addInputBlock(
+    int64_t partition_id, 
+    DataBlock_ptr block = NULL_DATA_BLOCK) 
+{
   if (input_blocks.size() >= num_input) {
     throw std::runtime_error(
         "Inconsistancy between num_args in ACC Task"
         " with the number of blocks in ACCREQUEST");
   }
-
-  int idx = input_blocks.size();
+  // add the block to the input list
   input_blocks.push_back(partition_id);
 
-  // add the same block to a map table to provide fast access
-  input_table.insert(std::make_pair(partition_id, block));
+  if (block != NULL_DATA_BLOCK) {
+    // add the same block to a map table to provide fast access
+    input_table.insert(std::make_pair(partition_id, block));
 
-  // automatically trace all the blocks,
-  // if all blocks are initialized with data, 
-  // set the task status to READY
-  if (block->isReady()) {
+    // automatically trace all the blocks,
+    // if all blocks are initialized with data, 
+    // set the task status to READY
+    if (block->isReady()) {
+      num_ready ++;
+      if (num_ready == num_input) {
+        status = READY;
+      }
+    }
+  }
+}
+
+void Task::inputBlockReady(int64_t partition_id, DataBlock_ptr block) {
+
+  if (input_table.find(partition_id) == input_table.end()) {
+
+    // add the same block to a map table to provide fast access
+    input_table.insert(std::make_pair(partition_id, block));
+
+    // assuming the block is already ready
+    if (!block || !block->isReady()) {
+      throw std::runtime_error("Task::inputBlockReady(): block not ready");
+    }
     num_ready ++;
     if (num_ready == num_input) {
       status = READY;
@@ -65,6 +86,7 @@ bool Task::getOutputBlock(DataBlock_ptr &block) {
 
 // update contents of block by the received block info msg
 // also check all blocks readiness
+/*
 DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
 
   int64_t partition_id = blockInfo.partition_id();
@@ -283,10 +305,6 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
       }
     }
   }
-  /* at this point the block is ready with valid data, start data sampling 
-   * if a mask is presented. Note that even if the block is already cached, 
-   * the sampling will still happen and replacing the origin DataBlock
-   */
   if (blockInfo.has_mask_path()) {
 
     // read mask from memory mapped file
@@ -311,29 +329,35 @@ DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
 
   return block;
 }
+*/
 
 // check if all the blocks in task's input list is ready
 bool Task::isReady() {
 
-  bool ready = true;
-  int num_ready = 0;
-  for (std::map<int64_t, DataBlock_ptr>::iterator iter = input_table.begin();
-       iter != input_table.end();
-       iter ++)
-  {
-    // a block may be added but not initialized
-    if (iter->second == NULL_DATA_BLOCK || !iter->second->isReady()) {
-      ready = false;
-      break;
-    }
-    num_ready++;
-  }
-  if (ready && num_ready == num_input) {
-    status = READY;
-    return true;
+  if (status == READY) {
+    return true; 
   }
   else {
-    return false;
+    bool ready = true;
+    int num_ready_curr = 0;
+    for (std::map<int64_t, DataBlock_ptr>::iterator iter = input_table.begin();
+        iter != input_table.end();
+        iter ++)
+    {
+      // a block may be added but not initialized
+      if (iter->second == NULL_DATA_BLOCK || !iter->second->isReady()) {
+        ready = false;
+        break;
+      }
+      num_ready_curr++;
+    }
+    if (ready && num_ready_curr == num_input) {
+      status = READY;
+      return true;
+    }
+    else {
+      return false;
+    }
   }
 }
 
