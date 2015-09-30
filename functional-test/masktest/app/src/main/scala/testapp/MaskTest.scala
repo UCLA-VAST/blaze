@@ -20,7 +20,7 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
 import org.apache.spark.util.random._
 import Array._
-import scala.math._
+import scala.util.Random
 import org.apache.spark.rdd._
 import java.net._
 
@@ -40,7 +40,10 @@ class MaskTest(v: Int) extends Accelerator[Double, Double] {
   }
 
   override def call(in: Double): Double = {
-    in + v
+    if (in > 0.5)
+      in + v
+    else
+      0
   }
 
   override def call(in: Iterator[Double]): Iterator[Double] = {
@@ -48,9 +51,12 @@ class MaskTest(v: Int) extends Accelerator[Double, Double] {
     val length: Int = inAry.length
     val outAry = new Array[Double](length)
 
-    for (i <- 0 until length)
-      outAry(i) = inAry(i) + v
-
+    for (i <- 0 until length) {
+      if (inAry(i) > 0.5)
+        outAry(i) = inAry(i) + v
+      else
+        outAry(i) = 0
+    }
     outAry.iterator
   }
 }
@@ -58,12 +64,16 @@ class MaskTest(v: Int) extends Accelerator[Double, Double] {
 object TestApp {
     def main(args : Array[String]) {
       val sc = get_spark_context("Test App")
-      val rdd = sc.textFile("/curr/cody/test/testInput.txt", 15)
+      println("Functional test: AccRDD.sample_acc")
+      println("Set random seed as 904401792 to activate TestSampler.")
+
+      val rander = new Random(0)
+      val data = new Array[Double](20000).map(e => rander.nextDouble)
+      val rdd = sc.parallelize(data, 10)
 
       val acc = new BlazeRuntime(sc)
-      val rdd_acc = acc.wrap(rdd.map(a => a.toDouble))
+      val rdd_acc = acc.wrap(rdd)
 
-      val b = acc.wrap(sc.broadcast(Array(1, 2, 3)))
       val v = 2
 
       rdd_acc.cache
@@ -71,8 +81,16 @@ object TestApp {
       val sampled_rdd_acc = rdd_acc.sample_acc(true, 0.4, 904401792)
       sampled_rdd_acc.cache
       sampled_rdd_acc.collect
-      val rdd_acc2 = sampled_rdd_acc.mapPartitions_acc(new MaskTest(v))
+      val rdd_acc2 = sampled_rdd_acc.map_acc(new MaskTest(v))
       println("Result: " + rdd_acc2.reduce((a, b) => (a + b)))
+      println("App Mask: ")
+      val rdd_cpu = rdd.map(a => { 
+        if (a > 0.5)
+          a + v
+        else
+          0
+      })
+      println("CPU result: " + rdd_cpu.reduce((a, b) => (a + b)))
 
       acc.stop()
     }

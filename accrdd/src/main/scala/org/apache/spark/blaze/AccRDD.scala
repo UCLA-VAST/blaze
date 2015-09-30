@@ -296,6 +296,15 @@ class AccRDD[U: ClassTag, T: ClassTag](
               if (s.isInstanceOf[Array[_]]) {
                 tmpOutputAry(j) = new Array[Array[Any]](numItems)
                 for (i <- 0 until numItems) {
+/*                
+                  tmpOutputAry(j).asInstanceOf[Array[Any]](i) = s match {
+                    case s: Array[Int] => new Array[Int](itemLength(i))
+                    case s: Array[Float] => new Array[Float](itemLength(i))
+                    case s: Array[Long] => new Array[Long](itemLength(i))
+                    case s: Array[Double] => new Array[Double](itemLength(i))
+                    case _ => throw new RuntimeException("Unsupported output type.")
+                  }
+*/     
                   if (s.isInstanceOf[Array[Int]])
                     tmpOutputAry(j).asInstanceOf[Array[Any]](i) = new Array[Int](itemLength(i))
                   else if (s.isInstanceOf[Array[Float]])
@@ -306,6 +315,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
                     tmpOutputAry(j).asInstanceOf[Array[Any]](i) = new Array[Double](itemLength(i))
                   else
                     throw new RuntimeException("Unsupported output type.")
+                    
                 }
               }
               else {
@@ -390,7 +400,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
     * @param seed The optinal value for developer to assign a random seed.
     * @return A RDD with a specific sampler.
     */
-  def sample_acc(
+  def sample_acc (
     withReplacement: Boolean,
     fraction: Double,
     seed: Long = Util.random.nextLong): ShellRDD[T] = { 
