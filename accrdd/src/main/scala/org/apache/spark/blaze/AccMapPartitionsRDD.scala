@@ -59,7 +59,7 @@ class AccMapPartitionsRDD[U: ClassTag, T: ClassTag](
     * @param context TaskContext of Spark.
     * @return The output array
     */
-  override def computeOnJTP(split: Partition, context: TaskContext, partitionMask: Array[Char]): Iterator[U] = {
+  override def computeOnJTP(split: Partition, context: TaskContext, partitionMask: Array[Byte]): Iterator[U] = {
     logInfo("Compute partition " + split.index + " using CPU")
     val input: Iterator[T] = firstParent[T].iterator(split, context)
 
@@ -69,7 +69,7 @@ class AccMapPartitionsRDD[U: ClassTag, T: ClassTag](
         var sampledList = List[T]()
         var idx = 0
         while (idx < inputAry.length) {
-          if (partitionMask(idx) != '0')
+          if (partitionMask(idx) != 0)
             sampledList = sampledList :+ inputAry(idx)
           idx += 1
         }

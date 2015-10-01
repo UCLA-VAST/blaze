@@ -83,6 +83,7 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
       if (isArray) {
         for (a <- e.asInstanceOf[Array[_]]) {
           dataType(0) match {
+            case 'b' => buf.put(a.asInstanceOf[Byte].byteValue)
             case 'c' => buf.putChar(a.asInstanceOf[Char].charValue)
             case 'i' => buf.putInt(a.asInstanceOf[Int].intValue)
             case 'f' => buf.putFloat(a.asInstanceOf[Float].floatValue)
@@ -95,6 +96,7 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
       }
       else {
         dataType(0) match {
+          case 'b' => buf.put(e.asInstanceOf[Byte].byteValue)
           case 'c' => buf.putChar(e.asInstanceOf[Char].charValue)
           case 'i' => buf.putInt(e.asInstanceOf[Int].intValue)
           case 'f' => buf.putFloat(e.asInstanceOf[Float].floatValue)

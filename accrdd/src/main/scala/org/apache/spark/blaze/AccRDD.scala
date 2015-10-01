@@ -76,7 +76,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
       var dataLength: Int = -1
       val isPrimitiveType: Boolean = Util.isPrimitiveTypeRDD(getRDD)
       val isModeledType: Boolean = Util.isModeledTypeRDD(getRDD)
-      var partitionMask: Array[Char] = null
+      var partitionMask: Array[Byte] = null
       var isSampled: Boolean = false
 
       var startTime: Long = 0
@@ -434,7 +434,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
     }
   }
 
-  def samplePartition(split: Partition, context: TaskContext): Array[Char] = {
+  def samplePartition(split: Partition, context: TaskContext): Array[Byte] = {
     require(sampler != null)
     val thisSampler = sampler.clone
     val sampledIter = thisSampler.sample(firstParent[T].iterator(split, context))
@@ -442,12 +442,12 @@ class AccRDD[U: ClassTag, T: ClassTag](
     val inputAry = inputIter.toArray
     var idx: Int = 0
 
-    val mask = Array.fill[Char](inputAry.length)('0')
+    val mask = Array.fill[Byte](inputAry.length)(0)
 
     while (sampledIter.hasNext) {
       val ii = inputAry.indexOf(sampledIter.next)
       require (ii != -1, "Sampled data doesn't match the original dataset!")
-      mask(ii) = '1'
+      mask(ii) = 1 
     }
     mask
   }
@@ -462,7 +462,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
     * @param context TaskContext of Spark.
     * @return The output array
     */
-  def computeOnJTP(split: Partition, context: TaskContext, partitionMask: Array[Char]): Iterator[U] = {
+  def computeOnJTP(split: Partition, context: TaskContext, partitionMask: Array[Byte]): Iterator[U] = {
     logInfo("Compute partition " + split.index + " using CPU")
     val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
     val dataLength = inputAry.length
@@ -473,7 +473,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
     var j: Int = 0
     while (j < inputAry.length) {
-      if (partitionMask == null || partitionMask(j) != '0')
+      if (partitionMask == null || partitionMask(j) != 0)
         outputList = outputList :+ acc.call(inputAry(j).asInstanceOf[T])
       j = j + 1
     }
