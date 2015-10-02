@@ -26,7 +26,7 @@ import java.nio.channels.FileChannel.MapMode
 class BlazeMemoryFileHandler(var data: Array[_]) {
   var fileName: String = null
   var eltNum: Int = 0
-  var itemNum: Int = 0
+  var eltLength: Int = 0
   var typeName: String = null
   var typeSize: Int = -1
 
@@ -47,7 +47,8 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
       throw new RuntimeException("Unsupported input data type.")
 
     val dataType: String = Util.getTypeName(sampledData)
-    val itemNum: Int = data.length
+    val eltNum: Int = data.length
+    var eltLength: Int = 0;
 
     val fileName: String = if (isBrdcst) { 
       filePath + "_brdcst_" + (-id) + ".dat"
@@ -61,10 +62,13 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
       for (e <- data) {
         val a = e.asInstanceOf[Array[_]]
         bufferLength = bufferLength + a.length
+        eltLength = a.length
       }
     }
-    else
+    else {
       bufferLength = data.length
+      eltLength = 1
+    }
 
     // Create and write memory mapped file
     var raf: RandomAccessFile = null
@@ -117,8 +121,8 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
     }
 
     this.fileName = fileName
-    this.eltNum = bufferLength
-    this.itemNum = itemNum
+    this.eltNum = eltNum
+    this.eltLength = eltLength
     this.typeSize = typeSize
     this.typeName = dataType
   }
@@ -126,14 +130,14 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
   /**
     * Read and deserialize the data from memory mapped file.
     *
-    * @param bufferLength The total element # of output.
-    * @param itemLength The length of a item. If not 1, means array type.
+    * @param eltNum The total element # of output.
+    * @param eltLength The length of a item. If not 1, means array type.
     * @param fileName File name of memory mapped file.
     */
   def readMemoryMappedFile (
       sample: Any,
-      bufferLength: Int,
-      itemLength: Int,
+      eltNum: Int,
+      eltLength: Int,
       fileName: String): Unit = {
 
     require(sample != null || data(0) != null)
@@ -159,12 +163,12 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
     }
 
     val fc: FileChannel = raf.getChannel()
-    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, bufferLength * typeSize)
+    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, eltNum * eltLength * typeSize)
     buf.order(ByteOrder.LITTLE_ENDIAN)
 
-    for (idx <- 0 until bufferLength / itemLength) {
+    for (idx <- 0 until eltNum) {
       if (isArray) {
-        for (ii <- 0 until itemLength) {
+        for (ii <- 0 until eltLength) {
           dataType(0) match {
             case 'c' => data(idx).asInstanceOf[Array[Char]](ii) = buf.getChar()
             case 'i' => data(idx).asInstanceOf[Array[Int]](ii) = buf.getInt()
@@ -201,8 +205,8 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
     }
     this.fileName = fileName
     this.typeSize = typeSize
-    this.eltNum = bufferLength
-    this.itemNum = bufferLength / itemLength
+    this.eltNum = eltNum
+    this.eltLength = eltLength
     this.typeName = dataType
   }
 }

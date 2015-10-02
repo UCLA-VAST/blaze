@@ -176,7 +176,7 @@ public class DataTransmitter {
 				if (IdOrValue[i] == true)
 					data.setPartitionId(brdcst[i]);
 				else
-					data.setBval(brdcst[i]);
+					data.setScalarValue(brdcst[i]);
 				msg.addData(data);
 			}
 		
@@ -203,9 +203,9 @@ public class DataTransmitter {
 	*
 	*	@param msg The message that wanted to be added.
 	* @param id The unique ID of the data block.
-	* @param length The number of element of the data.
-	* @param item The number of item per element. 
-	* @param size The file size of either memory mapped file or HDFS file.
+	* @param elt_num The number of element in the partition.
+	* @param elt_length The number of value per element. 
+	* @param size The type size, or the file size for non-memory-mapped file.
 	* @param offset The start position of this block in the file.
 	* @param path The file path.
 	* @param maskPath The mask file path.
@@ -213,8 +213,8 @@ public class DataTransmitter {
 	public static void addData(
 		AccMessage.TaskMsg.Builder msg, 
 		long id, 
-		int length, 
-		int item, 
+		int elt_num, 
+		int elt_length, 
 		int size, 
 		int offset, 
 		String path,
@@ -222,18 +222,22 @@ public class DataTransmitter {
 	) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id)
-			.setLength(length)
-			.setSize(size)
-			.setOffset(offset);
+			.setNumElements(elt_num)
+			.setFileOffset(offset);
+
+		if (elt_num != -1)
+			data.setElementSize(size);
+		else
+			data.setFileSize(size);
 
 		if (path != null)
-			data.setPath(path);
+			data.setFilePath(path);
 
 		if (maskPath != null)
 			data.setMaskPath(maskPath);
 
-		if (item != 1)
-			data.setNumItems(item);
+		if (elt_length != 1)
+			data.setElementLength(elt_length);
 
 		msg.addData(data);
 		return ;
@@ -245,8 +249,8 @@ public class DataTransmitter {
 	*
 	*	@param msg The message that wanted to be added.
 	* @param id The unique ID of the data block.
-	* @param length The number of element of the data.
-	* @param item The number of item per element. 
+	* @param elt_num The number of element in the partition.
+	* @param elt_length The number of value per element. 
 	* @param size The file size of either memory mapped file or HDFS file.
 	* @param offset The start position of this block in the file.
 	* @param path The file path.
@@ -254,14 +258,14 @@ public class DataTransmitter {
 	public static void addData(
 		AccMessage.TaskMsg.Builder msg, 
 		long id, 
-		int length, 
-		int item, 
+		int elt_num, 
+		int elt_length, 
 		int size, 
 		int offset, 
 		String path
 	) {
 
-		addData(msg, id, length, item, size, offset, path, null);
+		addData(msg, id, elt_num, elt_length, size, offset, path, null);
 		return ;
 	}
 
@@ -277,7 +281,7 @@ public class DataTransmitter {
 	public static void addScalarData(AccMessage.TaskMsg.Builder msg, long id, long value) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(id)
-			.setBval(value);
+			.setScalarValue(value);
 
 		msg.addData(data);
 		return ;
