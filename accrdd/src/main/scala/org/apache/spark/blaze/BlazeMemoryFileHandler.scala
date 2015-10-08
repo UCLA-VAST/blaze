@@ -23,12 +23,8 @@ import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.nio.channels.FileChannel.MapMode
                                                 
-class BlazeMemoryFileHandler(var data: Array[_]) {
-  var fileName: String = null
-  var eltNum: Int = 0
-  var eltLength: Int = 0
+class BlazeMemoryFileHandler(var data: Array[_]) extends BlockInfo {
   var typeName: String = null
-  var typeSize: Int = -1
 
   /**
     * Serialize and write the data to memory mapped file.
@@ -47,7 +43,7 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
       throw new RuntimeException("Unsupported input data type.")
 
     val dataType: String = Util.getTypeName(sampledData)
-    val eltNum: Int = data.length
+    val numElt: Int = data.length
     var eltLength: Int = 0;
 
     val fileName: String = if (isBrdcst) { 
@@ -121,22 +117,23 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
     }
 
     this.fileName = fileName
-    this.eltNum = eltNum
+    this.numElt = numElt
     this.eltLength = eltLength
-    this.typeSize = typeSize
+    this.eltSize = typeSize * eltLength
     this.typeName = dataType
+    this.id = id
   }
 
   /**
     * Read and deserialize the data from memory mapped file.
     *
-    * @param eltNum The total element # of output.
+    * @param numElt The total element # of output.
     * @param eltLength The length of a item. If not 1, means array type.
     * @param fileName File name of memory mapped file.
     */
   def readMemoryMappedFile (
       sample: Any,
-      eltNum: Int,
+      numElt: Int,
       eltLength: Int,
       fileName: String): Unit = {
 
@@ -163,10 +160,10 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
     }
 
     val fc: FileChannel = raf.getChannel()
-    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, eltNum * eltLength * typeSize)
+    val buf: ByteBuffer = fc.map(MapMode.READ_ONLY, 0, numElt * eltLength * typeSize)
     buf.order(ByteOrder.LITTLE_ENDIAN)
 
-    for (idx <- 0 until eltNum) {
+    for (idx <- 0 until numElt) {
       if (isArray) {
         for (ii <- 0 until eltLength) {
           dataType(0) match {
@@ -204,8 +201,8 @@ class BlazeMemoryFileHandler(var data: Array[_]) {
         throw new IOException("Fail to close/delete memory mapped file " + fileName + ": " + e.toString)
     }
     this.fileName = fileName
-    this.typeSize = typeSize
-    this.eltNum = eltNum
+    this.eltSize = typeSize * eltLength
+    this.numElt = numElt
     this.eltLength = eltLength
     this.typeName = dataType
   }
