@@ -136,50 +136,21 @@ public class DataTransmitter {
   }
 
 	/**
-	* Create a task message for requesting.
+	* Create an empty message with specific type.
 	*
 	* @param acc_id
 	*		The accelerator ID. Should be provided by accelerator library.
-	* @param blockId
-	*		The unique ID of each sub-block.
-	* @param hasMask
-	*		The boolean value to indicate if the block has a mask or not.
-	* @param brdcst
-	*		The unique block ID or the scalar value.
-	* @param IdOrValue
-	*		The boolean value to indicate if the brdcst is ID (true) or value (false).
-	* @return The message which hasn't been built.
+	* @param type
+	*		The message type.
+	* @see AccMessage.MsgType
 	**/
-	public static AccMessage.TaskMsg.Builder buildRequest(
-		String acc_id, 
-		long[] blockId, 
-		boolean hasMask, 
-		long[] brdcst, 
-		boolean[] IdOrValue
-	) {
+	public static AccMessage.TaskMsg.Builder buildMessage(String acc_id, AccMessage.MsgType type) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
-			.setType(AccMessage.MsgType.ACCREQUEST)
-			.setAccId(acc_id);
+			.setType(type);
 
-			for (int i = 0; i < blockId.length; i += 1) {
-				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-					.setPartitionId(blockId[i]);
-			
-				if (hasMask)
-					data.setSampled(true);
-	
-				msg.addData(data);
-			}
-			for (int i = 0; i < brdcst.length; i += 1) {
-				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder();
+		if (acc_id != null)
+			msg.setAccId(acc_id);
 
-				if (IdOrValue[i] == true)
-					data.setPartitionId(brdcst[i]);
-				else
-					data.setScalarValue(brdcst[i]);
-				msg.addData(data);
-			}
-		
 		return msg;
 	}
 
@@ -191,10 +162,7 @@ public class DataTransmitter {
 	* @see AccMessage.MsgType
 	**/
 	public static AccMessage.TaskMsg.Builder buildMessage(AccMessage.MsgType type) {
-		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
-			.setType(type);
-
-		return msg;
+		return buildMessage(null, type);
 	}
 
 	/**
@@ -202,70 +170,38 @@ public class DataTransmitter {
 	* Create and add a data block to assigned message with full information. 
 	*
 	*	@param msg The message that wanted to be added.
-	* @param id The unique ID of the data block.
-	* @param elt_num The number of element in the partition.
-	* @param elt_length The number of value per element. 
-	* @param size The type size, or the file size for non-memory-mapped file.
-	* @param offset The start position of this block in the file.
-	* @param path The file path.
-	* @param maskPath The mask file path.
+	* @param blockInfo The object contains necessary information of the block.
+	* @param isSampled Indicate if the block is sampled or not.
+	* @param maskPath The path of mask memory mapped file.
 	**/
 	public static void addData(
 		AccMessage.TaskMsg.Builder msg, 
-		long id, 
-		int elt_num, 
-		int elt_length, 
-		int size, 
-		int offset, 
-		String path,
+		BlockInfo blockInfo,
+		boolean isSampled,
 		String maskPath
 	) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-			.setPartitionId(id)
-			.setNumElements(elt_num)
-			.setFileOffset(offset);
+			.setPartitionId(blockInfo.id())
+			.setNumElements(blockInfo.numElt())
+			.setFileOffset(blockInfo.offset());
 
-		if (elt_num != -1)
-			data.setElementSize(size);
+		if (blockInfo.numElt() != -1) {
+			data.setElementSize(blockInfo.eltSize());
+			data.setElementLength(blockInfo.eltLength());
+		}
 		else
-			data.setFileSize(size);
+			data.setFileSize(blockInfo.fileSize());
 
-		if (path != null)
-			data.setFilePath(path);
+		if (blockInfo.fileName() != null)
+			data.setFilePath(blockInfo.fileName());
+
+		if (isSampled)
+			data.setSampled(true);
 
 		if (maskPath != null)
 			data.setMaskPath(maskPath);
 
-		if (elt_length != 1)
-			data.setElementLength(elt_length);
-
 		msg.addData(data);
-		return ;
-	}
-
-	/**
-	* Add a data block.
-	* Create and add a data block to assigned message with without mask. 
-	*
-	*	@param msg The message that wanted to be added.
-	* @param id The unique ID of the data block.
-	* @param elt_num The number of element in the partition.
-	* @param elt_length The number of value per element. 
-	* @param size The file size of either memory mapped file or HDFS file.
-	* @param offset The start position of this block in the file.
-	* @param path The file path.
-	**/
-	public static void addData(
-		AccMessage.TaskMsg.Builder msg, 
-		long id, 
-		int elt_num, 
-		int elt_length, 
-		int size, 
-		int offset, 
-		String path
-	) {
-
-		addData(msg, id, elt_num, elt_length, size, offset, path, null);
 		return ;
 	}
 
@@ -275,12 +211,13 @@ public class DataTransmitter {
 	* broadcasting scalar variables.
 	*
 	*	@param msg The message that wanted to be added.
-	* @param id The unique ID of the data block.
 	* @param value The value of the scalar variable.
 	**/
-	public static void addScalarData(AccMessage.TaskMsg.Builder msg, long id, long value) {
+	public static void addScalarData(AccMessage.TaskMsg.Builder msg, long value) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-			.setPartitionId(id)
+			.setNumElements(1)
+			.setElementLength(1)
+			.setElementSize(4)
 			.setScalarValue(value);
 
 		msg.addData(data);

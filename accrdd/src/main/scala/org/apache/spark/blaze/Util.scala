@@ -72,10 +72,17 @@ object Util {
         logStr = logStr + "ID: " + msg.getData(i).getPartitionId() + ", "
       if (msg.getData(i).hasNumElements())
         logStr = logStr + "#Element: " + msg.getData(i).getNumElements() + ", "
-      if (msg.getData(i).hasFileSize())
-        logStr = logStr + "FileSize: " + msg.getData(i).getFileSize() + ", "
+      if (msg.getData(i).hasElementSize())
+        logStr = logStr + "ElementSize: " + msg.getData(i).getElementSize() + ", "
       if (msg.getData(i).hasElementLength())
         logStr = logStr + "ElementLength: " + msg.getData(i).getElementLength() + ", "
+
+      logStr = logStr + "isSampled: " + msg.getData(i).getSampled() + ", "
+   
+      if (msg.getData(i).hasScalarValue())
+        logStr = logStr + "ScalarValue: " + msg.getData(i).getScalarValue() + ", " 
+      if (msg.getData(i).hasFileSize())
+        logStr = logStr + "FileSize: " + msg.getData(i).getFileSize() + ", "
       if (msg.getData(i).hasFilePath())
         logStr = logStr + "FilePath: " + msg.getData(i).getFilePath() + ", "
       if (msg.getData(i).hasMaskPath())
