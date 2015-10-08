@@ -26,27 +26,41 @@ class DataBlock
 
 public:
 
-  // create basic data block with one item
-  DataBlock(int _length, int64_t _size):
-    item_length(_length),
-    item_size(_size),
-    num_items(1),
-    length(_length), 
-    size(_size),
-    allocated(true),
+  // create basic data block 
+  DataBlock(
+      int _num_items, 
+      int _item_length,
+      int _item_size,
+      int _align_width = 0)
+    :
+    num_items(_num_items),
+    item_length(_item_length),
+    align_width(_align_width),
+    allocated(false),
     ready(false)
   {
-    data_width = _size / _length;
-    data = new char[_size];
-  }
+    data_width = _item_size / _item_length;
 
-  DataBlock():
-    length(0), num_items(0), size(0), data_width(0),
-    allocated(false),
-    ready(false),
-    data(NULL)
-  {
-    ;  
+    if (_align_width == 0 ||
+        _item_size % _align_width == 0) 
+    {
+      item_size = _item_size;
+      aligned = false;
+    }
+    else {
+      item_size = (_item_length*data_width + _align_width - 1) /
+        _align_width * _align_width;
+      aligned = true;
+    }
+    length = _num_items * _item_length;
+    size   = _num_items * _item_size;
+
+    if (length <= 0 || size <= 0 || data_width < 1) {
+      throw std::runtime_error("Invalid parameters");
+    }
+
+    // NOTE: lazy allocation
+    //data = new char[_size];
   }
 
   ~DataBlock() {
@@ -57,17 +71,13 @@ public:
 
 
   // allocate data aligned to a given width
-  void alloc(
-      int _num_items, 
-      int _item_length,
-      int _data_width,
-      int _align_width);
+  void alloc(int _align_width);
+
+  // allocate data
+  virtual void alloc();
 
   // copy data from an array, use writeData with offset as subroutine
   void writeData(void* src, size_t _size);
-
-  // allocate data of given size
-  virtual void alloc(int64_t _size);
 
   // copy data from an array with offset
   virtual void writeData(void* src, size_t _size, size_t offset);
@@ -91,18 +101,10 @@ public:
   void readFromMem(std::string path);
   void writeToMem(std::string path);
 
-  int setLength(int _length) { 
-    length = _length; 
-  }
-
-  int setNumItems(int _num) { 
-    num_items = _num; 
-  }
-
-  int getLength() { return length; }
-
   int getNumItems() { return num_items; }
-
+  int getItemLength() { return item_length; }
+  int getItemSize() { return item_size; }
+  int getLength() { return length; }
   int getSize() { return size; }
 
   // status check of DataBlock needs to be exclusive
@@ -116,11 +118,11 @@ public:
   }
 
 protected:
-  
   int item_length;  /* number of elements per data item */
   int item_size;    /* byte size per data item */
   int num_items;    /* number of data items per data block */
   int data_width;   /* byte size per element */
+  int align_width;  /* align data width per data item */
   int length;       /* total number of elements */
   int64_t size;     /* total byte size of the data block */
 
