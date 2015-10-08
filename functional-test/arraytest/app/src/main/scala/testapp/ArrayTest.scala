@@ -75,21 +75,33 @@ object TestApp {
       val v = Array(1.1, 2.2, 3.3)
 
       println("Functional test: array type AccRDD with array type broadcast value")
-      val data = new Array[Array[Double]](20000)
-      for (i <- 0 until 20000) {
-        data(i) = new Array[Double](15).map(e => random)
+
+      val data = new Array[Array[Double]](16)
+      for (i <- 0 until 16) {
+        data(i) = new Array[Double](8).map(e => random)
       }
-      val rdd = sc.parallelize(data, 10)
+      val rdd = sc.parallelize(data, 4)
+
       val rdd_acc = acc.wrap(rdd)    
       val brdcst_v = acc.wrap(sc.broadcast(v))
-      val rdd2 = rdd_acc.map_acc(new ArrayTest(brdcst_v))
-      val res0 = rdd2.collect
-      println("Map result: " + res0(0)(0))
-      val res1 = rdd_acc.mapPartitions_acc(new ArrayTest(brdcst_v)).collect
-      println("MapPartitions result: " + res1(0)(0))
-      val res2 = rdd.map(e => e.map(ee => ee + v.sum)).collect
-      println("CPU result: " + res2(0)(0))
 
+      val res0 = rdd_acc.map_acc(new ArrayTest(brdcst_v)).collect
+      val res1 = rdd_acc.mapPartitions_acc(new ArrayTest(brdcst_v)).collect
+      val res2 = rdd.map(e => e.map(ee => ee + v.sum)).collect
+
+      // compare results
+      if (res0.deep != res1.deep ||
+          res1.deep != res2.deep ||
+          res0.deep != res2.deep)
+      {
+        println("input: \n" + data.deep.mkString("\n"))
+        println("map result: \n" + res2.deep.mkString("\n"))
+        println("map_acc results: \n" + res0.deep.mkString("\n"))
+        println("mapParititions_acc results: \n" + res1.deep.mkString("\n"))
+      }
+      else {
+        println("result correct")
+      }
       acc.stop()
     }
 

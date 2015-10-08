@@ -25,16 +25,19 @@ public:
     // get the pointer to input/output data
     double* a = (double*)getInput(0);
 		double* val = (double*)getInput(1);
-    double* b = (double*)getOutput(0, 1, data_length, sizeof(double));
+    double* b = (double*)getOutput(0, num_samples, item_length, sizeof(double));
 
     // perform computation
-    for (int i = 0; i < num_samples; i++) {
-			for (int j = 0; j < item_length; j++) {
-				for (int k = 0; k < weight_length; k++)
-					b[i * item_length + j] = a[i * item_length] + val[k];
-			}
+    double val_sum = 0.0;
+    for (int k = 0; k < weight_length; k++) {
+      val_sum += val[k];
     }
 
+    for (int i = 0; i < num_samples; i++) {
+			for (int j = 0; j < item_length; j++) {
+        b[i * item_length + j] = a[i * item_length +j] + val_sum;
+			}
+    }
     // if there is any error, throw exceptions
   }
 };
