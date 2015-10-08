@@ -27,37 +27,16 @@ import java.net._
 // comaniac: Import extended package
 import org.apache.spark.blaze._
 
-class MaskTest(v: Int) extends Accelerator[Double, Double] {
+class MaskTest() extends Accelerator[Double, Double] {
   val id: String = "MaskTest"
 
-  def getArgNum(): Int = 1
-
-  def getArg(idx: Int): Option[_] = {
-    if (idx == 0)
-      Some(v)
-    else
-      None
-  }
-
-  override def call(in: Double): Double = {
-    if (in > 0.5)
-      in + v
-    else
-      0
-  }
+  def getArg(idx: Int): Option[_] = None
+  def getArgNum(): Int = 0
 
   override def call(in: Iterator[Double]): Iterator[Double] = {
-    val inAry = in.toArray
-    val length: Int = inAry.length
-    val outAry = new Array[Double](length)
-
-    for (i <- 0 until length) {
-      if (inAry(i) > 0.5)
-        outAry(i) = inAry(i) + v
-      else
-        outAry(i) = 0
+    in.filter { a => 
+      a > 0.5 
     }
-    outAry.iterator
   }
 }
 
@@ -68,29 +47,24 @@ object TestApp {
       println("Set random seed as 904401792 to activate TestSampler.")
 
       val rander = new Random(0)
-      val data = new Array[Double](20000).map(e => rander.nextDouble)
-      val rdd = sc.parallelize(data, 10)
+      val data = new Array[Double](16).map(e => rander.nextDouble)
+      val rdd = sc.parallelize(data, 4).cache()
 
       val acc = new BlazeRuntime(sc)
       val rdd_acc = acc.wrap(rdd)
 
-      val v = 2
+      val rdd_sampled = rdd_acc.sample_acc(true, 0.4, 904401792)
+      val res_acc = rdd_sampled.mapPartitions_acc(new MaskTest()).collect
+      val res_cpu = rdd.mapPartitions(iter => {
+            iter.filter { a => a > 0.5 }}
+          ).collect
 
-      rdd_acc.cache
-      rdd_acc.collect
-      val sampled_rdd_acc = rdd_acc.sample_acc(true, 0.4, 904401792)
-      sampled_rdd_acc.cache
-      sampled_rdd_acc.collect
-      val rdd_acc2 = sampled_rdd_acc.map_acc(new MaskTest(v))
-      println("Result: " + rdd_acc2.reduce((a, b) => (a + b)))
-      println("App Mask: ")
-      val rdd_cpu = rdd.map(a => { 
-        if (a > 0.5)
-          a + v
-        else
-          0
-      })
-      println("CPU result: " + rdd_cpu.reduce((a, b) => (a + b)))
+      if (res_cpu.deep != res_acc.deep) {
+        println("CPU result: \n" + res_cpu.deep.mkString("\n"))
+        println("ACC result: \n" + res_acc.deep.mkString("\n"))
+      } else {
+        println("result correct")
+      }
 
       acc.stop()
     }
