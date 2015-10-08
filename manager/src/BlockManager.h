@@ -69,6 +69,13 @@ public:
   // create an empty block
   //DataBlock_ptr create();
 
+  // create a block
+  DataBlock_ptr create(
+    int num_items, 
+    int items_length,
+    int items_size,
+    int align_size = 0);
+
   // create a block and add it to cache/scratch
   // return true if a new block is created
   bool getAlloc(int64_t tag, DataBlock_ptr &block,

@@ -63,6 +63,19 @@ public:
     //data = new char[_size];
   }
 
+  DataBlock(const DataBlock &block) {
+    num_items = block.num_items;
+    item_length = block.item_length;
+    item_size = block.item_length;
+    length = block.length;
+    size = block.size;
+    align_width = block.align_width;
+    allocated = block.allocated;
+    aligned = block.aligned;
+    ready = block.ready;
+  }
+
+
   ~DataBlock() {
     if (allocated && !data) {
       delete data; 
@@ -87,12 +100,9 @@ public:
 
   // get the pointer to data
   virtual char* getData() { 
-    if (allocated) {
-      return data; 
-    }
-    else {
-      return NULL;
-    }
+    boost::lock_guard<DataBlock> guard(*this);
+    alloc();
+    return data; 
   }
 
   // sample the items in the block by a mask

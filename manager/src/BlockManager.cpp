@@ -16,17 +16,17 @@ namespace blaze {
 //}
 
 // create a block and 
-//DataBlock_ptr BlockManager::create(
-//    int num_items, 
-//    int items_length,
-//    int items_size,
-//    int align_size = 0) 
-//{
-//  DataBlock_ptr block = platform->createBlock(
-//      num_items, item_length, item_size, align_size);
-//
-//  return block;
-//}
+DataBlock_ptr BlockManager::create(
+    int num_items, 
+    int item_length,
+    int item_size,
+    int align_size) 
+{
+  DataBlock_ptr block = platform->createBlock(
+      num_items, item_length, item_size, align_size);
+
+  return block;
+}
 
 // create a block if it does not exist in the manager
 // return true if a new block is created
@@ -122,15 +122,11 @@ void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
     if (scratchTable.find(tag) != scratchTable.end()) {
       return;
     }
-    if (!block->isAllocated()) {
-      throw std::runtime_error(LOG_HEADER+ 
-          "Block is not allocated cannot be added");
-    }
     if (scratchSize + block->getSize() >= maxScratchSize) {
 
       // cannot add because running out of space
       throw std::runtime_error(LOG_HEADER+
-          "cannot add broadcast with size:" + 
+          "cannot add broadcast with size: " + 
           std::to_string((long long)block->getSize())+
           ", maxsize is "+
           std::to_string((long long)maxScratchSize));

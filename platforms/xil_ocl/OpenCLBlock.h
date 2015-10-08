@@ -68,13 +68,10 @@ public:
 
   virtual char* getData() { 
 
-    if (allocated) {
-      // this is a reinterpretive cast from cl_mem* to char*
-      return (char*)&data; 
-    }
-    else {
-      return NULL;
-    }
+    alloc();
+
+    // this is a reinterpretive cast from cl_mem* to char*
+    return (char*)&data; 
   }
 
 private:
