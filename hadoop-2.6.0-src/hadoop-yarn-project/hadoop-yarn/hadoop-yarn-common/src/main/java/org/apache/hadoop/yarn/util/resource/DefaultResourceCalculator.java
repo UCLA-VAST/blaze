@@ -69,7 +69,9 @@ public class DefaultResourceCalculator extends ResourceCalculator {
             Math.max(r.getMemory(), minimumResource.getMemory()),
             stepFactor.getMemory()),
             maximumResource.getMemory());
-    return Resources.createResource(normalizedMemory);
+    Resource normalizedResource = Resources.createResource(normalizedMemory);
+    normalizedResource.setVirtualAccs(r.getVirtualAccs());
+    return normalizedResource;
   }
 
   @Override

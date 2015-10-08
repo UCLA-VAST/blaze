@@ -469,6 +469,10 @@ public class ApplicationMasterService extends AbstractService implements
         request.setProgress(1);
       }
 
+      float accSpeedup = request.getAccSpeedup();
+      // TODO(mhhuang) change logging level to debug
+      LOG.info("accSpeedup is  " + accSpeedup);
+
       // Send the status update to the appAttempt.
       this.rmContext.getDispatcher().getEventHandler().handle(
           new RMAppAttemptStatusupdateEvent(appAttemptId, request
@@ -522,6 +526,13 @@ public class ApplicationMasterService extends AbstractService implements
         } catch (InvalidContainerReleaseException e) {
           LOG.warn("Invalid container release by application " + appAttemptId, e);
           throw e;
+        }
+      }
+
+      if (ask.size() > 0) {
+        LOG.info("GAM: YARN received resource requests:");
+        for(ResourceRequest resourceRequest : ask) {
+          LOG.info(resourceRequest.toString());
         }
       }
 

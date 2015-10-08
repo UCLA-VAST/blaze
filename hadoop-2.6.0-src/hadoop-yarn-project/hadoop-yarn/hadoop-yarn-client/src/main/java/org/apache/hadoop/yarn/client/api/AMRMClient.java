@@ -372,6 +372,8 @@ public abstract class AMRMClient<T extends AMRMClient.ContainerRequest> extends
     return nmTokenCache;
   }
 
+  public abstract void setAccSpeedup(float speedup);
+
   /**
    * Wait for <code>check</code> to return true for each 1000 ms.
    * See also {@link #waitFor(com.google.common.base.Supplier, int)}

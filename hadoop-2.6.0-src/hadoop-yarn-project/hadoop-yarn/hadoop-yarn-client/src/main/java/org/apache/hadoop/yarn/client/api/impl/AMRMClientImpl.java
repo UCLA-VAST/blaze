@@ -169,6 +169,8 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
   // How it different from release? --> release is for per allocate() request.
   protected Set<ContainerId> pendingRelease = new TreeSet<ContainerId>();
   
+  protected float accSpeedup = 1.0f;
+
   public AMRMClientImpl() {
     super(AMRMClientImpl.class.getName());
   }
@@ -268,6 +270,9 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
         allocateRequest =
             AllocateRequest.newInstance(lastResponseId, progressIndicator,
               askList, releaseList, blacklistRequest);
+        allocateRequest.setAccSpeedup(accSpeedup);
+        // TODO(mhhuang) change logging level to debug
+        LOG.info("Setting acc speedup to " + accSpeedup);
         // clear blacklistAdditions and blacklistRemovals before 
         // unsynchronized part
         blacklistAdditions.clear();
@@ -538,6 +543,11 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
     
     // no match found
     return list;          
+  }
+
+  @Override
+  public synchronized void setAccSpeedup(float speedup) {
+    accSpeedup = speedup;
   }
   
   private Set<String> resolveRacks(List<String> nodes) {

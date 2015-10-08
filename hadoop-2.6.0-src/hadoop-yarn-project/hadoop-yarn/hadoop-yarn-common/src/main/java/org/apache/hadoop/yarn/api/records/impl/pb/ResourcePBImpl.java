@@ -80,6 +80,18 @@ public class ResourcePBImpl extends Resource {
   }
 
   @Override
+  public int getVirtualAccs() {
+    ResourceProtoOrBuilder p = viaProto ? proto : builder;
+    return (p.getVirtualAccs());
+  }
+
+  @Override
+  public void setVirtualAccs(int vAccs) {
+    maybeInitBuilder();
+    builder.setVirtualAccs((vAccs));
+  }
+
+  @Override
   public int compareTo(Resource other) {
     int diff = this.getMemory() - other.getMemory();
     if (diff == 0) {

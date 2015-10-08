@@ -51,6 +51,16 @@ public class Resources {
     }
 
     @Override
+    public int getVirtualAccs() {
+      return 0;
+    }
+
+    @Override
+    public void setVirtualAccs(int accs) {
+      throw new RuntimeException("NONE cannot be modified!");
+    }
+
+    @Override
     public int compareTo(Resource o) {
       int diff = 0 - o.getMemory();
       if (diff == 0) {
@@ -80,6 +90,16 @@ public class Resources {
 
     @Override
     public void setVirtualCores(int cores) {
+      throw new RuntimeException("NONE cannot be modified!");
+    }
+
+    @Override
+    public int getVirtualAccs() {
+      return 0;
+    }
+
+    @Override
+    public void setVirtualAccs(int accs) {
       throw new RuntimeException("NONE cannot be modified!");
     }
 

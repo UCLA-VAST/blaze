@@ -146,6 +146,18 @@ public class AllocateRequestPBImpl extends AllocateRequest {
   }
 
   @Override
+  public float getAccSpeedup() {
+    AllocateRequestProtoOrBuilder p = viaProto ? proto : builder;
+    return p.getAccSpeedup();
+  }
+
+  @Override
+  public void setAccSpeedup(float accSpeedup) {
+    maybeInitBuilder();
+    builder.setAccSpeedup(accSpeedup);
+  }
+
+  @Override
   public List<ResourceRequest> getAskList() {
     initAsks();
     return this.ask;

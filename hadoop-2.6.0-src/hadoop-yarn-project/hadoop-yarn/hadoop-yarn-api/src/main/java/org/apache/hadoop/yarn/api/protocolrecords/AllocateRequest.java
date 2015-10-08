@@ -201,4 +201,12 @@ public abstract class AllocateRequest {
   @Stable
   public abstract void setIncreaseRequests(
       List<ContainerResourceIncreaseRequest> increaseRequests);
+
+  @Public
+  @Stable
+  public abstract float getAccSpeedup();
+
+  @Public
+  @Stable
+  public abstract void setAccSpeedup(float accSpeedup);
 }
