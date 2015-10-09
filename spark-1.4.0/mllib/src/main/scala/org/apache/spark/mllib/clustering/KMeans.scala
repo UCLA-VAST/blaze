@@ -28,6 +28,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.Utils
 import org.apache.spark.util.random.XORShiftRandom
+import org.apache.spark.blaze._
 
 /**
  * K-means clustering with support for multiple parallel runs and a k-means++ like initialization
@@ -185,11 +186,83 @@ class KMeans private (
   }
 
   /**
+   * KMeansWithACC implements Blaze Accelerator[T, T],
+   * it calculates the totalContrib from input data using accelerator matching the 
+   * ID of "KMeansContrib", and if the accelerator is not available, it will 
+   * implements a straightforward mapPartition function
+   */
+  private class KMeansWithACC(
+    runs : Int,
+    k : Int,
+    dims : Int,
+    centers : BlazeBroadcast[Array[Double]]
+  ) extends Accelerator[Array[Double], Array[Double]] {
+    
+    val id = "KMeansContrib"
+    def getArg(idx: Int): Option[_] = {
+      if (idx == 0) {
+        Some(runs)
+      } else if (idx == 1) {
+        Some(k)
+      } else if (idx == 2) {
+        Some(centers)
+      } else {
+        None
+      }
+    }
+    def getArgNum(): Int = 3
+
+    // function for AccRDD.mapParititions_acc()
+    override def call(points: Iterator[Array[Double]]): Iterator[Array[Double]] = 
+    { 
+      val bcData = centers.data
+      val thisActiveCenters = Array.tabulate(runs, k)( (i, j) =>
+          new VectorWithNorm(
+            Vectors.dense(bcData.slice(
+                i*k*(dims+1) + j*(dims+1), i*k*(dims+1) + j*(dims+1) + dims)
+            ),
+            bcData(i*k*(dims+1) + j*(dims+1) + dims))
+        )
+
+      val sums = Array.fill(runs, k)(Vectors.zeros(dims))
+      val counts = Array.fill(runs, k)(0L)
+
+      points.foreach { point =>
+        val pvector = Vectors.dense(point.slice(0, point.length-1))
+        val pnorm = point(point.length-1)
+        (0 until runs).foreach { i =>
+          val (bestCenter, cost) = KMeans.findClosest(thisActiveCenters(i), 
+                                    new VectorWithNorm(pvector, pnorm))
+          //costAccums(i) += cost
+          val sum = sums(i)(bestCenter)
+          axpy(1.0, pvector, sum)
+          counts(i)(bestCenter) += 1
+        }
+      }
+
+      val contribs = for (i <- 0 until runs; j <- 0 until k) yield {
+        val output : Array[Double] = Array.fill(sums(i)(j).size+3)(0.0)
+        output(0) = i
+        output(1) = j
+        Array.copy(sums(i)(j).toArray, 0, output, 2, sums(i)(j).size)
+        output(output.length-1) = counts(i)(j)
+        output
+      }
+      contribs.iterator
+    }
+  }
+
+  /**
    * Implementation of K-Means algorithm.
    */
   private def runAlgorithm(data: RDD[VectorWithNorm]): KMeansModel = {
 
     val sc = data.sparkContext
+
+    /**
+     * Setup Blaze runtime to allow accelerator of CostFun
+     */
+    val blaze = new BlazeRuntime(data.context)
 
     val initStartTime = System.nanoTime()
 
@@ -222,32 +295,26 @@ class KMeans private (
       val activeCenters = activeRuns.map(r => centers(r)).toArray
       val costAccums = activeRuns.map(_ => sc.accumulator(0.0))
 
-      val bcActiveCenters = sc.broadcast(activeCenters)
+      // flatten 2D array of VectorWithNorm to 1D array of double
+      val flatActiveCenters = activeCenters.flatMap( r => r.flatMap ( k =>
+         k.vector.toArray :+ k.norm ))
+
+      val runs = activeCenters.length
+      val k = activeCenters(0).length
+      val dims = activeCenters(0)(0).vector.size
+
+      val bcActiveCenters = sc.broadcast(flatActiveCenters)
+
+      var blazeActiveCenters = blaze.wrap(bcActiveCenters);
+      
+      // convert VectorWithNorm to Array[Double]
+      var blazeData = blaze.wrap(data.map(v => v.vector.toArray :+ v.norm));
 
       // Find the sum and count of points mapping to each center
-      val totalContribs = data.mapPartitions { points =>
-        val thisActiveCenters = bcActiveCenters.value
-        val runs = thisActiveCenters.length
-        val k = thisActiveCenters(0).length
-        val dims = thisActiveCenters(0)(0).vector.size
-
-        val sums = Array.fill(runs, k)(Vectors.zeros(dims))
-        val counts = Array.fill(runs, k)(0L)
-
-        points.foreach { point =>
-          (0 until runs).foreach { i =>
-            val (bestCenter, cost) = KMeans.findClosest(thisActiveCenters(i), point)
-            costAccums(i) += cost
-            val sum = sums(i)(bestCenter)
-            axpy(1.0, point.vector, sum)
-            counts(i)(bestCenter) += 1
-          }
-        }
-
-        val contribs = for (i <- 0 until runs; j <- 0 until k) yield {
-          ((i, j), (sums(i)(j), counts(i)(j)))
-        }
-        contribs.iterator
+      val totalContribs = blazeData.mapPartitions_acc { new KMeansWithACC(
+        runs, k, dims, blazeActiveCenters)
+      }.map { v => 
+        ( (v(0), v(1)), (Vectors.dense(v.slice(2, v.length-1)), v(v.length-1).toLong))
       }.reduceByKey(mergeContribs).collectAsMap()
 
       // Update the cluster centers and costs for each active run
@@ -270,7 +337,7 @@ class KMeans private (
           active(run) = false
           logInfo("Run " + run + " finished in " + (iteration + 1) + " iterations")
         }
-        costs(run) = costAccums(i).value
+        //costs(run) = costAccums(i).value
       }
 
       activeRuns = activeRuns.filter(active(_))
@@ -286,11 +353,13 @@ class KMeans private (
       logInfo(s"KMeans converged in $iteration iterations.")
     }
 
-    val (minCost, bestRun) = costs.zipWithIndex.min
+    //val (minCost, bestRun) = costs.zipWithIndex.min
 
-    logInfo(s"The cost for the best run is $minCost.")
+    //logInfo(s"The cost for the best run is $minCost.")
 
-    new KMeansModel(centers(bestRun).map(_.vector))
+    // TODO: does not support parallel runs yet
+    //new KMeansModel(centers(bestRun).map(_.vector))
+    new KMeansModel(centers(0).map(_.vector))
   }
 
   /**
