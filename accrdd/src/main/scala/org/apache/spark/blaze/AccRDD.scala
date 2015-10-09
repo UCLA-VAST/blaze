@@ -300,13 +300,13 @@ class AccRDD[U: ClassTag, T: ClassTag](
             if (outputAry.isInstanceOf[Array[Array[_]]]) { // Array type
               for (i <- 0 until numElt) {
                 if (classTag[U] == classTag[Array[Int]])
-                  outputAry(i) = (new Array[Int](eltLength(i))).asInstanceOf[U]
+                  outputAry(i) = (new Array[Int](eltLength(0))).asInstanceOf[U]
                 else if (classTag[U] == classTag[Array[Float]])
-                  outputAry(i) = (new Array[Float](eltLength(i))).asInstanceOf[U]
+                  outputAry(i) = (new Array[Float](eltLength(0))).asInstanceOf[U]
                 else if (classTag[U] == classTag[Array[Long]])
-                  outputAry(i) = (new Array[Long](eltLength(i))).asInstanceOf[U]
+                  outputAry(i) = (new Array[Long](eltLength(0))).asInstanceOf[U]
                 else if (classTag[U] == classTag[Array[Double]])
-                  outputAry(i) = (new Array[Double](eltLength(i))).asInstanceOf[U]
+                  outputAry(i) = (new Array[Double](eltLength(0))).asInstanceOf[U]
                 else
                   throw new RuntimeException("Unsupported output type.")
               }
