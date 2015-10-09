@@ -1,0 +1,34 @@
+package blaze;
+
+enum AccType {
+  CPU = 0;  
+  OpenCL = 1;  
+  CUDA = 2;  
+  ZYNQ = 3;
+}
+
+message KeyValue {
+  required string key = 1; 
+  required string value = 2;
+}
+
+message AccPlatform {
+  optional string id = 1 [default = "cpu"]; 
+  optional string path = 2 [default = ""];
+  optional string cache_loc = 3 [default = "cpu"];
+  optional int32 cache_limit = 4 [default = 16];
+  optional int32 scratch_limit = 5 [default = 4]; 
+  repeated AccWorker acc = 6;
+}
+
+message AccWorker {
+  required string id = 1;  
+  required string path = 2;
+  repeated KeyValue param = 3;
+}
+
+message ManagerConf {
+  optional int32 port = 1 [default = 1027];
+  optional int32 verbose = 2 [default = 3];
+  repeated AccPlatform platform = 3;
+}

@@ -1,0 +1,29 @@
+port : 1027
+verbose : 2
+platform : {
+  cache_limit: 16384
+  scratch_limit: 4096
+	acc : {
+		id : "Logistic_cpu"
+		path : "examples/logisticRegression/acc_task/lib/Logistic.so"
+	}
+}
+platform : {
+  id : "Xilinx OpenCL"
+  impl : "platforms/lib/xil_ocl.so"
+  cache_limit: 8192
+  scratch_limit: 1024
+  cache_loc : "alphadata"
+	acc : {
+		id : "Logistic"
+		path : "examples/logisticRegression/acc_task/lib/Logistic_ocl.so"
+    param : {
+      key : "ocl_program_path"
+      value : "/curr/diwu/prog/logistic/sdaccel/cpu_emu.xclbin"
+    }
+    param : {
+      key : "ocl_kernel_name"
+      value : "mmult"
+    }
+	}
+}
