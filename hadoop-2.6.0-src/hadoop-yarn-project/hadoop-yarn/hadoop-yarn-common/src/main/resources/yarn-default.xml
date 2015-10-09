@@ -857,6 +857,13 @@
   </property>
 
   <property>
+    <description>Amount of accelerators that can be allocated
+    for containers.</description>
+    <name>yarn.nodemanager.resource.vaccs</name>
+    <value>0</value>
+  </property>
+
+  <property>
     <description>Whether physical memory limits will be enforced for
     containers.</description>
     <name>yarn.nodemanager.pmem-check-enabled</name>
