@@ -55,24 +55,42 @@ public:
     }
   }
 
-  void setInput(int idx, void* data, int num_items, size_t length) {
+  void setInput(int idx, void* data, int num_items, size_t item_length) {
 
     if (idx < input_base_blocks.size()) {
-      input_base_blocks[idx]->writeData(data, length*sizeof(T));
-      input_test_blocks[idx]->writeData(data, length*sizeof(T));
+      input_base_blocks[idx]->writeData(data, num_items*item_length*sizeof(T));
+      input_test_blocks[idx]->writeData(data, num_items*item_length*sizeof(T));
     }
     else {
-      DataBlock_ptr base_block = base_bman->create(length, length*sizeof(T));
-      DataBlock_ptr test_block = test_bman->create(length, length*sizeof(T));
+      DataBlock_ptr base_block = base_bman->create(num_items, item_length, item_length*sizeof(T));
+      DataBlock_ptr test_block = test_bman->create(num_items, item_length, item_length*sizeof(T));
 
-      base_block->setNumItems(num_items);
-      test_block->setNumItems(num_items);
-
-      base_block->writeData(data, length*sizeof(T));
-      test_block->writeData(data, length*sizeof(T));
+      base_block->writeData(data, num_items*item_length*sizeof(T));
+      test_block->writeData(data, num_items*item_length*sizeof(T));
 
       input_base_blocks.push_back(base_block);
       input_test_blocks.push_back(test_block);
+    }
+  }
+
+  void runTest() {
+    Task* task_test = test_tman->create();
+
+    for (int i=0; i<input_base_blocks.size(); i++) {
+
+      task_test->addInputBlock(2*i+1, input_test_blocks[i]);
+    }
+    // wait on task finish
+    while (
+        task_test->status != Task::FINISHED &&
+        task_test->status != Task::FAILED) 
+    {
+      boost::this_thread::sleep_for(
+          boost::chrono::microseconds(10)); 
+    }
+
+    if (task_test->status != Task::FINISHED) {
+      throw std::runtime_error("Task failed.");
     }
   }
 
@@ -107,10 +125,10 @@ public:
 
     // tasks finished, check results
     if (checkResult(task_base, task_test)) {
-      logger->logInfo("Results correct.");
+      printf("Results correct.\n");
     }
     else {
-      logger->logInfo("Results incorrect.");
+      printf("Results incorrect.\n");
     }
   }
 
@@ -130,21 +148,37 @@ private:
     output_base->readData(result_base, output_base->getSize());
     output_test->readData(result_test, output_test->getSize());
 
-    U diff=0.0;
+    // post first 10 wrong results
+    int counter = 0;
+    U diff_total = 0.0;
+    U max_diff = 0.0;
     for (int k=0; k<output_base->getLength(); k++) {
-      if (k<10)
-        printf("%f, %f\n", result_base[k], result_test[k]);
-      diff += abs(result_base[k]-result_test[k]);
+      U diff = std::abs(result_base[k] - result_test[k]); 
+      U diff_ratio = 0.0;
+      if (result_base[k]!=0) {
+        diff_ratio = diff / std::abs(result_base[k]);
+      }
+      if (diff_ratio > max_diff) {
+        max_diff = diff_ratio;
+      }
+      if (diff_ratio > 1e-5 && counter<10) {
+        if (counter==0) {
+          printf("First 10 mismatch results: expected | actual, ratio\n");
+        }
+        printf("%f|%f, ratio=%f\n", 
+            result_base[k], result_test[k], diff_ratio);
+        counter ++;
+      }
     }
-    if (diff>thresh) {
+    delete result_base;
+    delete result_test;
+
+    if (max_diff>thresh) {
       return false;
     }
     else {
       return true;
     }
-
-    delete result_base;
-    delete result_test;
   }
 
   // threshold for difference

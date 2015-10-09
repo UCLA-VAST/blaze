@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include "Block.h"
 
 namespace blaze {
@@ -23,45 +6,49 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
-void DataBlock::alloc(int64_t _size) {
-
-  // guarantee exclusive access by outside lock
-  //boost::lock_guard<DataBlock> guard(*this);
-
+void DataBlock::alloc() {
   if (!allocated) {
-    size = _size;
     data = new char[size];
     allocated = true;
   }
 }
 
 void DataBlock::writeData(void* src, size_t _size) {
-  if (allocated) {
-    memcpy((void*)data, src, _size);
-    ready = true;
+  if (_size > size) {
+    throw std::runtime_error("Not enough space left in Block");
+  }
+  if (!aligned) {
+    boost::lock_guard<DataBlock> guard(*this);
+    writeData(src, _size, 0);
   }
   else {
-    throw std::runtime_error("Block memory not allocated");
+    boost::lock_guard<DataBlock> guard(*this);
+    for (int k=0; k<num_items; k++) {
+      int data_size = item_length*data_width;
+      writeData((void*)((char*)src + k*data_size), 
+          data_size, k*item_size);
+    }  
+    ready = true;
   }
 }
+
 // copy data from an array with offset
+// this method needs to be locked from outside
 void DataBlock::writeData(
     void* src, 
     size_t _size, 
-    size_t offset) 
+    size_t _offset)
 {
-  if (allocated) {
-    if (offset+_size > size) {
-      throw std::runtime_error("Exists block size");
-    }
-    memcpy((void*)(data+offset), src, _size);
-
-    if (offset + _size == size) {
-      ready = true;
-    }
+  if (_offset+_size > size) {
+    throw std::runtime_error("Exists block size");
   }
-  else {
-    throw std::runtime_error("Block memory not allocated");
+  // lazy allocation
+  alloc();
+
+  memcpy((void*)(data+_offset), src, _size);
+
+  if (_offset + _size == size) {
+    ready = true;
   }
 }
 
@@ -75,10 +62,39 @@ void DataBlock::readData(void* dst, size_t size) {
   }
 }
 
+DataBlock_ptr DataBlock::sample(char* mask) {
+
+  // count the total number of 
+  int masked_items = 0;
+  for (int i=0; i<num_items; i++) {
+    if (mask[i]!=0) {
+      masked_items ++;
+    }
+  }
+  
+  DataBlock_ptr block(new DataBlock(
+        masked_items,
+        item_length, 
+        item_size,
+        aligned ? align_width : item_size));
+
+  char* masked_data = block->getData();
+
+  int k=0;
+  for (int i=0; i<num_items; i++) {
+    if (mask[i] != 0) {
+      memcpy(masked_data+k*item_size, 
+             data+i*item_size, 
+             item_size);
+      k++;
+    }
+  }
+  block->ready = true;
+
+  return block;
+}
+
 void DataBlock::readFromMem(std::string path) {
-  // guarantee exclusive access by outside lock
-  // to avoid reading memory for the same block simutainously
-  //boost::lock_guard<DataBlock> guard(*this);
 
   if (ready) {
     return;

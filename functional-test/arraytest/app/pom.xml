@@ -17,7 +17,7 @@
   <groupId>test</groupId>
   <artifactId>test</artifactId>
   <packaging>jar</packaging>
-  <name>"SimpleAddition"</name>
+  <name>"ArrayTest"</name>
   <modelVersion>4.0.0</modelVersion>
   <version>0.0.0</version>
   

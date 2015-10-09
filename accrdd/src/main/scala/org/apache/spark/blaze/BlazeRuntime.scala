@@ -20,7 +20,6 @@ package org.apache.spark.blaze
 import java.io._
 import scala.util.matching.Regex
 import scala.reflect.ClassTag
-import scala.reflect.runtime.universe._
 
 import org.apache.spark._
 import org.apache.spark.{Partition, TaskContext}

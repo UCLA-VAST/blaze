@@ -94,11 +94,11 @@
 			<version>1.3.1</version>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.spark.blaze</groupId>
-			<artifactId>BLAZE</artifactId>
+			<groupId>org.apache.spark</groupId>
+			<artifactId>blaze</artifactId>
 			<version>1.0-SNAPSHOT</version>
 			<scope>system</scope>
-			<systemPath>${BLAZE_HOME}/target/BLAZE_RUNTIME-1.0-SNAPSHOT.jar</systemPath>
+			<systemPath>${BLAZE_HOME}/accrdd/target/blaze-1.0-SNAPSHOT.jar</systemPath>
 		</dependency>
   </dependencies>
 </project>

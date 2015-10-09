@@ -5,13 +5,13 @@
 
 using namespace blaze;
 
-class SimpleAddition : public Task {
+class Tuple2Test : public Task {
 public:
 
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  SimpleAddition(): Task(2) {;}
+  Tuple2Test(): Task(2) {;}
 
   // overwrites the compute function
   virtual void compute() {
@@ -20,13 +20,13 @@ public:
     int data_length = getInputLength(0);
 
     // get the pointer to input/output data
-    double* a = (double*)getInput(0);
-		double val = (double) *(reinterpret_cast<long*>(getInput(1)));
-    double* b = (double*)getOutput(0, 1, data_length, sizeof(double));
+    int* a = (int*)getInput(0);
+		int* b = (int*)getInput(1);
+    int* c = (int*)getOutput(0, 1, data_length, sizeof(int));
 
     // perform computation
     for (int i=0; i<data_length; i++) {
-      b[i] = a[i] + val;
+      c[i] = a[i] + b[i];
     }
 
     // if there is any error, throw exceptions
@@ -34,7 +34,7 @@ public:
 };
 
 extern "C" Task* create() {
-  return new SimpleAddition();
+  return new Tuple2Test();
 }
 
 extern "C" void destroy(Task* p) {

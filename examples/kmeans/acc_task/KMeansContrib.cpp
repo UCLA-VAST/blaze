@@ -41,7 +41,7 @@ public:
 
     // check input size
     if (center_length != num_runs*num_clusters*data_length || 
-        num_clusters < 2 || num_runs < 1)
+        num_runs < 1)
     {
       fprintf(stderr, "runs=%d, k=%d, num_samples=%d, data_length=%d\n", 
           num_runs, num_clusters, num_samples, data_length);

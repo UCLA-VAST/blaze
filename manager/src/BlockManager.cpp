@@ -8,23 +8,35 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
-DataBlock_ptr BlockManager::create() {
+// create an empty block
+//DataBlock_ptr BlockManager::create() {
+//
+//  DataBlock_ptr block = platform->createBlock();
+//  return block;
+//}
 
-  DataBlock_ptr block = platform->createBlock();
-  return block;
-}
+// create a block and 
+DataBlock_ptr BlockManager::create(
+    int num_items, 
+    int item_length,
+    int item_size,
+    int align_size) 
+{
+  DataBlock_ptr block = platform->createBlock(
+      num_items, item_length, item_size, align_size);
 
-DataBlock_ptr BlockManager::create(size_t length, size_t size) {
-
-  DataBlock_ptr block = platform->createBlock(length, size);
   return block;
 }
 
 // create a block if it does not exist in the manager
 // return true if a new block is created
-bool BlockManager::create(
-    int64_t tag,
-    DataBlock_ptr &block)
+bool BlockManager::getAlloc(
+    int64_t tag, 
+    DataBlock_ptr &block,
+    int num_items,
+    int item_length,
+    int item_size,
+    int align_size)
 {
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
@@ -35,24 +47,13 @@ bool BlockManager::create(
         std::to_string((long long)tag));
 
     try {
-
-      block = platform->createBlock();
-      // TODO: need to add block size when received the data
-      //if (scratchSize + block->getSize() >= maxScratchSize) {
-
-      //  // cannot add because running out of space
-      //  throw std::runtime_error(LOG_HEADER+
-      //      "cannot add broadcast with size:" + 
-      //      std::to_string((long long)block->getSize())+
-      //      ", current size is "+
-      //      std::to_string((long long)scratchSize));
-      //}
-
-      // add the index to scratchTable
-      scratchTable.insert(std::make_pair(tag, block));
-
-      // increase the current scratchSize
-      //scratchSize += block->getSize();
+      block = platform->createBlock(
+          num_items, 
+          item_length, 
+          item_size, 
+          align_size);
+      
+      do_add(tag, block);
 
       return true;
     }
@@ -111,21 +112,21 @@ void BlockManager::add(
 {
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
+  do_add(tag, block);
+}
+
+void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
 
   if (tag < 0) { // scratch block
     
     if (scratchTable.find(tag) != scratchTable.end()) {
       return;
     }
-    if (!block->isAllocated()) {
-      throw std::runtime_error(LOG_HEADER+ 
-          "Block is not allocated cannot be added");
-    }
     if (scratchSize + block->getSize() >= maxScratchSize) {
 
       // cannot add because running out of space
       throw std::runtime_error(LOG_HEADER+
-          "cannot add broadcast with size:" + 
+          "cannot add broadcast with size: " + 
           std::to_string((long long)block->getSize())+
           ", maxsize is "+
           std::to_string((long long)maxScratchSize));
@@ -170,9 +171,6 @@ void BlockManager::add(
       logger->logInfo(LOG_HEADER + 
           std::string("Failed to add block ") +
           std::to_string((long long int)tag));
-      return;
-      //throw std::runtime_error(LOG_HEADER+
-      //    "Caught exception: "+e.what());
     }
   }
 }

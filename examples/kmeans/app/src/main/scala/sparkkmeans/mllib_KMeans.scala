@@ -194,7 +194,7 @@ class KMeansClassified(
       None
   }
 
-  def call(in: Array[Double]): Int = {
+  override def call(in: Array[Double]): Int = {
     val centers = b_centers.data
     val D: Int = b_D.data
     val K: Int = centers.length / D

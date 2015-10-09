@@ -46,15 +46,24 @@ public:
 
   }
 
+  /*
   virtual DataBlock_ptr createBlock() {
     DataBlock_ptr block(
         new OpenCLBlock((OpenCLEnv*)env));  
     return block;
   }
+  */
 
-  virtual DataBlock_ptr createBlock(size_t length, size_t size) {
+  virtual DataBlock_ptr createBlock(
+      int num_items, 
+      int item_length,
+      int item_size, 
+      int align_width = 0) 
+  {
     DataBlock_ptr block(
-        new OpenCLBlock((OpenCLEnv*)env, length, size));  
+        new OpenCLBlock((OpenCLEnv*)env,
+          num_items, item_length, item_size, align_width)
+        );  
     return block;
   }
 

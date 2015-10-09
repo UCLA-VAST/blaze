@@ -86,7 +86,8 @@ PlatformManager::PlatformManager(
           logger->logErr(
               LOG_HEADER +
               std::string("cannot create acc ")+
-              platform_conf.acc(j).id());
+              platform_conf.acc(j).id() +
+              std::string(": ") + e.what());
         }
       }
 

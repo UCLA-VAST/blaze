@@ -1,0 +1,22 @@
+port : 1027
+verbose : 2
+platform : {
+  cache_limit: 16384
+  scratch_limit: 4096
+	acc : {
+		id : "Tuple2Test"
+		path : "functional-test/tuple2test/Tuple2Test.so"
+	}
+	acc : {
+		id : "MaskTest"
+		path : "functional-test/masktest/MaskTest.so"
+	}
+	acc : {
+		id : "MapTest"
+		path : "functional-test/maptest/MapTest.so"
+	}
+	acc : {
+		id : "ArrayTest"
+		path : "functional-test/arraytest/ArrayTest.so"
+	}
+}
