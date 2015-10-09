@@ -55,21 +55,18 @@ public:
     }
   }
 
-  void setInput(int idx, void* data, int num_items, size_t length) {
+  void setInput(int idx, void* data, int num_items, size_t item_length) {
 
     if (idx < input_base_blocks.size()) {
-      input_base_blocks[idx]->writeData(data, length*sizeof(T));
-      input_test_blocks[idx]->writeData(data, length*sizeof(T));
+      input_base_blocks[idx]->writeData(data, num_items*item_length*sizeof(T));
+      input_test_blocks[idx]->writeData(data, num_items*item_length*sizeof(T));
     }
     else {
-      DataBlock_ptr base_block = base_bman->create(length, length*sizeof(T));
-      DataBlock_ptr test_block = test_bman->create(length, length*sizeof(T));
+      DataBlock_ptr base_block = base_bman->create(num_items, item_length, item_length*sizeof(T));
+      DataBlock_ptr test_block = test_bman->create(num_items, item_length, item_length*sizeof(T));
 
-      base_block->setNumItems(num_items);
-      test_block->setNumItems(num_items);
-
-      base_block->writeData(data, length*sizeof(T));
-      test_block->writeData(data, length*sizeof(T));
+      base_block->writeData(data, num_items*item_length*sizeof(T));
+      test_block->writeData(data, num_items*item_length*sizeof(T));
 
       input_base_blocks.push_back(base_block);
       input_test_blocks.push_back(test_block);

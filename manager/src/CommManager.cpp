@@ -60,25 +60,6 @@ void CommManager::send(
   socket->send(buffer(msg_data, msg_size),0);
 }
 
-void CommManager::addTask(std::string id) {
-  // guarantee exclusive access
-  boost::lock_guard<CommManager> guard(*this);
-  if (num_tasks.find(id) == num_tasks.end()) {
-    num_tasks.insert(std::make_pair(id, 0));
-  }
-  else {
-    num_tasks[id] += 1;
-  }
-}
-
-void CommManager::removeTask(std::string id) {
-  // guarantee exclusive access
-  boost::lock_guard<CommManager> guard(*this);
-  if (num_tasks.find(id) != num_tasks.end()) {
-    num_tasks[id] -= 1;
-  }
-}
-
 void CommManager::process(socket_ptr sock) {
 
   // turn off Nagle Algorithm to improve latency
@@ -90,9 +71,6 @@ void CommManager::process(socket_ptr sock) {
     std::string("Start processing a new connection.");
   logger->logInfo(msg);
 
-  // recording whether the task is active or not
-  bool do_task = false;
-  std::string task_id;
   srand(time(NULL));
 
   try {
@@ -135,18 +113,6 @@ void CommManager::process(socket_ptr sock) {
 
         throw AccReject("No matching accelerator, rejecting request"); 
       }
-      else { 
-        // Calculating scheduling decisions
-        // TODO: use a separate class for this part
-        //if (rand() % 2 == 0) {
-        //  throw AccReject("Rejecting ACC to balance workload");
-        //}
-      }
-
-      // keep track of a new active task
-      addTask(task_msg.acc_id());
-      do_task = true;
-      task_id = task_msg.acc_id();
 
       // 1.2 get correponding block manager based on platform of queried Task
       BlockManager* block_manager = platform_manager->
@@ -163,15 +129,15 @@ void CommManager::process(socket_ptr sock) {
         DataMsg recv_block = task_msg.data(i);
 
         // 1.3.1 if input is a scalar
-        if (recv_block.has_bval()) { 
+        if (recv_block.has_scalar_value()) { 
 
-          int64_t bval = recv_block.bval();
+          int64_t scalar_val = recv_block.scalar_value();
 
           // add the scalar as a new block
-          DataBlock_ptr block(new DataBlock(1, 8));
-          block->writeData((void*)&bval, 8);
+          DataBlock_ptr block(new DataBlock(1, 1, 8));
+          block->writeData((void*)&scalar_val, 8);
 
-          /* skip cache and directly add it to task
+          /* skip BlockManager and directly add it to task
            * NOTE: use naive block id here, since the id is only
            * used to differentiate the blocks in a single task
            */
@@ -180,7 +146,27 @@ void CommManager::process(socket_ptr sock) {
         // 1.3.2 if this is not a scalar, then its an array
         else {
 
-          int64_t blockId = recv_block.partition_id();
+          // check message schematic
+          if (!recv_block.has_partition_id() || 
+              !recv_block.has_num_elements()) 
+          {
+            logger->logErr(LOG_HEADER + 
+                std::string("invalid data_msg in ACCREQUEST"));
+            throw AccFailure("Invalide ACCREQUEST");
+          }
+          int64_t blockId     = recv_block.partition_id();
+          int num_elements    = recv_block.num_elements();
+          int element_length  = recv_block.has_element_length() ? 
+                                  recv_block.element_length() : 0;
+          int element_size    = recv_block.has_element_size() ? 
+                                  recv_block.element_size() : 0;
+
+          // check if the sizes are valid
+          if (num_elements > 0 && (element_length <=0 || element_size <=0)) {
+            logger->logErr(LOG_HEADER + 
+                std::string("invalid block size info in ACCREQUEST"));
+            throw AccFailure("Invalide ACCREQUEST");
+          }
 
           // reply entry in ACCGRANT
           DataMsg *reply_block = reply_msg.add_data();
@@ -203,7 +189,8 @@ void CommManager::process(socket_ptr sock) {
                * NOTE: at this point multiple threads may try 
                * to create the same block, only one can be successful
                */
-              bool created = block_manager->create(blockId, block);
+              bool created = block_manager->getAlloc(blockId, block,
+                  num_elements, element_length, element_size);
 
               /* the return boolean indicates whether this is the 
                * task successfully created the block, and it will be
@@ -239,8 +226,28 @@ void CommManager::process(socket_ptr sock) {
             }
             // 1.3.2.2.2 if the input block is not cached
             else {
+
+              // create block if size is available, and add block to cache
+              // if size is not availalbe it means the data is in the filesys
+              if (num_elements > 0) {
+
+                // check task config table to see if task is aligned
+                int align_width = 0;
+                if (!task->getConfig(blockId, "align_width").empty()) {
+                  align_width = stoi(task->getConfig(
+                      blockId, "align_width"));
+                }
+                block_manager->getAlloc(
+                    blockId, block,
+                    num_elements, element_length, element_size, 
+                    align_width);
+              }
               if (recv_block.has_sampled() && recv_block.sampled()) {
+
                 reply_block->set_sampled(true);
+
+                // do not add block to task input table if data is sampled
+                block = NULL_DATA_BLOCK;
               }
               else {
                 reply_block->set_sampled(false);
@@ -288,15 +295,16 @@ void CommManager::process(socket_ptr sock) {
         for (int i=0; i<data_msg.data_size(); i++) {
 
           DataMsg recv_block = data_msg.data(i);
+
+          // check message format
+          if (!recv_block.has_partition_id() ||
+              !recv_block.has_file_path()) 
+          {
+            throw AccFailure("Missing info in ACCDATA");
+          }
           int64_t blockId = recv_block.partition_id();
+          std::string path = recv_block.file_path();
 
-          // input block of the task
-          //DataBlock_ptr input_block = task->getInputBlock(partition_id);
-
-          //if (input_block == NULL_DATA_BLOCK) {
-          //  throw AccFailure(std::string("Did not find block: ")+
-          //      std::to_string((long long)blockId));
-          //}
           if (task->getInputBlock(blockId) &&
               task->getInputBlock(blockId)->isReady()) 
           {
@@ -309,45 +317,39 @@ void CommManager::process(socket_ptr sock) {
               "Start reading data for block "+
               std::to_string((long long)blockId));
 
-          DataBlock_ptr block;
+          // block_status: <cached, sampled>
           std::pair<bool, bool> block_status = block_table[blockId];
+
+          DataBlock_ptr block;
+          if (block_status.second) {
+            block = block_manager->get(blockId);
+          }
+          else {
+            block = task->getInputBlock(blockId);
+          }
 
           // 2.1 Getting data ready for the block 
           if (!block_status.first) { // block is not cached
 
-            if (blockId < 0) {
-              // broadcast block is already added to the block_manager
-              block = block_manager->get(blockId);
-            }
-            else {
-              // create an empty block and add it to cache later
-              block = block_manager->create();
-            }
-
             // check required fields
-            if (!recv_block.has_length() ||
-                !recv_block.has_size() ||
-                !recv_block.has_path())
-            {
+            if (!recv_block.has_file_path()) {
               throw AccFailure(std::string("Missing information for block " )+
                   std::to_string((long long)blockId));
             }
+            std::string path = recv_block.file_path();
 
-            int         length = recv_block.length();
-            std::string path   = recv_block.path();
+            // 2.1.1 Read data from filesystem 
+            if (block == NULL_DATA_BLOCK) { 
 
-            // 2.1.1 Read data from filesystem
-            if (length == -1) { 
-
-              if (!recv_block.has_size() ||
-                  !recv_block.has_offset())
+              if (!recv_block.has_file_size() ||
+                  !recv_block.has_file_offset())
               {
                 throw AccFailure(std::string(
                       "Missing information to read from file for block ")+ 
                     std::to_string((long long)blockId));
               }
-              int64_t size   = recv_block.size();	
-              int64_t offset = recv_block.offset();
+              int64_t size   = recv_block.file_size();	
+              int64_t offset = recv_block.file_offset();
 
               //std::vector<std::string> lines;
               char* buffer = new char[size];
@@ -413,95 +415,60 @@ void CommManager::process(socket_ptr sock) {
 
               // buffer for all data
               std::vector<std::pair<size_t, char*> > data_buf;
-              size_t total_bytes = 0;
+              size_t total_size = 0;
+              size_t item_length = 0;      
+              size_t item_size = 0;      
 
               // split the file by newline
               std::istringstream sstream(line_buffer);
               std::string line;
 
-              size_t num_bytes = 0;      
-              size_t num_elements = 0;      
-
               while(std::getline(sstream, line)) {
-
                 char* data;
                 try {
-                  data = task->readLine(line, num_elements, num_bytes);
+                  data = task->readLine(line, item_length, item_size);
                 } catch (std::runtime_error &e) {
                   logger->logErr(LOG_HEADER+
                       std::string("problem reading a line"));
                 }
-                if (num_bytes > 0) {
-                  data_buf.push_back(std::make_pair(num_bytes, data));
-                  total_bytes += num_bytes;
+                if (item_size > 0) {
+                  data_buf.push_back(std::make_pair(item_size, data));
+                  total_size += item_size;
                 }
+              }
+              if (total_size <= 0) {
+                logger->logErr(LOG_HEADER+
+                    std::string("Did not read any data for block ")+
+                    std::to_string((long long) blockId));
               }
               // writing data to the corresponding block
-              if (total_bytes > 0) {
-
-                // lock block for exclusive access
-                boost::lock_guard<DataBlock> guard(*block);
-
-                // copy data to block
-                block->alloc(total_bytes);
-
-                size_t offset = 0;
-                for (int i=0; i<data_buf.size(); i++) {
-                  size_t bytes = data_buf[i].first;
-                  char* data   = data_buf[i].second;
-
-                  block->writeData((void*)data, bytes, offset);
-                  offset += bytes;
-
-                  delete data;
-                }
-
-                // the number of items is equal to the number of lines
-                block->setNumItems(data_buf.size());
-
-                // the total data length is num_elements * num_lines
-                block->setLength(num_elements*data_buf.size());
+              int align_width = 0;
+              if (!task->getConfig(blockId, "align_width").empty()) {
+                 align_width = stoi(task->getConfig(
+                      blockId, "align_width"));
               }
 
+              block_manager->getAlloc(
+                  blockId, block,
+                  data_buf.size(), item_length, item_size, 
+                  align_width);
+
+              int item_offset = 0;
+
+              // lock block for exclusive access during write
+              boost::lock_guard<DataBlock> guard(*block);
+              for (int i=0; i<data_buf.size(); i++) {
+                size_t bytes = data_buf[i].first;
+                char* data   = data_buf[i].second;
+
+                block->writeData((void*)data, bytes, item_offset);
+                item_offset += block->getItemSize();
+
+                delete data;
+              }
             }
             // 2.1.2 Read input data block from memory mapped file
             else {  
-
-              if (!recv_block.has_size() ||
-                  (recv_block.partition_id()>=0 && 
-                   !recv_block.has_num_items()))
-              {
-                throw AccFailure(std::string(
-                      "Missing information to read from memory for block ")+ 
-                    std::to_string((long long)blockId));
-              }
-              int64_t size      = recv_block.size();	
-              // TODO: this should not be empty fix AccRDD later
-              int     num_items = recv_block.has_num_items() ?
-                recv_block.num_items() : 1;
-
-              // lock block for exclusive access
-              boost::lock_guard<DataBlock> guard(*block);
-
-              // allocate memory for block
-              // check config_table of Task to see if data needs to be aligned
-              if (!task->getConfig(blockId, "align_width").empty()) {
-                int align_width = stoi(task->getConfig(
-                      blockId, "align_width"));
-
-                block->alloc(
-                    num_items, 
-                    length/num_items,
-                    size/length,
-                    align_width);
-              }
-              else {
-                block->setLength(length);
-                block->setNumItems(num_items);
-
-                block->alloc(size);
-              }
-
               block->readFromMem(path);
 
               // delete memory map file after read
@@ -510,31 +477,23 @@ void CommManager::process(socket_ptr sock) {
                 boost::filesystem::remove(file);
               }
             }
-            // add the block to cache if the block is not a broadcast block
-            // broadcast block is already added to the BlockManager
-            if (blockId >= 0) {
-              block_manager->add(blockId, block); 
-            }
-          }
-          else { // block is already cached in the BlockManager
-            block = block_manager->get(blockId);
           }
 
           // 2.2 add block to Task input table
           if (block_status.second) { // block is sampled
 
             if (!recv_block.has_mask_path() || 
-                !recv_block.has_num_items())
+                !recv_block.has_num_elements())
             {
               throw AccFailure(std::string("Mask path is missing for block ")+
                   std::to_string((long long)blockId));
             }
             std::string mask_path = recv_block.mask_path();
-            int         data_size = recv_block.num_items();
+            int         mask_size = recv_block.num_elements();
 
             // read mask from memory mapped file
             boost::iostreams::mapped_file_source fin;
-            fin.open(mask_path, data_size);
+            fin.open(mask_path, mask_size);
 
             if (fin.is_open()) {
               char* mask = (char*)fin.data();
@@ -571,7 +530,7 @@ void CommManager::process(socket_ptr sock) {
           task->status != Task::FAILED) 
       {
         boost::this_thread::sleep_for(
-            boost::chrono::microseconds(10)); 
+            boost::chrono::microseconds(100)); 
       }
 
       // 3. Handle ACCFINISH message and output data
@@ -612,12 +571,13 @@ void CommManager::process(socket_ptr sock) {
               path);
 
           // construct DataMsg
+          // NOTE: not considering output data aligned allocation
           DataMsg *block_info = finish_msg.add_data();
           block_info->set_partition_id(outId);
-          block_info->set_path(path); 
-          block_info->set_length(block->getLength());	
-          block_info->set_num_items(block->getNumItems());	
-          block_info->set_size(block->getSize());	
+          block_info->set_file_path(path); 
+          block_info->set_num_elements(block->getNumItems());	
+          block_info->set_element_length(block->getItemLength());	
+          block_info->set_element_size(block->getItemSize());	
 
           outId ++;
         }
@@ -695,9 +655,6 @@ void CommManager::process(socket_ptr sock) {
         e.what());
 
     send(reply_msg, sock);
-  }
-  if (do_task) {
-    removeTask(task_id);
   }
   logger->logInfo(LOG_HEADER+"thread exiting.");
 }

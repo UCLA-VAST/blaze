@@ -114,13 +114,8 @@ protected:
     }
     else {
       // if output does not exist, create one
-      
-      int length = num_items*item_length;
-
-      // create platform-specific block object
-      DataBlock_ptr block = platform->createBlock(length, length*data_width);
-     
-      block->setNumItems(num_items);
+      DataBlock_ptr block = platform->createBlock(num_items, 
+          item_length, item_length*data_width);
 
       output_blocks.push_back(block);
 

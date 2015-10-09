@@ -56,26 +56,7 @@ object Util {
     */
   def logMsg(msgBuilder: AccMessage.TaskMsg.Builder): String = {
     val msg = msgBuilder.build()
-    var logStr = "Message: Type: "
-    logStr = logStr + msg.getType() + ", Data: " + msg.getDataCount() + "\n"
-
-    for (i <- 0 until msg.getDataCount()) {
-      logStr = logStr + "Data " + i + ": "
-      if (msg.getData(i).hasPartitionId())
-        logStr = logStr + "ID: " + msg.getData(i).getPartitionId() + ", "
-      if (msg.getData(i).hasLength())
-        logStr = logStr + "Length: " + msg.getData(i).getLength() + ", "
-      if (msg.getData(i).hasSize())
-        logStr = logStr + "Size: " + msg.getData(i).getSize() + ", "
-      if (msg.getData(i).hasNumItems())
-        logStr = logStr + "NumItems: " + msg.getData(i).getNumItems() + ", "
-      if (msg.getData(i).hasPath())
-        logStr = logStr + "Path: " + msg.getData(i).getPath() + ", "
-      if (msg.getData(i).hasMaskPath())
-        logStr = logStr + "Mask_Path: " + msg.getData(i).getMaskPath()
-      logStr = logStr + "\n"
-    }
-    logStr
+    logMsg(msg)
   }
 
   /**
@@ -89,12 +70,23 @@ object Util {
       logStr = logStr + "Data " + i + ": "
       if (msg.getData(i).hasPartitionId())
         logStr = logStr + "ID: " + msg.getData(i).getPartitionId() + ", "
-      if (msg.getData(i).hasLength())
-        logStr = logStr + "Length: " + msg.getData(i).getLength() + ", "
-      if (msg.getData(i).hasSize())
-        logStr = logStr + "Size: " + msg.getData(i).getSize() + ", "
-      if (msg.getData(i).hasPath())
-        logStr = logStr + "Path: " + msg.getData(i).getPath()
+      if (msg.getData(i).hasNumElements())
+        logStr = logStr + "#Element: " + msg.getData(i).getNumElements() + ", "
+      if (msg.getData(i).hasElementSize())
+        logStr = logStr + "ElementSize: " + msg.getData(i).getElementSize() + ", "
+      if (msg.getData(i).hasElementLength())
+        logStr = logStr + "ElementLength: " + msg.getData(i).getElementLength() + ", "
+
+      logStr = logStr + "isSampled: " + msg.getData(i).getSampled() + ", "
+   
+      if (msg.getData(i).hasScalarValue())
+        logStr = logStr + "ScalarValue: " + msg.getData(i).getScalarValue() + ", " 
+      if (msg.getData(i).hasFileSize())
+        logStr = logStr + "FileSize: " + msg.getData(i).getFileSize() + ", "
+      if (msg.getData(i).hasFilePath())
+        logStr = logStr + "FilePath: " + msg.getData(i).getFilePath() + ", "
+      if (msg.getData(i).hasMaskPath())
+        logStr = logStr + "MaskPath: " + msg.getData(i).getMaskPath()
       logStr = logStr + "\n"
     }
     logStr

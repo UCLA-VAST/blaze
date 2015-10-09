@@ -49,16 +49,12 @@ public:
     platform(_platform),
     logger(_logger)
   {
-    //cacheTable    = new std::map<int, int>;
-    //cacheQueue    = new std::vector<std::pair<int, DataBlock*>>;
-    //scratchTable  = new std::map<int, DataBlock*>;
   }
 
   /* all reference in BlockManager will be automatically removed */
   //~BlockManager();
 
-  // check scratch and cache table to see if a certain 
-  // block exists
+  // check scratch and cache table to see if a certain block exists
   bool contains(int64_t tag) {
     if (tag < 0) {
       // check scratch table
@@ -71,18 +67,19 @@ public:
   }
 
   // create an empty block
-  DataBlock_ptr create();
+  //DataBlock_ptr create();
 
-  // create and allocate a new block
-  DataBlock_ptr create(size_t length, size_t size);
+  // create a block
+  DataBlock_ptr create(
+    int num_items, 
+    int items_length,
+    int items_size,
+    int align_size = 0);
 
   // create a block and add it to cache/scratch
   // return true if a new block is created
-  bool create(
-      //int length, 
-      //int size,
-      int64_t tag,
-      DataBlock_ptr &block);
+  bool getAlloc(int64_t tag, DataBlock_ptr &block,
+      int num_items, int item_length, int item_size, int align_width=0);
 
   // get a block from cache table or scratch table
   DataBlock_ptr get(int64_t tag);
@@ -112,6 +109,7 @@ public:
 
 private:
   // internal cache operations
+  void do_add(int64_t tag, DataBlock_ptr block);
   void evict();
   void update(int64_t tag);
 
