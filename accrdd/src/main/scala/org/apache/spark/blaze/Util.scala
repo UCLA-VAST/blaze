@@ -289,14 +289,22 @@ object Util {
       fileName: String) = {
 
     if (out(offset) == null) {
-      if (classTag[T] == classTag[Array[Int]])
-        out(offset) = (new Array[Int](itemLength)).asInstanceOf[T]
-      else if (classTag[T] == classTag[Array[Float]])
-        out(offset) = (new Array[Float](itemLength)).asInstanceOf[T]
-      else if (classTag[T] == classTag[Array[Long]])
-        out(offset) = (new Array[Long](itemLength)).asInstanceOf[T]
-      else if (classTag[T] == classTag[Array[Double]])
-        out(offset) = (new Array[Double](itemLength)).asInstanceOf[T]
+      if (classTag[T] == classTag[Array[Int]]) {
+        for ( i <- 0 until length/itemLength ) 
+          out(offset + i) = (new Array[Int](itemLength)).asInstanceOf[T]
+      }
+      else if (classTag[T] == classTag[Array[Float]]) {
+        for ( i <- 0 until length/itemLength ) 
+          out(offset + i) = (new Array[Float](itemLength)).asInstanceOf[T]
+      }
+      else if (classTag[T] == classTag[Array[Long]]) {
+        for ( i <- 0 until length/itemLength ) 
+          out(offset + i) = (new Array[Long](itemLength)).asInstanceOf[T]
+      }
+      else if (classTag[T] == classTag[Array[Double]]) {
+        for ( i <- 0 until length/itemLength ) 
+          out(offset + i) = (new Array[Double](itemLength)).asInstanceOf[T]
+      }
       else
         throw new RuntimeException("Unsupport type")
     }
