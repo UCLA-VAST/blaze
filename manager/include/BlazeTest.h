@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <fcntl.h>
 
 #include <google/protobuf/text_format.h>
@@ -62,8 +63,25 @@ public:
       input_test_blocks[idx]->writeData(data, num_items*item_length*sizeof(T));
     }
     else {
-      DataBlock_ptr base_block = base_bman->create(num_items, item_length, item_length*sizeof(T));
-      DataBlock_ptr test_block = test_bman->create(num_items, item_length, item_length*sizeof(T));
+      // get task managers
+      base_tman = platform_manager->getTaskManager("base");
+      test_tman = platform_manager->getTaskManager("test");
+
+      int base_align_width = 0;
+      int test_align_width = 0;
+
+      if (!base_tman->getConfig(idx, "align_width").empty()) {
+         base_align_width = stoi(base_tman->getConfig(idx, "align_width"));
+      }
+      if (!test_tman->getConfig(idx, "align_width").empty()) {
+         test_align_width = stoi(test_tman->getConfig(idx, "align_width"));
+      }
+
+      DataBlock_ptr base_block = base_bman->create(
+          num_items, item_length, item_length*sizeof(T), base_align_width);
+
+      DataBlock_ptr test_block = test_bman->create(
+          num_items, item_length, item_length*sizeof(T), test_align_width);
 
       base_block->writeData(data, num_items*item_length*sizeof(T));
       test_block->writeData(data, num_items*item_length*sizeof(T));
