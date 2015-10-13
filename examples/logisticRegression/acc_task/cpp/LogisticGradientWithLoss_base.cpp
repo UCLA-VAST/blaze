@@ -8,11 +8,7 @@
 #include <sstream>
 #include <limits>
 
-//#define USEMKL
-
-#ifdef USEMKL
-#include <mkl.h>
-#endif
+#define DUMP
 
 #include "blaze.h" 
 
@@ -41,6 +37,9 @@ public:
     int feature_length = data_length / num_samples - 1;
     int num_labels = weight_length / feature_length + 1;
 
+    int L = num_labels;
+    int D = feature_length;
+
     // check input size
     if (weight_length % feature_length != 0 || 
         num_labels < 2)
@@ -54,50 +53,29 @@ public:
     double * weights  = (double*)getInput(1);
     double * output   = (double*)getOutput(0, weight_length+1, 1, sizeof(double));
 
+#ifdef DUMP
+    FILE* fdump = fopen("dump.dat", "wb+");
+
+    fwrite(&num_samples, sizeof(int), 1, fdump);
+    fwrite(&feature_length, sizeof(int), 1, fdump);
+    fwrite(&weight_length, sizeof(int), 1, fdump);
+    fwrite(&num_labels, sizeof(int), 1, fdump);
+    fwrite(data, sizeof(double), data_length, fdump);
+    fwrite(weights, sizeof(double), weight_length, fdump);
+
+    fclose(fdump);
+#endif
+
     if (!data || !weights || !output) {
       throw std::runtime_error("Cannot get data pointers");
     }
 
     // perform computation
-
-    int L = num_labels;
-    int D = feature_length;
-
     memset(output, 0, sizeof(double)*(weight_length+1));
 
-#ifdef USEMKL
-		int m = L;
-		int n = D;
-		int inc = 1;
-		float alpha = 1.0f;
-		float beta = .0f;
-
-    for(int k = 0; k < nsample; k++ ) {
-
-      cblas_sgemv(
-          CblasRowMajor, CblasNoTrans, 
-          m, n, alpha, 
-          weights, n, 
-          data+k*(D+1)+1, 
-          inc, beta, 
-          label, inc);
-
-      for (int i=0; i<L; i++) {
-        float coeff = (1. / 
-            (1. + exp(-data[k*(D+L)+i]*label[i] )) 
-            - 1.)* data[k*(D+L)+i];
-
-        cblas_saxpy(
-            n, coeff, 
-            data+k*(D+L)+L, inc, 
-            gradient+i*(D+1), inc);
-      }
-    }
-#else
-    // TODO: is it really L-1 not L?
     double* margins = new double[L-1];
 
-    for(int k = 0; k < num_samples; k++ ) {
+    for (int k = 0; k < num_samples; k++ ) {
       
       double marginY = 0.0;
       double maxMargin = -std::numeric_limits<double>::infinity();
@@ -158,7 +136,8 @@ public:
       }
       output[weight_length] += loss;
     }
-#endif
+
+    delete [] margins;
   }
 };
 

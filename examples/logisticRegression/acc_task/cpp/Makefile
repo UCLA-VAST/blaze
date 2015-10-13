@@ -24,7 +24,7 @@ COMPILE= $(CFLAGS) \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include 
 
-ACC = LogisticGradientWithLoss
+ACC = LogisticGradientWithLoss_base
 
 OBJS= $(addsuffix .so, $(addprefix ../, $(ACC)))
 
