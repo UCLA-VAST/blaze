@@ -7,6 +7,16 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
+std::string TaskManager::getConfig(int idx, std::string key) {
+  Task* task = (Task*)createTask();
+
+  std::string config = task->getConfig(idx, key);
+
+  destroyTask(task);
+  
+  return config;
+}
+
 Task* TaskManager::create() {
   
   // create a new task by the constructor loaded form user implementation
