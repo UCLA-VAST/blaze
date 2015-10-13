@@ -52,8 +52,8 @@ public:
         _align_width * _align_width;
       aligned = true;
     }
-    length = _num_items * _item_length;
-    size   = _num_items * _item_size;
+    length = num_items * item_length;
+    size   = num_items * item_size;
 
     if (length <= 0 || size <= 0 || data_width < 1) {
       throw std::runtime_error("Invalid parameters");

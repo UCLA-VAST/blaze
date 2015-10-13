@@ -51,8 +51,7 @@ public:
   void commit();
 
   // experimental
-  int getQueueLength() { return length;}
-  int getWaitTime();
+  std::string getConfig(int idx, std::string key);
 
 private:
 

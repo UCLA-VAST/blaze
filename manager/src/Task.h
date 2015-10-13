@@ -63,19 +63,11 @@ public:
     }
   }
   
-  std::string getConfig(int64_t id, std::string key) {
+  // get config for input blocks
+  // TODO: need a way to specify general configs
+  // or config for output block
+  std::string getConfig(int idx, std::string key) {
 
-    // search input_blocks for matching partition
-    int idx;
-    for (idx=0; idx<input_blocks.size(); idx++) {
-      if (input_blocks[idx] == id) {
-        break;
-      } 
-    }
-    // matching block is not found
-    if (idx == input_blocks.size()) {
-      return std::string(); 
-    }
     if (config_table[idx].find(key) != config_table[idx].end()) {
       return config_table[idx][key];
     } else {

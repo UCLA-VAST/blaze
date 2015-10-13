@@ -233,9 +233,8 @@ void CommManager::process(socket_ptr sock) {
 
                 // check task config table to see if task is aligned
                 int align_width = 0;
-                if (!task->getConfig(blockId, "align_width").empty()) {
-                  align_width = stoi(task->getConfig(
-                      blockId, "align_width"));
+                if (!task->getConfig(i, "align_width").empty()) {
+                  align_width = stoi(task->getConfig(i, "align_width"));
                 }
                 block_manager->getAlloc(
                     blockId, block,
@@ -443,9 +442,8 @@ void CommManager::process(socket_ptr sock) {
               }
               // writing data to the corresponding block
               int align_width = 0;
-              if (!task->getConfig(blockId, "align_width").empty()) {
-                 align_width = stoi(task->getConfig(
-                      blockId, "align_width"));
+              if (!task->getConfig(i, "align_width").empty()) {
+                 align_width = stoi(task->getConfig(i, "align_width"));
               }
 
               block_manager->getAlloc(

@@ -120,13 +120,6 @@ Platform_ptr PlatformManager::create(std::string path) {
     // reset errors
     dlerror();
 
-    if (handle == NULL) {
-      logger->logErr(LOG_HEADER + dlerror());
-      throw std::runtime_error(dlerror());
-    }
-    // reset errors
-    dlerror();
-
     // load the symbols
     Platform* (*create_func)();
     void (*destroy_func)(Platform*);
