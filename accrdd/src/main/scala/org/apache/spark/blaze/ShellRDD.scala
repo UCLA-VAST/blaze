@@ -37,12 +37,12 @@ import org.apache.spark.util.random._
   * @param prev The original Spark RDD.
   */
 class ShellRDD[T: ClassTag](
-  appId: Int, 
+  appId: String, 
   prev: RDD[T],
   sampler: RandomSampler[T, T]
 ) extends RDD[T](prev) {
 
-  def this(id: Int, prev: RDD[T]) = this(id, prev, null)
+  def this(id: String, prev: RDD[T]) = this(id, prev, null)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 

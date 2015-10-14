@@ -38,9 +38,7 @@ import org.apache.spark.broadcast._
 class BlazeRuntime(sc: SparkContext) extends Logging {
 
   // The application signature generated based on Spark application ID.
-  val appSignature: Int = Math
-    .abs(("""\d+""".r findAllIn sc.applicationId)
-    .addString(new StringBuilder).toLong.toInt)
+  val appSignature: String = sc.applicationId
 
   var BroadcastList: List[BlazeBroadcast[_]] = List()
 
