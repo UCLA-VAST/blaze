@@ -33,8 +33,12 @@ import scala.reflect.ClassTag
   *
   * @tparam T Type of broadcast data.
   */
-class BlazeBroadcast[T: ClassTag](appId: Int, bd: Broadcast[T]) extends java.io.Serializable {
-  var brdcst_id: Long = Util.getBlockID(appId, bd.id.asInstanceOf[Int])
+class BlazeBroadcast[T: ClassTag](appId: String, bd: Broadcast[T]) extends java.io.Serializable {
+  def getIntId() = Math
+      .abs(("""\d+""".r findAllIn appId)
+      .addString(new StringBuilder).toLong.toInt)
+
+  var brdcst_id: Long = Util.getBlockID(getIntId(), bd.id.asInstanceOf[Int])
   lazy val data = bd.value
   var length: Int = 0
   var size: Int = 0

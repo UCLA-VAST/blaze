@@ -43,7 +43,7 @@ import org.apache.spark.util.random._
   * @param acc The developer extended accelerator class.
   */
 class AccRDD[U: ClassTag, T: ClassTag](
-  appId: Int, 
+  appId: String, 
   prev: RDD[T], 
   acc: Accelerator[T, U],
   sampler: RandomSampler[T, T]
@@ -51,6 +51,9 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
   def getPrevRDD() = prev
   def getRDD() = this
+  def getIntId() = Math
+      .abs(("""\d+""".r findAllIn appId)
+      .addString(new StringBuilder).toLong.toInt)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -64,11 +67,11 @@ class AccRDD[U: ClassTag, T: ClassTag](
     val blockInfo = new Array[BlockInfo](numBlock)
     for (j <- 0 until numBlock) {
       blockInfo(j) = new BlockInfo
-      blockInfo(j).id = Util.getBlockID(appId, getPrevRDD.id, split.index, j)
+      blockInfo(j).id = Util.getBlockID(getIntId(), getPrevRDD.id, split.index, j)
     }
 
     // Followed by a mask ID
-    val maskId: Long = Util.getBlockID(appId, getPrevRDD.id, split.index, numBlock)
+    val maskId: Long = Util.getBlockID(getIntId(), getPrevRDD.id, split.index, numBlock)
 
     val isCached = inMemoryCheck(split)
 
@@ -132,7 +135,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
           }
         }
 
-        var msg = DataTransmitter.buildMessage(acc.id, AccMessage.MsgType.ACCREQUEST)
+        var msg = DataTransmitter.buildMessage(acc.id, appId, AccMessage.MsgType.ACCREQUEST)
         for (i <- 0 until numBlock)
           DataTransmitter.addData(msg, blockInfo(i), isSampled, null)
 
@@ -177,7 +180,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
         val maskFileInfo: BlazeMemoryFileHandler = if (isSampled) {
           val handler = new BlazeMemoryFileHandler(partitionMask)
-          handler.serialization(appId, maskId) 
+          handler.serialization(getIntId(), maskId) 
           handler
         } else { 
           null
@@ -202,7 +205,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
                 }
               }
               val mappedFileInfo = new BlazeMemoryFileHandler(subInputAry)
-              mappedFileInfo.serialization(appId, blockInfo(i).id)
+              mappedFileInfo.serialization(getIntId(), blockInfo(i).id)
 
               dataLength = dataLength + mappedFileInfo.numElt // We know element # by reading the file
 
@@ -242,7 +245,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
             if (bcData.getClass.isArray) { // Serialize array and use memory mapped file to send the data.
               val arrayData = bcData.asInstanceOf[Array[_]]
               val mappedFileInfo = new BlazeMemoryFileHandler(arrayData)
-              mappedFileInfo.serialization(appId, brdcstIdOrValue(i)._1)
+              mappedFileInfo.serialization(getIntId(), brdcstIdOrValue(i)._1)
               brdcstBlockInfo(i).fileName = mappedFileInfo.fileName
 
               DataTransmitter.addData(dataMsg, brdcstBlockInfo(i), false, null)

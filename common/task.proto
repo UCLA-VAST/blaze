@@ -29,7 +29,7 @@ message DataMsg {
 
 message TaskMsg {
   required MsgType type = 1;
-  optional int32 app_id = 2;
+  optional string app_id = 2;
   optional string acc_id = 3; 
   repeated DataMsg data = 4;
 }

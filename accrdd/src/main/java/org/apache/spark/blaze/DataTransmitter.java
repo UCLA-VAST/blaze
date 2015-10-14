@@ -144,12 +144,15 @@ public class DataTransmitter {
 	*		The message type.
 	* @see AccMessage.MsgType
 	**/
-	public static AccMessage.TaskMsg.Builder buildMessage(String acc_id, AccMessage.MsgType type) {
+	public static AccMessage.TaskMsg.Builder buildMessage(String acc_id, String appId, AccMessage.MsgType type) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
 			.setType(type);
 
 		if (acc_id != null)
 			msg.setAccId(acc_id);
+
+		if (appId != null)
+			msg.setAppId(appId);
 
 		return msg;
 	}
@@ -162,7 +165,7 @@ public class DataTransmitter {
 	* @see AccMessage.MsgType
 	**/
 	public static AccMessage.TaskMsg.Builder buildMessage(AccMessage.MsgType type) {
-		return buildMessage(null, type);
+		return buildMessage(null, null, type);
 	}
 
 	/**
