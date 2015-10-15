@@ -33,7 +33,9 @@ public:
     Platform *_platform, 
     Logger *_logger
   ): power(true),  // TODO: 
-     waitTime(0),
+     nextTaskId(0),
+     lobbyWaitTime(0),
+     doorWaitTime(0),
      deltaDelay(0),
      createTask(create_func),
      destroyTask(destroy_func),
@@ -43,13 +45,13 @@ public:
     ;
   }
 
-  int estimateDelay(Task_ptr task);
+  int estimateTime(Task* task);
 
   // create a task and return the task pointer
   Task_ptr create();
 
   // enqueue a task in the corresponding application queue
-  void enqueue(std::string app_id, Task_ptr task);
+  void enqueue(std::string app_id, Task* task);
 
   // schedule a task from app queues to execution queue  
   void schedule();
@@ -57,8 +59,8 @@ public:
   // execute front task in the queue
   void execute();
 
-  // get wait time for any task of current accelerator
-  int getWaitTime() { return waitTime; }
+  // get best and worst cast wait time 
+  std::pair<int, int> getWaitTime(Task* task);
 
   // start and stop executor and scheduler threads
   // TODO
@@ -71,7 +73,14 @@ public:
 private:
 
   bool power;
-  int waitTime;
+
+  // wait time for currently enqueued tasks
+  mutable boost::atomic<int> lobbyWaitTime;   
+  // wait time for all tasks waiting to enqueue
+  mutable boost::atomic<int> doorWaitTime;    
+
+  mutable boost::atomic<int> nextTaskId;
+
   int deltaDelay;
   
   // Task implementation loaded from user acc_impl

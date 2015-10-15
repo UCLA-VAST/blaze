@@ -1,4 +1,5 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/atomic.hpp>
 
 #include "TaskManager.h"
 
@@ -7,17 +8,29 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
-int TaskManager::estimateDelay(Task_ptr task) {
-  int task_delay = task->estimateTime();
+int TaskManager::estimateTime(Task* task) {
 
-  if (task_delay <= 0) { // no estimation
-    // TODO: use a regression model
-    // current implementation just return a constant
-    return 1e5;
+  // check if time estimation is already stored
+  if (task->estimated_time > 0) {
+    return task->estimated_time;
   }
   else {
-    // TODO: apply an estimation model (linear regression)
-    return task_delay + deltaDelay;
+    int task_delay = task->estimateTime();
+    int ret_delay = 0;
+
+    if (task_delay <= 0) { // no estimation
+      // TODO: use a regression model
+      // current implementation just return a constant
+      ret_delay = 1e5;
+    }
+    else {
+      // TODO: apply an estimation model (linear regression)
+      ret_delay = task_delay + deltaDelay;
+    }
+    // store the time estimation in task
+    task->estimated_time = ret_delay;
+
+    return ret_delay;
   }
 }
 
@@ -36,10 +49,13 @@ Task_ptr TaskManager::create() {
   // link the task platform 
   task->setPlatform(platform);
 
+  // give task an unique ID
+  task->task_id = nextTaskId.fetch_add(1);
+
   return task;
 }
 
-void TaskManager::enqueue(std::string app_id, Task_ptr task) {
+void TaskManager::enqueue(std::string app_id, Task* task) {
 
   if (!task->isReady()) {
     throw std::runtime_error("Cannot enqueue task that is not ready");
@@ -51,17 +67,19 @@ void TaskManager::enqueue(std::string app_id, Task_ptr task) {
     TaskQueue_ptr queue(new TaskQueue());
     app_queues.insert(std::make_pair(app_id, queue));
   }
-  int delay_time = estimateDelay(task);
+  // once called, the task estimation time will stored
+  int delay_time = estimateTime(task);
 
   // push task to queue
-  while (!app_queues[app_id]->push(task.get(), delay_time)) {
+  while (!app_queues[app_id]->push(task)) {
     boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
   }
 
-  // update wait time
-  boost::lock_guard<TaskManager> guard(*this);
+  // update lobby wait time
+  lobbyWaitTime.fetch_add(delay_time);
 
-  waitTime += delay_time;
+  // update door wait time
+  doorWaitTime.fetch_sub(delay_time);
 }
 
 void TaskManager::schedule() {
@@ -85,7 +103,7 @@ void TaskManager::schedule() {
       boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
     }
     else {
-      std::pair<Task*, int> next_task;
+      Task* next_task;
 
       // select the next task to execute from application queues
       // use RoundRobin scheduling
@@ -116,11 +134,10 @@ void TaskManager::execute() {
     else {
       // get next task and remove it from the task queue
       // this part is thread-safe with boost::lockfree::queue
-      std::pair<Task*, int> task_pair;
-      execution_queue.pop(task_pair);
+      Task* task;
+      execution_queue.pop(task);
 
-      Task* task = task_pair.first;
-      int delay_estimate = task_pair.second;
+      int delay_estimate = estimateTime(task);
 
       logger->logInfo(LOG_HEADER + std::string("Started a new task"));
 
@@ -145,13 +162,20 @@ void TaskManager::execute() {
       }
 
       // decrease the waittime, use the recorded estimation 
-      boost::lock_guard<TaskManager> guard(*this);
-      waitTime -= delay_estimate;
+      lobbyWaitTime.fetch_sub(delay_estimate);
     }
   }
 }
 
+std::pair<int, int> TaskManager::getWaitTime(Task* task) {
 
+  // increment door with current task time
+  int currDoorWaitTime  = doorWaitTime.fetch_add(estimateTime(task));
+  int currLobbyWaitTime = lobbyWaitTime.load();
+
+  return std::make_pair(
+      currLobbyWaitTime, currLobbyWaitTime + currDoorWaitTime);
+}
 
 std::string TaskManager::getConfig(int idx, std::string key) {
   Task* task = (Task*)createTask();

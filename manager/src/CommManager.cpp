@@ -66,10 +66,10 @@ void CommManager::process(socket_ptr sock) {
   sock->set_option(ip::tcp::no_delay(true));
   
   // log info
-  std::string msg = 
-    LOG_HEADER + 
-    std::string("Start processing a new connection.");
-  logger->logInfo(msg);
+  //std::string msg = 
+  //  LOG_HEADER + 
+  //  std::string("Start processing a new connection.");
+  //logger->logInfo(msg);
 
   srand(time(NULL));
 
@@ -272,19 +272,25 @@ void CommManager::process(socket_ptr sock) {
       }
 
       // 1.4 decide to reject the task if wait time is too long
-      int task_time = task_manager->estimateDelay(task);
+      int task_time = task_manager->estimateTime(task.get());
       int task_speedup = task->estimateSpeedup();
 
       if (task_time > 0 && task_speedup > 0) {
-        int wait_time = task_manager->getWaitTime();
+
+        // <bestcase wait time, worstcase wait time>
+        std::pair<int,int> wait_time = task_manager->getWaitTime(task.get());
 
         logger->logInfo(LOG_HEADER+
-            std::string("Wait time = ")+
-            std::to_string((long long)wait_time)+
-            std::string("us, task estimated time = ")+
-            std::to_string((long long)task_time));
+            std::string("Wait time = (")+
+            std::to_string((long long)wait_time.first)+
+            std::string(",")+
+            std::to_string((long long)wait_time.second)+
+            std::string(") us, task estimated time = ")+
+            std::to_string((long long)task_time)+
+            std::string(" us"));
 
-        if (wait_time > task_time*task_speedup) {
+        // use worst cast wait time
+        if (wait_time.second > task_time*task_speedup) {
           throw AccReject("Wait time too long");
         }
       }
@@ -292,9 +298,9 @@ void CommManager::process(socket_ptr sock) {
       // 1.5 send msg back to client
       reply_msg.set_type(ACCGRANT);
       send(reply_msg, sock);
-      logger->logInfo(
-          LOG_HEADER + 
-          std::string("Replied with an ACCGRANT message."));
+      //logger->logInfo(
+      //    LOG_HEADER + 
+      //    std::string("Replied with an ACCGRANT message."));
 
       // 2. Handle ACCDATA
       if (wait_accdata) {
@@ -306,8 +312,8 @@ void CommManager::process(socket_ptr sock) {
         catch (std::runtime_error &e) {
           throw AccFailure("Error in receiving ACCDATA");
         }
-        logger->logInfo(LOG_HEADER + 
-            std::string("Received an ACCDATA message."));
+        //logger->logInfo(LOG_HEADER + 
+        //    std::string("Received an ACCDATA message."));
 
         // Acquire data from Spark
         if (data_msg.type() != ACCDATA) {
@@ -551,8 +557,11 @@ void CommManager::process(socket_ptr sock) {
         boost::this_thread::sleep_for(
             boost::chrono::microseconds(100)); 
       }
+
+      logger->logInfo(LOG_HEADER+
+          std::string("Task ready, enqueue to be executed"));
       // add task to application queue
-      task_manager->enqueue(app_id, task);
+      task_manager->enqueue(app_id, task.get());
 
       // wait on task finish
       while (
@@ -595,10 +604,10 @@ void CommManager::process(socket_ptr sock) {
                 e.what());
           }
 
-          logger->logInfo(
-              LOG_HEADER + 
-              std::string("Write output block to ") +
-              path);
+          //logger->logInfo(
+          //    LOG_HEADER + 
+          //    std::string("Write output block to ") +
+          //    path);
 
           // construct DataMsg
           // NOTE: not considering output data aligned allocation
