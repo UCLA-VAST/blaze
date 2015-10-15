@@ -78,6 +78,9 @@ void CommManager::process(socket_ptr sock) {
     TaskMsg task_msg;
     TaskMsg reply_msg;
 
+    std::string app_id;
+    std::string acc_id;
+
     // a table containing information of each input block
     // - partition_id: cached, sampled
     std::map<int64_t, std::pair<bool, bool> > block_table;
@@ -90,9 +93,17 @@ void CommManager::process(socket_ptr sock) {
     }
     if (task_msg.type() == ACCREQUEST) {
 
+      if (!task_msg.has_acc_id() || !task_msg.has_app_id()) {
+        throw AccReject("Missing acc_id or app_id");
+      }
+      acc_id = task_msg.acc_id();
+      app_id = task_msg.app_id();
+
       logger->logInfo(
           LOG_HEADER + 
-          std::string("Received an ACCREQUEST message."));
+          std::string("Received an ACCREQUEST for ")+
+          acc_id + std::string(" from app: ")+
+          app_id);
 
       /* Receive acc_id to identify the corresponding TaskManager, 
        * with which create a new Task. 
@@ -106,21 +117,16 @@ void CommManager::process(socket_ptr sock) {
 
       if (task_manager == NULL_TASK_MANAGER) { 
         // if there is no matching acc
-        logger->logErr(LOG_HEADER+
-            std::string("Requested acc ")+
-            task_msg.acc_id()+
-            std::string(" does not exist"));
-
-        throw AccReject("No matching accelerator, rejecting request"); 
+        throw AccReject("No matching accelerator"); 
       }
 
       // 1.2 get correponding block manager based on platform of queried Task
       BlockManager* block_manager = platform_manager->
         getBlockManager(task_msg.acc_id());
 
-      // create a new task, which will be automatically added to the task queue
-      Task* task = task_manager->create();
-
+      // create a new task, and make scheduling decision
+      Task_ptr task = task_manager->create();
+      
       bool wait_accdata = false;
 
       // 1.3 iterate through each input block
@@ -265,7 +271,25 @@ void CommManager::process(socket_ptr sock) {
         }
       }
 
-      // 1.4 send msg back to client
+      // 1.4 decide to reject the task if wait time is too long
+      int task_time = task_manager->estimateDelay(task);
+      int task_speedup = task->estimateSpeedup();
+
+      if (task_time > 0 && task_speedup > 0) {
+        int wait_time = task_manager->getWaitTime();
+
+        logger->logInfo(LOG_HEADER+
+            std::string("Wait time = ")+
+            std::to_string((long long)wait_time)+
+            std::string("us, task estimated time = ")+
+            std::to_string((long long)task_time));
+
+        if (wait_time > task_time*task_speedup) {
+          throw AccReject("Wait time too long");
+        }
+      }
+
+      // 1.5 send msg back to client
       reply_msg.set_type(ACCGRANT);
       send(reply_msg, sock);
       logger->logInfo(
@@ -522,13 +546,21 @@ void CommManager::process(socket_ptr sock) {
         }
       } // 2. Finish handling ACCDATA
 
+      // wait on task ready
+      while (!task->isReady()) {
+        boost::this_thread::sleep_for(
+            boost::chrono::microseconds(100)); 
+      }
+      // add task to application queue
+      task_manager->enqueue(app_id, task);
+
       // wait on task finish
       while (
           task->status != Task::FINISHED && 
           task->status != Task::FAILED) 
       {
         boost::this_thread::sleep_for(
-            boost::chrono::microseconds(100)); 
+            boost::chrono::microseconds(1000)); 
       }
 
       // 3. Handle ACCFINISH message and output data
@@ -654,7 +686,6 @@ void CommManager::process(socket_ptr sock) {
 
     send(reply_msg, sock);
   }
-  logger->logInfo(LOG_HEADER+"thread exiting.");
 }
 
 void CommManager::listen() {

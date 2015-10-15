@@ -7,6 +7,152 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
+int TaskManager::estimateDelay(Task_ptr task) {
+  int task_delay = task->estimateTime();
+
+  if (task_delay <= 0) { // no estimation
+    // TODO: use a regression model
+    // current implementation just return a constant
+    return 1e5;
+  }
+  else {
+    // TODO: apply an estimation model (linear regression)
+    return task_delay + deltaDelay;
+  }
+}
+
+void TaskManager::updateDelayModel(
+    Task* task, 
+    int estimateTime, int realTime) 
+{
+  ;
+}
+
+Task_ptr TaskManager::create() {
+  
+  // create a new task by the constructor loaded form user implementation
+  Task_ptr task(createTask(), destroyTask);
+
+  // link the task platform 
+  task->setPlatform(platform);
+
+  return task;
+}
+
+void TaskManager::enqueue(std::string app_id, Task_ptr task) {
+
+  if (!task->isReady()) {
+    throw std::runtime_error("Cannot enqueue task that is not ready");
+  }
+  
+  // TODO: when do we remove the queue?
+  // create a new app queue if it does not exist
+  if (app_queues.find(app_id) == app_queues.end()) {
+    TaskQueue_ptr queue(new TaskQueue());
+    app_queues.insert(std::make_pair(app_id, queue));
+  }
+  int delay_time = estimateDelay(task);
+
+  // push task to queue
+  while (!app_queues[app_id]->push(task.get(), delay_time)) {
+    boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+  }
+
+  // update wait time
+  boost::lock_guard<TaskManager> guard(*this);
+
+  waitTime += delay_time;
+}
+
+void TaskManager::schedule() {
+  
+  logger->logInfo(LOG_HEADER + std::string("started a scheduler"));
+
+  while (power) {
+    // iterate through all app queues and record which are non-empty
+    std::vector<std::string> ready_queues;
+    std::map<std::string, TaskQueue_ptr>::iterator iter;
+    for (iter = app_queues.begin();
+         iter != app_queues.end();
+         iter ++)
+    {
+      if (!iter->second->empty()) {
+        ready_queues.push_back(iter->first);
+      }
+    }
+
+    if (ready_queues.empty()) {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+    }
+    else {
+      std::pair<Task*, int> next_task;
+
+      // select the next task to execute from application queues
+      // use RoundRobin scheduling
+      int idx_next = rand()%ready_queues.size();
+
+      app_queues[ready_queues[idx_next]]->pop(next_task);
+
+      logger->logInfo(LOG_HEADER+
+          std::string("Schedule a task to execute from ")+
+          ready_queues[idx_next]);
+
+      execution_queue.push(next_task);
+    }
+  }
+}
+
+void TaskManager::execute() {
+  
+  logger->logInfo(LOG_HEADER + std::string("started an executor"));
+
+  // continuously execute tasks from the task queue
+  while (power) { 
+
+    // wait if there is no task to be executed
+    if (execution_queue.empty()) {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+    }
+    else {
+      // get next task and remove it from the task queue
+      // this part is thread-safe with boost::lockfree::queue
+      std::pair<Task*, int> task_pair;
+      execution_queue.pop(task_pair);
+
+      Task* task = task_pair.first;
+      int delay_estimate = task_pair.second;
+
+      logger->logInfo(LOG_HEADER + std::string("Started a new task"));
+
+      // record task execution time
+      uint64_t start_time = logger->getUs();
+      try {
+        // start execution
+        task->execute();
+      } 
+      catch (std::runtime_error &e) {
+        logger->logErr(LOG_HEADER+ 
+            std::string("task->execute() error: ")+
+            e.what());
+      }
+      uint64_t delay_time = logger->getUs() - start_time;
+      logger->logInfo(LOG_HEADER + std::string("Task finishes in ")+
+          std::to_string((long long) delay_time) + std::string(" us"));
+
+      // if the task is successful, update delay estimation model
+      if (task->status == Task::FINISHED) {
+        updateDelayModel(task, delay_estimate, delay_time);
+      }
+
+      // decrease the waittime, use the recorded estimation 
+      boost::lock_guard<TaskManager> guard(*this);
+      waitTime -= delay_estimate;
+    }
+  }
+}
+
+
+
 std::string TaskManager::getConfig(int idx, std::string key) {
   Task* task = (Task*)createTask();
 
@@ -17,98 +163,14 @@ std::string TaskManager::getConfig(int idx, std::string key) {
   return config;
 }
 
-Task* TaskManager::create() {
+void TaskManager::start() {
+  power = true;
   
-  // create a new task by the constructor loaded form user implementation
-  Task* task = (Task*)createTask();
+  boost::thread scheduler(
+      boost::bind(&TaskManager::schedule, this));
 
-  // link the task platform 
-  task->setPlatform(platform);
-
-  // add task to queue lock-free
-  task_queue.push(task);
-
-  logger->logInfo(LOG_HEADER + std::string("created a new task"));
-
-  return task;
-}
-
-void TaskManager::execute() {
-  
-  logger->logInfo(LOG_HEADER + std::string("started an executor"));
-
-  // continuously execute tasks from the task queue
-  while (1) { 
-
-    // wait if there is no task to be executed
-    while (task_queue.empty()) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
-    }
-
-    // get next task and remove it from the task queue
-    // this part is thread-safe with boost::lockfree::queue
-    Task* task;
-    task_queue.pop(task);
-
-    // polling the status, wait for data to be transferred
-    while (!task->isReady()) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
-    }
-    logger->logInfo(LOG_HEADER + std::string("Started a new task"));
-
-    try {
-      // start execution
-      task->execute();
-    } 
-    catch (std::runtime_error &e) {
-      logger->logErr(LOG_HEADER+ 
-          std::string("task->execute() error: ")+
-          e.what());
-    }
-
-    if (task->status == Task::FINISHED)  {
-
-      // put task into the retire queue
-      retire_queue.push(task);
-
-      logger->logInfo(LOG_HEADER + std::string("Task finished"));
-    }
-    else { // task failed, retry 
-
-      // TODO: add a retry counter in task
-      //task_queue.push(task);
-
-      logger->logInfo(LOG_HEADER + std::string(
-            "Task failed due to previous error"));
-    }
-  }
-}
-
-void TaskManager::commit() {
-    
-  logger->logInfo(LOG_HEADER + std::string("started an committer"));
-  // continuously retiring tasks from the retire queue
-  while (1) {
-
-    // wait if there is no task to be retired
-    while (retire_queue.empty()) {
-      boost::this_thread::sleep_for(boost::chrono::milliseconds(10)); 
-    }
-
-    // get the next task popped from the retire queue
-    Task* task;
-    retire_queue.pop(task);
-
-    // polling the status, wait for output data to be read
-    while (task->status != Task::COMMITTED) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(10)); 
-    }
-    
-    // deallocate the object using the function loaded from library
-    destroyTask(task);
-
-    logger->logInfo(LOG_HEADER + std::string("retired a task"));
-  }
+  boost::thread executor(
+      boost::bind(&TaskManager::execute, this));
 }
 
 } // namespace blaze

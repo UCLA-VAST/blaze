@@ -49,6 +49,9 @@ public:
     platform = _platform;  
   }
 
+  virtual int estimateTime() { return -1; }
+  virtual int estimateSpeedup() { return -1; }
+
   // main function to be overwritten by accelerator implementations
   virtual void compute() {;}
 

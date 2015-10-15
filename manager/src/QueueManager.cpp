@@ -68,13 +68,7 @@ void QueueManager::start(std::string id) {
     throw std::runtime_error("No matching task queue");
     return;
   }
-
-  // start executor and commitor
-  boost::thread executor(
-      boost::bind(&TaskManager::execute, task_manager));
-
-  boost::thread committer(
-      boost::bind(&TaskManager::commit, task_manager));
+  task_manager->start();
 }
 
 void QueueManager::startAll() {
@@ -84,13 +78,7 @@ void QueueManager::startAll() {
       ++iter)
   {
     TaskManager_ptr task_manager = iter->second;
-
-    // start executor and commitor
-    boost::thread executor(
-        boost::bind(&TaskManager::execute, task_manager));
-
-    boost::thread committer(
-        boost::bind(&TaskManager::commit, task_manager));
+    task_manager->start();
   }
 }
 

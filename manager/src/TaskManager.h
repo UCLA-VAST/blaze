@@ -6,13 +6,13 @@
 #include <iostream>
 
 #include <boost/smart_ptr.hpp>
-#include <boost/lockfree/queue.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
 #include "TaskEnv.h"
 #include "Task.h"
+#include "TaskQueue.h"
 #include "Block.h"
 #include "Logger.h"
 
@@ -32,7 +32,9 @@ public:
     void (*destroy_func)(Task*),
     Platform *_platform, 
     Logger *_logger
-  ): length(0),
+  ): power(true),  // TODO: 
+     waitTime(0),
+     deltaDelay(0),
      createTask(create_func),
      destroyTask(destroy_func),
      platform(_platform),
@@ -41,31 +43,52 @@ public:
     ;
   }
 
+  int estimateDelay(Task_ptr task);
+
   // create a task and return the task pointer
-  Task* create();
+  Task_ptr create();
+
+  // enqueue a task in the corresponding application queue
+  void enqueue(std::string app_id, Task_ptr task);
+
+  // schedule a task from app queues to execution queue  
+  void schedule();
 
   // execute front task in the queue
   void execute();
 
-  // retire tasks that are committed from the retire queue
-  void commit();
+  // get wait time for any task of current accelerator
+  int getWaitTime() { return waitTime; }
+
+  // start and stop executor and scheduler threads
+  // TODO
+  void start();
+  //void stop();
 
   // experimental
   std::string getConfig(int idx, std::string key);
 
 private:
 
-  // NOTE: experiments
-  int length;
+  bool power;
+  int waitTime;
+  int deltaDelay;
   
+  // Task implementation loaded from user acc_impl
   Task* (*createTask)();
   void (*destroyTask)(Task*);
 
   Platform *platform;
   Logger  *logger;
 
-  boost::lockfree::queue<Task*, boost::lockfree::capacity<1024> > task_queue;
-  boost::lockfree::queue<Task*, boost::lockfree::capacity<1024> > retire_queue;
+  void updateDelayModel(Task* task, int estimateTime, int realTime);
+
+  //TODO: add a pointer to GAM communicator
+
+  // application queues mapped by application id
+  std::map<std::string, TaskQueue_ptr> app_queues;
+
+  TaskQueue execution_queue;
 };
 }
 
