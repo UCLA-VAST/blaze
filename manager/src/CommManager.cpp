@@ -23,24 +23,28 @@ void CommManager::recv(
     TaskMsg &task_msg, 
     socket_ptr socket) 
 {
-  int msg_size = 0;
+  try {
+    int msg_size = 0;
 
-  socket->receive(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)), 0);
+    socket->receive(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)), 0);
 
-  if (msg_size<=0) {
-    throw std::runtime_error(
-        "Invalid message size of " +
-        std::to_string((long long)msg_size));
+    if (msg_size<=0) {
+      throw std::runtime_error(
+          "Invalid message size of " +
+          std::to_string((long long)msg_size));
+    }
+    char* msg_data = new char[msg_size];
+
+    socket->receive(buffer(msg_data, msg_size), 0);
+
+    if (!task_msg.ParseFromArray(msg_data, msg_size)) {
+      throw std::runtime_error("Failed to parse input message");
+    }
+
+    delete [] msg_data;
+  } catch (std::exception &e) {
+    throw e;
   }
-  char* msg_data = new char[msg_size];
-
-  socket->receive(buffer(msg_data, msg_size), 0);
-
-  if (!task_msg.ParseFromArray(msg_data, msg_size)) {
-    throw std::runtime_error("Failed to parse input message");
-  }
-
-  delete msg_data;
 }
 
 // send one message, bytesize first
@@ -48,29 +52,31 @@ void CommManager::send(
     TaskMsg &task_msg, 
     socket_ptr socket) 
 {
-  int msg_size = task_msg.ByteSize();
+  try {
+    int msg_size = task_msg.ByteSize();
 
-  //NOTE: why doesn't this work: socket_stream << msg_size;
-  socket->send(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)),0);
+    //NOTE: why doesn't this work: socket_stream << msg_size;
+    socket->send(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)),0);
 
-  char* msg_data = new char[msg_size];
+    char* msg_data = new char[msg_size];
 
-  task_msg.SerializeToArray(msg_data, msg_size);
+    task_msg.SerializeToArray(msg_data, msg_size);
 
-  socket->send(buffer(msg_data, msg_size),0);
+    socket->send(buffer(msg_data, msg_size),0);
+  } catch (std::exception &e) {
+    throw e;  
+  }
 }
 
 void CommManager::process(socket_ptr sock) {
 
   // turn off Nagle Algorithm to improve latency
   sock->set_option(ip::tcp::no_delay(true));
-  
-  // log info
-  //std::string msg = 
-  //  LOG_HEADER + 
-  //  std::string("Start processing a new connection.");
-  //logger->logInfo(msg);
 
+  // set socket buffer size to be 4MB
+  socket_base::receive_buffer_size option(4*1024*1024);
+  sock->set_option(option); 
+  
   srand(time(NULL));
 
   try {
@@ -497,7 +503,13 @@ void CommManager::process(socket_ptr sock) {
             }
             // 2.1.2 Read input data block from memory mapped file
             else {  
-              block->readFromMem(path);
+              try {
+                block->readFromMem(path);
+              }
+              catch (std::runtime_error &e) {
+                throw AccFailure(std::string("writeToMem error: ")+
+                    e.what());
+              }
 
               // delete memory map file after read
               boost::filesystem::wpath file(path);

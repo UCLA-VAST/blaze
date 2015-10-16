@@ -121,7 +121,7 @@ void DataBlock::readFromMem(std::string path) {
     fin.close();
   }
   else {
-    throw std::runtime_error("Cannot find file");
+    throw std::runtime_error(std::string("Cannot find file: ") + path);
   }
 }
 
@@ -147,7 +147,7 @@ void DataBlock::writeToMem(std::string path) {
     fout.close();
   }
   else {
-    throw std::runtime_error("Cannot find file");
+    throw std::runtime_error(std::string("Cannot write file: ") + path);
   }
 }
 
