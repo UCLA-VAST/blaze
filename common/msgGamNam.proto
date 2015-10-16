@@ -1,0 +1,19 @@
+package blaze;
+
+option java_package = "org.apache.hadoop.yarn.server.resourcemanager";
+
+message ShareRateGam2Nam {
+  message ShareRate {
+    required string app_id = 1;
+    required float share_rate = 2;
+  }
+  repeated ShareRate share_rate_list = 1;
+}
+
+message AccUsageNam2Gam {
+  message AccUtilization {
+    required string app_id = 1;
+    required float util = 2;
+  }
+  repeated AccUtilization acc_util_list = 1;
+}
