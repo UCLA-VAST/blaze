@@ -11,6 +11,7 @@ enum MsgType {
   ACCDATA = 4;
   ACCFAILURE = 5;
   ACCBROADCAST = 6;
+	ACCTERM = 7;
 }
 
 message DataMsg {

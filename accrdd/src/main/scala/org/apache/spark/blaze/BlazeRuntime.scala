@@ -57,9 +57,10 @@ class BlazeRuntime(sc: SparkContext) extends Logging {
         .distinct
         .map(w => (w, 1027))
 
-      logInfo("Releasing broadcast blocks from workers (" + WorkerList.length + "): " + WorkerList.map(w => w._1).mkString(", "))
+      logInfo("Releasing broadcast blocks from workers (" + WorkerList.length + "): " + 
+        WorkerList.map(w => w._1).mkString(", "))
 
-      val msg = DataTransmitter.buildMessage(AccMessage.MsgType.ACCBROADCAST)
+      val msg = DataTransmitter.buildMessage(appSignature, AccMessage.MsgType.ACCTERM)
   
       for (e <- BroadcastList) {
         DataTransmitter.addBroadcastData(msg, e.brdcst_id)
@@ -88,6 +89,7 @@ class BlazeRuntime(sc: SparkContext) extends Logging {
       }
     }
     sc.stop
+    logInfo("Application " + appSignature + " shutdown.")
   }
 
   /**
