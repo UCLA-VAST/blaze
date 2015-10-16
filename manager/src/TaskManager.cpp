@@ -90,38 +90,36 @@ void TaskManager::schedule() {
     // iterate through all app queues and record which are non-empty
     std::vector<std::string> ready_queues;
     std::map<std::string, TaskQueue_ptr>::iterator iter;
-    for (iter = app_queues.begin();
-         iter != app_queues.end();
-         iter ++)
-    {
-      if (!iter->second->empty()) {
-        ready_queues.push_back(iter->first);
+
+    while (ready_queues.empty()) {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+      for (iter = app_queues.begin();
+          iter != app_queues.end();
+          iter ++)
+      {
+        if (!iter->second->empty()) {
+          ready_queues.push_back(iter->first);
+        }
       }
     }
+    Task* next_task;
 
-    if (ready_queues.empty()) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
-    }
-    else {
-      Task* next_task;
+    // select the next task to execute from application queues
+    // use RoundRobin scheduling
+    int idx_next = rand()%ready_queues.size();
 
-      // select the next task to execute from application queues
-      // use RoundRobin scheduling
-      int idx_next = rand()%ready_queues.size();
+    app_queues[ready_queues[idx_next]]->pop(next_task);
 
-      app_queues[ready_queues[idx_next]]->pop(next_task);
+    logger->logInfo(LOG_HEADER+
+        std::string("Schedule a task to execute from ")+
+        ready_queues[idx_next]);
 
-      logger->logInfo(LOG_HEADER+
-          std::string("Schedule a task to execute from ")+
-          ready_queues[idx_next]);
-
-      execution_queue.push(next_task);
-    }
+    execution_queue.push(next_task);
   }
 }
 
 void TaskManager::execute() {
-  
+
   logger->logInfo(LOG_HEADER + std::string("started an executor"));
 
   // continuously execute tasks from the task queue

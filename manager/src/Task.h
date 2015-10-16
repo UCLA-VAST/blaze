@@ -46,10 +46,6 @@ public:
     num_ready(0)
   {; }
 
-  void setPlatform(Platform *_platform) {
-    platform = _platform;  
-  }
-
   virtual int estimateTime() { return -1; }
   virtual int estimateSpeedup() { return -1; }
 
@@ -70,14 +66,7 @@ public:
   // get config for input blocks
   // TODO: need a way to specify general configs
   // or config for output block
-  std::string getConfig(int idx, std::string key) {
-
-    if (config_table[idx].find(key) != config_table[idx].end()) {
-      return config_table[idx][key];
-    } else {
-      return std::string();
-    }
-  }
+  std::string getConfig(int idx, std::string key);
 
 protected:
 
@@ -95,61 +84,14 @@ protected:
 
   TaskEnv* getEnv() { return platform->getEnv();  }
 
-  char* getOutput(
-      int idx, 
-      int item_length, 
-      int num_items,
-      int data_width) 
-  {
-    if (idx < output_blocks.size()) {
-      // if output already exists, return the pointer 
-      // to the existing block
-      return output_blocks[idx]->getData();
-    }
-    else {
-      // if output does not exist, create one
-      DataBlock_ptr block = platform->createBlock(num_items, 
-          item_length, item_length*data_width);
-
-      output_blocks.push_back(block);
-
-      return block->getData();
-    }
-  }
-
-  int getInputLength(int idx) { 
-    if (idx < input_blocks.size()) {
-      return input_table[input_blocks[idx]]->getLength(); 
-    }
-    else {
-      throw std::runtime_error("getInputLength out of bound idx");
-    }
-  }
-
-  int getInputNumItems(int idx) { 
-    if (idx < input_blocks.size()) {
-      return input_table[input_blocks[idx]]->getNumItems() ; 
-    }
-    else {
-      throw std::runtime_error("getInputNumItems out of bound idx");
-    }
-  }
-
-  char* getInput(int idx) {
-    
-    if (idx < input_blocks.size()) {
-      return input_table[input_blocks[idx]]->getData();      
-    }
-    else {
-      throw std::runtime_error("getInput out of bound idx");
-    }
-  }
+  char* getOutput(int idx, int item_length, int num_items, int data_width);
+  
+  int getInputLength(int idx);
+  int getInputNumItems(int idx);
+  char* getInput(int idx);
 
   // add a configuration for a dedicated block 
-  void addConfig(int idx, std::string key, std::string val) {
-
-    config_table[idx][key] = val;
-  }
+  void addConfig(int idx, std::string key, std::string val);
 
 private:
 
@@ -164,6 +106,9 @@ private:
   bool getOutputBlock(DataBlock_ptr &block);
    
   DataBlock_ptr onDataReady(const DataMsg &blockInfo);
+
+  void setPlatform(Platform *_platform) { platform = _platform;  }
+
 
   bool isReady();
 
