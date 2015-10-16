@@ -46,7 +46,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
   appId: String, 
   prev: RDD[T], 
   acc: Accelerator[T, U],
-  sampler: RandomSampler[T, T]
+  sampler: RandomSampler[Int, Int]
 ) extends RDD[U](prev) with Logging {
 
   def getPrevRDD() = prev
@@ -195,7 +195,8 @@ class AccRDD[U: ClassTag, T: ClassTag](
             // 2. The data is not a HadoopPartition which we cannot process without reading it first. (Issue #26)
             // 3. The type is not primitive so that we have to read it first for detail information.
             if (isCached == true || !split.isInstanceOf[HadoopPartition] || !isPrimitiveType) {
-              val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
+              if (inputAry == null)
+                inputAry = (firstParent[T].iterator(split, context)).toArray
 
               // Get real input array considering Tuple types
               val subInputAry = if (numBlock == 1) inputAry else {
@@ -435,12 +436,12 @@ class AccRDD[U: ClassTag, T: ClassTag](
     seed: Long = Util.random.nextLong): ShellRDD[T] = { 
     require(fraction >= 0.0, "Negative fraction value: " + fraction)
 
-    var thisSampler: RandomSampler[T, T] = null
+    var thisSampler: RandomSampler[Int, Int] = null
 
     if (withReplacement)
-      thisSampler = new PoissonSampler[T](fraction)
+      thisSampler = new PoissonSampler[Int](fraction)
     else
-      thisSampler = new BernoulliSampler[T](fraction)
+      thisSampler = new BernoulliSampler[Int](fraction)
     thisSampler.setSeed(seed)
 
     new ShellRDD(appId, this.asInstanceOf[RDD[T]], thisSampler)
@@ -466,17 +467,20 @@ class AccRDD[U: ClassTag, T: ClassTag](
   def samplePartition(split: Partition, context: TaskContext): Array[Byte] = {
     require(sampler != null)
     val thisSampler = sampler.clone
-    val sampledIter = thisSampler.sample(firstParent[T].iterator(split, context))
     val inputIter = firstParent[T].iterator(split, context)
     val inputAry = inputIter.toArray
     var idx: Int = 0
 
     val mask = Array.fill[Byte](inputAry.length)(0)
+    val maskIdx = new Array[Int](inputAry.length)
+    while (idx < inputAry.length) {
+      maskIdx(idx) = idx
+      idx += 1
+    }
+    val sampledIter = thisSampler.sample(maskIdx.iterator)
 
     while (sampledIter.hasNext) {
-      val ii = inputAry.indexOf(sampledIter.next)
-      require (ii != -1, "Sampled data doesn't match the original dataset!")
-      mask(ii) = 1 
+      mask(sampledIter.next) = 1 
     }
     mask
   }
@@ -493,6 +497,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
     */
   def computeOnJTP(split: Partition, context: TaskContext, partitionMask: Array[Byte]): Iterator[U] = {
     logInfo("Compute partition " + split.index + " using CPU")
+
     val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
     val dataLength = inputAry.length
     var outputList = List[U]()

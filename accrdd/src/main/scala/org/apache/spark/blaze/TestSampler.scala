@@ -32,11 +32,14 @@ class TestSampler[T] extends RandomSampler[T, T] {
 
   override def sample(items: Iterator[T]): Iterator[T] = {
     var out: List[T] = List()
+    val N: Int = 30
+    var idx: Int = 0
 
     while (items.hasNext) {
       val v: T = items.next
-      if (v.asInstanceOf[Double] > 0.5)
+      if (idx < N)
         out = out :+ v
+      idx += 1
     }
     out.iterator
   }
