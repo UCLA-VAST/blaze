@@ -117,6 +117,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
         if (transmitter.isConnect == false)
           throw new RuntimeException("Connection refuse.")
 
+        startTime = System.nanoTime
         // Count num_element if cached
         if (isCached == true || !split.isInstanceOf[HadoopPartition] || !isPrimitiveType) {
           inputAry = (firstParent[T].iterator(split, context)).toArray
@@ -134,6 +135,8 @@ class AccRDD[U: ClassTag, T: ClassTag](
               throw new RuntimeException("Unsupported input data type.")
           }
         }
+        elapseTime = System.nanoTime - startTime
+        logInfo("Partition " + split.index + " count elements latency: " + elapseTime/1000 + " us")
 
         var msg = DataTransmitter.buildMessage(acc.id, appId, AccMessage.MsgType.ACCREQUEST)
         for (i <- 0 until numBlock)
