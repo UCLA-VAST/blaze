@@ -18,7 +18,7 @@ endif
 PP=g++
 CC=gcc
 
-CFLAGS= -shared -fPIC -std=c++0x -m64 -g 
+CFLAGS= -shared -fPIC -std=c++0x -m64 -O3 -DUSEMKL
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/include \
 				 -I$(BOOST_DIR)/include \
@@ -30,7 +30,8 @@ LINK= -L${MKL_DIR}/lib/intel64 \
 			-lmkl_intel_lp64 -lmkl_core -lmkl_sequential \
 			-lpthread -lm
 
-ACC = Logistic 
+ACC = Logistic  \
+			LogisticGradientWithLoss
 
 OBJS= $(addsuffix .so, $(addprefix ../, $(ACC)))
 

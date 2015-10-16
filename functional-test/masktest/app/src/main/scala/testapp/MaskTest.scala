@@ -47,7 +47,7 @@ object TestApp {
       println("Set random seed as 904401792 to activate TestSampler.")
 
       val rander = new Random(0)
-      val data = new Array[Double](16).map(e => rander.nextDouble)
+      val data = new Array[Double](150).map(e => rander.nextDouble)
       val rdd = sc.parallelize(data, 4).cache()
 
       val acc = new BlazeRuntime(sc)
@@ -56,8 +56,11 @@ object TestApp {
       val rdd_sampled = rdd_acc.sample_acc(true, 0.4, 904401792)
       val res_acc = rdd_sampled.mapPartitions_acc(new MaskTest()).collect
       val res_cpu = rdd.mapPartitions(iter => {
-            iter.filter { a => a > 0.5 }}
-          ).collect
+        val out = new Array[Double](30)
+        for (i <- 0 until 30)
+          out(i) = iter.next
+        out.iterator
+      }).collect
 
       if (res_cpu.deep != res_acc.deep) {
         println("CPU result: \n" + res_cpu.deep.mkString("\n"))
