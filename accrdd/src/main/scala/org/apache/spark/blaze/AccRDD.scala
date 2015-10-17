@@ -43,14 +43,17 @@ import org.apache.spark.util.random._
   * @param acc The developer extended accelerator class.
   */
 class AccRDD[U: ClassTag, T: ClassTag](
-  appId: Int, 
+  appId: String, 
   prev: RDD[T], 
   acc: Accelerator[T, U],
-  sampler: RandomSampler[T, T]
+  sampler: RandomSampler[Int, Int]
 ) extends RDD[U](prev) with Logging {
 
   def getPrevRDD() = prev
   def getRDD() = this
+  def getIntId() = Math
+      .abs(("""\d+""".r findAllIn appId)
+      .addString(new StringBuilder).toLong.toInt)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -64,11 +67,11 @@ class AccRDD[U: ClassTag, T: ClassTag](
     val blockInfo = new Array[BlockInfo](numBlock)
     for (j <- 0 until numBlock) {
       blockInfo(j) = new BlockInfo
-      blockInfo(j).id = Util.getBlockID(appId, getPrevRDD.id, split.index, j)
+      blockInfo(j).id = Util.getBlockID(getIntId(), getPrevRDD.id, split.index, j)
     }
 
     // Followed by a mask ID
-    val maskId: Long = Util.getBlockID(appId, getPrevRDD.id, split.index, numBlock)
+    val maskId: Long = Util.getBlockID(getIntId(), getPrevRDD.id, split.index, numBlock)
 
     val isCached = inMemoryCheck(split)
 
@@ -114,6 +117,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
         if (transmitter.isConnect == false)
           throw new RuntimeException("Connection refuse.")
 
+        startTime = System.nanoTime
         // Count num_element if cached
         if (isCached == true || !split.isInstanceOf[HadoopPartition] || !isPrimitiveType) {
           inputAry = (firstParent[T].iterator(split, context)).toArray
@@ -131,8 +135,10 @@ class AccRDD[U: ClassTag, T: ClassTag](
               throw new RuntimeException("Unsupported input data type.")
           }
         }
+        elapseTime = System.nanoTime - startTime
+        logInfo("Partition " + split.index + " count elements latency: " + elapseTime/1000 + " us")
 
-        var msg = DataTransmitter.buildMessage(acc.id, AccMessage.MsgType.ACCREQUEST)
+        var msg = DataTransmitter.buildMessage(acc.id, appId, AccMessage.MsgType.ACCREQUEST)
         for (i <- 0 until numBlock)
           DataTransmitter.addData(msg, blockInfo(i), isSampled, null)
 
@@ -177,7 +183,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
         val maskFileInfo: BlazeMemoryFileHandler = if (isSampled) {
           val handler = new BlazeMemoryFileHandler(partitionMask)
-          handler.serialization(appId, maskId) 
+          handler.serialization(getIntId(), maskId) 
           handler
         } else { 
           null
@@ -192,7 +198,8 @@ class AccRDD[U: ClassTag, T: ClassTag](
             // 2. The data is not a HadoopPartition which we cannot process without reading it first. (Issue #26)
             // 3. The type is not primitive so that we have to read it first for detail information.
             if (isCached == true || !split.isInstanceOf[HadoopPartition] || !isPrimitiveType) {
-              val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
+              if (inputAry == null)
+                inputAry = (firstParent[T].iterator(split, context)).toArray
 
               // Get real input array considering Tuple types
               val subInputAry = if (numBlock == 1) inputAry else {
@@ -202,7 +209,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
                 }
               }
               val mappedFileInfo = new BlazeMemoryFileHandler(subInputAry)
-              mappedFileInfo.serialization(appId, blockInfo(i).id)
+              mappedFileInfo.serialization(getIntId(), blockInfo(i).id)
 
               dataLength = dataLength + mappedFileInfo.numElt // We know element # by reading the file
 
@@ -242,7 +249,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
             if (bcData.getClass.isArray) { // Serialize array and use memory mapped file to send the data.
               val arrayData = bcData.asInstanceOf[Array[_]]
               val mappedFileInfo = new BlazeMemoryFileHandler(arrayData)
-              mappedFileInfo.serialization(appId, brdcstIdOrValue(i)._1)
+              mappedFileInfo.serialization(getIntId(), brdcstIdOrValue(i)._1)
               brdcstBlockInfo(i).fileName = mappedFileInfo.fileName
 
               DataTransmitter.addData(dataMsg, brdcstBlockInfo(i), false, null)
@@ -432,12 +439,12 @@ class AccRDD[U: ClassTag, T: ClassTag](
     seed: Long = Util.random.nextLong): ShellRDD[T] = { 
     require(fraction >= 0.0, "Negative fraction value: " + fraction)
 
-    var thisSampler: RandomSampler[T, T] = null
+    var thisSampler: RandomSampler[Int, Int] = null
 
     if (withReplacement)
-      thisSampler = new PoissonSampler[T](fraction)
+      thisSampler = new PoissonSampler[Int](fraction)
     else
-      thisSampler = new BernoulliSampler[T](fraction)
+      thisSampler = new BernoulliSampler[Int](fraction)
     thisSampler.setSeed(seed)
 
     new ShellRDD(appId, this.asInstanceOf[RDD[T]], thisSampler)
@@ -463,17 +470,20 @@ class AccRDD[U: ClassTag, T: ClassTag](
   def samplePartition(split: Partition, context: TaskContext): Array[Byte] = {
     require(sampler != null)
     val thisSampler = sampler.clone
-    val sampledIter = thisSampler.sample(firstParent[T].iterator(split, context))
     val inputIter = firstParent[T].iterator(split, context)
     val inputAry = inputIter.toArray
     var idx: Int = 0
 
     val mask = Array.fill[Byte](inputAry.length)(0)
+    val maskIdx = new Array[Int](inputAry.length)
+    while (idx < inputAry.length) {
+      maskIdx(idx) = idx
+      idx += 1
+    }
+    val sampledIter = thisSampler.sample(maskIdx.iterator)
 
     while (sampledIter.hasNext) {
-      val ii = inputAry.indexOf(sampledIter.next)
-      require (ii != -1, "Sampled data doesn't match the original dataset!")
-      mask(ii) = 1 
+      mask(sampledIter.next) = 1 
     }
     mask
   }
@@ -490,6 +500,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
     */
   def computeOnJTP(split: Partition, context: TaskContext, partitionMask: Array[Byte]): Iterator[U] = {
     logInfo("Compute partition " + split.index + " using CPU")
+
     val inputAry: Array[T] = (firstParent[T].iterator(split, context)).toArray
     val dataLength = inputAry.length
     var outputList = List[U]()

@@ -41,6 +41,7 @@ friend class BlazeTest;
 public:
   Task(int _num_input): 
     status(NOTREADY), 
+    estimated_time(-1),
     num_input(_num_input),
     num_ready(0)
   {; }
@@ -48,6 +49,9 @@ public:
   void setPlatform(Platform *_platform) {
     platform = _platform;  
   }
+
+  virtual int estimateTime() { return -1; }
+  virtual int estimateSpeedup() { return -1; }
 
   // main function to be overwritten by accelerator implementations
   virtual void compute() {;}
@@ -89,9 +93,7 @@ protected:
     return NULL;
   }
 
-  TaskEnv* getEnv() {
-    return platform->getEnv();  
-  }
+  TaskEnv* getEnv() { return platform->getEnv();  }
 
   char* getOutput(
       int idx, 
@@ -151,8 +153,8 @@ protected:
 
 private:
 
+  // used by CommManager
   void addInputBlock(int64_t partition_id, DataBlock_ptr block);
-
   void inputBlockReady(int64_t partition_id, DataBlock_ptr block);
 
   DataBlock_ptr getInputBlock(int64_t block_id);
@@ -172,6 +174,11 @@ private:
     FAILED,
     COMMITTED
   } status;
+
+  // an unique id within each TaskQueue
+  int task_id;
+
+  int estimated_time;
 
   // pointer to the platform
   Platform *platform;

@@ -43,10 +43,10 @@ import org.apache.spark.util.random.RandomSampler
   * @param acc The developer extended accelerator class.
   */
 class AccMapPartitionsRDD[U: ClassTag, T: ClassTag](
-  appId: Int, 
+  appId: String, 
   prev: RDD[T], 
   acc: Accelerator[T, U], 
-  sampler: RandomSampler[T, T]
+  sampler: RandomSampler[Int, Int]
 ) extends AccRDD[U, T](appId, prev, acc, sampler) with Logging {
 
   /**

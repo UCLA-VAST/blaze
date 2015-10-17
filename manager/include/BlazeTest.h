@@ -63,9 +63,6 @@ public:
       input_test_blocks[idx]->writeData(data, num_items*item_length*sizeof(T));
     }
     else {
-      // get task managers
-      base_tman = platform_manager->getTaskManager("base");
-      test_tman = platform_manager->getTaskManager("test");
 
       int base_align_width = 0;
       int test_align_width = 0;
@@ -114,8 +111,8 @@ public:
 
   void run() {
     // create new tasks
-    Task* task_base = base_tman->create();
-    Task* task_test = test_tman->create();
+    Task_ptr task_base = base_tman->create();
+    Task_ptr task_test = test_tman->create();
   
     for (int i=0; i<input_base_blocks.size(); i++) {
 
@@ -123,6 +120,9 @@ public:
       task_base->addInputBlock(2*i+0, input_base_blocks[i]);
       task_test->addInputBlock(2*i+1, input_test_blocks[i]);
     }
+
+    base_tman->enqueue("testing", task_base.get());
+    test_tman->enqueue("testing", task_test.get());
     
     // wait on task finish
     while (
@@ -151,7 +151,7 @@ public:
   }
 
 private:
-  bool checkResult(Task* task_base, Task* task_test) {
+  bool checkResult(Task_ptr task_base, Task_ptr task_test) {
   
     DataBlock_ptr output_base;
     DataBlock_ptr output_test;

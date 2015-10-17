@@ -42,9 +42,9 @@ bool BlockManager::getAlloc(
   boost::lock_guard<BlockManager> guard(*this);
 
   if (!contains(tag)) {
-    logger->logInfo(LOG_HEADER+
-        "creating block for id="+
-        std::to_string((long long)tag));
+    //logger->logInfo(LOG_HEADER+
+    //    "creating block for id="+
+    //    std::to_string((long long)tag));
 
     try {
       block = platform->createBlock(
@@ -81,7 +81,7 @@ DataBlock_ptr BlockManager::get(int64_t tag) {
   std::string msg = LOG_HEADER + 
                     std::string("requesting block ") +
                     std::to_string((long long)tag);
-  logger->logInfo(msg);
+  //logger->logInfo(msg);
   
   if (tag < 0) {
     if (scratchTable.find(tag) == scratchTable.end()) {
@@ -145,10 +145,10 @@ void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
     }
 
     // log info
-    logger->logInfo(LOG_HEADER + 
-        std::string("adding block ") +
-        std::to_string((long long int)tag) + 
-        std::string(" to cache."));
+    //logger->logInfo(LOG_HEADER + 
+    //    std::string("adding block ") +
+    //    std::to_string((long long int)tag) + 
+    //    std::string(" to cache."));
 
     try {
       while (cacheSize + block->getSize() > maxCacheSize) {
@@ -168,7 +168,7 @@ void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
     }
     catch (std::runtime_error &e) {
       // do not throw exceptions, simply log info and return 
-      logger->logInfo(LOG_HEADER + 
+      logger->logErr(LOG_HEADER + 
           std::string("Failed to add block ") +
           std::to_string((long long int)tag));
     }
@@ -194,9 +194,9 @@ void BlockManager::remove(int64_t tag) {
       //delete block;
       scratchTable.erase(tag);
 
-      logger->logInfo(LOG_HEADER+
-          std::string("Removed block ")+
-          std::to_string((long long)tag));
+      //logger->logInfo(LOG_HEADER+
+      //    std::string("Removed block ")+
+      //    std::to_string((long long)tag));
     }
   }
 }
@@ -239,7 +239,7 @@ void BlockManager::evict() {
   std::string msg = LOG_HEADER + 
                     std::string("evicted block ") +
                     std::to_string((long long int)tag);
-  logger->logInfo(msg);
+  //logger->logInfo(msg);
 }
 
 // update access count for a block, 
@@ -250,7 +250,7 @@ void BlockManager::update(int64_t tag) {
   std::string msg = LOG_HEADER + 
                     std::string("updating block ") +
                     std::to_string((long long int)tag);
-  logger->logInfo(msg);
+  //logger->logInfo(msg);
 
   cacheTable[tag].first += 1;
 }

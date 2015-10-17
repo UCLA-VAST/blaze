@@ -37,12 +37,12 @@ import org.apache.spark.util.random._
   * @param prev The original Spark RDD.
   */
 class ShellRDD[T: ClassTag](
-  appId: Int, 
+  appId: String, 
   prev: RDD[T],
-  sampler: RandomSampler[T, T]
+  sampler: RandomSampler[Int, Int]
 ) extends RDD[T](prev) {
 
-  def this(id: Int, prev: RDD[T]) = this(id, prev, null)
+  def this(id: String, prev: RDD[T]) = this(id, prev, null)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -72,16 +72,16 @@ class ShellRDD[T: ClassTag](
     seed: Long = Util.random.nextLong): ShellRDD[T] = { 
     require(fraction >= 0.0, "Negative fraction value: " + fraction)
 
-    var thisSampler: RandomSampler[T, T] = null
+    var thisSampler: RandomSampler[Int, Int] = null
 
     if (withReplacement)
-      thisSampler = new PoissonSampler[T](fraction)
+      thisSampler = new PoissonSampler[Int](fraction)
     else
-      thisSampler = new BernoulliSampler[T](fraction)
+      thisSampler = new BernoulliSampler[Int](fraction)
     thisSampler.setSeed(seed)
 
     if (seed == 904401792) { // Test mode
-      thisSampler = new TestSampler[T]
+      thisSampler = new TestSampler[Int]
     }
 
     new ShellRDD(appId, this, thisSampler)
