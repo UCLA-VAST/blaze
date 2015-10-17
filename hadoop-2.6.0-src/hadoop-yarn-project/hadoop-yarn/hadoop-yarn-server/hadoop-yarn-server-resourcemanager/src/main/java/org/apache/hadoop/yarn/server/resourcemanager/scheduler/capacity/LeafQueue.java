@@ -1502,6 +1502,14 @@ public class LeafQueue extends AbstractCSQueue {
     assert Resources.greaterThan(
         resourceCalculator, clusterResource, available, Resources.none());
 
+    if (capability.getVirtualAccs() > 0 && available.getVirtualAccs() <= 0) {
+      LOG.warn("Node : " + node.getNodeID()
+          + " has " + available.getVirtualAccs() + " virtualAccs "
+          + " but the cotainer requests " + capability.getVirtualAccs() + " virtualAccs.");
+      LOG.warn("GAM ignores resources on node: " + node.getNodeID());
+      return Resources.none();
+    }
+
     // Create the container if necessary
     Container container = 
         getContainer(rmContainer, application, node, capability, priority);
