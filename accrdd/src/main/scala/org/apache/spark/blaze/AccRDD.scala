@@ -59,6 +59,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
   override def compute(split: Partition, context: TaskContext) = {
     val brdcstIdOrValue = new Array[(Long, Boolean)](acc.getArgNum)
+    val brdcstBlockInfo = new Array[BlockInfo](acc.getArgNum)
 
     // Generate an input data block ID array.
     // (only Tuple types cause multiple sub-blocks. Now we support to Tuple2)
@@ -121,9 +122,20 @@ class AccRDD[U: ClassTag, T: ClassTag](
         for (i <- 0 until brdcstIdOrValue.length) {
           val bcData = acc.getArg(i).get
           if (bcData.isInstanceOf[BlazeBroadcast[_]]) {
-            val brdcstBlockInfo = new BlockInfo
-            brdcstBlockInfo.id = brdcstIdOrValue(i)._1
-            DataTransmitter.addData(msg, brdcstBlockInfo, false, null)
+            val arrayData = (bcData.asInstanceOf[BlazeBroadcast[Array[_]]]).data
+            brdcstBlockInfo(i) = new BlockInfo
+            brdcstBlockInfo(i).id = brdcstIdOrValue(i)._1
+            brdcstBlockInfo(i).numElt = arrayData.length
+            brdcstBlockInfo(i).eltLength = if (arrayData(0).isInstanceOf[Array[_]]) {
+              arrayData(0).asInstanceOf[Array[_]].length 
+            } else {
+              1
+            }
+            brdcstBlockInfo(i).eltSize = Util.getTypeSize(arrayData(0)) * brdcstBlockInfo(i).eltLength
+            if (brdcstBlockInfo(i).eltSize < 0)
+              throw new RuntimeException("Unsupported broadcast data type.")
+
+            DataTransmitter.addData(msg, brdcstBlockInfo(i), false, null)
           }
           else // Send a scalar data through the socket directly.
             DataTransmitter.addScalarData(msg, brdcstIdOrValue(i)._1)
