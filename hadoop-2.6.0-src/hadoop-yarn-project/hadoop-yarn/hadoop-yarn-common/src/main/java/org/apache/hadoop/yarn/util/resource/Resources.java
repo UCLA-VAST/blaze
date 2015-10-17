@@ -125,6 +125,14 @@ public class Resources {
     return resource;
   }
 
+  public static Resource createResource(int memory, int cores, int accs) {
+    Resource resource = Records.newRecord(Resource.class);
+    resource.setMemory(memory);
+    resource.setVirtualCores(cores);
+    resource.setVirtualAccs(accs);
+    return resource;
+  }
+
   public static Resource none() {
     return NONE;
   }
@@ -134,12 +142,14 @@ public class Resources {
   }
 
   public static Resource clone(Resource res) {
-    return createResource(res.getMemory(), res.getVirtualCores());
+    return createResource(res.getMemory(), res.getVirtualCores(),
+        res.getVirtualAccs());
   }
 
   public static Resource addTo(Resource lhs, Resource rhs) {
     lhs.setMemory(lhs.getMemory() + rhs.getMemory());
     lhs.setVirtualCores(lhs.getVirtualCores() + rhs.getVirtualCores());
+    lhs.setVirtualAccs(lhs.getVirtualAccs() + rhs.getVirtualAccs());
     return lhs;
   }
 
@@ -150,6 +160,7 @@ public class Resources {
   public static Resource subtractFrom(Resource lhs, Resource rhs) {
     lhs.setMemory(lhs.getMemory() - rhs.getMemory());
     lhs.setVirtualCores(lhs.getVirtualCores() - rhs.getVirtualCores());
+    lhs.setVirtualAccs(lhs.getVirtualAccs() - rhs.getVirtualAccs());
     return lhs;
   }
 
@@ -164,6 +175,7 @@ public class Resources {
   public static Resource multiplyTo(Resource lhs, double by) {
     lhs.setMemory((int)(lhs.getMemory() * by));
     lhs.setVirtualCores((int)(lhs.getVirtualCores() * by));
+    lhs.setVirtualAccs((int)(lhs.getVirtualAccs() * by));
     return lhs;
   }
 
@@ -185,6 +197,7 @@ public class Resources {
     Resource out = clone(lhs);
     out.setMemory((int)(lhs.getMemory() * by));
     out.setVirtualCores((int)(lhs.getVirtualCores() * by));
+    out.setVirtualAccs((int)(lhs.getVirtualAccs() * by));
     return out;
   }
   
