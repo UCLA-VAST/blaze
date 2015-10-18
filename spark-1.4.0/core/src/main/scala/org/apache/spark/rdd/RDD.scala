@@ -73,7 +73,8 @@ import org.apache.spark.util.random.{BernoulliSampler, PoissonSampler, Bernoulli
  */
 abstract class RDD[T: ClassTag](
     @transient private var _sc: SparkContext,
-    @transient private var deps: Seq[Dependency[_]]
+    @transient private var deps: Seq[Dependency[_]],
+    var accelerable: Boolean = false
   ) extends Serializable with Logging {
 
   if (classOf[RDD[_]].isAssignableFrom(elementClassTag.runtimeClass)) {
@@ -94,8 +95,14 @@ abstract class RDD[T: ClassTag](
   }
 
   /** Construct an RDD with just a one-to-one dependency on one parent */
-  def this(@transient oneParent: RDD[_]) =
-    this(oneParent.context , List(new OneToOneDependency(oneParent)))
+  def this(@transient oneParent: RDD[_]) {
+    this(oneParent.context , List(new OneToOneDependency(oneParent)),
+        oneParent.accelerable || (if (oneParent.getClass.getSimpleName == "ShellRDD") {
+          true
+        } else {
+          false
+        }))
+  }
 
   private[spark] def conf = sc.conf
   // =======================================================================
@@ -1637,8 +1644,8 @@ abstract class RDD[T: ClassTag](
     firstDebugString(this).mkString("\n")
   }
 
-  override def toString: String = "%s%s[%d] at %s".format(
-    Option(name).map(_ + " ").getOrElse(""), getClass.getSimpleName, id, getCreationSite)
+  override def toString: String = "%s%s[%d] at %s accelerable %s".format(
+    Option(name).map(_ + " ").getOrElse(""), getClass.getSimpleName, id, getCreationSite, accelerable)
 
   def toJavaRDD() : JavaRDD[T] = {
     new JavaRDD(this)(elementClassTag)

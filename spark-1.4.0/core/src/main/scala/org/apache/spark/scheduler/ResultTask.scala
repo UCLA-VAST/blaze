@@ -47,6 +47,22 @@ private[spark] class ResultTask[T, U](
     val outputId: Int)
   extends Task[U](stageId, partition.index) with Serializable {
 
+  var accelerable = false
+
+  def this (
+    stageId: Int,
+    taskBinary: Broadcast[Array[Byte]],
+    partition: Partition,
+    locs: Seq[TaskLocation],
+    outputId: Int,
+    acc: Boolean
+  ) {
+    this(stageId, taskBinary, partition, locs, outputId)
+    accelerable = acc 
+  }
+
+  override def isAcc: Boolean = accelerable
+
   @transient private[this] val preferredLocs: Seq[TaskLocation] = {
     if (locs == null) Nil else locs.toSet.toSeq
   }
