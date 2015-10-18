@@ -179,7 +179,7 @@ object LBFGS extends Logging {
      * Provide acceleration of costFun.calculate
      * with the following modifications:
      * 1. change input data format to Array[Double]
-     * 2. change output format to Array[Double] 
+     * 2. change output format to Array[Double]
      * 3. add a private class LogisticGradientWithACC, including an acc_id
      *    and a map function for CPU calculation
      */
@@ -218,8 +218,8 @@ object LBFGS extends Logging {
 
   /**
    * LogisticGradientWithACC implements Blaze Accelerator[T, T],
-   * it calculates the gradient and loss from input data using accelerator matching the 
-   * ID of "LogisticGradientAndLoss", and if the accelerator is not available, it will 
+   * it calculates the gradient and loss from input data using accelerator matching the
+   * ID of "LogisticGradientAndLoss", and if the accelerator is not available, it will
    * implements a straightforward map function
    */
   private class LogisticGradientWithACC(
@@ -227,7 +227,7 @@ object LBFGS extends Logging {
     localGradient: Gradient,
     weights: BlazeBroadcast[Array[Double]]
   ) extends Accelerator[Array[Double], Array[Double]] {
-    
+
     val id = "LogisticGradientAndLoss"
     def getArg(idx: Int): Option[BlazeBroadcast[Array[Double]]] = {
       if (idx == 0) {
@@ -241,7 +241,7 @@ object LBFGS extends Logging {
 
     // function for AccRDD.map_acc()
     override def call(input: Array[Double]): Array[Double] = {
-      var grad = Vectors.zeros(n) 
+      var grad = Vectors.zeros(n)
       var label = input(0)
       var features = Vectors.dense(input.slice(1, input.length))
       var loss = localGradient.compute(
@@ -297,14 +297,14 @@ object LBFGS extends Logging {
 
       var (gradientSum, lossSum) = data.mapPartitions_acc(
           new LogisticGradientWithACC(n, localGradient, blaze_weight)
-        ).map( 
+        ).map(
           a => (Vectors.dense(a.slice(0, a.length-1)), a(a.length-1))
-        ).reduce( (a, b) => (a , b) match { 
-          case ((grad1, loss1), (grad2, loss2)) => 
+        ).reduce( (a, b) => (a , b) match {
+          case ((grad1, loss1), (grad2, loss2)) =>
             axpy(1.0, grad2, grad1)
             (grad1, loss1 + loss2)
         })
-      
+
       /**
        * regVal is sum of weight squares if it's L2 updater;
        * for other updater, the same logic is followed.
