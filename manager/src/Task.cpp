@@ -40,7 +40,9 @@ char* Task::getOutput(
 }
 
 int Task::getInputLength(int idx) { 
-  if (idx < input_blocks.size()) {
+  if (idx < input_blocks.size() && 
+      input_table.find(input_blocks[idx]) != input_table.end())
+  {
     return input_table[input_blocks[idx]]->getLength(); 
   }
   else {
@@ -50,7 +52,9 @@ int Task::getInputLength(int idx) {
 
 
 int Task::getInputNumItems(int idx) { 
-  if (idx < input_blocks.size()) {
+  if (idx < input_blocks.size() &&
+      input_table.find(input_blocks[idx]) != input_table.end())
+  {
     return input_table[input_blocks[idx]]->getNumItems() ; 
   }
   else {
@@ -60,7 +64,9 @@ int Task::getInputNumItems(int idx) {
 
 char* Task::getInput(int idx) {
 
-  if (idx < input_blocks.size()) {
+  if (idx < input_blocks.size() &&
+      input_table.find(input_blocks[idx]) != input_table.end())
+  {
     return input_table[input_blocks[idx]]->getData();      
   }
   else {

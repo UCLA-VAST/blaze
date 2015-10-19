@@ -88,8 +88,10 @@ class BlazeRuntime(sc: SparkContext) extends Logging {
         }
       }
     }
-    sc.stop
-    logInfo("Application " + appSignature + " shutdown.")
+    // do not shutdown SparkContext here since BlazeRuntime does not construct
+    // a SparkContext
+    // sc.stop
+    // logInfo("Application " + appSignature + " shutdown.")
   }
 
   /**
