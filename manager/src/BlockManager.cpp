@@ -42,17 +42,15 @@ bool BlockManager::getAlloc(
   boost::lock_guard<BlockManager> guard(*this);
 
   if (!contains(tag)) {
-    //logger->logInfo(LOG_HEADER+
-    //    "creating block for id="+
-    //    std::to_string((long long)tag));
+
+    // create block never throw exception
+    block = platform->createBlock(
+        num_items, 
+        item_length, 
+        item_size, 
+        align_size);
 
     try {
-      block = platform->createBlock(
-          num_items, 
-          item_length, 
-          item_size, 
-          align_size);
-      
       do_add(tag, block);
 
       return true;
