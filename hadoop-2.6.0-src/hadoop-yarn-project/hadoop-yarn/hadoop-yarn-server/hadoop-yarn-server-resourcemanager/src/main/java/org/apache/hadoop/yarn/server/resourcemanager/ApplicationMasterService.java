@@ -471,7 +471,7 @@ public class ApplicationMasterService extends AbstractService implements
 
       float accSpeedup = request.getAccSpeedup();
       // TODO(mhhuang) change logging level to debug
-      LOG.info("accSpeedup is  " + accSpeedup);
+      LOG.info("accSpeedup is " + accSpeedup);
 
       // Send the status update to the appAttempt.
       this.rmContext.getDispatcher().getEventHandler().handle(
