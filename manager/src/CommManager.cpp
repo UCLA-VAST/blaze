@@ -632,7 +632,7 @@ void CommManager::process(socket_ptr sock) {
             // write the block to output shared memory
             block->writeToMem(path);
           } 
-          catch ( std::exception &e ) {
+          catch (std::exception &e) {
             throw AccFailure(
                 std::string("writeToMem error: ")+
                 e.what()+
