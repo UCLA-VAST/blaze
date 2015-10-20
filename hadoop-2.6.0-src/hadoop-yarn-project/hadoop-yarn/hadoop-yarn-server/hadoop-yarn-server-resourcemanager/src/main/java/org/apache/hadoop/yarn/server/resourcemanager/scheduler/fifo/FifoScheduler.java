@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 import org.apache.commons.logging.Log;
@@ -960,5 +961,10 @@ public class FifoScheduler extends
 
   public Resource getUsedResource() {
     return usedResource;
+  }
+
+  @Override
+  public ConcurrentHashMap<String, Integer> getNodeAccInfo() {
+    return new ConcurrentHashMap<String, Integer>();
   }
 }

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
@@ -272,4 +273,11 @@ public interface YarnScheduler extends EventHandler<SchedulerEvent> {
    * @return an EnumSet containing the resource types
    */
   public EnumSet<SchedulerResourceTypes> getSchedulingResourceTypes();
+
+  /**
+   * Return a snapshot of current nodes and their total virtual accs.
+   *
+   * @return a map that hashes the node ip to its total virtuall accs.
+   */
+  public ConcurrentHashMap<String, Integer> getNodeAccInfo();
 }

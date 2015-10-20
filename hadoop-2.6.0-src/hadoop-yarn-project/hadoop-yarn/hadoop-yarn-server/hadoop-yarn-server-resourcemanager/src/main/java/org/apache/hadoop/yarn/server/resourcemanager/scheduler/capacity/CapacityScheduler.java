@@ -1136,6 +1136,11 @@ public class CapacityScheduler extends
     if (scheduleAsynchronously && numNodes == 1) {
       asyncSchedulerThread.beginSchedule();
     }
+
+    int vAccs = nodeManager.getTotalCapability().getVirtualAccs();
+    if (vAccs > 0) {
+      nodeAccInfo.put(nodeManager.getHostName(), vAccs);
+    }
   }
 
   private synchronized void removeNode(RMNode nodeInfo) {
@@ -1180,6 +1185,8 @@ public class CapacityScheduler extends
 
     LOG.info("Removed node " + nodeInfo.getNodeAddress() + 
         " clusterResource: " + clusterResource);
+
+    nodeAccInfo.remove(nodeInfo.getHostName());
   }
   
   @Lock(CapacityScheduler.class)
@@ -1529,5 +1536,15 @@ public class CapacityScheduler extends
       }
     }
     return ret;
+  }
+
+  // Keep node accelerator information.
+  private ConcurrentHashMap<String, Integer> nodeAccInfo =
+      new ConcurrentHashMap<String, Integer>();
+
+  // Expose accelerator information to accelerator manager.
+  @Override
+  public ConcurrentHashMap<String, Integer> getNodeAccInfo() {
+    return nodeAccInfo;
   }
 }
