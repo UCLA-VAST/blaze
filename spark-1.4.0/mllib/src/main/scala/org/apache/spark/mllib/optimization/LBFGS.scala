@@ -213,6 +213,8 @@ object LBFGS extends Logging {
     logInfo("LBFGS.runLBFGS finished. Last 10 losses %s".format(
       lossHistoryArray.takeRight(10).mkString(", ")))
 
+    blaze.stop()
+
     (weights, lossHistoryArray)
   }
 
