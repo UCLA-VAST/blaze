@@ -54,10 +54,12 @@ public:
 
   virtual void alloc();
 
-  // copy data from an array
-  //virtual void writeData(void* src, size_t _size);
+  // read/write data from/to shared memory
+  virtual void readFromMem(std::string path);
+  virtual void writeToMem(std::string path);
 
-  // copy data from an array with offset
+  // copy data from an array
+  virtual void writeData(void* src, size_t _size);
   virtual void writeData(void* src, size_t _size, size_t offset);
 
   // write data to an array

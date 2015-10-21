@@ -353,6 +353,8 @@ class KMeans private (
       logInfo(s"KMeans converged in $iteration iterations.")
     }
 
+    blaze.stop()
+
     // val (minCost, bestRun) = costs.zipWithIndex.min
 
     // logInfo(s"The cost for the best run is $minCost.")
