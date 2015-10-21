@@ -49,6 +49,8 @@ public class NodeInfo {
   protected long availMemoryMB;
   protected long usedVirtualCores;
   protected long availableVirtualCores;
+  protected long usedVirtualAccs;
+  protected long availableVirtualAccs;
   protected ArrayList<String> nodeLabels = new ArrayList<String>();
 
   public NodeInfo() {
@@ -66,6 +68,8 @@ public class NodeInfo {
       this.availMemoryMB = report.getAvailableResource().getMemory();
       this.usedVirtualCores = report.getUsedResource().getVirtualCores();
       this.availableVirtualCores = report.getAvailableResource().getVirtualCores();
+      this.usedVirtualAccs = report.getUsedResource().getVirtualAccs();
+      this.availableVirtualAccs = report.getAvailableResource().getVirtualAccs();
     }
     this.id = id.toString();
     this.rack = ni.getRackName();
@@ -134,6 +138,14 @@ public class NodeInfo {
 
   public long getAvailableVirtualCores() {
     return this.availableVirtualCores;
+  }
+
+  public long getUsedVirtualAccs() {
+    return this.usedVirtualAccs;
+  }
+
+  public long getAvailableVirtualAccs() {
+    return this.availableVirtualAccs;
   }
 
   public ArrayList<String> getNodeLabels() {
