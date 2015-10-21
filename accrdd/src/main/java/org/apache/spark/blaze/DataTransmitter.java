@@ -160,12 +160,14 @@ public class DataTransmitter {
 	/**
 	* Create an empty message with specific type.
 	*
+	* @param appId
+	* 	Application ID given by Spark or resource manager.
 	* @param type
 	*		The message type.
 	* @see AccMessage.MsgType
 	**/
-	public static AccMessage.TaskMsg.Builder buildMessage(AccMessage.MsgType type) {
-		return buildMessage(null, null, type);
+	public static AccMessage.TaskMsg.Builder buildMessage(String appId, AccMessage.MsgType type) {
+		return buildMessage(null, appId, type);
 	}
 
 	/**
@@ -185,10 +187,10 @@ public class DataTransmitter {
 	) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
 			.setPartitionId(blockInfo.id())
-			.setNumElements(blockInfo.numElt())
 			.setFileOffset(blockInfo.offset());
 
 		if (blockInfo.numElt() != -1) {
+			data.setNumElements(blockInfo.numElt());
 			data.setElementSize(blockInfo.eltSize());
 			data.setElementLength(blockInfo.eltLength());
 		}

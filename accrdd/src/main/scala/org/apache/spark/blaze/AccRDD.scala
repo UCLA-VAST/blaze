@@ -76,8 +76,6 @@ class AccRDD[U: ClassTag, T: ClassTag](
     val isCached = inMemoryCheck(split)
 
     val resultIter = new Iterator[U] {
-      var inputAry: Array[T] = null
-
       var outputIter: Iterator[U] = null
       var outputAry: Array[U] = null // Length is unknown before reading the input
       var dataLength: Int = -1
@@ -117,27 +115,6 @@ class AccRDD[U: ClassTag, T: ClassTag](
         if (transmitter.isConnect == false)
           throw new RuntimeException("Connection refuse.")
 
-        startTime = System.nanoTime
-        // Count num_element if cached
-        if (isCached == true || !split.isInstanceOf[HadoopPartition] || !isPrimitiveType) {
-          inputAry = (firstParent[T].iterator(split, context)).toArray
-          val isArray = inputAry(0).isInstanceOf[Array[_]]
-
-          for (i <- 0 until numBlock) {
-            blockInfo(i).numElt = inputAry.length
-            blockInfo(i).eltLength = if (isArray) inputAry(0).asInstanceOf[Array[_]].length else 1
-            blockInfo(i).eltSize = if (isArray) { 
-              Util.getTypeSize(inputAry(0).asInstanceOf[Array[_]](0)) * blockInfo(i).eltLength
-            } else {
-              Util.getTypeSize(inputAry(0)) * blockInfo(i).eltLength
-            }
-            if (blockInfo(i).eltSize < 0)
-              throw new RuntimeException("Unsupported input data type.")
-          }
-        }
-        elapseTime = System.nanoTime - startTime
-        logInfo("Partition " + split.index + " count elements latency: " + elapseTime/1000 + " us")
-
         var msg = DataTransmitter.buildMessage(acc.id, appId, AccMessage.MsgType.ACCREQUEST)
         for (i <- 0 until numBlock)
           DataTransmitter.addData(msg, blockInfo(i), isSampled, null)
@@ -176,7 +153,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
         startTime = System.nanoTime
 
-        val dataMsg = DataTransmitter.buildMessage(AccMessage.MsgType.ACCDATA)
+        val dataMsg = DataTransmitter.buildMessage(appId, AccMessage.MsgType.ACCDATA)
 
         // Prepare input data blocks
         var requireData: Boolean = false
@@ -198,8 +175,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
             // 2. The data is not a HadoopPartition which we cannot process without reading it first. (Issue #26)
             // 3. The type is not primitive so that we have to read it first for detail information.
             if (isCached == true || !split.isInstanceOf[HadoopPartition] || !isPrimitiveType) {
-              if (inputAry == null)
-                inputAry = (firstParent[T].iterator(split, context)).toArray
+              val inputAry = (firstParent[T].iterator(split, context)).toArray
 
               // Get real input array considering Tuple types
               val subInputAry = if (numBlock == 1) inputAry else {
@@ -245,14 +221,17 @@ class AccRDD[U: ClassTag, T: ClassTag](
         for (i <- 0 until brdcstIdOrValue.length) {
           if (brdcstIdOrValue(i)._2 == true && !revMsg.getData(numBrdcstBlock + numBlock).getCached()) {
             requireData = true
-            val bcData = (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).data // Uncached data must be BlazeBroadcast.
+
+            require (acc.getArg(i).get.isInstanceOf[BlazeBroadcast[_]], 
+              "Uncached data is not BlazeBroadcast!")
+
+            val bcData = (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).data 
             if (bcData.getClass.isArray) { // Serialize array and use memory mapped file to send the data.
               val arrayData = bcData.asInstanceOf[Array[_]]
               val mappedFileInfo = new BlazeMemoryFileHandler(arrayData)
               mappedFileInfo.serialization(getIntId(), brdcstIdOrValue(i)._1)
-              brdcstBlockInfo(i).fileName = mappedFileInfo.fileName
 
-              DataTransmitter.addData(dataMsg, brdcstBlockInfo(i), false, null)
+              DataTransmitter.addData(dataMsg, mappedFileInfo, false, null)
               (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).length = mappedFileInfo.numElt
               (acc.getArg(i).get.asInstanceOf[BlazeBroadcast[_]]).size = mappedFileInfo.numElt * mappedFileInfo.eltSize
             }

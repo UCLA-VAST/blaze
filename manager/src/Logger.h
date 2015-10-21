@@ -62,6 +62,11 @@ public:
     std::string ts_str(t_str);
     std::string us_str = std::to_string((long long int)tr.tv_nsec/1000);
 
+    int num_zero = 6 - us_str.size();
+    for(int i = 0; i < num_zero; ++i) {
+      us_str = "0" + us_str;
+    }
+
     ts_str += "." + us_str;
 
     return ts_str;

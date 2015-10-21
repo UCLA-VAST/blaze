@@ -111,17 +111,12 @@ void DataBlock::readFromMem(std::string path) {
     
     void* data = (void*)fin.data();
 
-    try {
-      writeData(data, data_size);
-
-    } catch(std::runtime_error &e) {
-      throw e;
-    }
+    writeData(data, data_size);
 
     fin.close();
   }
   else {
-    throw std::runtime_error("Cannot find file");
+    throw std::runtime_error(std::string("Cannot find file: ") + path);
   }
 }
 
@@ -138,16 +133,12 @@ void DataBlock::writeToMem(std::string path) {
 
   if (fout.is_open()) {
 
-    try {
-      readData((void*)fout.data(), data_size);
-    } catch(std::runtime_error &e) {
-      throw e;
-    }
+    readData((void*)fout.data(), data_size);
 
     fout.close();
   }
   else {
-    throw std::runtime_error("Cannot find file");
+    throw std::runtime_error(std::string("Cannot write file: ") + path);
   }
 }
 

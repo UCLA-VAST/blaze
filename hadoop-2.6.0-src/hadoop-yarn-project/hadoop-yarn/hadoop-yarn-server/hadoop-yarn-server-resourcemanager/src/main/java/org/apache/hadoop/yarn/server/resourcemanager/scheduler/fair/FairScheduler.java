@@ -1538,4 +1538,9 @@ public class FairScheduler extends
     return EnumSet
       .of(SchedulerResourceTypes.MEMORY, SchedulerResourceTypes.CPU);
   }
+
+  @Override
+  public ConcurrentHashMap<String, Integer> getNodeAccInfo() {
+    return new ConcurrentHashMap<String, Integer>();
+  }
 }

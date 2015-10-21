@@ -89,8 +89,8 @@ public:
   // allocate data
   virtual void alloc();
 
-  // copy data from an array, use writeData with offset as subroutine
-  void writeData(void* src, size_t _size);
+  // copy data from an array
+  virtual void writeData(void* src, size_t _size);
 
   // copy data from an array with offset
   virtual void writeData(void* src, size_t _size, size_t offset);
@@ -108,8 +108,8 @@ public:
   // sample the items in the block by a mask
   virtual boost::shared_ptr<DataBlock> sample(char* mask);
 
-  void readFromMem(std::string path);
-  void writeToMem(std::string path);
+  virtual void readFromMem(std::string path);
+  virtual void writeToMem(std::string path);
 
   int getNumItems() { return num_items; }
   int getItemLength() { return item_length; }

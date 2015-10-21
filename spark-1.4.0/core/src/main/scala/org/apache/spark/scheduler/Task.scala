@@ -45,6 +45,8 @@ import org.apache.spark.util.Utils
  */
 private[spark] abstract class Task[T](val stageId: Int, var partitionId: Int) extends Serializable {
 
+  def isAcc: Boolean = false
+
   /**
    * Called by [[Executor]] to run this task.
    *

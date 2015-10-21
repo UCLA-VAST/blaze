@@ -23,24 +23,28 @@ void CommManager::recv(
     TaskMsg &task_msg, 
     socket_ptr socket) 
 {
-  int msg_size = 0;
+  try {
+    int msg_size = 0;
 
-  socket->receive(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)), 0);
+    socket->receive(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)), 0);
 
-  if (msg_size<=0) {
-    throw std::runtime_error(
-        "Invalid message size of " +
-        std::to_string((long long)msg_size));
+    if (msg_size<=0) {
+      throw std::runtime_error(
+          "Invalid message size of " +
+          std::to_string((long long)msg_size));
+    }
+    char* msg_data = new char[msg_size];
+
+    socket->receive(buffer(msg_data, msg_size), 0);
+
+    if (!task_msg.ParseFromArray(msg_data, msg_size)) {
+      throw std::runtime_error("Failed to parse input message");
+    }
+
+    delete [] msg_data;
+  } catch (std::exception &e) {
+    throw std::runtime_error(LOG_HEADER+std::string(e.what()));
   }
-  char* msg_data = new char[msg_size];
-
-  socket->receive(buffer(msg_data, msg_size), 0);
-
-  if (!task_msg.ParseFromArray(msg_data, msg_size)) {
-    throw std::runtime_error("Failed to parse input message");
-  }
-
-  delete msg_data;
 }
 
 // send one message, bytesize first
@@ -48,29 +52,31 @@ void CommManager::send(
     TaskMsg &task_msg, 
     socket_ptr socket) 
 {
-  int msg_size = task_msg.ByteSize();
+  try {
+    int msg_size = task_msg.ByteSize();
 
-  //NOTE: why doesn't this work: socket_stream << msg_size;
-  socket->send(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)),0);
+    //NOTE: why doesn't this work: socket_stream << msg_size;
+    socket->send(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)),0);
 
-  char* msg_data = new char[msg_size];
+    char* msg_data = new char[msg_size];
 
-  task_msg.SerializeToArray(msg_data, msg_size);
+    task_msg.SerializeToArray(msg_data, msg_size);
 
-  socket->send(buffer(msg_data, msg_size),0);
+    socket->send(buffer(msg_data, msg_size),0);
+  } catch (std::exception &e) {
+    throw std::runtime_error(LOG_HEADER+std::string(e.what()));
+  }
 }
 
 void CommManager::process(socket_ptr sock) {
 
   // turn off Nagle Algorithm to improve latency
   sock->set_option(ip::tcp::no_delay(true));
-  
-  // log info
-  //std::string msg = 
-  //  LOG_HEADER + 
-  //  std::string("Start processing a new connection.");
-  //logger->logInfo(msg);
 
+  // set socket buffer size to be 4MB
+  socket_base::receive_buffer_size option(4*1024*1024);
+  sock->set_option(option); 
+  
   srand(time(NULL));
 
   try {
@@ -88,8 +94,10 @@ void CommManager::process(socket_ptr sock) {
     try {
       recv(task_msg, sock);
     }
-    catch (std::runtime_error &e){
-      throw AccFailure("Error in receiving ACCREQUEST");
+    catch (std::exception &e){
+      throw AccFailure(
+          std::string("Error in receiving ACCREQUEST: ")+
+          std::string(e.what()));
     }
     if (task_msg.type() == ACCREQUEST) {
 
@@ -153,27 +161,14 @@ void CommManager::process(socket_ptr sock) {
         else {
 
           // check message schematic
-          if (!recv_block.has_partition_id() || 
-              !recv_block.has_num_elements()) 
+          if (!recv_block.has_partition_id())
           {
             logger->logErr(LOG_HEADER + 
-                std::string("invalid data_msg in ACCREQUEST"));
-            throw AccFailure("Invalide ACCREQUEST");
+                std::string("Missing partition_id in ACCREQUEST"));
+            throw AccFailure("Invalid ACCREQUEST");
           }
-          int64_t blockId     = recv_block.partition_id();
-          int num_elements    = recv_block.num_elements();
-          int element_length  = recv_block.has_element_length() ? 
-                                  recv_block.element_length() : 0;
-          int element_size    = recv_block.has_element_size() ? 
-                                  recv_block.element_size() : 0;
-
-          // check if the sizes are valid
-          if (num_elements > 0 && (element_length <=0 || element_size <=0)) {
-            logger->logErr(LOG_HEADER + 
-                std::string("invalid block size info in ACCREQUEST"));
-            throw AccFailure("Invalide ACCREQUEST");
-          }
-
+          int64_t blockId = recv_block.partition_id();
+          
           // reply entry in ACCGRANT
           DataMsg *reply_block = reply_msg.add_data();
           reply_block->set_partition_id(blockId);
@@ -183,6 +178,19 @@ void CommManager::process(socket_ptr sock) {
 
           // 1.3.2.1 if the input is a broadcast block
           if (blockId < 0) {
+
+            int num_elements    = recv_block.num_elements();
+            int element_length  = recv_block.has_element_length() ? 
+                                  recv_block.element_length() : 0;
+            int element_size    = recv_block.has_element_size() ? 
+                                  recv_block.element_size() : 0;
+
+            // check if the sizes are valid
+            if (num_elements > 0 && (element_length <=0 || element_size <=0)) {
+              logger->logErr(LOG_HEADER + 
+                  std::string("invalid block size info in ACCREQUEST"));
+              throw AccFailure("Invalide ACCREQUEST");
+            }
 
             if (block_manager->contains(blockId)) {
 
@@ -221,7 +229,7 @@ void CommManager::process(socket_ptr sock) {
 
                 // wait for mask in ACCDATA 
                 wait_accdata = true; 
-                 
+
                 reply_block->set_sampled(true);
               }
               else {
@@ -233,26 +241,13 @@ void CommManager::process(socket_ptr sock) {
             // 1.3.2.2.2 if the input block is not cached
             else {
 
-              // create block if size is available, and add block to cache
-              // if size is not availalbe it means the data is in the filesys
-              if (num_elements > 0) {
-
-                // check task config table to see if task is aligned
-                int align_width = 0;
-                if (!task->getConfig(i, "align_width").empty()) {
-                  align_width = stoi(task->getConfig(i, "align_width"));
-                }
-                block_manager->getAlloc(
-                    blockId, block,
-                    num_elements, element_length, element_size, 
-                    align_width);
-              }
+              // do not add block to task input table if data is sampled
+              block = NULL_DATA_BLOCK;
+              
               if (recv_block.has_sampled() && recv_block.sampled()) {
 
                 reply_block->set_sampled(true);
 
-                // do not add block to task input table if data is sampled
-                block = NULL_DATA_BLOCK;
               }
               else {
                 reply_block->set_sampled(false);
@@ -267,7 +262,7 @@ void CommManager::process(socket_ptr sock) {
           // add block information to a table
           block_table.insert(std::make_pair(blockId,
                 std::make_pair(reply_block->cached(), 
-                               reply_block->sampled())));
+                  reply_block->sampled())));
         }
       }
 
@@ -298,9 +293,6 @@ void CommManager::process(socket_ptr sock) {
       // 1.5 send msg back to client
       reply_msg.set_type(ACCGRANT);
       send(reply_msg, sock);
-      //logger->logInfo(
-      //    LOG_HEADER + 
-      //    std::string("Replied with an ACCGRANT message."));
 
       // 2. Handle ACCDATA
       if (wait_accdata) {
@@ -309,11 +301,11 @@ void CommManager::process(socket_ptr sock) {
         try {
           recv(data_msg, sock);
         }
-        catch (std::runtime_error &e) {
-          throw AccFailure("Error in receiving ACCDATA");
+        catch (std::exception &e) {
+          throw AccFailure(
+              std::string("Error in receiving ACCDATA")+
+              std::string(e.what()));
         }
-        //logger->logInfo(LOG_HEADER + 
-        //    std::string("Received an ACCDATA message."));
 
         // Acquire data from Spark
         if (data_msg.type() != ACCDATA) {
@@ -350,12 +342,6 @@ void CommManager::process(socket_ptr sock) {
           std::pair<bool, bool> block_status = block_table[blockId];
 
           DataBlock_ptr block;
-          if (block_status.second) {
-            block = block_manager->get(blockId);
-          }
-          else {
-            block = task->getInputBlock(blockId);
-          }
 
           // 2.1 Getting data ready for the block 
           if (!block_status.first) { // block is not cached
@@ -368,7 +354,11 @@ void CommManager::process(socket_ptr sock) {
             std::string path = recv_block.file_path();
 
             // 2.1.1 Read data from filesystem 
-            if (block == NULL_DATA_BLOCK) { 
+            if (recv_block.has_num_elements() && 
+                recv_block.num_elements() < 0) { 
+              
+              logger->logErr(LOG_HEADER+
+                  std::string("Reading file is unstable!"));
 
               if (!recv_block.has_file_size() ||
                   !recv_block.has_file_offset())
@@ -497,7 +487,47 @@ void CommManager::process(socket_ptr sock) {
             }
             // 2.1.2 Read input data block from memory mapped file
             else {  
-              block->readFromMem(path);
+
+              if (blockId >=0) {
+
+                // if block is regular input then expect sizing information
+                if (!recv_block.has_num_elements() ||
+                    !recv_block.has_element_length() ||
+                    !recv_block.has_element_size())
+                {
+                  logger->logErr(LOG_HEADER + 
+                      std::string("Missing block size info in ACCDATA"));
+                  throw AccFailure("Invalide ACCDATA");
+                }
+
+                int num_elements    = recv_block.num_elements();
+                int element_length  = recv_block.element_length();
+                int element_size    = recv_block.element_size();
+
+                // check task config table to see if task is aligned
+                int align_width = 0;
+                if (!task->getConfig(i, "align_width").empty()) {
+                  align_width = stoi(task->getConfig(i, "align_width"));
+                }
+
+                // the block needs to be created and add to cache
+                block_manager->getAlloc(
+                    blockId, block,
+                    num_elements, element_length, element_size, 
+                    align_width);
+              }
+              else { 
+                // if the block is a broadcast then it already resides in scratch
+                block = block_manager->get(blockId);
+              }
+
+              try {
+                block->readFromMem(path);
+              }
+              catch (std::exception &e) {
+                throw AccFailure(std::string("readFromMem error: ")+
+                    e.what());
+              }
 
               // delete memory map file after read
               boost::filesystem::wpath file(path);
@@ -505,6 +535,10 @@ void CommManager::process(socket_ptr sock) {
                 boost::filesystem::remove(file);
               }
             }
+          }
+          else { 
+            // block is cached
+            block = block_manager->get(blockId);
           }
 
           // 2.2 add block to Task input table
@@ -541,7 +575,7 @@ void CommManager::process(socket_ptr sock) {
           try {
             // add missing block to Task input_table, block should be ready
             task->inputBlockReady(blockId, block);
-          } catch (std::runtime_error &e) {
+          } catch (std::exception &e) {
             throw AccFailure(std::string("Cannot ready input block ")+
                 std::to_string((long long)blockId)+(" because: ")+
                 std::string(e.what()));
@@ -598,17 +632,12 @@ void CommManager::process(socket_ptr sock) {
             // write the block to output shared memory
             block->writeToMem(path);
           } 
-          catch ( std::runtime_error &e ) {
+          catch (std::exception &e) {
             throw AccFailure(
                 std::string("writeToMem error: ")+
-                e.what());
+                e.what()+
+                std::string("; path=")+path);
           }
-
-          //logger->logInfo(
-          //    LOG_HEADER + 
-          //    std::string("Write output block to ") +
-          //    path);
-
           // construct DataMsg
           // NOTE: not considering output data aligned allocation
           DataMsg *block_info = finish_msg.add_data();
@@ -630,18 +659,22 @@ void CommManager::process(socket_ptr sock) {
         throw AccFailure("Task failed");
       }
     }
-    // 4. Handle ACCBROADCAST
-    else if (task_msg.type() == ACCBROADCAST) {
+    // 4. Handle APPTERM
+    else if (task_msg.type() == ACCTERM) {
 
-      // NOTE: 
-      // In this implementation, ACCBROADCAST is used only for 
-      // removing the broadcast block for an application
+      if (!task_msg.has_app_id()) {
+        throw AccFailure("Missing app_id in ACCTERM");
+      }
+      std::string app_id = task_msg.app_id();
 
       logger->logInfo(LOG_HEADER + 
-          std::string("Recieved an ACCBROADCAST message")) ; 
+          std::string("Recieved an ACCTERM message for ")+
+          app_id); 
+
+      // TODO: delete application queue for app_id
 
       TaskMsg finish_msg;
-      for (int d=0; d< task_msg.data_size(); d++) {
+      for (int d=0; d<task_msg.data_size(); d++) {
         const DataMsg blockInfo = task_msg.data(d);
         int64_t blockId = blockInfo.partition_id();
 
@@ -649,13 +682,14 @@ void CommManager::process(socket_ptr sock) {
         platform_manager->removeShared(blockId);
       }
       finish_msg.set_type(ACCFINISH);
-      logger->logInfo(LOG_HEADER+
-          "Replied an ACCFINISH message regarding the broadcast.");
 
       send(finish_msg, sock);
     }
     else {
-      throw (AccFailure("Unknown message type, discarding message."));
+      char msg[500];
+      sprintf(msg, "Unknown message type: %d, discarding message\n",
+          task_msg.type());
+      throw (AccFailure(msg));
     }
   }
   catch (AccReject &e)  {
@@ -677,7 +711,7 @@ void CommManager::process(socket_ptr sock) {
 
     reply_msg.set_type(ACCFAILURE);
 
-    logger->logInfo(LOG_HEADER+
+    logger->logErr(LOG_HEADER+
         std::string("Send ACCFAILURE because: ")+
         e.what());
 
@@ -689,11 +723,16 @@ void CommManager::process(socket_ptr sock) {
 
     reply_msg.set_type(ACCFAILURE);
 
-    logger->logInfo(LOG_HEADER+
+    logger->logErr(LOG_HEADER+
         std::string("Send ACCFAILURE because: ")+
         e.what());
 
     send(reply_msg, sock);
+  }
+  catch (std::exception &e) {
+    logger->logErr(LOG_HEADER+
+        std::string("Unexpected exception: ")+
+        e.what());
   }
 }
 

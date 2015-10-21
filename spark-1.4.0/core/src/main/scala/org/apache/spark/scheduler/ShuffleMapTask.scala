@@ -50,6 +50,21 @@ private[spark] class ShuffleMapTask(
     this(0, null, new Partition { override def index: Int = 0 }, null)
   }
 
+  var accelerable = false
+
+  def this (
+    stageId: Int,
+    taskBinary: Broadcast[Array[Byte]],
+    partition: Partition,
+    locs: Seq[TaskLocation],
+    acc: Boolean
+    ) {
+    this(stageId, taskBinary, partition, locs)
+    accelerable = acc
+  }
+
+  override def isAcc: Boolean = accelerable
+
   @transient private val preferredLocs: Seq[TaskLocation] = {
     if (locs == null) Nil else locs.toSet.toSeq
   }

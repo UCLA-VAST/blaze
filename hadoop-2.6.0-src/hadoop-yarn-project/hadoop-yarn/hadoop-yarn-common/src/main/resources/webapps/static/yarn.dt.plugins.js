@@ -78,7 +78,7 @@ function renderHadoopDate(data, type, full) {
     if(data === '0'|| data === '-1') {
       return "N/A";
     }
-    return new Date(parseInt(data)).toUTCString();
+    return new Date(parseInt(data)).toLocaleString();
   }
   // 'sort', 'type' and undefined all just use the number
   // If date is 0, then for purposes of sorting it should be consider max_int

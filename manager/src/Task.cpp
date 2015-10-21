@@ -6,6 +6,79 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
+std::string Task::getConfig(int idx, std::string key) 
+{
+  if (config_table.find(idx) != config_table.end() &&
+      config_table[idx].find(key) != config_table[idx].end()) 
+  {
+    return config_table[idx][key];
+  } else {
+    return std::string();
+  }
+}
+
+char* Task::getOutput(
+    int idx, 
+    int item_length, 
+    int num_items,
+    int data_width) 
+{
+  if (idx < output_blocks.size()) {
+    // if output already exists, return the pointer 
+    // to the existing block
+    return output_blocks[idx]->getData();
+  }
+  else {
+    // if output does not exist, create one
+    DataBlock_ptr block = platform->createBlock(num_items, 
+        item_length, item_length*data_width);
+
+    output_blocks.push_back(block);
+
+    return block->getData();
+  }
+}
+
+int Task::getInputLength(int idx) { 
+  if (idx < input_blocks.size() && 
+      input_table.find(input_blocks[idx]) != input_table.end())
+  {
+    return input_table[input_blocks[idx]]->getLength(); 
+  }
+  else {
+    throw std::runtime_error("getInputLength out of bound idx");
+  }
+}
+
+
+int Task::getInputNumItems(int idx) { 
+  if (idx < input_blocks.size() &&
+      input_table.find(input_blocks[idx]) != input_table.end())
+  {
+    return input_table[input_blocks[idx]]->getNumItems() ; 
+  }
+  else {
+    throw std::runtime_error("getInputNumItems out of bound idx");
+  }
+}
+
+char* Task::getInput(int idx) {
+
+  if (idx < input_blocks.size() &&
+      input_table.find(input_blocks[idx]) != input_table.end())
+  {
+    return input_table[input_blocks[idx]]->getData();      
+  }
+  else {
+    throw std::runtime_error("getInput out of bound idx");
+  }
+}
+
+void Task::addConfig(int idx, std::string key, std::string val) {
+
+  config_table[idx][key] = val;
+}
+
 void Task::addInputBlock(
     int64_t partition_id, 
     DataBlock_ptr block = NULL_DATA_BLOCK) 
@@ -64,7 +137,7 @@ DataBlock_ptr Task::getInputBlock(int64_t block_id) {
 // push one output block to consumer
 // return true if there are more blocks to output
 bool Task::getOutputBlock(DataBlock_ptr &block) {
-  
+
   if (!output_blocks.empty()) {
 
     block = output_blocks.back();
