@@ -529,10 +529,15 @@ void CommManager::process(socket_ptr sock) {
                     e.what());
               }
 
-              // delete memory map file after read
-              boost::filesystem::wpath file(path);
-              if (boost::filesystem::exists(file)) {
-                boost::filesystem::remove(file);
+              try {
+                // delete memory map file after read
+                boost::filesystem::wpath file(path);
+                if (boost::filesystem::exists(file)) {
+                  boost::filesystem::remove(file);
+                }
+              } catch (std::exception &e) {
+                logger->logErr(LOG_HEADER+
+                    std::string("Cannot delete memory mapped file after read"));
               }
             }
           }

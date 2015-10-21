@@ -24,7 +24,10 @@ import breeze.linalg.{DenseVector => BDV}
 import org.apache.spark.annotation.{Experimental, DeveloperApi}
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.mllib.linalg.BLAS.axpy
 import org.apache.spark.mllib.linalg.{Vectors, Vector}
+
+import org.apache.spark.blaze._
 
 /**
  * Class used to solve an optimization problem using Gradient Descent.
@@ -181,21 +184,33 @@ object GradientDescent extends Logging {
     var regVal = updater.compute(
       weights, Vectors.dense(new Array[Double](weights.size)), 0, 1, regParam)._2
 
+
+    /**
+     * Setup Blaze runtime to allow accelerator of CostFun
+     */
+    val blaze = new BlazeRuntime(data.context)
+
+    var blaze_data = blaze.wrap(data.map( x => x match {
+          case (label, features) => label +: features.toArray
+          }))
+
     for (i <- 1 to numIterations) {
-      val bcWeights = data.context.broadcast(weights)
+      val bcWeights = data.context.broadcast(weights.toArray)
+      // setup for Blaze execution
+      var blaze_weight = blaze.wrap(bcWeights);
+
       // Sample a subset (fraction miniBatchFraction) of the total data
       // compute and sum up the subgradients on this subset (this is one map-reduce)
-      val (gradientSum, lossSum, miniBatchSize) = data.sample(false, miniBatchFraction, 42 + i)
-        .treeAggregate((BDV.zeros[Double](n), 0.0, 0L))(
-          seqOp = (c, v) => {
-            // c: (grad, loss, count), v: (label, features)
-            val l = gradient.compute(v._2, v._1, bcWeights.value, Vectors.fromBreeze(c._1))
-            (c._1, c._2 + l, c._3 + 1)
-          },
-          combOp = (c1, c2) => {
-            // c: (grad, loss, count)
-            (c1._1 += c2._1, c1._2 + c2._2, c1._3 + c2._3)
-          })
+      var (gradientSum, lossSum, miniBatchSize) = blaze_data.sample_acc(false, miniBatchFraction, 42 + i
+        ).mapPartitions_acc(
+          new GradientDescentWithACC(weights.size, gradient, blaze_weight)
+        ).map( 
+          a => (Vectors.dense(a.slice(0, a.length-2)), a(a.length-2), a(a.length-1).toLong)
+        ).reduce( (a, b) => (a, b) match { 
+          case ((grad1, loss1, count1), (grad2, loss2, count2)) => 
+            axpy(1.0, grad2, grad1)
+            (grad1, loss1 + loss2, count1 + count2)
+        })
 
       if (miniBatchSize > 0) {
         /**
@@ -204,7 +219,8 @@ object GradientDescent extends Logging {
          */
         stochasticLossHistory.append(lossSum / miniBatchSize + regVal)
         val update = updater.compute(
-          weights, Vectors.fromBreeze(gradientSum / miniBatchSize.toDouble), stepSize, i, regParam)
+          weights, Vectors.dense(gradientSum.toArray.map(e => e / miniBatchSize.toDouble)), 
+          stepSize, i, regParam)
         weights = update._1
         regVal = update._2
       } else {
@@ -215,7 +231,61 @@ object GradientDescent extends Logging {
     logInfo("GradientDescent.runMiniBatchSGD finished. Last 10 stochastic losses %s".format(
       stochasticLossHistory.takeRight(10).mkString(", ")))
 
+    blaze.stop()
+
     (weights, stochasticLossHistory.toArray)
 
+  }
+  /**
+  * GradientDescentWithACC implements Blaze Accelerator[T, T],
+  * it calculates the gradient and loss from input data using accelerator 
+  */
+  private class GradientDescentWithACC(
+    n: Int,
+    localGradient: Gradient,
+    weights: BlazeBroadcast[Array[Double]]
+  ) extends Accelerator[Array[Double], Array[Double]] {
+    
+    val id = localGradient match {
+      case grad : LogisticGradient => "LogisticGradient"
+      case grad : LeastSquaresGradient => "LeastSquaresGradient"
+      case grad : HingeGradient => "HingeGradient"
+      case _ => "GenericGradientACC"
+    }
+
+    def getArg(idx: Int): Option[BlazeBroadcast[Array[Double]]] = {
+      if (idx == 0) {
+        Some(weights)
+      }
+      else {
+        None
+      }
+    }
+    def getArgNum(): Int = 1
+
+    // function for AccRDD.mapParititions_acc()
+    override def call(iter: Iterator[Array[Double]]): Iterator[Array[Double]] = {
+      var result_iter = new Iterator[Array[Double]] {
+        var idx = 0
+        var grad = Vectors.zeros(n)
+        var loss = 0.0
+        var count = 0
+        while (iter.hasNext) {
+          val array = iter.next()
+          var label = array(0)
+          var features = Vectors.dense(array.slice(1, array.length))
+          val l = localGradient.compute(
+            features, label, Vectors.dense(weights.data), grad)
+          loss = loss + l
+          count += 1
+        }
+        def hasNext = (idx < 1)
+        def next = {
+          idx = idx + 1
+          grad.toArray :+ loss :+ count.toDouble
+        }
+      }
+      result_iter
+    }
   }
 }
