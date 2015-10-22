@@ -12,6 +12,9 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
+// use flexlm
+#include "license.h"
+
 #include "CommManager.h"
 #include "PlatformManager.h"
 #include "QueueManager.h"
@@ -20,7 +23,33 @@
 
 using namespace blaze;
 
+void licence_check_out() {
+
+  Feature feature = FALCON_RT;
+
+  // initialize for licensing. call once
+  fc_license_init();
+
+  // get a feature
+  fc_license_checkout(feature, 1);
+
+  printf("\n");
+}
+
+void licence_check_in() {
+
+  Feature feature = FALCON_RT;
+
+  fc_license_checkin(feature);
+
+  // cleanup for licensing. call once
+  fc_license_cleanup();
+}
+
 int main(int argc, char** argv) {
+
+  // check license
+  licence_check_out();
   
   std::string conf_path = "./conf.prototxt";
 
@@ -97,6 +126,9 @@ int main(int argc, char** argv) {
     // potential place for cleaning stage
     ;
   }
+
+  // release license
+  licence_check_in();
 
   return 0;
 }
