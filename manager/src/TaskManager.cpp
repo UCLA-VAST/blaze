@@ -71,8 +71,15 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
   int delay_time = estimateTime(task);
 
   // push task to queue
-  while (!app_queues[app_id]->push(task)) {
+  TaskQueue_ptr queue = app_queues[app_id];
+  if (!queue) {
+    throw std::runtime_error("Unexpected empty queue");
+  }
+
+  bool enqueued = queue->push(task);
+  while (!enqueued) {
     boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+    enqueued = queue->push(task);
   }
 
   // update lobby wait time
@@ -92,14 +99,16 @@ void TaskManager::schedule() {
     std::map<std::string, TaskQueue_ptr>::iterator iter;
 
     while (ready_queues.empty()) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
       for (iter = app_queues.begin();
           iter != app_queues.end();
           iter ++)
       {
-        if (!iter->second->empty()) {
+        if (iter->second && !iter->second->empty()) {
           ready_queues.push_back(iter->first);
         }
+      }
+      if (ready_queues.empty()) {
+        boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
       }
     }
     Task* next_task;
@@ -108,6 +117,11 @@ void TaskManager::schedule() {
     // use RoundRobin scheduling
     int idx_next = rand()%ready_queues.size();
 
+    if (app_queues.find(ready_queues[idx_next]) == app_queues.end()) {
+      logger->logErr(LOG_HEADER+
+        std::string("Did not find app_queue, unexpected"));
+      break;
+    }
     app_queues[ready_queues[idx_next]]->pop(next_task);
 
     logger->logInfo(LOG_HEADER+

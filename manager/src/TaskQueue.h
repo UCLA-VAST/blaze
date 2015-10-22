@@ -18,12 +18,7 @@ public:
   }
 
   bool push(Task* task) {
-    bool status = task_queue.push(task);
-    if (!status) {
-      return false;
-    } else {
-      return true;
-    }
+    return task_queue.push(task);
   }
 
   bool pop(Task* &task) {

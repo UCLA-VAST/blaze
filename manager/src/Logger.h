@@ -20,8 +20,11 @@ public:
     error_out = stderr;
     file_opened = false;
   }
-  Logger(std::string info_file, std::string error_file, int v): 
-      verbose(v) 
+  Logger(
+      std::string info_file, 
+      std::string error_file, 
+      int v=2, int l=2): 
+    verbose(v), level(l)
   {
     info_out = fopen(info_file.c_str(), "w+");
     error_out = fopen(error_file.c_str(), "w+");

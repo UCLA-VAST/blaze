@@ -292,7 +292,14 @@ void CommManager::process(socket_ptr sock) {
 
       // 1.5 send msg back to client
       reply_msg.set_type(ACCGRANT);
-      send(reply_msg, sock);
+      try {
+        send(reply_msg, sock);
+      }
+      catch (std::exception &e) {
+        throw AccFailure(
+            std::string("Error in sending ACCGRANT: ")+
+            std::string(e.what()));
+      }
 
       // 2. Handle ACCDATA
       if (wait_accdata) {
@@ -303,7 +310,7 @@ void CommManager::process(socket_ptr sock) {
         }
         catch (std::exception &e) {
           throw AccFailure(
-              std::string("Error in receiving ACCDATA")+
+              std::string("Error in receiving ACCDATA ")+
               std::string(e.what()));
         }
 

@@ -8,24 +8,33 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
-// create an empty block
-//DataBlock_ptr BlockManager::create() {
-//
-//  DataBlock_ptr block = platform->createBlock();
-//  return block;
-//}
-
-// create a block and 
+// create a block, if no space left then return NULL
 DataBlock_ptr BlockManager::create(
     int num_items, 
     int item_length,
     int item_size,
     int align_size) 
 {
-  DataBlock_ptr block = platform->createBlock(
-      num_items, item_length, item_size, align_size);
+  int block_size;
+  if (align_size > 0 && item_size % align_size != 0) {
+    block_size = num_items*((item_size+align_size-1)/align_size)*align_size;
+  }
+  else {
+    block_size = num_items*item_size;
+  }
+  // do not create new block if there is no space left 
+  // in either cache or scratch, for safety
+  if (block_size + cacheSize > maxCacheSize &&
+      block_size + scratchSize > maxScratchSize)
+  {
+    return NULL_DATA_BLOCK;
+  }
+  else {
+    DataBlock_ptr block = platform->createBlock(
+        num_items, item_length, item_size, align_size);
 
-  return block;
+    return block;
+  }
 }
 
 // create a block if it does not exist in the manager
@@ -56,7 +65,11 @@ bool BlockManager::getAlloc(
       return true;
     }
     catch (std::runtime_error &e) {
-      throw e;
+      logger->logErr(LOG_HEADER + 
+          std::string("Cannot to add block ") +
+          std::to_string((long long int)tag));
+
+      return false;
     }
   }
   else {
@@ -110,16 +123,24 @@ void BlockManager::add(
 {
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
-  do_add(tag, block);
+  try {
+    do_add(tag, block);
+  }
+  catch (std::runtime_error &e) {
+    // do not throw exceptions, simply log info and return 
+    logger->logErr(LOG_HEADER + 
+        std::string("Cannot to add block ") +
+        std::to_string((long long int)tag));
+  }
 }
 
 void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
 
+  // check if block already exists
+  if (contains(tag)) {
+    return;
+  }
   if (tag < 0) { // scratch block
-    
-    if (scratchTable.find(tag) != scratchTable.end()) {
-      return;
-    }
     if (scratchSize + block->getSize() >= maxScratchSize) {
 
       // cannot add because running out of space
@@ -129,6 +150,10 @@ void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
           ", maxsize is "+
           std::to_string((long long)maxScratchSize));
     }
+    logger->logInfo(LOG_HEADER + 
+        std::string("adding block ") +
+        std::to_string((long long int)tag) + 
+        std::string(" to cache."));
 
     // add the index to cacheTable
     scratchTable.insert(std::make_pair(tag, block));
@@ -137,39 +162,28 @@ void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
     scratchSize += block->getSize();
   }
   else {
-    // check if block already exists
-    if (cacheTable.find(tag) != cacheTable.end()) {
-      return;
-    }
-
     // log info
-    //logger->logInfo(LOG_HEADER + 
-    //    std::string("adding block ") +
-    //    std::to_string((long long int)tag) + 
-    //    std::string(" to cache."));
+    logger->logInfo(LOG_HEADER + 
+        std::string("adding block ") +
+        std::to_string((long long int)tag) + 
+        std::string(" to cache."));
 
-    try {
-      while (cacheSize + block->getSize() > maxCacheSize) {
-        // remove block from cache
-        evict();
-      }
 
-      // add the index to cacheTable
-      cacheTable.insert(
-          std::make_pair(
-            tag, 
-            std::make_pair(0, block)
-            ));
-
-      // increase the current cacheSize
-      cacheSize += block->getSize();
+    // do not add if current block is too big
+    if (block->getSize() > maxCacheSize) {
+      throw std::runtime_error("no space left"); 
     }
-    catch (std::runtime_error &e) {
-      // do not throw exceptions, simply log info and return 
-      logger->logErr(LOG_HEADER + 
-          std::string("Failed to add block ") +
-          std::to_string((long long int)tag));
+
+    // remove block from cache if no space left
+    while (cacheSize + block->getSize() > maxCacheSize) {
+      evict();
     }
+
+    // add the index to cacheTable
+    cacheTable.insert(std::make_pair(tag, std::make_pair(0, block)));
+
+    // increase the current cacheSize
+    cacheSize += block->getSize();
   }
 }
 
@@ -192,9 +206,9 @@ void BlockManager::remove(int64_t tag) {
       //delete block;
       scratchTable.erase(tag);
 
-      //logger->logInfo(LOG_HEADER+
-      //    std::string("Removed block ")+
-      //    std::to_string((long long)tag));
+      logger->logInfo(LOG_HEADER+
+          std::string("Removed block ")+
+          std::to_string((long long)tag));
     }
   }
 }
@@ -202,7 +216,7 @@ void BlockManager::remove(int64_t tag) {
 void BlockManager::evict() {
 
   if (cacheTable.size()==0) {
-    throw std::runtime_error("no block left");
+    throw std::runtime_error("no space left"); 
   }
    
   // find the block that has the least access count
@@ -237,7 +251,7 @@ void BlockManager::evict() {
   std::string msg = LOG_HEADER + 
                     std::string("evicted block ") +
                     std::to_string((long long int)tag);
-  //logger->logInfo(msg);
+  logger->logInfo(msg);
 }
 
 // update access count for a block, 

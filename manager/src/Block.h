@@ -37,7 +37,8 @@ public:
     item_length(_item_length),
     align_width(_align_width),
     allocated(false),
-    ready(false)
+    ready(false),
+    data(NULL)
   {
     data_width = _item_size / _item_length;
 
