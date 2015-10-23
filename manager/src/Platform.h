@@ -29,11 +29,6 @@ public:
   // setup an accelerator on the platform
   virtual void setupAcc(AccWorker &conf) {;}
 
-  //virtual DataBlock_ptr createBlock() {
-  //  DataBlock_ptr block(new DataBlock());
-  //  return block;
-  //}
-
   // create a block object for the specific platform
   virtual DataBlock_ptr createBlock(
       int num_items, 

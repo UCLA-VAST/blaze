@@ -15,8 +15,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
-#include "proto/task.pb.h"
-
 #include "Block.h"
 #include "Platform.h"
 
@@ -105,10 +103,7 @@ private:
   // return true if there are more blocks to output
   bool getOutputBlock(DataBlock_ptr &block);
    
-  DataBlock_ptr onDataReady(const DataMsg &blockInfo);
-
   void setPlatform(Platform *_platform) { platform = _platform;  }
-
 
   bool isReady();
 
