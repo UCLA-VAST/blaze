@@ -46,6 +46,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
   appId: String, 
   prev: RDD[T], 
   acc: Accelerator[T, U],
+  port: Int,
   sampler: RandomSampler[Int, Int]
 ) extends RDD[U](prev) with Logging {
 
@@ -88,8 +89,15 @@ class AccRDD[U: ClassTag, T: ClassTag](
       var elapseTime: Long = 0
 
       try {
-        if (!isPrimitiveType && !isModeledType)
+        if (!isPrimitiveType && !isModeledType) {
           throw new RuntimeException("RDD data type is not supported")
+        }
+
+        val transmitter = new DataTransmitter("127.0.0.1", port)
+        if (transmitter.isConnect == false) {
+          throw new RuntimeException("Connection refuse from port "+
+             port.toString)
+        }
 
         // Get broadcast block IDs
         for (j <- 0 until brdcstIdOrValue.length) {
@@ -110,10 +118,6 @@ class AccRDD[U: ClassTag, T: ClassTag](
           partitionMask = samplePartition(split, context)
           isSampled = true
         }
-
-        val transmitter = new DataTransmitter()
-        if (transmitter.isConnect == false)
-          throw new RuntimeException("Connection refuse.")
 
         var msg = DataTransmitter.buildMessage(acc.id, appId, AccMessage.MsgType.ACCREQUEST)
         for (i <- 0 until numBlock)
@@ -143,8 +147,10 @@ class AccRDD[U: ClassTag, T: ClassTag](
 
         startTime = System.nanoTime
         logInfo(Util.logMsg(msg))
+
         transmitter.send(msg)
         val revMsg = transmitter.receive()
+
         elapseTime = System.nanoTime - startTime
         logInfo("Partition " + split.index + " communication latency: " + elapseTime + " ns")
 
@@ -389,7 +395,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
     * @return A transformed AccRDD.
     */
   def map_acc[V: ClassTag](clazz: Accelerator[U, V]): AccRDD[V, U] = {
-    new AccRDD(appId, this, clazz, null)
+    new AccRDD(appId, this, clazz, port, null)
   }
 
   /**
@@ -400,7 +406,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
     * @return A transformed AccMapPartitionsRDD.
     */
   def mapPartitions_acc[V: ClassTag](clazz: Accelerator[U, V]): AccMapPartitionsRDD[V, U] = {
-    new AccMapPartitionsRDD(appId, this.asInstanceOf[RDD[U]], clazz, null)
+    new AccMapPartitionsRDD(appId, this.asInstanceOf[RDD[U]], clazz, port, null)
   }
   
 
@@ -426,7 +432,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
       thisSampler = new BernoulliSampler[Int](fraction)
     thisSampler.setSeed(seed)
 
-    new ShellRDD(appId, this.asInstanceOf[RDD[T]], thisSampler)
+    new ShellRDD(appId, this.asInstanceOf[RDD[T]], port, thisSampler)
   }
  
   /**

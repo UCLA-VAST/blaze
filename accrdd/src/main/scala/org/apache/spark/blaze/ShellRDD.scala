@@ -39,10 +39,11 @@ import org.apache.spark.util.random._
 class ShellRDD[T: ClassTag](
   appId: String, 
   prev: RDD[T],
+  port: Int,
   sampler: RandomSampler[Int, Int]
 ) extends RDD[T](prev) {
 
-  def this(id: String, prev: RDD[T]) = this(id, prev, null)
+  def this(id: String, prev: RDD[T], port: Int) = this(id, prev, port, null)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -63,7 +64,7 @@ class ShellRDD[T: ClassTag](
   }
 
   def map_acc[U: ClassTag](clazz: Accelerator[T, U]): AccRDD[U, T] = {
-    new AccRDD(appId, this, clazz, sampler)
+    new AccRDD(appId, this, clazz, port, sampler)
   }
 
   def sample_acc (
@@ -84,11 +85,11 @@ class ShellRDD[T: ClassTag](
       thisSampler = new TestSampler[Int]
     }
 
-    new ShellRDD(appId, this, thisSampler)
+    new ShellRDD(appId, this, port, thisSampler)
   }
 
   def mapPartitions_acc[U: ClassTag](clazz: Accelerator[T, U]): AccMapPartitionsRDD[U, T] = {
-    new AccMapPartitionsRDD(appId, this, clazz, sampler)
+    new AccMapPartitionsRDD(appId, this, clazz, port, sampler)
   }
 }
 

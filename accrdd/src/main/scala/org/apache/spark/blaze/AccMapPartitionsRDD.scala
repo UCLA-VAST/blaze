@@ -46,8 +46,9 @@ class AccMapPartitionsRDD[U: ClassTag, T: ClassTag](
   appId: String, 
   prev: RDD[T], 
   acc: Accelerator[T, U], 
+  port: Int,
   sampler: RandomSampler[Int, Int]
-) extends AccRDD[U, T](appId, prev, acc, sampler) with Logging {
+) extends AccRDD[U, T](appId, prev, acc, port, sampler) with Logging {
 
   /**
     * In case of failing to execute the computation on accelerator, 
