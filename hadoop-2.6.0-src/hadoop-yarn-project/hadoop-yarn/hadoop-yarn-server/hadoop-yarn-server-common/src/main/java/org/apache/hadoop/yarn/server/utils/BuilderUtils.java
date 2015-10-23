@@ -400,6 +400,14 @@ public class BuilderUtils {
     return resource;
   }
 
+  public static Resource newResource(int memory, int vCores, int vAccs) {
+    Resource resource = recordFactory.newRecordInstance(Resource.class);
+    resource.setMemory(memory);
+    resource.setVirtualCores(vCores);
+    resource.setVirtualAccs(vAccs);
+    return resource;
+  }
+
   public static URL newURL(String scheme, String host, int port, String file) {
     URL url = recordFactory.newRecordInstance(URL.class);
     url.setScheme(scheme);
