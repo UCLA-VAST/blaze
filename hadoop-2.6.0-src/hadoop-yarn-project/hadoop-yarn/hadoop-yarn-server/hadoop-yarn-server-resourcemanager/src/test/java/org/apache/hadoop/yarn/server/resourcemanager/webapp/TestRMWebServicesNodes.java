@@ -664,7 +664,7 @@ public class TestRMWebServicesNodes extends JerseyTest {
 
   public void verifyNodeInfo(JSONObject nodeInfo, MockNM nm)
       throws JSONException, Exception {
-    assertEquals("incorrect number of elements", 13, nodeInfo.length());
+    assertEquals("incorrect number of elements", 15, nodeInfo.length());
 
     verifyNodeInfoGeneric(nm, nodeInfo.getString("state"),
         nodeInfo.getString("rack"),
