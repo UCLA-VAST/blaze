@@ -91,8 +91,6 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
 
 void TaskManager::schedule() {
   
-  logger->logInfo(LOG_HEADER + std::string("started a scheduler"));
-
   while (power) {
     // iterate through all app queues and record which are non-empty
     std::vector<std::string> ready_queues;
@@ -118,8 +116,6 @@ void TaskManager::schedule() {
     int idx_next = rand()%ready_queues.size();
 
     if (app_queues.find(ready_queues[idx_next]) == app_queues.end()) {
-      logger->logErr(LOG_HEADER+
-        std::string("Did not find app_queue, unexpected"));
       break;
     }
     app_queues[ready_queues[idx_next]]->pop(next_task);
@@ -133,8 +129,6 @@ void TaskManager::schedule() {
 }
 
 void TaskManager::execute() {
-
-  logger->logInfo(LOG_HEADER + std::string("started an executor"));
 
   // continuously execute tasks from the task queue
   while (power) { 
@@ -161,7 +155,7 @@ void TaskManager::execute() {
       } 
       catch (std::runtime_error &e) {
         logger->logErr(LOG_HEADER+ 
-            std::string("task->execute() error: ")+
+            std::string("Task::execute() error: ")+
             e.what());
       }
       uint64_t delay_time = logger->getUs() - start_time;

@@ -51,14 +51,13 @@ int main(int argc, char** argv) {
   // check license
   licence_check_out();
   
-  std::string conf_path = "./conf.prototxt";
-
   if (argc < 2) {
     printf("USAGE: %s <conf_path>\n", argv[0]);
     return -1;
   }
 
-  int file_handle = open(argv[1], O_RDONLY);
+  std::string conf_path(argv[1]);
+  int file_handle = open(conf_path.c_str(), O_RDONLY);
 
   if (file_handle < 0) {
     printf("cannot find configure file: %s\n",

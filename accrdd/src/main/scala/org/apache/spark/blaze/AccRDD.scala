@@ -145,14 +145,10 @@ class AccRDD[U: ClassTag, T: ClassTag](
             DataTransmitter.addScalarData(msg, brdcstIdOrValue(i)._1)
         }
 
-        startTime = System.nanoTime
-        logInfo(Util.logMsg(msg))
+        logInfo("Partition "+split.index+" sent an AccRequest for accelerator: "+acc.id);
 
         transmitter.send(msg)
         val revMsg = transmitter.receive()
-
-        elapseTime = System.nanoTime - startTime
-        logInfo("Partition " + split.index + " communication latency: " + elapseTime + " ns")
 
         if (revMsg.getType() != AccMessage.MsgType.ACCGRANT)
           throw new RuntimeException("Request reject.")
@@ -177,43 +173,25 @@ class AccRDD[U: ClassTag, T: ClassTag](
             requireData = true
 
             // Serialize it and send memory mapped file path if:
-            // 1. The data has been read and cached by Spark.
-            // 2. The data is not a HadoopPartition which we cannot process without reading it first. (Issue #26)
-            // 3. The type is not primitive so that we have to read it first for detail information.
-            if (isCached == true || !split.isInstanceOf[HadoopPartition] || !isPrimitiveType) {
-              val inputAry = (firstParent[T].iterator(split, context)).toArray
+            val inputAry = (firstParent[T].iterator(split, context)).toArray
 
-              // Get real input array considering Tuple types
-              val subInputAry = if (numBlock == 1) inputAry else {
-                i match {
-                  case 0 => inputAry.asInstanceOf[Array[Tuple2[_,_]]].map(e => e._1)
-                  case 1 => inputAry.asInstanceOf[Array[Tuple2[_,_]]].map(e => e._2)
-                }
-              }
-              val mappedFileInfo = new BlazeMemoryFileHandler(subInputAry)
-              mappedFileInfo.serialization(getIntId(), blockInfo(i).id)
-
-              dataLength = dataLength + mappedFileInfo.numElt // We know element # by reading the file
-
-              if (isSampled) {
-                DataTransmitter.addData(dataMsg, mappedFileInfo, true, maskFileInfo.fileName)
-              }
-              else {
-                DataTransmitter.addData(dataMsg, mappedFileInfo, false, null)
+            // Get real input array considering Tuple types
+            val subInputAry = if (numBlock == 1) inputAry else {
+              i match {
+                case 0 => inputAry.asInstanceOf[Array[Tuple2[_,_]]].map(e => e._1)
+                case 1 => inputAry.asInstanceOf[Array[Tuple2[_,_]]].map(e => e._2)
               }
             }
-            else { // The data hasn't been read by Spark, send HDFS file path directly (data length is unknown)
-              val splitInfo: String = split.asInstanceOf[HadoopPartition].inputSplit.toString
+            val mappedFileInfo = new BlazeMemoryFileHandler(subInputAry)
+            mappedFileInfo.serialization(getIntId(), blockInfo(i).id)
 
-              // Parse Hadoop file string: file:<path>:<offset>+<size>
-              blockInfo(i).fileName = splitInfo.substring(
-                  splitInfo.indexOf(':') + 1, splitInfo.lastIndexOf(':'))
-              blockInfo(i).offset = splitInfo.substring(
-                  splitInfo.lastIndexOf(':') + 1, splitInfo.lastIndexOf('+')).toInt
-              blockInfo(i).fileSize = splitInfo.substring(
-                  splitInfo.lastIndexOf('+') + 1, splitInfo.length).toInt
-           
-              DataTransmitter.addData(dataMsg, blockInfo(i), false , null)
+            dataLength = dataLength + mappedFileInfo.numElt // We know element # by reading the file
+
+            if (isSampled) {
+              DataTransmitter.addData(dataMsg, mappedFileInfo, true, maskFileInfo.fileName)
+            }
+            else {
+              DataTransmitter.addData(dataMsg, mappedFileInfo, false, null)
             }
           }
           else if (revMsg.getData(i).getSampled()) {
@@ -250,17 +228,13 @@ class AccRDD[U: ClassTag, T: ClassTag](
           }
         }
 
-        elapseTime = System.nanoTime - startTime
-        logInfo("Partition " + split.index + " preprocesses time: " + elapseTime + " ns");
-
         // Send ACCDATA message only when it is required.
         if (requireData == true) {
-          logInfo(Util.logMsg(dataMsg))
           transmitter.send(dataMsg)
         }
+        logInfo("Sent partition "+split.index+" to the accelerator");
 
         val finalRevMsg = transmitter.receive()
-        logInfo(Util.logMsg(finalRevMsg))
 
         if (finalRevMsg.getType() == AccMessage.MsgType.ACCFINISH) {
           val numOutputBlock: Int = finalRevMsg.getDataCount
@@ -363,7 +337,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
           outputIter = outputAry.iterator
 
           elapseTime = System.nanoTime - startTime
-          logInfo("Partition " + split.index + " reads memory mapped file: " + elapseTime + " ns")
+          logInfo("Partition " + split.index + " finishes executing on accelerator")
         }
         else
           throw new RuntimeException("Task failed.")

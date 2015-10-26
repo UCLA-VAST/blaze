@@ -10,7 +10,6 @@ void OpenCLBlock::alloc() {
 
   if (!allocated) {
     //NOTE: assuming buffer allocation is thread-safe
-    //boost::lock_guard<OpenCLBlock> guard(*env);
     cl_context context = env->getContext();
     cl_int err = 0;
 
@@ -103,9 +102,10 @@ void OpenCLBlock::writeData(void* src, size_t _size) {
 
     // lock TaskEnv for exclusive access to OpenCL command queue
     boost::lock_guard<OpenCLEnv> guard(*env);
+    //env->lock();
 
     // array of cl_event to wait until all buffer copy is finished
-    //cl_event *events = new cl_event[num_items];
+    cl_event event;
 
     // copy the data element-by-element since each element is aligned
     for (int k=0; k<num_items; k++) {
@@ -122,7 +122,10 @@ void OpenCLBlock::writeData(void* src, size_t _size) {
         throw std::runtime_error("Failed to write to OpenCL block");
       }
     }  
+    //env->unlock();
+    //clWaitForEvents(1, &event);
     ready = true;
+
     //delete [] events;
   }
 }

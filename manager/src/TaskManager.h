@@ -10,6 +10,8 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
+#include "proto/acc_conf.pb.h"
+
 #include "TaskEnv.h"
 #include "Task.h"
 #include "TaskQueue.h"

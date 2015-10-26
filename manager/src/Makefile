@@ -41,13 +41,11 @@ COMPILE = $(CFLAGS) \
 				 $(INCLUDES)
 
 LINK = -L../lib -lblaze \
-			 -L$(BOOST_DIR)/lib \
-			 -lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
 			 -L$(PROTOBUF_DIR)/lib -lprotobuf \
-			 -L$(HADOOP_DIR)/lib/native -lhdfs \
-			 -L$(JAVA_HOME)/jre/lib/amd64/server -ljvm \
 			 -L$(FLMDIR) $(FLMLIB) \
-			 -lpthread -lm -ldl
+			 -L$(BOOST_DIR)/lib \
+			 -lboost_system -lboost_iostreams -lboost_filesystem -lboost_thread \
+			 -lpthread -lm -ldl -lrt
 
 DEPS = CommManager.o \
 			 PlatformManager.o \
@@ -57,18 +55,22 @@ DEPS = CommManager.o \
 			 Task.o \
 			 TaskManager.o \
 			 task.pb.o \
-			 acc_conf.pb.o \
+			 acc_conf.pb.o 
 
 LMDEPS = $(FLMDIR)/license.o \
 			 	 $(FLMDIR)/lm_new.o 
 
 all: ../bin/acc_manager ../lib/libblaze.so
 
+package: 
+	cp ../bin/acc_manager ../../package/bin/nam_daemon
+	cp ../lib/libblaze.so ../../package/lib
+
 ../lib/libblaze.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS)
 
 ../bin/acc_manager: ../lib/libblaze.so main.o $(LMDEPS)
-	$(PP) -o $@ main.o $(LMDEPS) $(LINK) 
+	$(PP) -o $@ main.o $(LMDEPS) $(LINK)
 
 task.pb.o: proto/task.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 

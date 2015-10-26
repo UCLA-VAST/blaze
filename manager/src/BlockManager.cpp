@@ -65,9 +65,9 @@ bool BlockManager::getAlloc(
       return true;
     }
     catch (std::runtime_error &e) {
-      logger->logErr(LOG_HEADER + 
-          std::string("Cannot to add block ") +
-          std::to_string((long long int)tag));
+      //logger->logErr(LOG_HEADER + 
+      //    std::string("Cannot to add block ") +
+      //    std::to_string((long long int)tag));
 
       return false;
     }
@@ -88,12 +88,6 @@ DataBlock_ptr BlockManager::get(int64_t tag) {
   // guarantee exclusive access
   boost::lock_guard<BlockManager> guard(*this);
 
-  // log info
-  std::string msg = LOG_HEADER + 
-                    std::string("requesting block ") +
-                    std::to_string((long long)tag);
-  //logger->logInfo(msg);
-  
   if (tag < 0) {
     if (scratchTable.find(tag) == scratchTable.end()) {
       return NULL_DATA_BLOCK;
@@ -145,16 +139,8 @@ void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
 
       // cannot add because running out of space
       throw std::runtime_error(LOG_HEADER+
-          "cannot add broadcast with size: " + 
-          std::to_string((long long)block->getSize())+
-          ", maxsize is "+
-          std::to_string((long long)maxScratchSize));
+          std::string("Cannot add broadcast block"));
     }
-    logger->logInfo(LOG_HEADER + 
-        std::string("adding block ") +
-        std::to_string((long long int)tag) + 
-        std::string(" to cache."));
-
     // add the index to cacheTable
     scratchTable.insert(std::make_pair(tag, block));
 
@@ -162,13 +148,6 @@ void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
     scratchSize += block->getSize();
   }
   else {
-    // log info
-    logger->logInfo(LOG_HEADER + 
-        std::string("adding block ") +
-        std::to_string((long long int)tag) + 
-        std::string(" to cache."));
-
-
     // do not add if current block is too big
     if (block->getSize() > maxCacheSize) {
       throw std::runtime_error("no space left"); 
@@ -201,14 +180,10 @@ void BlockManager::remove(int64_t tag) {
     }
     else {
       DataBlock_ptr block = scratchTable[tag];
-      //scratchSize -= block->getSize();
+      scratchSize -= block->getSize();
 
       //delete block;
       scratchTable.erase(tag);
-
-      logger->logInfo(LOG_HEADER+
-          std::string("Removed block ")+
-          std::to_string((long long)tag));
     }
   }
 }
@@ -246,23 +221,11 @@ void BlockManager::evict() {
 
   // decrease the current cacheSize
   cacheSize -= size;
-
-  // log info
-  std::string msg = LOG_HEADER + 
-                    std::string("evicted block ") +
-                    std::to_string((long long int)tag);
-  logger->logInfo(msg);
 }
 
 // update access count for a block, 
 // and then update cacheTable for new indexes
 void BlockManager::update(int64_t tag) {
-
-  // log info
-  std::string msg = LOG_HEADER + 
-                    std::string("updating block ") +
-                    std::to_string((long long int)tag);
-  //logger->logInfo(msg);
 
   cacheTable[tag].first += 1;
 }

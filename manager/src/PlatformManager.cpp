@@ -94,7 +94,7 @@ PlatformManager::PlatformManager(
       // start all executors/commiters in QueueManager
       queue_manager->startAll();
     }
-    catch (std::runtime_error &e) {
+    catch (std::exception &e) {
       logger->logErr(LOG_HEADER +
         std::string("Cannot create platform ") + id +
         std::string(": ") + e.what());

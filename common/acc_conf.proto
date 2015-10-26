@@ -25,6 +25,8 @@ message AccWorker {
   required string id = 1;  
   required string path = 2;
   repeated KeyValue param = 3;
+  optional string kernel_name = 4;
+  optional string kernel_path = 5;
 }
 
 message ManagerConf {

@@ -163,8 +163,6 @@ void CommManager::process(socket_ptr sock) {
           // check message schematic
           if (!recv_block.has_partition_id())
           {
-            logger->logErr(LOG_HEADER + 
-                std::string("Missing partition_id in ACCREQUEST"));
             throw AccFailure("Invalid ACCREQUEST");
           }
           int64_t blockId = recv_block.partition_id();
@@ -187,9 +185,7 @@ void CommManager::process(socket_ptr sock) {
 
             // check if the sizes are valid
             if (num_elements > 0 && (element_length <=0 || element_size <=0)) {
-              logger->logErr(LOG_HEADER + 
-                  std::string("invalid block size info in ACCREQUEST"));
-              throw AccFailure("Invalide ACCREQUEST");
+              throw AccFailure("Invalid ACCREQUEST");
             }
 
             if (block_manager->contains(blockId)) {
@@ -266,30 +262,6 @@ void CommManager::process(socket_ptr sock) {
         }
       }
 
-      // 1.4 decide to reject the task if wait time is too long
-      int task_time = task_manager->estimateTime(task.get());
-      int task_speedup = task->estimateSpeedup();
-
-      if (task_time > 0 && task_speedup > 0) {
-
-        // <bestcase wait time, worstcase wait time>
-        std::pair<int,int> wait_time = task_manager->getWaitTime(task.get());
-
-        logger->logInfo(LOG_HEADER+
-            std::string("Wait time = (")+
-            std::to_string((long long)wait_time.first)+
-            std::string(",")+
-            std::to_string((long long)wait_time.second)+
-            std::string(") us, task estimated time = ")+
-            std::to_string((long long)task_time)+
-            std::string(" us"));
-
-        // use worst cast wait time
-        if (wait_time.second > task_time*task_speedup) {
-          throw AccReject("Wait time too long");
-        }
-      }
-
       // 1.5 send msg back to client
       reply_msg.set_type(ACCGRANT);
       try {
@@ -336,14 +308,8 @@ void CommManager::process(socket_ptr sock) {
           if (task->getInputBlock(blockId) &&
               task->getInputBlock(blockId)->isReady()) 
           {
-            logger->logInfo(LOG_HEADER+
-                "Skipping ready block "+
-                std::to_string((long long)blockId));
             break;
           }
-          logger->logInfo(LOG_HEADER+
-              "Start reading data for block "+
-              std::to_string((long long)blockId));
 
           // block_status: <cached, sampled>
           std::pair<bool, bool> block_status = block_table[blockId];
@@ -502,8 +468,6 @@ void CommManager::process(socket_ptr sock) {
                     !recv_block.has_element_length() ||
                     !recv_block.has_element_size())
                 {
-                  logger->logErr(LOG_HEADER + 
-                      std::string("Missing block size info in ACCDATA"));
                   throw AccFailure("Invalide ACCDATA");
                 }
 
@@ -574,14 +538,9 @@ void CommManager::process(socket_ptr sock) {
 
               // overwrite the block handle to the sampled block
               block = block->sample(mask);
-
-              logger->logInfo(LOG_HEADER+
-                  "Finish sampling block "+
-                  std::to_string((long long)blockId));
             }
             else {
-              throw AccFailure(std::string("Cannot mask for block ")+
-                  std::to_string((long long)blockId));
+              throw AccFailure("Sampling error");
             }
           }
           try {
@@ -592,9 +551,6 @@ void CommManager::process(socket_ptr sock) {
                 std::to_string((long long)blockId)+(" because: ")+
                 std::string(e.what()));
           }
-          logger->logInfo(LOG_HEADER+
-              "finish reading data for block "+
-              std::to_string((long long)blockId));
         }
       } // 2. Finish handling ACCDATA
 
@@ -604,8 +560,6 @@ void CommManager::process(socket_ptr sock) {
             boost::chrono::microseconds(100)); 
       }
 
-      logger->logInfo(LOG_HEADER+
-          std::string("Task ready, enqueue to be executed"));
       // add task to application queue
       task_manager->enqueue(app_id, task.get());
 
@@ -645,11 +599,9 @@ void CommManager::process(socket_ptr sock) {
             block->writeToMem(path);
           } 
           catch (std::exception &e) {
-            throw AccFailure(
-                std::string("writeToMem error: ")+
-                e.what()+
-                std::string("; path=")+path);
+            throw AccFailure("writeToMem error");
           }
+
           // construct DataMsg
           // NOTE: not considering output data aligned allocation
           DataMsg *block_info = finish_msg.add_data();
@@ -763,7 +715,6 @@ void CommManager::listen() {
         std::string("Listening for new connections at ")+
         ip_address + std::string(":") + std::to_string((long long)srv_port));
 
-    // TODO: join all thread after termination
     while(1) {
 
       // create socket for connection
