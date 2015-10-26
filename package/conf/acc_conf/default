@@ -1,0 +1,6 @@
+port : 1027
+verbose : 2
+platform : {
+  cache_limit: 16384
+  scratch_limit: 4096
+}
