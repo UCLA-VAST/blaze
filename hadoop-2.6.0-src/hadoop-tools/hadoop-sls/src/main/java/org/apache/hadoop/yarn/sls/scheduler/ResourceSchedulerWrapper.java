@@ -941,5 +941,10 @@ public class ResourceSchedulerWrapper
       ContainerStatus containerStatus, RMContainerEventType event) {
     // do nothing
   }
+
+  @Override
+  public ConcurrentHashMap<String, Integer> getNodeAccInfo() {
+      return new ConcurrentHashMap<String, Integer>();
+  }
 }
 
