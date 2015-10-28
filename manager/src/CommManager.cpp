@@ -6,8 +6,12 @@
 #include <sys/stat.h>
 
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <cstdint>
+
+#include <boost/iostreams/device/mapped_file.hpp>
+#include <boost/thread/thread.hpp>
 
 #include "CommManager.h"
 

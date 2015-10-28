@@ -7,7 +7,6 @@
 #include <stdexcept>
 
 #include <boost/smart_ptr.hpp>
-#include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>

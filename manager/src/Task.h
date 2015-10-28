@@ -1,24 +1,13 @@
 #ifndef TASK_H
 #define TASK_H
 
-#include <stdio.h>
+#include <string>
 #include <map>
 #include <vector>
 #include <cstdlib>
-#include <fstream>
-
-#ifdef USEHDFS
-#include "hdfs.h"
-#endif
-
-#include <boost/lexical_cast.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/iostreams/device/mapped_file.hpp>
-
-#include "proto/task.pb.h"
+#include <stdexcept>
 
 #include "Block.h"
-#include "Platform.h"
 
 namespace blaze {
 
@@ -26,6 +15,9 @@ namespace blaze {
 class TaskManager;
 class CommManager;
 template <typename U, typename T> class BlazeTest;
+
+class Platform;
+class TaskEnv;
 
 /**
  * Task is the base clase of an accelerator task
@@ -39,10 +31,10 @@ template <typename U, typename T>
 friend class BlazeTest;
 
 public:
-  Task(int _num_input): 
+  Task(int _num_args): 
     status(NOTREADY), 
     estimated_time(-1),
-    num_input(_num_input),
+    num_input(_num_args),
     num_ready(0)
   {; }
 
@@ -70,6 +62,19 @@ public:
 
 protected:
 
+  TaskEnv* getEnv();
+
+  char* getOutput(int idx, int item_length, int num_items, int data_width);
+  
+  int getInputLength(int idx);
+
+  int getInputNumItems(int idx);
+
+  char* getInput(int idx);
+
+  // add a configuration for a dedicated block 
+  void addConfig(int idx, std::string key, std::string val);
+
   // read one line from file and write to an array
   // and return the size of bytes put to a buffer
   virtual char* readLine(
@@ -82,16 +87,20 @@ protected:
     return NULL;
   }
 
-  TaskEnv* getEnv() { return platform->getEnv();  }
+  // pointer to the platform
+  Platform *platform;
 
-  char* getOutput(int idx, int item_length, int num_items, int data_width);
-  
-  int getInputLength(int idx);
-  int getInputNumItems(int idx);
-  char* getInput(int idx);
+  // a list of input blocks to its partition_id
+  std::vector<int64_t> input_blocks;
 
-  // add a configuration for a dedicated block 
-  void addConfig(int idx, std::string key, std::string val);
+  // list of output blocks
+  std::vector<DataBlock_ptr> output_blocks;
+
+  // a table that maps block index to configurations
+  std::map<int, std::map<std::string, std::string> > config_table;
+
+  // a mapping between partition_id to the input blocks
+  std::map<int64_t, DataBlock_ptr> input_table;
 
 private:
 
@@ -105,10 +114,7 @@ private:
   // return true if there are more blocks to output
   bool getOutputBlock(DataBlock_ptr &block);
    
-  DataBlock_ptr onDataReady(const DataMsg &blockInfo);
-
   void setPlatform(Platform *_platform) { platform = _platform;  }
-
 
   bool isReady();
 
@@ -125,28 +131,12 @@ private:
 
   int estimated_time;
 
-  // pointer to the platform
-  Platform *platform;
-
-  // number of total input blocks
-  int num_input;
-
   // number of input blocks that has data initialized
   int num_ready;
 
-  // a mapping between partition_id to the input blocks
-  std::map<int64_t, DataBlock_ptr> input_table;
-
-  // a list of input blocks to its partition_id
-  std::vector<int64_t> input_blocks;
-
-  // list of output blocks
-  std::vector<DataBlock_ptr> output_blocks;
-
-  // a table that maps block index to configurations
-  std::map<int, std::map<std::string, std::string> > config_table;
+  // number of total input blocks
+  int num_input;
 };
 
-typedef boost::shared_ptr<Task> Task_ptr;
 }
 #endif

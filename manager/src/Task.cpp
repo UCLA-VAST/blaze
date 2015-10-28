@@ -1,4 +1,20 @@
+#include <stdio.h>
+#include <map>
+#include <vector>
+#include <cstdlib>
+#include <fstream>
+
+#ifdef USEHDFS
+#include "hdfs.h"
+#endif
+
+#include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
+
+#include "Block.h"
 #include "Task.h"
+#include "Platform.h"
 
 namespace blaze {
 
@@ -6,15 +22,10 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
-std::string Task::getConfig(int idx, std::string key) 
-{
-  if (config_table.find(idx) != config_table.end() &&
-      config_table[idx].find(key) != config_table[idx].end()) 
-  {
-    return config_table[idx][key];
-  } else {
-    return std::string();
-  }
+typedef boost::shared_ptr<Task> Task_ptr;
+
+TaskEnv* Task::getEnv() {
+  return platform->getEnv();
 }
 
 char* Task::getOutput(
@@ -77,6 +88,16 @@ char* Task::getInput(int idx) {
 void Task::addConfig(int idx, std::string key, std::string val) {
 
   config_table[idx][key] = val;
+}
+std::string Task::getConfig(int idx, std::string key) 
+{
+  if (config_table.find(idx) != config_table.end() &&
+      config_table[idx].find(key) != config_table[idx].end()) 
+  {
+    return config_table[idx][key];
+  } else {
+    return std::string();
+  }
 }
 
 void Task::addInputBlock(

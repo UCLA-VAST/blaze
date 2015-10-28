@@ -1,3 +1,7 @@
+#include <boost/iostreams/device/mapped_file.hpp>
+#include <boost/thread/thread.hpp>
+#include <boost/thread/mutex.hpp>
+
 #include "Block.h"
 
 namespace blaze {

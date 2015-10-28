@@ -25,6 +25,8 @@ typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 
 namespace blaze {
 
+typedef boost::shared_ptr<Task> Task_ptr;
+
 class AccReject : public std::logic_error {
 public:
   explicit AccReject(const std::string& what_arg):

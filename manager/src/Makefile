@@ -29,7 +29,7 @@ XTRACFLAG = -DFLEX_INET6 -DRELEASE_VERSION -D__BITS64 -pipe \
 						-DLINUX64 -DAMD64 -DREDHAT -DREL -DRHLINUX64 \
 						-DPLATFORM_AMD64_RHLINUX 
 
-CFLAGS = -c -fPIC -std=c++0x -g \
+CFLAGS = -c -fPIC -std=c++0x \
 				 $(XTRACFLAG) -DNO_ACTIVATION_SUPPORT
 
 INCLUDES = -I$(BOOST_DIR)/include \
@@ -63,8 +63,8 @@ LMDEPS = $(FLMDIR)/license.o \
 all: ../bin/acc_manager ../lib/libblaze.so
 
 package: 
-	cp ../bin/acc_manager ../../package/bin/nam_daemon
-	cp ../lib/libblaze.so ../../package/lib
+	cp ../bin/acc_manager ../../package/nam/bin/nam_daemon
+	cp ../lib/libblaze.so ../../package/nam/lib
 
 ../lib/libblaze.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS)

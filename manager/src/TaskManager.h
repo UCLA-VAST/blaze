@@ -12,13 +12,15 @@
 
 #include "proto/acc_conf.pb.h"
 
+#include "Block.h"
 #include "TaskEnv.h"
 #include "Task.h"
 #include "TaskQueue.h"
-#include "Block.h"
 #include "Logger.h"
 
 namespace blaze {
+
+typedef boost::shared_ptr<Task> Task_ptr;
 
 /**
  * Manages a task queue for one accelerator executor
