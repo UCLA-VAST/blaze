@@ -7,7 +7,7 @@ HOSTNAME=`hostname`
 DAEMON_NAME=falcon_runtime-nodemanager-${USER}-${HOSTNAME}
 
 # Environment Setup
-LD_LIBRARY_PATH=$DIR/../lib:$LD_LIBRARY_PATH
+LD_LIBRARY_PATH=$DIR/../lib:$DIR/../../boost_1_55_0/lib:$LD_LIBRARY_PATH
 
 # Check if the manager is already started
 PID_FNAME=$PID_DIR/$DAEMON_NAME.pid

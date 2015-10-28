@@ -4,3 +4,16 @@ platform : {
   cache_limit: 16384
   scratch_limit: 4096
 }
+platform : {
+  id : "Xilinx OpenCL"
+  path : "/curr/diwu/fcs_runtime/nam/lib/xil_ocl.so"
+  cache_loc: "Xilinx OpenCL"
+  cache_limit: 8192
+  scratch_limit: 2048
+	acc : {
+		id : "LogisticGradientAndLoss"
+		path : "/curr/diwu/fcs_runtime/examples/logisticRegression/acc_task/LogisticGradientWithLoss.so"
+    kernel_path : "/curr/diwu/fcs_runtime/examples/logisticRegression/acc_task/bitstream.xclbin"
+    kernel_name : "gradient" 
+	}
+}
