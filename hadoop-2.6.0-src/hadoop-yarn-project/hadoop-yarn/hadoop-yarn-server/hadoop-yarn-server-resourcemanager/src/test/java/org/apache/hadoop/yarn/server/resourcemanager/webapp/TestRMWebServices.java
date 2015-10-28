@@ -408,7 +408,7 @@ public class TestRMWebServices extends JerseyTest {
       Exception {
     assertEquals("incorrect number of elements", 1, json.length());
     JSONObject clusterinfo = json.getJSONObject("clusterMetrics");
-    assertEquals("incorrect number of elements", 23, clusterinfo.length());
+    assertEquals("incorrect number of elements", 27, clusterinfo.length());
     verifyClusterMetrics(
         clusterinfo.getInt("appsSubmitted"), clusterinfo.getInt("appsCompleted"),
         clusterinfo.getInt("reservedMB"), clusterinfo.getInt("availableMB"),
