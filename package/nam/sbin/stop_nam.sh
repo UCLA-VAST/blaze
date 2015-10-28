@@ -10,13 +10,13 @@ if [ -f $PID_FNAME ]; then
   PID=`cat $PID_FNAME` 
   rm -f $PID_FNAME
   if [ -z "$PID" ]; then
-    echo "no node manager is running on $HOSTNAME"
+    echo "No node manager is running on $HOSTNAME"
   else 
     kill $PID
-    echo "node manager on $HOSTNAME is stopped"
+    echo "Node manager on $HOSTNAME is stopped"
   fi
 else
-  echo "no node manager is running on $HOSTNAME"
+  echo "No node manager is running on $HOSTNAME"
 fi
 
 

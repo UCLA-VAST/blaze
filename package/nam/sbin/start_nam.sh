@@ -12,7 +12,7 @@ LD_LIBRARY_PATH=$DIR/../lib:$DIR/../../boost_1_55_0/lib:$LD_LIBRARY_PATH
 # Check if the manager is already started
 PID_FNAME=$PID_DIR/$DAEMON_NAME.pid
 if [ -f $PID_FNAME ]; then
-  echo "node manager already started on $HOSTNAME"
+  echo "Node manager already started on $HOSTNAME"
   exit -1
 fi
 
@@ -43,10 +43,13 @@ echo $PID > $PID_FNAME
 # Wait a little while to see if the manager starts
 sleep 1
 if [[ ! $(ps -p "$PID" -o comm=) =~ "nam" ]]; then
-  echo "failed to launch node manager on $HOSTNAME:"
+  echo "Failed to launch node manager on $HOSTNAME:"
   tail "$LOG_FNAME"
-  echo "full log in $LOG_FNAME"
+  echo "Full log in $LOG_FNAME"
   rm -f $PID_FNAME
 else
-  echo "node manager started on $HOSTNAME"
+  # delete possible sdaccel profiling files
+  rm -rf $PWD/debug_hal.log
+  rm -rf $PWD/sdaccel_profile_summary.*
+  echo "Node manager started on $HOSTNAME, execution log in $LOG_FNAME"
 fi
