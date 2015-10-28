@@ -113,7 +113,7 @@ Platform_ptr PlatformManager::create(std::string path) {
     void* handle = dlopen(path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
 
     if (handle == NULL) {
-      logger->logErr(LOG_HEADER + dlerror());
+      //logger->logErr(LOG_HEADER + dlerror());
       throw std::runtime_error(dlerror());
     }
 
@@ -130,13 +130,12 @@ Platform_ptr PlatformManager::create(std::string path) {
 
     const char* error = dlerror();
     if (error) {
-      logger->logErr(LOG_HEADER + error);
+      //logger->logErr(LOG_HEADER + error);
       throw std::runtime_error(error);
     }
 
     // TODO: exception handling?
     Platform_ptr platform(create_func(), destroy_func);
-
 
     return platform;
   }
@@ -157,5 +156,30 @@ void PlatformManager::removeShared(int64_t block_id)
     throw(e);
   }
 }
+
+int PlatformManager::getNumAcc(std::string platform_id) {
+
+  if (queue_manager_table.find(platform_id) == queue_manager_table.end()) 
+  {
+    return 0; 
+  }
+  else { 
+    return queue_manager_table[platform_id]->getNumAcc();
+  }
+}
+
+int PlatformManager::getNumAcc() {
+  int count = 0; 
+  std::map<std::string, QueueManager_ptr>::iterator iter;
+
+  for (iter =  queue_manager_table.begin();
+       iter != queue_manager_table.end();
+       iter ++)
+  {
+    count += iter->second->getNumAcc(); 
+  }
+  return count;
+}
+
 } // namespace blaze
 

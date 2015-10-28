@@ -58,6 +58,14 @@ public:
 
   Platform_ptr create(std::string id);
 
+  // query QueueManager table to get the total number of 
+  // accelerator on a selected platform
+  int getNumAcc(std::string platform_id);
+
+  // query QueueManager table to get the total number of 
+  // accelerator on this node
+  int getNumAcc();
+
 private:
   Logger *logger;
 

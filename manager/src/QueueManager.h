@@ -45,6 +45,8 @@ public:
   // start the executor and commiter for all queues
   void startAll();
 
+  int getNumAcc() { return queue_table.size(); }
+
 private:
   std::map<std::string, TaskManager_ptr> queue_table;
   Platform *platform;

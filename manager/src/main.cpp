@@ -75,10 +75,16 @@ int main(int argc, char** argv) {
 
   // setup Logger
   int verbose = conf->verbose();  
-  Logger logger(verbose);
+  Logger logger(verbose, 1);
 
   // setup PlatformManager
   PlatformManager platform_manager(conf, &logger);
+
+  // check if there is accelerator successfully setup
+  if (platform_manager.getNumAcc()==0) {
+    logger.logErr("main(): No platform is setup, exiting...");
+    return -1;
+  }
 
   // check all network interfaces on this computer, and 
   // open a communicator on each interface using the same port
