@@ -1,11 +1,10 @@
 import Array._
 import scala.math._
+import scala.util.Random
 import java.net._
 import org.apache.spark.rdd._
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
-import org.apache.spark.util.random._
 import org.apache.spark.blaze._
 
 class ArrayTest(v: BlazeBroadcast[Array[Double]]) 
@@ -23,28 +22,7 @@ class ArrayTest(v: BlazeBroadcast[Array[Double]])
   }
 
   override def call(in: Array[Double]): Array[Double] = {
-    val ary = new Array[Double](in.length)
-    val s = v.data.sum
-    for (i <- 0 until in.length) {
-      ary(i) = in(i) + s
-    }
-    ary
-  }
-
-  override def call(in: Iterator[Array[Double]]): Iterator[Array[Double]] = {
-    val inAry = in.toArray
-    val length: Int = inAry.length
-    val itemLength: Int = inAry(0).length
-    val outAry = new Array[Array[Double]](length)
-    val s = v.data.sum
-
-    for (i <- 0 until length) {
-      outAry(i) = new Array[Double](itemLength)
-      for (j <- 0 until itemLength)
-        outAry(i)(j) = inAry(i)(j) + s
-    }
-
-    outAry.iterator
+    (in, v.data).zipped.map(_ + _)
   }
 }
 
@@ -57,33 +35,32 @@ object TestApp {
     val sc = new SparkContext(conf)
     val acc = new BlazeRuntime(sc)
 
-    val v = Array(1.1, 2.2, 3.3)
+    var num_sample = 32
+    var num_part = 4
 
-    println("Functional test: array type AccRDD with array type broadcast value")
-
-    val data = new Array[Array[Double]](16)
-    for (i <- 0 until 16) {
-      data(i) = new Array[Double](8).map(e => random)
+    if (args.size == 2) {
+      num_sample = args(0).toInt
+      num_part = args(1).toInt
     }
 
-    val rdd = sc.parallelize(data, 4)
+    val data = Array.fill(num_sample)(Array.fill(8)(Random.nextDouble));
+    val offset = Array.fill(8)(Random.nextDouble);
 
+    val rdd = sc.parallelize(data, num_part)
     val rdd_acc = acc.wrap(rdd)    
-    val brdcst_v = acc.wrap(sc.broadcast(v))
+    
+    val bc_data = sc.broadcast(offset)
+    val bc_data_acc = acc.wrap(bc_data)
 
-    val res0 = rdd_acc.map_acc(new ArrayTest(brdcst_v)).collect
-    val res1 = rdd_acc.mapPartitions_acc(new ArrayTest(brdcst_v)).collect
-    val res2 = rdd.map(e => e.map(ee => ee + v.sum)).collect
+    val res_acc = rdd_acc.map_acc(new ArrayTest(bc_data_acc)).collect
+    val res_cpu = rdd.map(e => (e, bc_data.value).zipped.map(_ + _)).collect
 
     // compare results
-    if (res0.deep != res1.deep ||
-        res1.deep != res2.deep ||
-        res0.deep != res2.deep)
+    if (res_acc.deep != res_cpu.deep)
     {
-      println("input: \n" + data.deep.mkString("\n"))
-        println("map result: \n" + res2.deep.mkString("\n"))
-        println("map_acc results: \n" + res0.deep.mkString("\n"))
-        println("mapParititions_acc results: \n" + res1.deep.mkString("\n"))
+      println("Result incorrect")
+      println("map result: \n" + res_cpu.deep.mkString("\n"))
+      println("map_acc results: \n" + res_acc.deep.mkString("\n"))
     }
     else {
       println("result correct")

@@ -20,7 +20,6 @@ public:
     int data_length = getInputLength(0);
 		int num_samples = getInputNumItems(0);
 		int item_length = data_length / num_samples;
-		int weight_length = getInputLength(1);
 
     // get the pointer to input/output data
     double* a = (double*)getInput(0);
@@ -28,14 +27,9 @@ public:
     double* b = (double*)getOutput(0, item_length, num_samples, sizeof(double));
 
     // perform computation
-    double val_sum = 0.0;
-    for (int k = 0; k < weight_length; k++) {
-      val_sum += val[k];
-    }
-
     for (int i = 0; i < num_samples; i++) {
 			for (int j = 0; j < item_length; j++) {
-        b[i * item_length + j] = a[i * item_length +j] + val_sum;
+        b[i * item_length + j] = a[i * item_length +j] + val[j];
 			}
     }
     // if there is any error, throw exceptions
