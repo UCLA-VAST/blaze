@@ -2,7 +2,7 @@ port : 1027
 verbose : 2
 platform : {
   id : "Xilinx OpenCL"
-  path : "[ROOTDIR]/nam/lib/xil_ocl.so"
+  path : "[FCSROOT]/nam/lib/xil_ocl.so"
   cache_loc: "Xilinx OpenCL"
   cache_limit: 8192
   scratch_limit: 2048

@@ -8,9 +8,9 @@ if [ ! -f "$FCS_RT_ROOT/nam/bin/nam_daemon" ]; then
   exit -1
 fi
 SPARK_HOME=$FCS_RT_ROOT/spark-1.4.0-bin-fcs
-$SPARK_HOME/bin/spark-submit --class LogisticRegression \
+$SPARK_HOME/bin/spark-submit --class Memcpy \
 	--driver-memory 8G \
 	--executor-memory 4G \
 	--master local[*] \
-	target/logistic-1.0.jar $@ 2>/dev/null
+	target/memcpy-1.0.jar $@
 

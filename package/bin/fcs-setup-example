@@ -8,7 +8,7 @@ if [ ! -f conf ]; then
   exit -1
 fi
 cp conf conf_bak
-sed -i "s/\[ROOTDIR\]/$(echo $ROOTDIR | sed -e 's/[\/&]/\\&/g')/g" conf
+sed -i "s/\[FCSROOT\]/$(echo $ROOTDIR | sed -e 's/[\/&]/\\&/g')/g" conf
 sed -i "s/\[PWD\]/$(echo $PWD | sed -e 's/[\/&]/\\&/g')/g" conf
 mv conf $ROOTDIR/nam/conf/acc_conf/$HOSTNAME
 mv conf_bak conf

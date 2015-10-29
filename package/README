@@ -1,35 +1,28 @@
-Steps to run logistic regression examples locally:
+0. Ensure correct path to the FCS license is configured
+   # export LM_LICENSE_FILE=port@host:$LM_LICENSE_FILE
 
-0.Setup
-- license
-  # export LM_LICENSE_FILE=port@host:$LM_LICENSE_FILE
-- substitute all $ROOTDIR below for the installation path of FCS_RUNTIME
-
-1. Compile Spark application
+1. Compile example spark application
 - ensure Apache Maven is installed
-- run following commands:
-  # cd $ROOTDIR/examples/logisticRegression/app
-  # mvn package
+- run `mvn package` in $ROOTDIR/examples/$EXAMPLE/app folder
+- use `run.sh` to validate application using local Spark on CPU
 
-2. Start node manager
-- setup Xilinx SDAccel LD_LIBRARY_PATH
-  modify the platform.path, platform.acc.path, and platform.acc.kernel_path in
-  $ROOTDIR/nam/conf/acc_conf/default as follows:
-  platform : {
-    path : "$ROOTDIR/nam/lib/xil_ocl.so"
-    acc : {
-      path : "$ROOTDIR/examples/logisticRegression/acc_task/LogisticGradientWithLoss.so"   
-      kernel_path : "$ROOTDIR/examples/logisticRegression/acc_task/bitstream.so"   
-    }
-  }
-- run following commands:
+2. Setup example accelerators
+- Compile accelerator task 
+  run `make` in $ROOTDIR/examples/$EXAMPLE/acc_task (if *.so file does not exist)
+- run the following commands in $ROOTDIR/examples/$EXAMPLE/acc_task folder:
+  # $ROOTDIR/bin/fcs-setup-example
+
+3. Start node manager locally
+- run the following command:
   # $ROOTDIR/nam/sbin/start_nam.sh
-- check log file: 
+- to run examples with FPGA accelerator, please ensure libxilinxopencl.so
+  from Xilinx SDAccel is in LD_LIBRARY_PATH search paths
+- check log file to see if node manager is successfully launched: 
   # cat $ROOTDIR/nam/logs/falcon_runtime_nodemanager_$USER_$HOSTNAME.log
 
-3. Run Spark application
+4. Run example Spark application
   # cd $ROOTDIR/examples/logisticRegression/app 
-  # ./run.sh <train_data> <test_data> <#partitions>
+  # ./run.sh <option list>
 
-4. Stop node manager:
+5. Stop node manager:
   # $ROOTDIR/nam/sbin/stop_nam.sh

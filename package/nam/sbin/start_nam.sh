@@ -4,7 +4,7 @@ DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 PID_DIR=/tmp
 HOSTNAME=`hostname`
 
-DAEMON_NAME=falcon_runtime-nodemanager-${USER}-${HOSTNAME}
+DAEMON_NAME=fcs_runtime-nodemanager-${USER}-${HOSTNAME}
 
 # Environment Setup
 LD_LIBRARY_PATH=$DIR/../lib:$DIR/../../boost_1_55_0/lib:$LD_LIBRARY_PATH

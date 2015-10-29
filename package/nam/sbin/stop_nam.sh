@@ -3,7 +3,7 @@
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 PID_DIR=/tmp
 HOSTNAME=`hostname`
-DAEMON_NAME=falcon_runtime-nodemanager-$USER-$HOSTNAME
+DAEMON_NAME=fcs_runtime-nodemanager-$USER-$HOSTNAME
 PID_FNAME=$PID_DIR/$DAEMON_NAME.pid
 
 if [ -f $PID_FNAME ]; then
