@@ -618,7 +618,14 @@ void CommManager::process(socket_ptr sock) {
           outId ++;
         }
         finish_msg.set_type(ACCFINISH);
-        send(finish_msg, sock);
+        try {
+          send(finish_msg, sock);
+        }
+        catch (std::exception &e) {
+          throw AccFailure(
+              std::string("Error in sending ACCFINISH: ")+
+              std::string(e.what()));
+        }
 
         logger->logInfo(LOG_HEADER + 
             std::string("Task finished, sent an ACCFINISH."));
@@ -671,7 +678,9 @@ void CommManager::process(socket_ptr sock) {
         std::string("Send ACCREJECT because: ")+
         e.what());
 
-    send(reply_msg, sock);
+    try {
+      send(reply_msg, sock);
+    } catch (std::exception &e) {;}
   }
   catch (AccFailure &e)  {
 
@@ -683,7 +692,9 @@ void CommManager::process(socket_ptr sock) {
         std::string("Send ACCFAILURE because: ")+
         e.what());
 
-    send(reply_msg, sock);
+    try {
+      send(reply_msg, sock);
+    } catch (std::exception &e) {;}
   }
   catch (std::runtime_error &e)  {
 
@@ -695,7 +706,9 @@ void CommManager::process(socket_ptr sock) {
         std::string("Send ACCFAILURE because: ")+
         e.what());
 
-    send(reply_msg, sock);
+    try {
+      send(reply_msg, sock);
+    } catch (std::exception &e) {;}
   }
   catch (std::exception &e) {
     logger->logErr(LOG_HEADER+
