@@ -37,6 +37,7 @@ private[spark] class ClientArguments(args: Array[String], sparkConf: SparkConf) 
   var executorMemory = 1024 // MB
   var executorCores = 1
   var executorAccs = 0
+  var executorLabel: String = null 
   var numExecutors = DEFAULT_NUMBER_EXECUTORS
   var amQueue = sparkConf.get("spark.yarn.queue", "default")
   var amMemory: Int = 512 // MB
@@ -212,6 +213,10 @@ private[spark] class ClientArguments(args: Array[String], sparkConf: SparkConf) 
 
         case ("--executor-accs") :: IntParam(value) :: tail =>
           executorAccs = value
+          args = tail
+
+        case ("--executor-label") :: value :: tail =>
+          executorLabel = value
           args = tail
 
         case ("--queue") :: value :: tail =>

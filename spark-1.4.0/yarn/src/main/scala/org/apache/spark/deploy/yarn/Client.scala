@@ -160,6 +160,10 @@ private[spark] class Client(
     capability.setMemory(args.amMemory + amMemoryOverhead)
     capability.setVirtualCores(args.amCores)
     appContext.setResource(capability)
+    if (args.executorLabel != null) {
+      logInfo("setNodeLabelExpression for AM container.")
+      appContext.setNodeLabelExpression(args.executorLabel)
+    }
     appContext
   }
 
@@ -671,6 +675,12 @@ private[spark] class Client(
       } else {
         Class.forName("org.apache.spark.deploy.yarn.ExecutorLauncher").getName
       }
+    val executorLabel =
+      if (args.executorLabel != null) {
+        Seq("--executor-label", args.executorLabel)
+      } else {
+        Nil
+      }
     if (args.primaryPyFile != null && args.primaryPyFile.endsWith(".py")) {
       args.userArgs = ArrayBuffer(args.primaryPyFile, args.pyFiles) ++ args.userArgs
     }
@@ -682,7 +692,7 @@ private[spark] class Client(
     }
     val amArgs =
       Seq(amClass) ++ userClass ++ userJar ++ primaryPyFile ++ pyFiles ++ primaryRFile ++
-        userArgs ++ Seq(
+        userArgs ++ executorLabel ++ Seq(
           "--executor-memory", args.executorMemory.toString + "m",
           "--executor-cores", args.executorCores.toString,
           "--executor-accs", args.executorAccs.toString,
