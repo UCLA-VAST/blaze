@@ -346,9 +346,10 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
           + ", " + nodeHealthStatus.getHealthReport());
     }
     List<ContainerStatus> containersStatuses = getContainerStatuses();
+    Set<String> accNames = getAccNames();
     NodeStatus nodeStatus =
         NodeStatus.newInstance(nodeId, responseId, containersStatuses,
-          createKeepAliveApplicationList(), nodeHealthStatus);
+          createKeepAliveApplicationList(), nodeHealthStatus, accNames);
 
     return nodeStatus;
   }
@@ -386,6 +387,12 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
           + " container statuses: " + containerStatuses);
     }
     return containerStatuses;
+  }
+  
+  protected Set<String> getAccNames() throws IOException {
+    Set<String> accNames = new HashSet<String>();
+    // TODO(mhhuang) get the accNames from NAM
+    return accNames;
   }
   
   private List<ApplicationId> getRunningApplications() {
