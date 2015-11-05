@@ -98,6 +98,8 @@ private[yarn] class YarnAllocator(
   protected val executorCores = args.executorCores
   // Number of acc slots per executor.
   protected val executorAccs = args.executorAccs
+  // Executor labeling.
+  protected val executorLabel = args.executorLabel
   // Resource capability requested for each executors
   private val resource = Resource.newInstance(executorMemory + memoryOverhead, executorCores,
     executorAccs)
@@ -211,11 +213,19 @@ private[yarn] class YarnAllocator(
 
     if (missing > 0) {
       logInfo(s"Will request $missing executor containers, each with ${resource.getVirtualCores} " +
-        s"cores and ${resource.getMemory} MB memory including $memoryOverhead MB overhead " + 
+        s"cores and ${resource.getMemory} MB memory including $memoryOverhead MB overhead " +
         s" and ${resource.getVirtualAccs} acc slots.")
 
       for (i <- 0 until missing) {
-        val request = new ContainerRequest(resource, null, null, RM_REQUEST_PRIORITY)
+        // val request = new ContainerRequest(resource, null, null, RM_REQUEST_PRIORITY)
+        var request : ContainerRequest = null
+        if (executorLabel == null) {
+          request = new ContainerRequest(resource, null, null, RM_REQUEST_PRIORITY)
+          logInfo(s"executorLabel not set")
+        } else {
+          request = new ContainerRequest(resource, null, null, RM_REQUEST_PRIORITY, true, executorLabel)
+          logInfo(s"executorLabel set to: $executorLabel")
+        }
         amClient.addContainerRequest(request)
         amClient.setAccSpeedup(7.0f)
         val nodes = request.getNodes

@@ -154,6 +154,6 @@ public abstract class Resource implements Comparable<Resource> {
   @Override
   public String toString() {
     return "<memory:" + getMemory() + ", vCores:" + getVirtualCores()
-         + " vAccs: " + getVirtualAccs() + ">";
+         + ", vAccs: " + getVirtualAccs() + ">";
   }
 }
