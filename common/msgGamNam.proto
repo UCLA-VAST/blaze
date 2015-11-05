@@ -2,12 +2,11 @@ package blaze;
 
 option java_package = "org.apache.hadoop.yarn.fcs";
 
-enum MsgType {
-  ACCNAMES = 0;  
-  SHARERATE = 1;  
-}
-
 message Gam2NamRequest {
+  enum MsgType {
+    ACCNAMES = 0;  
+    SHARERATE = 1;  
+  }
   message ShareRate {
     required string app_id = 1;
     required float share_rate = 2;
