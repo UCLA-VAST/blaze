@@ -12,32 +12,33 @@
 * License setup: ensure correct path to the FCS license is configured:  
   `export LM_LICENSE_FILE=port@host:$LM_LICENSE_FILE`
 
-### Run example Spark application locally
+### Run example Spark applications locally
 
-Assuming the FCS Runtime System is installed in `$FCSROOT`, the examples are
-located at $FCSROOT/examples. Below is a step-by-step to test an example 
+Assuming the FCS Runtime System is installed in `$FCS_RT_ROOT`, the examples are
+located at `$FCS_RT_ROOT/examples`. Below is a step-by-step to test an example 
 application `$EXAMPLE`:
 
 1. Compile Spark application
-    * run `mvn package` in $FCSROOT/examples/$EXAMPLE/app
+    * run `mvn package` in `$FCS_RT_ROOT/examples/$EXAMPLE/app`
     * use `run-local.sh` to validate application using local Spark on CPU
 
 2. Setup accelerator
-    * (Optional) Compile accelerator task with `make` if *.so file does not exist in 
-      $FCSROOT/examples/$EXAMPLE/acc_task
+    * (Optional) Compile accelerator task with `make` if \*.so file does not exist in  
+      `$FCS_RT_ROOT/examples/$EXAMPLE/acc_task`
     * Setup accelerator configuration file for node manager:  
-      run the `$FCSROOT/bin/fcs-setup-example` in 
-      $FCSROOT/examples/$EXAMPLE/acc_task folder
+      run `$FCS_RT_ROOT/bin/fcs-setup-example` in  
+      `$FCS_RT_ROOT/examples/$EXAMPLE/acc_task`
 
 3. Start node manager 
     * (Optional) To use FPGA accelerator in the example, please ensure *libxilinxopencl.so*
       from Xilinx SDAccel is in LD_LIBRARY_PATH search paths
-    * Start node manager: `$FCSROOT/nam/sbin/start-nam.sh`
+    * Start node manager:  
+      `$FCS_RT_ROOT/nam/sbin/start-nam.sh`
     * (Optional) Check log file to see if node manager is successfully launched, the log is
-      available at $ROOTDIR/nam/logs/falcon_runtime_nodemanager-$USER-$HOSTNAME.log
+      available at `$FCS_RT_ROOT/nam/logs/falcon_runtime_nodemanager-$USER-$HOSTNAME.log`
 
 4. Run Spark application
-    * Under folder $FCSROOT/examples/logisticRegression/app, execute the following command:  
-      ./run-local.sh <option list>
+    * Under folder `$FCS_RT_ROOT/examples/$EXAMPLE/app`, execute:  
+      `./run-local.sh <argument list>`
 
-5. Stop node manager: `$FCSROOT/nam/sbin/stop-nam.sh`
+5. Stop node manager: `$FCS_RT_ROOT/nam/sbin/stop-nam.sh`

@@ -6,10 +6,10 @@ platform : {
   cache_loc: "Xilinx OpenCL"
   cache_limit: 8192
   scratch_limit: 2048
-  acc : {
-    id : "LogisticGradientAndLoss"
-    path : "[PWD]/LogisticGradientWithLoss.so"
+	acc : {
+		id : "Memcpy"
+		path : "[PWD]/Memcpy.so"
     kernel_path : "[PWD]/bitstream.xclbin"
-    kernel_name : "gradient" 
-  }
+    kernel_name : "top" 
+	}
 }

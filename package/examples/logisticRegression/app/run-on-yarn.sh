@@ -15,5 +15,5 @@ $SPARK_HOME/bin/spark-submit --class LogisticRegression \
 	--executor-accs 1 \
 	--num-executors 1 \
 	--master yarn-cluster \
-	target/logistic-1.0.jar $@ 2>/dev/null
+	target/logistic-1.0.jar $@ 
 

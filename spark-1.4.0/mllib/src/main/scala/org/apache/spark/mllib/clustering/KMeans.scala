@@ -284,6 +284,9 @@ class KMeans private (
 
     val iterationStartTime = System.nanoTime()
 
+    // convert VectorWithNorm to Array[Double]
+    var blazeData = blaze.wrap(data.map(v => v.vector.toArray :+ v.norm));
+
     // Execute iterations of Lloyd's algorithm until all runs have converged
     while (iteration < maxIterations && !activeRuns.isEmpty) {
       type WeightedPoint = (Vector, Long)
@@ -306,9 +309,6 @@ class KMeans private (
       val bcActiveCenters = sc.broadcast(flatActiveCenters)
 
       var blazeActiveCenters = blaze.wrap(bcActiveCenters);
-
-      // convert VectorWithNorm to Array[Double]
-      var blazeData = blaze.wrap(data.map(v => v.vector.toArray :+ v.norm));
 
       // Find the sum and count of points mapping to each center
       val totalContribs = blazeData.mapPartitions_acc { new KMeansWithACC(

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Setting up FCS Runtime System..."
+echo "Setting up Falcon Computing Solutions (FCS) Runtime System..."
 
 echo "#1 Unpack Hadoop..."
 if tar zxf hadoop-2.6.0-bin-fcs.tar.gz; then 
@@ -28,4 +28,4 @@ fi
 
 echo "FCS Runtime System is successfully installed!"
 echo "Below is a quick start on the provided examples"
-cat README
+cat README.md

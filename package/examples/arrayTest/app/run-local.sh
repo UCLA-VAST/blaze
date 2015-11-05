@@ -12,5 +12,5 @@ $SPARK_HOME/bin/spark-submit --class TestApp \
 	--driver-memory 2G \
 	--executor-memory 1G \
 	--master local[*] \
-	target/test-1.0.jar $@
+	target/arraytest-1.0.jar $@
 

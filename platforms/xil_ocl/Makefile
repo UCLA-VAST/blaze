@@ -2,7 +2,7 @@ include ../../Makefile.config
 
 # check all variables
 ifeq ($(XILINX_OPENCL_DIR),)
-$(error XILINK_OPENCL_DIR not set properly in Makefile.config)
+$(error XILINX_OPENCL_DIR not set properly in Makefile.config)
 endif
 ifeq ($(BOOST_DIR),)
 $(error BOOST_DIR not set properly in Makefile.config)
@@ -15,7 +15,7 @@ PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
 CC=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/gcc
 
 ifeq ("$(wildcard $(PP))","")
-	$(error XILINK_OPENCL_DIR not set properly)
+$(error XILINX_OPENCL_DIR not set properly)
 endif
 
 MANAGER_DIR=../../manager

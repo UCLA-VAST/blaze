@@ -9,8 +9,8 @@ if [ ! -f "$FCS_RT_ROOT/nam/bin/nam_daemon" ]; then
 fi
 SPARK_HOME=$FCS_RT_ROOT/spark-1.4.0-bin-fcs
 $SPARK_HOME/bin/spark-submit --class Memcpy \
-	--driver-memory 8G \
-	--executor-memory 4G \
+	--driver-memory 2G \
+	--executor-memory 1G \
 	--executor-cores 2 \
 	--executor-accs 1 \
 	--num-executors 1 \

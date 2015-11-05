@@ -16,26 +16,28 @@ public:
   // overwrites the compute function
   virtual void compute() {
 
-    // get input data length
-    int data_length = getInputLength(0);
-		int num_samples = getInputNumItems(0);
-		int item_length = data_length / num_samples;
+    // get input data dimensions
+    int total_length  = getInputLength(0);
+    int num_vectors   = getInputNumItems(0);
+    int vector_length = total_length / num_vectors;
 
     // get the pointer to input/output data
     double* a = (double*)getInput(0);
-		double* val = (double*)getInput(1);
-    double* b = (double*)getOutput(0, item_length, num_samples, sizeof(double));
+    double* b = (double*)getInput(1);
+    double* c = (double*)getOutput(0, 
+        vector_length, num_vectors, sizeof(double));
 
     // perform computation
-    for (int i = 0; i < num_samples; i++) {
-			for (int j = 0; j < item_length; j++) {
-        b[i * item_length + j] = a[i * item_length +j] + val[j];
-			}
+    // c[i] = a[i] + b
+    for (int i=0; i<num_vectors; i++) {
+      for (int j=0; j<vector_length; j++) {
+        c[i * vector_length + j] = a[i * vector_length + j] + b[j];
+      }
     }
-    // if there is any error, throw exceptions
   }
 };
 
+// define the constructor and destructor for dlopen()
 extern "C" Task* create() {
   return new ArrayTest();
 }

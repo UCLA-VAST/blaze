@@ -15,5 +15,5 @@ $SPARK_HOME/bin/spark-submit --class TestApp \
 	--executor-accs 1 \
 	--num-executors 1 \
 	--master yarn-cluster \
-	target/test-1.0.jar $@
+	target/arraytest-1.0.jar $@
 

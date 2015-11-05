@@ -170,6 +170,10 @@ void CommManager::process(socket_ptr sock) {
             throw AccFailure("Invalid ACCREQUEST");
           }
           int64_t blockId = recv_block.partition_id();
+
+          logger->logInfo(LOG_HEADER+
+              std::string("Requesting block of id=")+
+              std::to_string((long long)blockId));
           
           // reply entry in ACCGRANT
           DataMsg *reply_block = reply_msg.add_data();
@@ -294,6 +298,10 @@ void CommManager::process(socket_ptr sock) {
         if (data_msg.type() != ACCDATA) {
           throw AccFailure("Expecting an ACCDATA");
         }
+
+        logger->logInfo(
+            LOG_HEADER + 
+            std::string("Received an ACCDATA"));
 
         // Loop through all the DataMsg
         for (int i=0; i<data_msg.data_size(); i++) {
@@ -556,6 +564,10 @@ void CommManager::process(socket_ptr sock) {
                 std::string(e.what()));
           }
         }
+        logger->logInfo(
+            LOG_HEADER + 
+            std::string("Finished processing an ACCDATA"));
+
       } // 2. Finish handling ACCDATA
 
       // wait on task ready

@@ -12,5 +12,5 @@ $SPARK_HOME/bin/spark-submit --class LogisticRegression \
 	--driver-memory 2G \
 	--executor-memory 1G \
 	--master local[*] \
-	target/logistic-1.0.jar $@ 2>/dev/null
+	target/logistic-1.0.jar $@
 
