@@ -1,16 +1,26 @@
 package blaze;
 
-option java_package = "org.apache.hadoop.yarn.server.resourcemanager";
+option java_package = "org.apache.hadoop.yarn.fcs";
 
-message ShareRateGam2Nam {
+enum MsgType {
+  ACCNAMES = 0;  
+  SHARERATE = 1;  
+}
+
+message Gam2NamRequest {
   message ShareRate {
     required string app_id = 1;
     required float share_rate = 2;
   }
-  repeated ShareRate share_rate_list = 1;
+  required MsgType type = 1;
+  repeated ShareRate share_rate_list = 2;
 }
 
-message AccUsageNam2Gam {
+message Nam2GamSendAccNames {
+  repeated string acc_names = 1;
+}
+
+message Nam2GamAccUsage {
   message AccUtilization {
     required string app_id = 1;
     required float util = 2;
