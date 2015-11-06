@@ -7,22 +7,11 @@ message Gam2NamRequest {
     ACCNAMES = 0;  
     SHARERATE = 1;  
   }
-  message ShareRate {
-    required string app_id = 1;
-    required float share_rate = 2;
-  }
   required MsgType type = 1;
-  repeated ShareRate share_rate_list = 2;
+  optional bool pull = 2;
 }
 
-message Nam2GamSendAccNames {
-  repeated string acc_names = 1;
-}
-
-message Nam2GamAccUsage {
-  message AccUtilization {
-    required string app_id = 1;
-    required float util = 2;
-  }
-  repeated AccUtilization acc_util_list = 1;
+message Nam2GamAccNames {
+  optional bool updated = 1;
+  repeated string acc_names = 2;
 }
