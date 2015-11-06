@@ -1,6 +1,6 @@
 package blaze;
 
-option java_package = "org.apache.hadoop.yarn.fcs";
+option java_package = "org.apache.hadoop.fcs";
 
 message Gam2NamRequest {
   enum MsgType {
@@ -12,6 +12,6 @@ message Gam2NamRequest {
 }
 
 message Nam2GamAccNames {
-  optional bool updated = 1;
+  optional bool isUpdated = 1;
   repeated string acc_names = 2;
 }
