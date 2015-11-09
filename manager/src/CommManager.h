@@ -11,8 +11,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
-#include "proto/task.pb.h"
-#include "proto/acc_conf.pb.h"
+#include <google/protobuf/message.h>
 
 #include "PlatformManager.h"
 #include "BlockManager.h"
@@ -25,20 +24,8 @@ typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 
 namespace blaze {
 
-class AccReject : public std::logic_error {
-public:
-  explicit AccReject(const std::string& what_arg):
-    std::logic_error(what_arg) {;}
-};
-
-class AccFailure : public std::logic_error {
-public:
-  explicit AccFailure(const std::string& what_arg):
-    std::logic_error(what_arg) {;}
-};
-
 /*
- * Communicator design for Acc_Manager
+ * Communicator design for Node Manager
  */
 class CommManager
 : public boost::basic_lockable_adapter<boost::mutex>
@@ -59,28 +46,67 @@ public:
     boost::thread t(boost::bind(&CommManager::listen, this));
   }
 
-  void addTask(std::string id);
-  void removeTask(std::string id);
-  
+protected:
+  void recv(::google::protobuf::Message&, socket_ptr);
+
+  void send(::google::protobuf::Message&, socket_ptr);
+
+  // pure virtual method called by listen
+  virtual void process(socket_ptr) {};
+
+  // reference to platform manager
+  PlatformManager *platform_manager;
+  Logger *logger;
+
 private:
-  void recv(TaskMsg&, socket_ptr);
-  void send(TaskMsg&, socket_ptr);
-
-  // processing messages
-  void process(socket_ptr);
-
   void listen();
 
   int srv_port;
   std::string ip_address;
-
-  std::map<std::string, int> num_tasks;
-
-  // reference to platform manager
-  PlatformManager *platform_manager;
-
-  Logger *logger;
 };
+
+// Manage communication with Application
+class AppCommManager : public CommManager 
+{
+public:
+  AppCommManager(
+      PlatformManager* _platform,
+      Logger* _logger,
+      std::string address = "127.0.0.1",
+      int ip_port = 1027
+    ): CommManager(_platform, _logger, address, ip_port) {;}
+private:
+  void process(socket_ptr);
+};
+
+class AccReject : public std::logic_error {
+public:
+  explicit AccReject(const std::string& what_arg):
+    std::logic_error(what_arg) {;}
+};
+
+class AccFailure : public std::logic_error {
+public:
+  explicit AccFailure(const std::string& what_arg):
+    std::logic_error(what_arg) {;}
+};
+
+// Manager communication with GAM
+class GAMCommManager : public CommManager 
+{
+public:
+  GAMCommManager(
+      PlatformManager* _platform,
+      Logger* _logger,
+      std::string address = "127.0.0.1",
+      int ip_port = 1028
+    ): CommManager(_platform, _logger, address, ip_port) {;}
+private:
+  void process(socket_ptr);
+  std::vector<std::string> last_names;
+};
+
+
 }
 
 #endif

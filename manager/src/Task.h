@@ -22,7 +22,7 @@ namespace blaze {
 
 // forward declaration of 
 class TaskManager;
-class CommManager;
+class AppCommManager;
 template <typename U, typename T> class BlazeTest;
 
 /**
@@ -32,7 +32,7 @@ template <typename U, typename T> class BlazeTest;
 class Task {
 
 friend class TaskManager;
-friend class CommManager;
+friend class AppCommManager;
 template <typename U, typename T> 
 friend class BlazeTest;
 

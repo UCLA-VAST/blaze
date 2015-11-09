@@ -33,6 +33,8 @@ LINK= -L../lib -lblaze \
 			-lpthread -lm -ldl
 
 DEPS= CommManager.o \
+			AppCommManager.o \
+			GAMCommManager.o \
 			PlatformManager.o \
 			Block.o \
 			BlockManager.o \
@@ -40,7 +42,8 @@ DEPS= CommManager.o \
 			Task.o \
 			TaskManager.o \
 			task.pb.o \
-			acc_conf.pb.o 
+			acc_conf.pb.o \
+			msgGamNam.pb.o
 
 all: ../bin/acc_manager ../lib/libblaze.so
 
@@ -54,6 +57,9 @@ task.pb.o: proto/task.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 
 
 acc_conf.pb.o: proto/acc_conf.pb.cc
+	$(PP) $(COMPILE) $< -o $@ 
+
+msgGamNam.pb.o: proto/msgGamNam.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 
 
 %.o: %.cpp *.h proto/*.h

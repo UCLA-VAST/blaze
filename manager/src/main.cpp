@@ -22,8 +22,6 @@ using namespace blaze;
 
 int main(int argc, char** argv) {
   
-  std::string conf_path = "./conf.prototxt";
-
   if (argc < 2) {
     printf("USAGE: %s <conf_path>\n", argv[0]);
     return -1;
@@ -33,7 +31,7 @@ int main(int argc, char** argv) {
 
   if (file_handle < 0) {
     printf("cannot find configure file: %s\n",
-        conf_path.c_str());
+        argv[1]);
     return -1;
   }
   
@@ -54,7 +52,8 @@ int main(int argc, char** argv) {
 
   // check all network interfaces on this computer, and 
   // open a communicator on each interface using the same port
-  int port = conf->port();
+  int app_port = conf->app_port();
+  int gam_port = conf->gam_port();
 
   struct ifaddrs* ifAddrStruct = NULL;
   getifaddrs(&ifAddrStruct);
@@ -80,15 +79,21 @@ int main(int argc, char** argv) {
 
       std::string ip_addr(addressBuffer);
 
-      // create communicator object
-      // it will start listening for new connections automatically
-      boost::shared_ptr<CommManager> comm( new CommManager(
+      // create communicator for GAM
+      boost::shared_ptr<CommManager> comm_gam( new GAMCommManager(
             &platform_manager, 
-            &logger, ip_addr, port));
+            &logger, ip_addr, gam_port)); 
+
+      // create communicator for applications
+      // it will start listening for new connections automatically
+      boost::shared_ptr<CommManager> comm( new AppCommManager(
+            &platform_manager, 
+            &logger, ip_addr, app_port));
 
       // push the communicator pointer to pool to avoid object
       // being destroyed out of context
       comm_pool.push_back(comm);
+      comm_pool.push_back(comm_gam);
     }
   }
 
