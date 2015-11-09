@@ -8,10 +8,10 @@ message Gam2NamRequest {
     SHARERATE = 1;  
   }
   required MsgType type = 1;
-  optional bool pull = 2;
+  optional bool pull = 2 [default = false];
 }
 
 message Nam2GamAccNames {
-  optional bool isUpdated = 1;
+  optional bool isUpdated = 1 [default = false];
   repeated string acc_names = 2;
 }
