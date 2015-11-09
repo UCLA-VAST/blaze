@@ -182,12 +182,24 @@
       <groupId>org.fusesource.leveldbjni</groupId>
       <artifactId>leveldbjni-all</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>fcs-yarn-common</artifactId>
+      <version>1.0</version>
+    </dependency>
   </dependencies>
 
   <profiles>
     <profile>
       <id>native</id>
       <build>
+      <!--
+        <resources>
+          <resource>
+            <directory>${basedir}/../../fcs-yarn-common/src/main/java/org/apache/hadoop/fcs</directory>
+          </resource>
+        </resources>
+      -->
         <plugins>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>

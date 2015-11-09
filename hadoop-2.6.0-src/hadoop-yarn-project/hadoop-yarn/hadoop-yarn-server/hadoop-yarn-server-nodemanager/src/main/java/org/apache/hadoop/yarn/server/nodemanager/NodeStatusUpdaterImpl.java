@@ -74,6 +74,12 @@ import org.apache.hadoop.yarn.util.YarnVersionInfo;
 
 import com.google.common.annotations.VisibleForTesting;
 
+//import org.apache.hadoop.fcs.*;
+import org.apache.hadoop.fcs.MsgGamNam;
+import org.apache.hadoop.fcs.MsgGamNam.Nam2GamAccNames;
+import org.apache.hadoop.fcs.MsgGamNam.Gam2NamRequest;
+import org.apache.hadoop.fcs.SocketConnector;
+
 public class NodeStatusUpdaterImpl extends AbstractService implements
     NodeStatusUpdater {
 
@@ -116,6 +122,8 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
   private Thread  statusUpdater;
   private long rmIdentifier = ResourceManagerConstants.RM_INVALID_IDENTIFIER;
   Set<ContainerId> pendingContainersToRemove = new HashSet<ContainerId>();
+
+  private boolean needAccNamesFromNam = true;
 
   public NodeStatusUpdaterImpl(Context context, Dispatcher dispatcher,
       NodeHealthCheckerService healthChecker, NodeManagerMetrics metrics) {
@@ -389,11 +397,59 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
     return containerStatuses;
   }
   
-  protected Set<String> getAccNames() throws IOException {
+  private Set<String> getAccNames() throws IOException {
     Set<String> accNames = new HashSet<String>();
-    // TODO(mhhuang) get the accNames from NAM
+
+    try {
+      Nam2GamAccNames accNamesProto = getAccNamesFromNam();
+      if (accNamesProto != null) {
+        if (accNamesProto.hasIsUpdated() && accNamesProto.getIsUpdated()) {
+          List<String> accNamesList = accNamesProto.getAccNamesList();
+          for(String name : accNamesList) {
+            LOG.debug("received acc names " + name);
+            accNames.add(name);
+          }
+        }
+      }
+      needAccNamesFromNam = false;
+    } catch (IOException e) {
+      needAccNamesFromNam = true;
+      String errorMessage = "Unexpected errors in connecting to NAM @ port 1028";
+      LOG.error(errorMessage, e);
+      throw new IOException(e);
+    }
     return accNames;
   }
+
+  private Nam2GamAccNames getAccNamesFromNam() throws IOException {
+    // Build connection
+    SocketConnector connector = new SocketConnector("0.0.0.0", 1028);
+    boolean alive = connector.buildConnection();
+
+    if (alive == false) {
+      LOG.debug("NAM is not alive on this node");
+      return null;
+    }
+
+    // Send request
+    Gam2NamRequest requestMsg = Gam2NamRequest.newBuilder()
+      .setType(MsgGamNam.Gam2NamRequest.MsgType.ACCNAMES)
+      .setPull(needAccNamesFromNam)
+      .build();
+    int requestSize = requestMsg.getSerializedSize();
+    connector.send(requestSize);
+    connector.send(requestMsg.toByteArray());
+
+    // Receive acc names
+    int responseLength = connector.receive();
+    byte[] responseMsg = connector.receive(responseLength); 
+    Nam2GamAccNames accNamesMsg = Nam2GamAccNames.parseFrom(responseMsg);
+
+    // Close connection
+    connector.closeConnection();
+    return accNamesMsg;
+  } 
+
   
   private List<ApplicationId> getRunningApplications() {
     List<ApplicationId> runningApplications = new ArrayList<ApplicationId>();
