@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.logging.Log;
@@ -54,6 +57,7 @@ import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerResp
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.api.records.NodeAction;
 import org.apache.hadoop.yarn.server.api.records.NodeStatus;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAttemptContainerFinishedEvent;
@@ -427,6 +431,10 @@ public class ResourceTrackerService extends AbstractService implements
             remoteNodeStatus.getContainersStatuses(), 
             remoteNodeStatus.getKeepAliveApplications(), nodeHeartBeatResponse));
 
+    // 5. Get accNames
+    Set<String> accNames = remoteNodeStatus.getAccNames();
+    processAccNames(accNames, nodeId);
+
     return nodeHeartBeatResponse;
   }
 
@@ -474,5 +482,27 @@ public class ResourceTrackerService extends AbstractService implements
   @VisibleForTesting
   public Server getServer() {
     return this.server;
+  }
+
+  void processAccNames(Set<String> accNames, NodeId nodeId) {
+    Map<NodeId, Set<String>> nodeToLabels = new HashMap<NodeId, Set<String>>();
+    nodeToLabels.put(nodeId, accNames);
+    if (accNames.size() == 0) {
+      return;
+    }
+    RMNodeLabelsManager labelManager = rmContext.getNodeLabelManager();
+    if (labelManager != null) {
+      // TODO(mhhuang) make the exceptions more visible?
+      try{
+        labelManager.addToCluserNodeLabels(accNames);
+      } catch (IOException ioe) {
+        LOG.info("Exception in adding labels");
+      }
+      try{
+        labelManager.replaceLabelsOnNode(nodeToLabels);
+      } catch (IOException ioe) {
+        LOG.info("Exception in replacing labels on node");
+      }
+    }
   }
 }

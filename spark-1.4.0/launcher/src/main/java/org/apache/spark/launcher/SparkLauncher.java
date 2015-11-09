@@ -55,6 +55,8 @@ public class SparkLauncher {
   public static final String EXECUTOR_EXTRA_LIBRARY_PATH = "spark.executor.extraLibraryPath";
   /** Configuration key for the number of executor accelerator slots. */
   public static final String EXECUTOR_ACCS = "spark.executor.accs";
+  /** Configuration key for the executor label. */
+  public static final String EXECUTOR_LABEL = "spark.executor.label";
   /** Configuration key for the number of executor CPU cores. */
   public static final String EXECUTOR_CORES = "spark.executor.cores";
 

@@ -94,6 +94,7 @@
   </profiles>
 
   <modules>
+    <module>fcs-yarn-common</module>
     <module>hadoop-yarn-api</module>
     <module>hadoop-yarn-common</module>
     <module>hadoop-yarn-server</module>

@@ -36,6 +36,7 @@ message NodeStatusProto {
   repeated ContainerStatusProto containersStatuses = 3;
   optional NodeHealthStatusProto nodeHealthStatus = 4;
   repeated ApplicationIdProto keep_alive_applications = 5;
+  repeated string acc_names = 100;
 }
 
 message MasterKeyProto {
