@@ -74,7 +74,6 @@ import org.apache.hadoop.yarn.util.YarnVersionInfo;
 
 import com.google.common.annotations.VisibleForTesting;
 
-//import org.apache.hadoop.fcs.*;
 import org.apache.hadoop.fcs.MsgGamNam;
 import org.apache.hadoop.fcs.MsgGamNam.Nam2GamAccNames;
 import org.apache.hadoop.fcs.MsgGamNam.Gam2NamRequest;
