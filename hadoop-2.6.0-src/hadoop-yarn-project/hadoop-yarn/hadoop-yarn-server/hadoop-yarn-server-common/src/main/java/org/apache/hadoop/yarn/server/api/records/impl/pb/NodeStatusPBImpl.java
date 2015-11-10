@@ -299,17 +299,17 @@ public class NodeStatusPBImpl extends NodeStatus {
   }
 
   @Override
-    public Set<String> getAccNames() {
-      initAccNames();
-      return this.accNames;
-    }
+  public Set<String> getAccNames() {
+    initAccNames();
+    return this.accNames;
+  }
 
   @Override
-    public void setAccNames(Set<String> accNames) {
-      maybeInitBuilder();
-      builder.clearAccNames();
-      this.accNames = accNames;
-    }
+  public void setAccNames(Set<String> accNames) {
+    maybeInitBuilder();
+    builder.clearAccNames();
+    this.accNames = accNames;
+  }
 
   private void initAccNames() {
     if (this.accNames != null) {
