@@ -58,6 +58,7 @@ import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.api.records.NodeAction;
 import org.apache.hadoop.yarn.server.api.records.NodeStatus;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
+import org.apache.hadoop.yarn.server.resourcemanager.reservation.ReservationSystem;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAttemptContainerFinishedEvent;
@@ -490,6 +491,8 @@ public class ResourceTrackerService extends AbstractService implements
     if (accNames.size() == 0) {
       return;
     }
+
+    // add labels and refresh labels on node
     RMNodeLabelsManager labelManager = rmContext.getNodeLabelManager();
     if (labelManager != null) {
       // TODO(mhhuang) make the exceptions more visible?
@@ -503,6 +506,20 @@ public class ResourceTrackerService extends AbstractService implements
       } catch (IOException ioe) {
         LOG.info("Exception in replacing labels on node");
       }
+    }
+
+    // refreshQueues
+    try {
+      rmContext.getScheduler().reinitialize(getConfig(), this.rmContext);
+      // refresh the reservation system
+      ReservationSystem rSystem = rmContext.getReservationSystem();
+      if (rSystem != null) {
+        rSystem.reinitialize(getConfig(), rmContext);
+      }
+    } catch (IOException ioe) {
+      LOG.info("Exception refreshing queues ", ioe);
+    } catch (YarnException ye) {
+      LOG.info("Exception refreshing queues ", ye);
     }
   }
 }
