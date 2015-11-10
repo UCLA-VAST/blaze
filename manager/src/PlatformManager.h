@@ -58,6 +58,8 @@ public:
 
   Platform_ptr create(std::string id);
 
+  std::vector<std::string> getAccNames();
+
 private:
   Logger *logger;
 

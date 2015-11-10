@@ -157,5 +157,17 @@ void PlatformManager::removeShared(int64_t block_id)
     throw(e);
   }
 }
+
+std::vector<std::string> PlatformManager::getAccNames() {
+  std::vector<std::string> ret;
+  std::map<std::string, std::string>::iterator iter;
+  for (iter = acc_table.begin();
+       iter != acc_table.end();
+       iter ++ )
+  {
+    ret.push_back(iter->first); 
+  }
+  return ret;
+}
 } // namespace blaze
 
