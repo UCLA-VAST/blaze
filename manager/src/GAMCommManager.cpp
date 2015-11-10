@@ -56,7 +56,7 @@ void GAMCommManager::process(socket_ptr sock) {
         reply_msg.set_isupdated(true); 
       
         for (int i=0; i<names.size(); i++) {
-          reply_msg.add_acc_names(names[i].tolower());
+          reply_msg.add_acc_names(names[i]);
         }
         last_names = names;
       }
