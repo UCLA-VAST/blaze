@@ -492,15 +492,16 @@ public class ResourceTrackerService extends AbstractService implements
       return;
     }
 
-    // add labels and refresh labels on node
+    // TODO(mhhuang) make these exceptions more visible?
     RMNodeLabelsManager labelManager = rmContext.getNodeLabelManager();
     if (labelManager != null) {
-      // TODO(mhhuang) make the exceptions more visible?
+      // add labels to cluster
       try{
-        labelManager.addToCluserNodeLabels(accNames);
+        labelManager.addToCluserFcsNodeLabels(accNames);
       } catch (IOException ioe) {
         LOG.info("Exception in adding labels");
       }
+      // refresh labels on nodes
       try{
         labelManager.replaceLabelsOnNode(nodeToLabels);
       } catch (IOException ioe) {
@@ -508,8 +509,8 @@ public class ResourceTrackerService extends AbstractService implements
       }
     }
 
-    // refreshQueues
     try {
+      // refreshQueues
       rmContext.getScheduler().reinitialize(getConfig(), this.rmContext);
       // refresh the reservation system
       ReservationSystem rSystem = rmContext.getReservationSystem();
