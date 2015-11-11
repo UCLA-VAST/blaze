@@ -11,6 +11,7 @@
 
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <glog/logging.h>
 
 #include "CommManager.h"
 #include "PlatformManager.h"
@@ -21,7 +22,9 @@
 using namespace blaze;
 
 int main(int argc, char** argv) {
-  
+
+  google::InitGoogleLogging(argv[0]);
+
   if (argc < 2) {
     printf("USAGE: %s <conf_path>\n", argv[0]);
     return -1;
@@ -45,10 +48,10 @@ int main(int argc, char** argv) {
 
   // setup Logger
   int verbose = conf->verbose();  
-  Logger logger(verbose);
+  //Logger logger(verbose);
 
   // setup PlatformManager
-  PlatformManager platform_manager(conf, &logger);
+  PlatformManager platform_manager(conf);
 
   // check all network interfaces on this computer, and 
   // open a communicator on each interface using the same port
@@ -82,13 +85,13 @@ int main(int argc, char** argv) {
       // create communicator for GAM
       boost::shared_ptr<CommManager> comm_gam( new GAMCommManager(
             &platform_manager, 
-            &logger, ip_addr, gam_port)); 
+            ip_addr, gam_port)); 
 
       // create communicator for applications
       // it will start listening for new connections automatically
       boost::shared_ptr<CommManager> comm( new AppCommManager(
             &platform_manager, 
-            &logger, ip_addr, app_port));
+            ip_addr, app_port));
 
       // push the communicator pointer to pool to avoid object
       // being destroyed out of context

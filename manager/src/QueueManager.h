@@ -26,9 +26,8 @@ const TaskManager_ptr NULL_TASK_MANAGER;
 class QueueManager {
 
 public:
-  QueueManager(Platform *_platform, Logger *_logger): 
-    platform(_platform),
-    logger(_logger) 
+  QueueManager(Platform *_platform): 
+    platform(_platform)
   {;}
 
   // add a new queue regarding an existing accelerator
@@ -40,15 +39,14 @@ public:
   TaskManager_ptr get(std::string id);
 
   // start the executor and commiter for one task queue
-  void start(std::string id);
+  virtual void start(std::string id);
 
   // start the executor and commiter for all queues
-  void startAll();
+  virtual void startAll();
 
-private:
+protected:
   std::map<std::string, TaskManager_ptr> queue_table;
   Platform *platform;
-  Logger *logger;
 };
 
 typedef boost::shared_ptr<QueueManager> QueueManager_ptr;

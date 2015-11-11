@@ -22,8 +22,7 @@ class PlatformManager {
 
 public:
   
-  PlatformManager(ManagerConf *conf,
-      Logger *_logger);
+  PlatformManager(ManagerConf *conf);
 
   BlockManager* getBlockManager(std::string acc_id) {
     if (acc_table.find(acc_id) != acc_table.end()) {
@@ -61,8 +60,6 @@ public:
   std::vector<std::string> getAccNames();
 
 private:
-  Logger *logger;
-
   // map platform_id to Platform 
   std::map<std::string, Platform_ptr> platform_table;
 

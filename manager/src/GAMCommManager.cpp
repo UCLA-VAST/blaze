@@ -12,13 +12,11 @@
 #include <stdexcept>
 #include <cstdint>
 
-#include "proto/msgGamNam.pb.h"
+#include <glog/logging.h>
 
+#include "proto/msgGamNam.pb.h"
 #include "CommManager.h"
 
-#define LOG_HEADER  std::string("GAMCommManager::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
 namespace blaze {
 
 void GAMCommManager::process(socket_ptr sock) {
@@ -36,9 +34,6 @@ void GAMCommManager::process(socket_ptr sock) {
     
     if (msg.type() == Gam2NamRequest::ACCNAMES) {
       
-      logger->logErr(LOG_HEADER+
-          std::string("Received request for ACCNAMES"));
-
       Nam2GamAccNames reply_msg;
 
       // compile a list from platform manager
@@ -63,15 +58,15 @@ void GAMCommManager::process(socket_ptr sock) {
 
       // send reply message
       send(reply_msg, sock);
+
+      LOG_EVERY_N(INFO, 60) << "Sent 60 ACCNAMES to GAM";
     }
     else {
       throw std::runtime_error("Unexpected message");
     }
   }
   catch (std::exception &e) {
-    logger->logErr(LOG_HEADER+
-        std::string("Failed to communicate with GAM: ")+
-        std::string(e.what()));
+    LOG(ERROR) << "Failed to communicate with GAM: " << e.what();
   }
 }
 } // namespace blaze

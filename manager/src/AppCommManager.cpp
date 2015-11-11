@@ -9,12 +9,11 @@
 #include <stdexcept>
 #include <cstdint>
 
+#include <glog/logging.h>
+
 #include "proto/task.pb.h"
 #include "CommManager.h"
 
-#define LOG_HEADER  std::string("AppCommManager::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
 namespace blaze {
 
 void AppCommManager::process(socket_ptr sock) {
@@ -56,10 +55,8 @@ void AppCommManager::process(socket_ptr sock) {
       acc_id = task_msg.acc_id();
       app_id = task_msg.app_id();
 
-      logger->logInfo(LOG_HEADER + 
-          std::string("Received an ACCREQUEST for ")+
-          acc_id + std::string(" from app: ")+
-          app_id);
+      LOG(INFO) << "Received an ACCREQUEST for " << acc_id
+        << "from app " << app_id;
 
       /* Receive acc_id to identify the corresponding TaskManager, 
        * with which create a new Task. 
@@ -111,9 +108,7 @@ void AppCommManager::process(socket_ptr sock) {
           // check message schematic
           if (!recv_block.has_partition_id())
           {
-            logger->logErr(LOG_HEADER + 
-                std::string("Missing partition_id in ACCREQUEST"));
-            throw AccFailure("Invalid ACCREQUEST");
+            throw AccFailure("Missing partition_id in ACCREQUEST");
           }
           int64_t blockId = recv_block.partition_id();
           
@@ -135,9 +130,7 @@ void AppCommManager::process(socket_ptr sock) {
 
             // check if the sizes are valid
             if (num_elements > 0 && (element_length <=0 || element_size <=0)) {
-              logger->logErr(LOG_HEADER + 
-                  std::string("invalid block size info in ACCREQUEST"));
-              throw AccFailure("Invalide ACCREQUEST");
+              throw AccFailure("Invalid block size info in ACCREQUEST");
             }
 
             if (block_manager->contains(blockId)) {
@@ -223,14 +216,9 @@ void AppCommManager::process(socket_ptr sock) {
         // <bestcase wait time, worstcase wait time>
         std::pair<int,int> wait_time = task_manager->getWaitTime(task.get());
 
-        logger->logInfo(LOG_HEADER+
-            std::string("Wait time = (")+
-            std::to_string((long long)wait_time.first)+
-            std::string(",")+
-            std::to_string((long long)wait_time.second)+
-            std::string(") us, task estimated time = ")+
-            std::to_string((long long)task_time)+
-            std::string(" us"));
+        LOG(INFO) << "Wait time = (" << wait_time.first 
+          << ", " << wait_time.second << ") us, task estimated time = "
+          << task_time << " us";
 
         // use worst cast wait time
         if (wait_time.second > task_time*task_speedup) {
@@ -284,14 +272,10 @@ void AppCommManager::process(socket_ptr sock) {
           if (task->getInputBlock(blockId) &&
               task->getInputBlock(blockId)->isReady()) 
           {
-            logger->logInfo(LOG_HEADER+
-                "Skipping ready block "+
-                std::to_string((long long)blockId));
+            LOG(WARNING) << "Skipping ready block " << blockId;
             break;
           }
-          logger->logInfo(LOG_HEADER+
-              "Start reading data for block "+
-              std::to_string((long long)blockId));
+          VLOG(1) << "Start reading data for block " << blockId;
 
           // block_status: <cached, sampled>
           std::pair<bool, bool> block_status = block_table[blockId];
@@ -312,8 +296,7 @@ void AppCommManager::process(socket_ptr sock) {
             if (recv_block.has_num_elements() && 
                 recv_block.num_elements() < 0) { 
               
-              logger->logErr(LOG_HEADER+
-                  std::string("Reading file is unstable!"));
+              LOG(WARNING) << "Reading file is unstable!";
 
               if (!recv_block.has_file_size() ||
                   !recv_block.has_file_offset())
@@ -402,8 +385,7 @@ void AppCommManager::process(socket_ptr sock) {
                 try {
                   data = task->readLine(line, item_length, item_size);
                 } catch (std::runtime_error &e) {
-                  logger->logErr(LOG_HEADER+
-                      std::string("problem reading a line"));
+                  LOG(ERROR) << "Fail to read line";
                 }
                 if (item_size > 0) {
                   data_buf.push_back(std::make_pair(item_size, data));
@@ -411,9 +393,7 @@ void AppCommManager::process(socket_ptr sock) {
                 }
               }
               if (total_size <= 0) {
-                logger->logErr(LOG_HEADER+
-                    std::string("Did not read any data for block ")+
-                    std::to_string((long long) blockId));
+                LOG(ERROR) << "Did not read any data for block " << blockId;
               }
               // writing data to the corresponding block
               int align_width = 0;
@@ -450,9 +430,7 @@ void AppCommManager::process(socket_ptr sock) {
                     !recv_block.has_element_length() ||
                     !recv_block.has_element_size())
                 {
-                  logger->logErr(LOG_HEADER + 
-                      std::string("Missing block size info in ACCDATA"));
-                  throw AccFailure("Invalide ACCDATA");
+                  throw AccFailure("Missing block size in ACCDATA");
                 }
 
                 int num_elements    = recv_block.num_elements();
@@ -491,8 +469,7 @@ void AppCommManager::process(socket_ptr sock) {
                   boost::filesystem::remove(file);
                 }
               } catch (std::exception &e) {
-                logger->logErr(LOG_HEADER+
-                    std::string("Cannot delete memory mapped file after read"));
+                LOG(WARNING) << "Cannot delete memory mapped file after read";
               }
             }
           }
@@ -523,9 +500,7 @@ void AppCommManager::process(socket_ptr sock) {
               // overwrite the block handle to the sampled block
               block = block->sample(mask);
 
-              logger->logInfo(LOG_HEADER+
-                  "Finish sampling block "+
-                  std::to_string((long long)blockId));
+              VLOG(1) << "Finish sampling block " << blockId;
             }
             else {
               throw AccFailure(std::string("Cannot mask for block ")+
@@ -540,9 +515,7 @@ void AppCommManager::process(socket_ptr sock) {
                 std::to_string((long long)blockId)+(" because: ")+
                 std::string(e.what()));
           }
-          logger->logInfo(LOG_HEADER+
-              "finish reading data for block "+
-              std::to_string((long long)blockId));
+          VLOG(1) << "Finish reading data for block " << blockId;
         }
       } // 2. Finish handling ACCDATA
 
@@ -552,8 +525,8 @@ void AppCommManager::process(socket_ptr sock) {
             boost::chrono::microseconds(100)); 
       }
 
-      logger->logInfo(LOG_HEADER+
-          std::string("Task ready, enqueue to be executed"));
+      VLOG(2) << "Task ready, enqueue to be executed";
+
       // add task to application queue
       task_manager->enqueue(app_id, task.get());
 
@@ -585,7 +558,7 @@ void AppCommManager::process(socket_ptr sock) {
           // use thread id to create unique output file path
           std::string path = 
             "/tmp/" + 
-            logger->getTid() + 
+            boost::lexical_cast<std::string>(boost::this_thread::get_id())+
             std::to_string((long long)outId);
 
           try {
@@ -616,8 +589,7 @@ void AppCommManager::process(socket_ptr sock) {
           throw AccFailure("Cannot send ACCFINISH");
         }
 
-        logger->logInfo(LOG_HEADER + 
-            std::string("Task finished, sent an ACCFINISH."));
+        VLOG(1) << "Task finished, sent an ACCFINISH";
       }
       else {
         throw AccFailure("Task failed");
@@ -631,9 +603,7 @@ void AppCommManager::process(socket_ptr sock) {
       }
       std::string app_id = task_msg.app_id();
 
-      logger->logInfo(LOG_HEADER + 
-          std::string("Recieved an ACCTERM message for ")+
-          app_id); 
+      LOG(INFO) << "Recieved an ACCTERM message for " << app_id;
 
       // TODO: delete application queue for app_id
 
@@ -662,11 +632,7 @@ void AppCommManager::process(socket_ptr sock) {
 
     reply_msg.set_type(ACCREJECT);
 
-    logger->logInfo(
-        LOG_HEADER+
-        std::string("Send ACCREJECT because: ")+
-        e.what());
-
+    LOG(ERROR) << "Send ACCREJECT because: " << e.what();
     try {
       send(reply_msg, sock);
     } catch (std::exception &e) {
@@ -679,9 +645,7 @@ void AppCommManager::process(socket_ptr sock) {
 
     reply_msg.set_type(ACCFAILURE);
 
-    logger->logErr(LOG_HEADER+
-        std::string("Send ACCFAILURE because: ")+
-        e.what());
+    LOG(ERROR) << "Send ACCFAILURE because: " << e.what();
 
     try {
       send(reply_msg, sock);
@@ -695,9 +659,7 @@ void AppCommManager::process(socket_ptr sock) {
 
     reply_msg.set_type(ACCFAILURE);
 
-    logger->logErr(LOG_HEADER+
-        std::string("Send ACCFAILURE because: ")+
-        e.what());
+    LOG(ERROR) << "Send ACCFAILURE because: " << e.what();
 
     try {
       send(reply_msg, sock);
@@ -706,9 +668,7 @@ void AppCommManager::process(socket_ptr sock) {
     }
   }
   catch (std::exception &e) {
-    logger->logErr(LOG_HEADER+
-        std::string("Unexpected exception: ")+
-        e.what());
+    LOG(ERROR) << "Unexpected exception: " << e.what();
   }
 }
 } // namespace blaze
