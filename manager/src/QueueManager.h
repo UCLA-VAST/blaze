@@ -16,7 +16,6 @@
 #include "Platform.h"
 #include "Task.h"
 #include "TaskManager.h"
-#include "Logger.h"
 
 namespace blaze {
 

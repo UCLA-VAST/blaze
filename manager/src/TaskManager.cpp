@@ -6,9 +6,6 @@
 #include "TaskManager.h"
 
 namespace blaze {
-#define LOG_HEADER  std::string("TaskManager::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
 
 int TaskManager::estimateTime(Task* task) {
 

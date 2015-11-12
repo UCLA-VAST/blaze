@@ -7,10 +7,6 @@
 
 namespace blaze {
 
-#define LOG_HEADER  std::string("QueueManager::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
-
 void QueueManager::add(
     std::string id, 
     std::string lib_path)

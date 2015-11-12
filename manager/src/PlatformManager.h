@@ -8,13 +8,11 @@
 #include <boost/smart_ptr.hpp>
 
 #include "proto/acc_conf.pb.h"
-
+#include "Platform.h"
+#include "Block.h"
 #include "BlockManager.h"
 #include "QueueManager.h"
 #include "TaskManager.h"
-#include "Platform.h"
-#include "Logger.h"
-#include "Block.h"
 
 namespace blaze {
 

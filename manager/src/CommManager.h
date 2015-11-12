@@ -16,7 +16,6 @@
 #include "PlatformManager.h"
 #include "BlockManager.h"
 #include "TaskManager.h"
-#include "Logger.h"
 
 using namespace boost::asio;
 

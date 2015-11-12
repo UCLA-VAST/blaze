@@ -11,7 +11,6 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
-#include "Logger.h"
 #include "Block.h"
 #include "Platform.h"
 
