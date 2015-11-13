@@ -34,9 +34,11 @@ import org.apache.hadoop.yarn.api.records.impl.pb.NodeIdPBImpl;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationIdProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerStatusProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.NodeIdProto;
+import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.AccStatusProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.NodeHealthStatusProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.NodeStatusProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.NodeStatusProtoOrBuilder;
+import org.apache.hadoop.yarn.server.api.records.AccStatus;
 import org.apache.hadoop.yarn.server.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.server.api.records.NodeStatus;
     
@@ -50,7 +52,7 @@ public class NodeStatusPBImpl extends NodeStatus {
   private List<ContainerStatus> containers = null;
   private NodeHealthStatus nodeHealthStatus = null;
   private List<ApplicationId> keepAliveApplications = null;
-  private Set<String> accNames = null;
+  private AccStatus accStatus = null;
   
   public NodeStatusPBImpl() {
     builder = NodeStatusProto.newBuilder();
@@ -81,9 +83,8 @@ public class NodeStatusPBImpl extends NodeStatus {
     if (this.keepAliveApplications != null) {
       addKeepAliveApplicationsToProto();
     }
-    if (this.accNames != null) {
-      builder.clearAccNames();
-      builder.addAllAccNames(this.accNames);
+    if (this.accStatus != null) {
+      builder.setAccStatus(convertToProtoFormat(this.accStatus));
     }
   }
 
@@ -299,25 +300,25 @@ public class NodeStatusPBImpl extends NodeStatus {
   }
 
   @Override
-  public Set<String> getAccNames() {
-    initAccNames();
-    return this.accNames;
+  public synchronized AccStatus getAccStatus() {
+    NodeStatusProtoOrBuilder p = viaProto ? proto : builder;
+    if (accStatus != null) {
+      return accStatus;
+    }
+    if (!p.hasAccStatus()) {
+      return null;
+    }
+    accStatus = convertFromProtoFormat(p.getAccStatus());
+    return accStatus;
   }
 
   @Override
-  public void setAccNames(Set<String> accNames) {
+  public synchronized void setAccStatus(AccStatus accStatus) {
     maybeInitBuilder();
-    builder.clearAccNames();
-    this.accNames = accNames;
-  }
-
-  private void initAccNames() {
-    if (this.accNames != null) {
-      return;
+    if (accStatus == null) {
+      builder.clearAccStatus();
     }
-    NodeStatusProtoOrBuilder p = viaProto ? proto : builder;
-    this.accNames = new HashSet<String>();
-    this.accNames.addAll(p.getAccNamesList());
+    this.accStatus = accStatus;
   }
 
   private NodeIdProto convertToProtoFormat(NodeId nodeId) {
@@ -335,6 +336,15 @@ public class NodeStatusPBImpl extends NodeStatus {
 
   private NodeHealthStatus convertFromProtoFormat(NodeHealthStatusProto proto) {
     return new NodeHealthStatusPBImpl(proto);
+  }
+
+  private AccStatusProto convertToProtoFormat(
+      AccStatus accStatus) {
+    return ((AccStatusPBImpl) accStatus).getProto();
+  }
+
+  private AccStatus convertFromProtoFormat(AccStatusProto proto) {
+    return new AccStatusPBImpl(proto);
   }
 
   private ContainerStatusPBImpl convertFromProtoFormat(ContainerStatusProto c) {

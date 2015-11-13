@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
@@ -54,6 +55,7 @@ import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatRequest;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
 import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerRequest;
 import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerResponse;
+import org.apache.hadoop.yarn.server.api.records.AccStatus;
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.api.records.NodeAction;
 import org.apache.hadoop.yarn.server.api.records.NodeStatus;
@@ -104,6 +106,8 @@ public class ResourceTrackerService extends AbstractService implements
   
   private int minAllocMb;
   private int minAllocVcores;
+
+  private Map<NodeId, Boolean> nodeToNamAlive = new HashMap<NodeId, Boolean>();
 
   static {
     resync.setNodeAction(NodeAction.RESYNC);
@@ -433,8 +437,8 @@ public class ResourceTrackerService extends AbstractService implements
             remoteNodeStatus.getKeepAliveApplications(), nodeHeartBeatResponse));
 
     // 5. Get accNames
-    Set<String> accNames = remoteNodeStatus.getAccNames();
-    processAccNames(accNames, nodeId);
+    AccStatus accStatus = remoteNodeStatus.getAccStatus();
+    processAccStatus(accStatus, nodeId);
 
     return nodeHeartBeatResponse;
   }
@@ -485,42 +489,67 @@ public class ResourceTrackerService extends AbstractService implements
     return this.server;
   }
 
-  void processAccNames(Set<String> accNames, NodeId nodeId) {
-    Map<NodeId, Set<String>> nodeToLabels = new HashMap<NodeId, Set<String>>();
-    nodeToLabels.put(nodeId, accNames);
-    if (accNames.size() == 0) {
-      return;
-    }
+  void processAccStatus(AccStatus accStatus, NodeId nodeId) {
+    // NAM just becomes dead
+    if (!accStatus.getAlive() &&
+        nodeToNamAlive.containsKey(nodeId) && nodeToNamAlive.get(nodeId)) {
+      nodeToNamAlive.put(nodeId, false);
 
-    // TODO(mhhuang) make these exceptions more visible?
-    RMNodeLabelsManager labelManager = rmContext.getNodeLabelManager();
-    if (labelManager != null) {
-      // add labels to cluster
+      // clear all the labels on this node
+      Map<NodeId, Set<String>> nodeToLabels = new HashMap<NodeId, Set<String>>();
+      nodeToLabels.put(nodeId, new HashSet());
       try{
-        labelManager.addToCluserFcsNodeLabels(accNames);
-      } catch (IOException ioe) {
-        LOG.info("Exception in adding labels");
-      }
-      // refresh labels on nodes
-      try{
+        RMNodeLabelsManager labelManager = rmContext.getNodeLabelManager();
         labelManager.replaceLabelsOnNode(nodeToLabels);
       } catch (IOException ioe) {
         LOG.info("Exception in replacing labels on node");
       }
+
+      // TODO(mhhuang) remove the labels that are no longer in use from cluster
+      return;
     }
 
-    try {
-      // refreshQueues
-      rmContext.getScheduler().reinitialize(getConfig(), this.rmContext);
-      // refresh the reservation system
-      ReservationSystem rSystem = rmContext.getReservationSystem();
-      if (rSystem != null) {
-        rSystem.reinitialize(getConfig(), rmContext);
+    nodeToNamAlive.put(nodeId, accStatus.getAlive());
+
+    // NAM is alive and has updated accelerators
+    if (accStatus.getAlive() && accStatus.getIsUpdated()) {
+      Map<NodeId, Set<String>> nodeToLabels = new HashMap<NodeId, Set<String>>();
+      Set<String> accNames = new HashSet(accStatus.getAccNames());
+      if (accNames.size() == 0) {
+        return;
       }
-    } catch (IOException ioe) {
-      LOG.info("Exception refreshing queues ", ioe);
-    } catch (YarnException ye) {
-      LOG.info("Exception refreshing queues ", ye);
+      nodeToLabels.put(nodeId, accNames);
+
+      // TODO(mhhuang) make these exceptions more visible?
+      RMNodeLabelsManager labelManager = rmContext.getNodeLabelManager();
+      if (labelManager != null) {
+        // add labels to cluster
+        try{
+          labelManager.addToCluserFcsNodeLabels(accNames);
+        } catch (IOException ioe) {
+          LOG.info("Exception in adding labels");
+        }
+        // refresh labels on nodes
+        try{
+          labelManager.replaceLabelsOnNode(nodeToLabels);
+        } catch (IOException ioe) {
+          LOG.info("Exception in replacing labels on node");
+        }
+      }
+
+      try {
+        // refreshQueues
+        rmContext.getScheduler().reinitialize(getConfig(), this.rmContext);
+        // refresh the reservation system
+        ReservationSystem rSystem = rmContext.getReservationSystem();
+        if (rSystem != null) {
+          rSystem.reinitialize(getConfig(), rmContext);
+        }
+      } catch (IOException ioe) {
+        LOG.info("Exception in refreshing queues ", ioe);
+      } catch (YarnException ye) {
+        LOG.info("Exception in refreshing queues ", ye);
+      }
     }
   }
 }
