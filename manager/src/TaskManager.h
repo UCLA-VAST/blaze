@@ -32,6 +32,7 @@ public:
     void (*destroy_func)(Task*),
     Platform *_platform
   ): power(true),  // TODO: 
+     exeQueueLength(0),
      nextTaskId(0),
      lobbyWaitTime(0),
      doorWaitTime(0),
@@ -71,6 +72,9 @@ public:
   void start();
   //void stop();
 
+  // query the current execution queue length
+  int getExeQueueLength();
+
   // experimental
   std::string getConfig(int idx, std::string key);
 
@@ -84,6 +88,9 @@ private:
   mutable boost::atomic<int> doorWaitTime;    
 
   mutable boost::atomic<int> nextTaskId;
+
+  // current number of tasks in the execution queue
+  mutable boost::atomic<int> exeQueueLength;
 
   int deltaDelay;
   

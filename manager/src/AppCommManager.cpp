@@ -536,7 +536,7 @@ void AppCommManager::process(socket_ptr sock) {
           task->status != Task::FAILED) 
       {
         boost::this_thread::sleep_for(
-            boost::chrono::microseconds(1000)); 
+            boost::chrono::microseconds(100)); 
       }
 
       // 3. Handle ACCFINISH message and output data

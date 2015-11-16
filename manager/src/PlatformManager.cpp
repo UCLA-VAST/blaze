@@ -49,9 +49,8 @@ PlatformManager::PlatformManager(ManagerConf *conf)
             std::make_pair(id, block_manager));
       }
 
-      // TODO: use different queue manager for each platform
       // create queue manager
-      QueueManager_ptr queue_manager(new QueueManager(platform.get()));
+      QueueManager_ptr queue_manager = platform->createQueue();
 
       // add the new queue manager to queue table
       queue_manager_table.insert(std::make_pair(id, queue_manager));
@@ -59,8 +58,14 @@ PlatformManager::PlatformManager(ManagerConf *conf)
       // add accelerators to the platform
       for (int j=0; j<platform_conf.acc_size(); j++) {
 
+        AccWorker acc_conf = platform_conf.acc(j);
         try {
-          AccWorker acc_conf = platform_conf.acc(j);
+
+          // check if acc of the same already exists
+          if (acc_table.find(acc_conf.id()) != acc_table.end()) {
+            throw std::runtime_error(
+                "accelerator of the same id already exists");
+          }
 
           // add acc mapping to table
           acc_table.insert(std::make_pair(
@@ -78,7 +83,7 @@ PlatformManager::PlatformManager(ManagerConf *conf)
         } 
         catch (std::exception &e) {
           LOG(ERROR) << "Cannot create ACC " << 
-              platform_conf.acc(j).id() <<
+              acc_conf.id() <<
               ": " << e.what();
         }
       }

@@ -2,6 +2,10 @@
 
 namespace blaze {
 
+TaskEnv* Task::getEnv() { 
+  return platform->getEnv();
+}
+
 std::string Task::getConfig(int idx, std::string key) 
 {
   if (config_table.find(idx) != config_table.end() &&

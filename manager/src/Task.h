@@ -80,7 +80,7 @@ protected:
     return NULL;
   }
 
-  TaskEnv* getEnv() { return platform->getEnv();  }
+  TaskEnv* getEnv();
 
   char* getOutput(int idx, int item_length, int num_items, int data_width);
   

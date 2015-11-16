@@ -14,45 +14,43 @@
 
 namespace blaze {
 
+class QueueManager;
+
+typedef boost::shared_ptr<QueueManager> QueueManager_ptr;
+
 class OpenCLPlatform : public Platform {
 
 public:
 
   OpenCLPlatform();
 
-  virtual void setupAcc(AccWorker &conf);
-
   ~OpenCLPlatform() {
     delete env;  
+    /*
     for (std::map<std::string, cl_program>::iterator 
-             iter = programs.begin(); 
-           iter != programs.end(); 
-           iter ++) 
-      {
-        clReleaseProgram(iter->second);
-      }
+        iter = programs.begin(); 
+        iter != programs.end(); 
+        iter ++) 
+    {
+      clReleaseProgram(iter->second);
+    }
 
-      for (std::map<std::string, cl_kernel>::iterator 
-             iter = kernels.begin(); 
-           iter != kernels.end(); 
-           iter ++) 
-      {
-        clReleaseKernel(iter->second);
-      }
-      
+    for (std::map<std::string, cl_kernel>::iterator 
+        iter = kernels.begin(); 
+        iter != kernels.end(); 
+        iter ++) 
+    {
+      clReleaseKernel(iter->second);
+    }
+    */
+
 
     clReleaseCommandQueue(cmd_queue);
     clReleaseContext(context);
 
   }
 
-  /*
-  virtual DataBlock_ptr createBlock() {
-    DataBlock_ptr block(
-        new OpenCLBlock((OpenCLEnv*)env));  
-    return block;
-  }
-  */
+  virtual QueueManager_ptr createQueue();
 
   virtual DataBlock_ptr createBlock(
       int num_items, 
@@ -67,6 +65,8 @@ public:
     return block;
   }
 
+  void setupProgram(std::string acc_id);
+
 private:
 
   int load_file(const char* filename, char** result);
@@ -77,17 +77,17 @@ private:
   cl_context       context;
   cl_command_queue cmd_queue;
 
-  std::map<std::string, cl_program> programs;
-  std::map<std::string, cl_kernel>  kernels;
+  cl_program       prev_program;
+  cl_kernel        prev_kernel;
+
+  std::map<std::string, std::pair<int, unsigned char*> > bitstreams;
+  //std::map<std::string, cl_kernel>  kernels;
 };
 
-extern "C" Platform* create() {
-  return new OpenCLPlatform();
-}
+extern "C" Platform* create();
 
-extern "C" void destroy(Platform* p) {
-  delete p;
-}
+extern "C" void destroy(Platform* p);
+
 } // namespace blaze
 
 #endif

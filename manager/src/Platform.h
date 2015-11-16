@@ -6,12 +6,12 @@
 #include <string>
 #include <map>
 
+#include "proto/acc_conf.pb.h"
 #include "TaskEnv.h"
 #include "Block.h"
+#include "QueueManager.h"
 
 namespace blaze {
-
-class AccWorker;
 
 class Platform {
   
@@ -26,8 +26,18 @@ public:
     delete env;  
   }
 
-  // setup an accelerator on the platform
-  virtual void setupAcc(AccWorker &conf) {;}
+  // store an accelerator setup on the platform
+  void setupAcc(AccWorker &conf) {
+    if (acc_table.find(conf.id()) == acc_table.end()) {
+      acc_table.insert(std::make_pair(conf.id(), conf));
+    }
+  }
+
+  // create a platform-specific queue manager
+  virtual QueueManager_ptr createQueue() {
+    QueueManager_ptr queue(new QueueManager(this));
+    return queue;
+  }
 
   // create a block object for the specific platform
   virtual DataBlock_ptr createBlock(
@@ -59,6 +69,9 @@ protected:
   
   // a table storing platform configurations mapped by key
   std::map<std::string, std::string> config_table;
+
+  // a table storing platform configurations mapped by key
+  std::map<std::string, AccWorker> acc_table;
 };
 
 typedef boost::shared_ptr<Platform> Platform_ptr;
