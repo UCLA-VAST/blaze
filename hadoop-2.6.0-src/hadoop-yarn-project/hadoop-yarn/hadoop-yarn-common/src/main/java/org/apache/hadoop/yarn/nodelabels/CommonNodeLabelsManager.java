@@ -90,6 +90,8 @@ public class CommonNodeLabelsManager extends AbstractService {
     }
   }
 
+  protected Set<String> fcsLabels = new HashSet<String>();
+
   /**
    * A <code>Host</code> can have multiple <code>Node</code>s 
    */
@@ -277,6 +279,48 @@ public class CommonNodeLabelsManager extends AbstractService {
 
     LOG.info("Add labels: [" + StringUtils.join(labels.iterator(), ",") + "]");
   }
+
+  /**
+   * Add multiple node labels to repository
+   * 
+   * @param labels
+   *          new node labels added
+   */
+  @SuppressWarnings("unchecked")
+  public void addToCluserFcsNodeLabels(Set<String> labels) throws IOException {
+    if (null == labels || labels.isEmpty()) {
+      return;
+    }
+    Set<String> newLabels = new HashSet<String>();
+    labels = normalizeLabels(labels);
+
+    // do a check before actual adding them, will throw exception if any of them
+    // doesn't meet label name requirement
+    for (String label : labels) {
+      checkAndThrowLabelName(label);
+    }
+
+    for (String label : labels) {
+      // shouldn't overwrite it to avoid changing the Label.resource
+      if (this.labelCollections.get(label) == null) {
+        this.labelCollections.put(label, new Label());
+        newLabels.add(label);
+        // Only difference to addToCluserFcsNodeLabels
+        fcsLabels.add(label);
+      }
+    }
+    if (null != dispatcher && !newLabels.isEmpty()) {
+      dispatcher.getEventHandler().handle(
+          new StoreNewClusterNodeLabels(newLabels));
+    }
+
+    LOG.info("Add labels: [" + StringUtils.join(labels.iterator(), ",") + "]");
+  }
+
+  public boolean isFcsLabel(String label) {
+    return fcsLabels.contains(label);
+  }
+  
   
   protected void checkAddLabelsToNode(
       Map<NodeId, Set<String>> addedLabelsToNode) throws IOException {

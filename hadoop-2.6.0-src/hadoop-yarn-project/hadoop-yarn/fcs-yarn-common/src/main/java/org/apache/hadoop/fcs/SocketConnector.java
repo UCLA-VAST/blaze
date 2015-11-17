@@ -22,16 +22,12 @@ public class SocketConnector {
     this.port = port;
   }
 
-  public boolean buildConnection() throws IOException {
+  public void buildConnection() throws IOException {
     InetAddress addr = InetAddress.getByName(ip); 
-    try {
-      socket = new Socket(addr, port);
-    } catch(IOException e) {
-      return false;
-    }
+    socket = new Socket(addr, port);
     sout = new DataOutputStream(socket.getOutputStream());
     sin = new DataInputStream(socket.getInputStream());
-    return true;
+    return;
   }
 
   public void send(int i) throws IOException {

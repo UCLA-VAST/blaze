@@ -61,6 +61,7 @@ import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatRequest;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
 import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerRequest;
 import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerResponse;
+import org.apache.hadoop.yarn.server.api.records.AccStatus;
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.api.records.NodeAction;
 import org.apache.hadoop.yarn.server.api.records.NodeHealthStatus;
@@ -86,6 +87,9 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
       YarnConfiguration.NM_PREFIX + "duration-to-track-stopped-containers";
 
   private static final Log LOG = LogFactory.getLog(NodeStatusUpdaterImpl.class);
+
+  // If NAM is not responding in 1 heartbeat, assume it is dead
+  private static final int NAM_DEAD_INTERVAL = 1;
 
   private final Object heartbeatMonitor = new Object();
 
@@ -123,6 +127,7 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
   Set<ContainerId> pendingContainersToRemove = new HashSet<ContainerId>();
 
   private boolean needAccNamesFromNam = true;
+  private int lostNamTimes = 0;
 
   public NodeStatusUpdaterImpl(Context context, Dispatcher dispatcher,
       NodeHealthCheckerService healthChecker, NodeManagerMetrics metrics) {
@@ -353,10 +358,10 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
           + ", " + nodeHealthStatus.getHealthReport());
     }
     List<ContainerStatus> containersStatuses = getContainerStatuses();
-    Set<String> accNames = getAccNames();
+    AccStatus accStatus = getAccStatus();
     NodeStatus nodeStatus =
         NodeStatus.newInstance(nodeId, responseId, containersStatuses,
-          createKeepAliveApplicationList(), nodeHealthStatus, accNames);
+          createKeepAliveApplicationList(), nodeHealthStatus, accStatus);
 
     return nodeStatus;
   }
@@ -396,39 +401,44 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
     return containerStatuses;
   }
   
-  private Set<String> getAccNames() throws IOException {
-    Set<String> accNames = new HashSet<String>();
-
+  private AccStatus getAccStatus() throws IOException {
     try {
       Nam2GamAccNames accNamesProto = getAccNamesFromNam();
-      if (accNamesProto != null) {
-        if (accNamesProto.hasIsUpdated() && accNamesProto.getIsUpdated()) {
+      AccStatus status = AccStatus.newInstance(true,
+          accNamesProto.getIsUpdated(),
+          accNamesProto.getAccNamesList());
+      needAccNamesFromNam = false;
+      lostNamTimes = 0;
+
+      if (LOG.isDebugEnabled()) {
+        if (accNamesProto.getIsUpdated()) {
+          LOG.debug("Acc names are updated ");
           List<String> accNamesList = accNamesProto.getAccNamesList();
           for(String name : accNamesList) {
             LOG.debug("received acc names " + name);
-            accNames.add(name);
           }
         }
       }
-      needAccNamesFromNam = false;
+      return status;
     } catch (IOException e) {
+      // NAM does not exist on this node or it might be down
+      lostNamTimes += 1;
       needAccNamesFromNam = true;
-      String errorMessage = "Unexpected errors in connecting to NAM @ port 1028";
-      LOG.error(errorMessage, e);
-      throw new IOException(e);
+      String warnMessage = "NAM does not exist on this node";
+      warnMessage += " or encountered unexpected errors in connecting to NAM @ port 1028";
+      LOG.warn(warnMessage, e);
+      if (lostNamTimes == NAM_DEAD_INTERVAL) {
+        return AccStatus.newInstance(false, false, null);
+      } else {
+        return AccStatus.newInstance(true, false, null);
+      }
     }
-    return accNames;
   }
 
   private Nam2GamAccNames getAccNamesFromNam() throws IOException {
     // Build connection
     SocketConnector connector = new SocketConnector("0.0.0.0", 1028);
-    boolean alive = connector.buildConnection();
-
-    if (alive == false) {
-      LOG.debug("NAM is not alive on this node");
-      return null;
-    }
+    connector.buildConnection();
 
     // Send request
     Gam2NamRequest requestMsg = Gam2NamRequest.newBuilder()
