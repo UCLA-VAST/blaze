@@ -4,9 +4,6 @@ include ../../Makefile.config
 ifeq ($(BOOST_DIR),)
 $(error BOOST_DIR not set properly in Makefile.config)
 endif
-ifeq ($(HADOOP_DIR),)
-$(error HADOOP_DIR not set properly in Makefile.config)
-endif
 ifeq ($(PROTOBUF_DIR),)
 $(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
