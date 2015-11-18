@@ -35,10 +35,13 @@ typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 class BlazeClient {
   
 public:
-  BlazeClient(std::string id, 
+  BlazeClient(
+      std::string _acc_id, 
+      std::string _app_id, 
       int port = 1027,
       int verbose = 2):
-    acc_id(id), 
+    acc_id(_acc_id), 
+    app_id(_app_id), 
     ip_address("127.0.0.1"),
     srv_port(port),
     num_inputs(0),
@@ -60,7 +63,7 @@ public:
 
   // allocate a new block and return the pointer
   // NOTE: assuming the blocks are ordered
-  void* alloc(int data_width, int length, int type);
+  void* alloc(int num_items, int item_length, int item_size, int type);
 
   // write data to existing block
   void writeBlock(int idx, void* src, size_t size);
@@ -85,8 +88,8 @@ private:
   void recv(TaskMsg&, socket_ptr);
   void send(TaskMsg&, socket_ptr);
 
-  // accelerator id
   std::string acc_id;
+  std::string app_id;
 
   // connection
   int srv_port;
@@ -105,9 +108,13 @@ private:
 };
 
 
-void* BlazeClient::alloc(int data_width, int length, int type) {
+void* BlazeClient::alloc(
+    int num_items, 
+    int item_length, 
+    int item_size, 
+    int type) {
   
-  DataBlock_ptr block(new DataBlock(length, data_width*length));
+  DataBlock_ptr block(new DataBlock(num_items, item_length, item_size));
   blocks.push_back(std::make_pair(blocks.size(), block));
 
   if (type==BLAZE_INPUT) {
@@ -142,7 +149,6 @@ void BlazeClient::readBlock(int idx, void* dst, size_t size) {
 }
 
 void BlazeClient::start() {
-  
 
   // create socket for connection
   socket_ptr sock(new ip::tcp::socket(*ios));
@@ -196,10 +202,21 @@ void BlazeClient::prepareRequest(TaskMsg &msg) {
 
   msg.set_type(ACCREQUEST);
   msg.set_acc_id(acc_id);
+  msg.set_app_id(app_id);
 
   for (int i=0; i<num_inputs; i++) {
     DataMsg *block_info = msg.add_data();
-    block_info->set_partition_id(blocks[i].first);
+    
+    // check if the data is scalar
+    if (blocks[i].second->getNumItems() == 1 && 
+        blocks[i].second->getItemLength() == 1)
+    {
+      char* data = blocks[i].second->getData();
+      block_info->set_scalar_value(*((long long*)data));
+    }
+    else {
+      block_info->set_partition_id(blocks[i].first);
+    }
   }
 
   logger->logInfo(LOG_HEADER+
@@ -231,10 +248,10 @@ void BlazeClient::prepareData(TaskMsg &data_msg, TaskMsg &reply_msg) {
       DataBlock_ptr block = blocks[i].second;
       block->writeToMem(path);
 
-      block_info->set_path(path);
-      block_info->set_length(block->getLength());
-      block_info->set_size(block->getSize());
-      block_info->set_num_items(block->getNumItems());
+      block_info->set_file_path(path);
+      block_info->set_num_elements(block->getNumItems());
+      block_info->set_element_length(block->getItemLength());
+      block_info->set_element_size(block->getItemSize());
 
       logger->logInfo(LOG_HEADER+
           std::string("Finish writing block ")+
@@ -259,7 +276,7 @@ void BlazeClient::processOutput(TaskMsg &msg) {
   for (int i=0; i<msg.data_size(); i++) {
     DataMsg block_info = msg.data(i);
 
-    std::string path = block_info.path();
+    std::string path = block_info.file_path();
     try {
       blocks[num_inputs + i].second->readFromMem(path);
 
