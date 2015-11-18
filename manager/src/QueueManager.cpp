@@ -1,6 +1,8 @@
 #include <fstream>
 #include <stdexcept>
 #include <dlfcn.h>
+
+#define LOG_HEADER "QueueManager"
 #include <glog/logging.h>
 
 #include "Platform.h"

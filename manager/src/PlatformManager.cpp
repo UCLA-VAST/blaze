@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <dlfcn.h>
 
+#define LOG_HEADER "PlatformManager"
 #include <glog/logging.h>
 #include "PlatformManager.h"
 

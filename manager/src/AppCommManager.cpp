@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <cstdint>
 
+#define LOG_HEADER "AppCommManager"
 #include <glog/logging.h>
 
 #include "proto/task.pb.h"

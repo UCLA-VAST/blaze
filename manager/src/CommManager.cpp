@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <cstdint>
 
+#define LOG_HEADER "CommManager"
 #include <glog/logging.h>
 
 #include "CommManager.h"
