@@ -38,7 +38,20 @@ void OpenCLQueueManager::do_start() {
     DLOG(INFO) << "One accelerator on the platform, "
       << "Setup program and start TaskManager scheduler and executor";
 
-    ocl_platform->setupProgram(acc_id);
+    // program the device
+    try {
+      ocl_platform->setupProgram(acc_id);
+    }
+    catch (std::runtime_error &e) {
+
+      // if setup program failed, remove accelerator from queue_table 
+      LOG(ERROR) << "Failed to setup bitstream for " << queue_name
+        << ": " << e.what()
+        << ". Remove it from QueueManager.";
+      queue_table.erase(queue_table.find(queue_name));
+
+      return;
+    }
 
     task_manager->start();
   }
