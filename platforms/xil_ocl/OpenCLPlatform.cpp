@@ -5,7 +5,9 @@
 
 namespace blaze {
 
-OpenCLPlatform::OpenCLPlatform() {
+OpenCLPlatform::OpenCLPlatform() 
+  : prev_program(NULL), prev_kernel(NULL)
+{
   // start platform setting up
   int err;
 
@@ -20,29 +22,6 @@ OpenCLPlatform::OpenCLPlatform() {
   if (err != CL_SUCCESS) {
     throw std::runtime_error(
         "Failed to find an OpenCL platform!");
-  }
-
-  err = clGetPlatformInfo(
-      platform_id, 
-      CL_PLATFORM_VENDOR, 
-      1000, 
-      (void *)cl_platform_vendor,NULL);
-
-  if (err != CL_SUCCESS) {
-    throw std::runtime_error(
-        "clGetPlatformInfo(CL_PLATFORM_VENDOR) failed!");
-  }
-
-  err = clGetPlatformInfo(
-      platform_id,
-      CL_PLATFORM_NAME,
-      1000,
-      (void *)cl_platform_name,
-      NULL);
-
-  if (err != CL_SUCCESS) {
-    throw std::runtime_error(
-        "clGetPlatformInfo(CL_PLATFORM_NAME) failed!");
   }
 
   // Connect to a compute device
@@ -100,8 +79,10 @@ void OpenCLPlatform::setupProgram(std::string acc_id) {
     unsigned char* kernelbinary;
 
     // release previous kernel
-    clReleaseProgram(prev_program);
-    clReleaseKernel(prev_kernel);
+    if (prev_program && prev_kernel) {
+      clReleaseProgram(prev_program);
+      clReleaseKernel(prev_kernel);
+    }
 
     // get opencl kernel name and program path
     if (!conf.has_kernel_path() || 

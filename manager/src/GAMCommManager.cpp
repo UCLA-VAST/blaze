@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <cstdint>
 
+#define LOG_HEADER "GAMCommManager"
 #include <glog/logging.h>
 
 #include "proto/msgGamNam.pb.h"

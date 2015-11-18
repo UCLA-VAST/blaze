@@ -11,6 +11,7 @@
 
 #include <boost/iostreams/device/mapped_file.hpp>
 
+#define LOG_HEADER "AppCommManager"
 #include <glog/logging.h>
 
 #include "proto/task.pb.h"

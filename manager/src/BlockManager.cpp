@@ -1,4 +1,6 @@
 #include <climits>
+
+#define LOG_HEADER "BlockManager"
 #include <glog/logging.h>
 
 #include "BlockManager.h"

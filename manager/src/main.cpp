@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
   FLAGS_logtostderr = 1;
 
   // check license
-  licence_check_out();
+  //licence_check_out();
   
   if (argc < 2) {
     printf("USAGE: %s <conf_path>\n", argv[0]);
@@ -130,6 +130,9 @@ int main(int argc, char** argv) {
             &platform_manager, 
             ip_addr, app_port));
 
+      LOG(INFO) << "Start listening " << ip_addr << " on port " <<
+        app_port << " and " << gam_port;
+
       // push the communicator pointer to pool to avoid object
       // being destroyed out of context
       comm_pool.push_back(comm);
@@ -137,14 +140,12 @@ int main(int argc, char** argv) {
     }
   }
 
-  // if no endpoint in the config, skip this part
   while (1) {
-    // potential place for cleaning stage
-    ;
+    boost::this_thread::sleep_for(boost::chrono::seconds(60)); 
   }
 
   // release license
-  licence_check_in();
+  //licence_check_in();
 
   return 0;
 }
