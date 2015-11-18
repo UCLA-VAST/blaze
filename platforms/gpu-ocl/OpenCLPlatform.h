@@ -8,7 +8,7 @@
 
 #include <CL/opencl.h>
 
-#include "Platform.h"
+#include "blaze.h"
 #include "OpenCLBlock.h"
 #include "OpenCLEnv.h"
 
@@ -80,7 +80,7 @@ private:
   cl_program       prev_program;
   cl_kernel        prev_kernel;
 
-  std::map<std::string, std::pair<int, unsigned char*> > bitstreams;
+  std::map<std::string, std::pair<int, char*> > bitstreams;
   //std::map<std::string, cl_kernel>  kernels;
 };
 

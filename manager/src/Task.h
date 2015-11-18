@@ -6,14 +6,13 @@
 #include <vector>
 #include <cstdlib>
 #include <stdexcept>
-
 #include "Block.h"
 
 namespace blaze {
 
 // forward declaration of 
 class TaskManager;
-class CommManager;
+class AppCommManager;
 template <typename U, typename T> class BlazeTest;
 
 class Platform;
@@ -26,7 +25,7 @@ class TaskEnv;
 class Task {
 
 friend class TaskManager;
-friend class CommManager;
+friend class AppCommManager;
 template <typename U, typename T> 
 friend class BlazeTest;
 
@@ -62,8 +61,6 @@ public:
 
 protected:
 
-  TaskEnv* getEnv();
-
   char* getOutput(int idx, int item_length, int num_items, int data_width);
   
   int getInputLength(int idx);
@@ -89,6 +86,8 @@ protected:
 
   // pointer to the platform
   Platform *platform;
+
+  TaskEnv* getEnv();
 
   // a list of input blocks to its partition_id
   std::vector<int64_t> input_blocks;

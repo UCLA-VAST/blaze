@@ -5,7 +5,9 @@
 
 namespace blaze {
 
-OpenCLPlatform::OpenCLPlatform() {
+OpenCLPlatform::OpenCLPlatform()
+  : prev_program(NULL), prev_kernel(NULL) 
+{
   // start platform setting up
   int err;
 
@@ -22,33 +24,10 @@ OpenCLPlatform::OpenCLPlatform() {
         "Failed to find an OpenCL platform!");
   }
 
-  err = clGetPlatformInfo(
-      platform_id, 
-      CL_PLATFORM_VENDOR, 
-      1000, 
-      (void *)cl_platform_vendor,NULL);
-
-  if (err != CL_SUCCESS) {
-    throw std::runtime_error(
-        "clGetPlatformInfo(CL_PLATFORM_VENDOR) failed!");
-  }
-
-  err = clGetPlatformInfo(
-      platform_id,
-      CL_PLATFORM_NAME,
-      1000,
-      (void *)cl_platform_name,
-      NULL);
-
-  if (err != CL_SUCCESS) {
-    throw std::runtime_error(
-        "clGetPlatformInfo(CL_PLATFORM_NAME) failed!");
-  }
-
   // Connect to a compute device
   err = clGetDeviceIDs(
       platform_id, 
-      CL_DEVICE_TYPE_ACCELERATOR, 
+      CL_DEVICE_TYPE_GPU, 
       1, 
       &device_id, 
       NULL);
@@ -97,39 +76,48 @@ void OpenCLPlatform::setupProgram(std::string acc_id) {
     int err;
     int status = 0;
     size_t n_t = 0;
-    unsigned char* kernelbinary;
+    char* kernelSource;
 
     // release previous kernel
-    clReleaseProgram(prev_program);
-    clReleaseKernel(prev_kernel);
+    if (prev_program && prev_kernel) {
+      clReleaseProgram(prev_program);
+      clReleaseKernel(prev_kernel);
+    }
 
-    // get opencl kernel name and program path
-    if (!conf.has_kernel_path() || 
-        !conf.has_kernel_name()) 
-    {
+    // get specific ACC Conf from key-value pair
+    std::string program_path;
+    std::string kernel_name;
+
+    for (int i=0; i<conf.param_size(); i++) {
+      if (conf.param(i).key().compare("ocl_program_path")==0) {
+        program_path = conf.param(i).value();
+      }
+      else if (conf.param(i).key().compare("ocl_kernel_name")==0) {
+        kernel_name = conf.param(i).value();
+      }
+    }
+    if (program_path.empty() || kernel_name.empty()) {
       throw std::runtime_error("Invalid configuration");
     }
-    std::string program_path = conf.kernel_path();
-    std::string kernel_name  = conf.kernel_name();
 
     if (bitstreams.find(acc_id) != bitstreams.end()) {
 
-      DLOG(INFO) << "Bitstream already stored in memory";
+      DLOG(INFO) << "Binary already stored in memory";
 
       // Load bitstream from memory
-      std::pair<int, unsigned char*> bitstream = bitstreams[acc_id];
+      std::pair<int, char*> bitstream = bitstreams[acc_id];
 
       n_t = bitstream.first;
-      kernelbinary = bitstream.second;
+      kernelSource = bitstream.second;
     }
     else { // required programs have not been loaded yet
 
-      DLOG(INFO) << "Load Bitstream from file " << program_path.c_str();
+      DLOG(INFO) << "Load program from file " << program_path.c_str();
 
       // Load binary from disk
       int n_i = load_file(
           program_path.c_str(), 
-          (char **) &kernelbinary);
+          &kernelSource);
 
       if (n_i < 0) {
         throw std::runtime_error(
@@ -140,21 +128,37 @@ void OpenCLPlatform::setupProgram(std::string acc_id) {
       // save bitstream
       bitstreams.insert(std::make_pair(
             conf.id(), 
-            std::make_pair(n_i, kernelbinary)));
+            std::make_pair(n_i, kernelSource)));
     }
 
     // lock OpenCL Context
     boost::lock_guard<OpenCLEnv> guard(*ocl_env);
 
-    // Switch bitstream in FPGA
-    cl_program program = clCreateProgramWithBinary(
-        context, 1, &device_id, &n_t,
-        (const unsigned char **) &kernelbinary, 
-        &status, &err);
+    cl_program program = clCreateProgramWithSource(context, 1,
+            (const char **) &kernelSource, &n_t, &err);
 
     if ((!program) || (err!=CL_SUCCESS)) {
       throw std::runtime_error(
-          "Failed to create compute program from binary");
+          "Failed to create compute program from source");
+    }
+
+    // Build the program executable
+    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+
+    if (err != CL_SUCCESS) {
+      // Determine the size of the log
+      size_t log_size;
+      clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+
+      // Allocate memory for the log
+      char *log = (char *) malloc(log_size);
+
+      // Get the log
+      clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+
+      // Print the log
+      LOG(ERROR) << log;
+      throw std::runtime_error("Failed to build program executable!");
     }
 
     // Create the compute kernel in the program we wish to run
@@ -176,13 +180,6 @@ void OpenCLPlatform::setupProgram(std::string acc_id) {
 
     LOG(INFO) << "Switched to new accelerator: " << acc_id;
 
-    /*
-    // save kernel handle to the map table
-    kernels.insert(std::make_pair(
-    conf.id(), 
-    kernel));
-    */
-
     // set current acc_id
     curr_acc_id = acc_id;
   }
@@ -193,7 +190,7 @@ int OpenCLPlatform::load_file(
     char **result)
 { 
   int size = 0;
-  FILE *f = fopen(filename, "rb");
+  FILE *f = fopen(filename, "r");
   if (f == NULL) 
   { 
     *result = NULL;

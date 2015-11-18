@@ -18,10 +18,6 @@
 
 namespace blaze {
 
-#define LOG_HEADER  std::string("Task::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
-
 typedef boost::shared_ptr<Task> Task_ptr;
 
 TaskEnv* Task::getEnv() {

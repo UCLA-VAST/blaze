@@ -34,19 +34,22 @@ public:
   TaskManager(
     Task* (*create_func)(), 
     void (*destroy_func)(Task*),
-    Platform *_platform, 
-    Logger *_logger
+    Platform *_platform
   ): power(true),  // TODO: 
+     exeQueueLength(0),
      nextTaskId(0),
      lobbyWaitTime(0),
      doorWaitTime(0),
      deltaDelay(0),
      createTask(create_func),
      destroyTask(destroy_func),
-     platform(_platform),
-     logger(_logger)
+     platform(_platform)
   {
-    ;
+    logger = new Logger();
+  }
+
+  ~TaskManager() {
+    delete logger;
   }
 
   int estimateTime(Task* task);
@@ -66,10 +69,15 @@ public:
   // get best and worst cast wait time 
   std::pair<int, int> getWaitTime(Task* task);
 
-  // start and stop executor and scheduler threads
-  // TODO
+  void startExecutor();
+  void startScheduler();
+
+  // start executor and scheduler threads
   void start();
   //void stop();
+
+  // query the current execution queue length
+  int getExeQueueLength();
 
   // experimental
   std::string getConfig(int idx, std::string key);
@@ -85,6 +93,9 @@ private:
 
   mutable boost::atomic<int> nextTaskId;
 
+  // current number of tasks in the execution queue
+  mutable boost::atomic<int> exeQueueLength;
+
   int deltaDelay;
   
   // Task implementation loaded from user acc_impl
@@ -93,6 +104,10 @@ private:
 
   Platform *platform;
   Logger  *logger;
+
+  // thread function body for scheduler and executor
+  void do_schedule();
+  void do_execute();
 
   void updateDelayModel(Task* task, int estimateTime, int realTime);
 

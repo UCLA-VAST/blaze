@@ -6,10 +6,6 @@
 
 namespace blaze {
 
-#define LOG_HEADER  std::string("DataBlock::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
-
 void DataBlock::alloc() {
   if (!allocated) {
     data = new char[size];

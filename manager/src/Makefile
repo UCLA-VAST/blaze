@@ -34,6 +34,7 @@ CFLAGS = -c -fPIC -std=c++0x \
 
 INCLUDES = -I$(BOOST_DIR)/include \
 				   -I$(PROTOBUF_DIR)/include \
+				 	 -I$(GLOG_DIR)/include \
 				   -I$(HADOOP_DIR)/include \
 					 -I$(FLMDIR)
 
@@ -42,12 +43,15 @@ COMPILE = $(CFLAGS) \
 
 LINK = -L../lib -lblaze \
 			 -L$(PROTOBUF_DIR)/lib -lprotobuf \
+			 -L$(GLOG_DIR)/lib -lglog \
 			 -L$(FLMDIR) $(FLMLIB) \
 			 -L$(BOOST_DIR)/lib \
 			 -lboost_system -lboost_iostreams -lboost_filesystem -lboost_thread \
 			 -lpthread -lm -ldl -lrt
 
 DEPS = CommManager.o \
+			 AppCommManager.o \
+			 GAMCommManager.o \
 			 PlatformManager.o \
 			 Block.o \
 			 BlockManager.o \
@@ -55,11 +59,11 @@ DEPS = CommManager.o \
 			 Task.o \
 			 TaskManager.o \
 			 task.pb.o \
-			 acc_conf.pb.o 
+			 acc_conf.pb.o \
+			 msgGamNam.pb.o
 
 LMDEPS = $(FLMDIR)/license.o \
 			 	 $(FLMDIR)/lm_new.o 
-
 all: ../bin/acc_manager ../lib/libblaze.so
 
 package: 
@@ -76,6 +80,9 @@ task.pb.o: proto/task.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 
 
 acc_conf.pb.o: proto/acc_conf.pb.cc
+	$(PP) $(COMPILE) $< -o $@ 
+
+msgGamNam.pb.o: proto/msgGamNam.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 
 
 %.o: %.cpp *.h proto/*.h

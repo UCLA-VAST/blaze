@@ -39,6 +39,7 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
   var executorMemory: String = null
   var executorAccs: String = null
   var executorCores: String = null
+  var executorLabel: String = null
   var totalExecutorCores: String = null
   var propertiesFile: String = null
   var driverMemory: String = null
@@ -163,6 +164,8 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
       .orNull
     executorAccs = Option(executorAccs)
       .orNull
+    executorLabel = Option(executorLabel)
+      .orNull
     totalExecutorCores = Option(totalExecutorCores)
       .orElse(sparkProperties.get("spark.cores.max"))
       .orNull
@@ -276,6 +279,7 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
     |  executorMemory          $executorMemory
     |  executorCores           $executorCores
     |  executorAccs            $executorAccs
+    |  executorLabel           $executorLabel
     |  totalExecutorCores      $totalExecutorCores
     |  propertiesFile          $propertiesFile
     |  driverMemory            $driverMemory
@@ -330,6 +334,9 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
 
       case EXECUTOR_ACCS =>
         executorAccs = value
+
+      case EXECUTOR_LABEL =>
+        executorLabel = value
 
       case EXECUTOR_CORES =>
         executorCores = value
@@ -529,6 +536,7 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
         |                              Distributed Cache, for renewing the login tickets and the
         |                              delegation tokens periodically.
         |  --executor-accs NUM         The number of requested acc slots.
+        |  --executor-label LABEL      The labels of the nodes on which to run the executors.
       """.stripMargin
     )
     SparkSubmit.exitFn()

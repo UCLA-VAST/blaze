@@ -18,6 +18,7 @@
 package org.apache.hadoop.yarn.server.api.records;
 
 import java.util.List;
+import java.util.Set;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -40,6 +41,16 @@ public abstract class NodeStatus {
     return nodeStatus;
   }
 
+  public static NodeStatus newInstance(NodeId nodeId, int responseId,
+      List<ContainerStatus> containerStatuses,
+      List<ApplicationId> keepAliveApplications,
+      NodeHealthStatus nodeHealthStatus,
+      Set<String> accNames) {
+    NodeStatus nodeStatus = newInstance(nodeId, responseId,
+        containerStatuses, keepAliveApplications, nodeHealthStatus);
+    nodeStatus.setAccNames(accNames);
+    return nodeStatus;
+  }
   public abstract NodeId getNodeId();
   public abstract int getResponseId();
   
@@ -55,4 +66,7 @@ public abstract class NodeStatus {
 
   public abstract void setNodeId(NodeId nodeId);
   public abstract void setResponseId(int responseId);
+
+  public abstract Set<String> getAccNames();
+  public abstract void setAccNames(Set<String> accNames);
 }

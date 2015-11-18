@@ -2,17 +2,12 @@
 #include <stdexcept>
 #include <dlfcn.h>
 
+#include <glog/logging.h>
 #include "PlatformManager.h"
-
-#define LOG_HEADER  std::string("PlatformManager::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
 
 namespace blaze {
 
-PlatformManager::PlatformManager(
-    ManagerConf *conf,
-    Logger *_logger): logger(_logger)
+PlatformManager::PlatformManager(ManagerConf *conf)
 {
   for (int i=0; i<conf->platform_size(); i++) {
 
@@ -46,7 +41,6 @@ PlatformManager::PlatformManager(
         BlockManager_ptr block_manager(
             new BlockManager(
               platform.get(),
-              _logger,
               (size_t)cache_limit << 20,
               (size_t)scratch_limit << 20)
             );
@@ -55,9 +49,8 @@ PlatformManager::PlatformManager(
             std::make_pair(id, block_manager));
       }
 
-      // TODO: use different queue manager for each platform
       // create queue manager
-      QueueManager_ptr queue_manager(new QueueManager(platform.get(), logger));
+      QueueManager_ptr queue_manager = platform->createQueue();
 
       // add the new queue manager to queue table
       queue_manager_table.insert(std::make_pair(id, queue_manager));
@@ -65,8 +58,14 @@ PlatformManager::PlatformManager(
       // add accelerators to the platform
       for (int j=0; j<platform_conf.acc_size(); j++) {
 
+        AccWorker acc_conf = platform_conf.acc(j);
         try {
-          AccWorker acc_conf = platform_conf.acc(j);
+
+          // check if acc of the same already exists
+          if (acc_table.find(acc_conf.id()) != acc_table.end()) {
+            throw std::runtime_error(
+                "accelerator of the same id already exists");
+          }
 
           // add acc mapping to table
           acc_table.insert(std::make_pair(
@@ -83,21 +82,18 @@ PlatformManager::PlatformManager(
           queue_manager->add(acc_conf.id(), acc_conf.path());
         } 
         catch (std::exception &e) {
-          logger->logErr(
-              LOG_HEADER +
-              std::string("cannot create acc ")+
-              platform_conf.acc(j).id() +
-              std::string(": ") + e.what());
+          LOG(ERROR) << "Cannot create ACC " << 
+              acc_conf.id() <<
+              ": " << e.what();
         }
       }
 
       // start all executors/commiters in QueueManager
       queue_manager->startAll();
     }
-    catch (std::exception &e) {
-      logger->logErr(LOG_HEADER +
-        std::string("Cannot create platform ") + id +
-        std::string(": ") + e.what());
+    catch (std::runtime_error &e) {
+      LOG(ERROR) << "Cannot create platform " << id <<
+        ": " << e.what();
     }
   }
 }
@@ -113,7 +109,6 @@ Platform_ptr PlatformManager::create(std::string path) {
     void* handle = dlopen(path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
 
     if (handle == NULL) {
-      //logger->logErr(LOG_HEADER + dlerror());
       throw std::runtime_error(dlerror());
     }
 
@@ -130,7 +125,6 @@ Platform_ptr PlatformManager::create(std::string path) {
 
     const char* error = dlerror();
     if (error) {
-      //logger->logErr(LOG_HEADER + error);
       throw std::runtime_error(error);
     }
 
@@ -181,5 +175,16 @@ int PlatformManager::getNumAcc() {
   return count;
 }
 
+std::vector<std::string> PlatformManager::getAccNames() {
+  std::vector<std::string> ret;
+  std::map<std::string, std::string>::iterator iter;
+  for (iter = acc_table.begin();
+       iter != acc_table.end();
+       iter ++ )
+  {
+    ret.push_back(iter->first); 
+  }
+  return ret;
+}
 } // namespace blaze
 

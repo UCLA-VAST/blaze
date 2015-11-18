@@ -11,13 +11,11 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
-#include "proto/task.pb.h"
-#include "proto/acc_conf.pb.h"
+#include <google/protobuf/message.h>
 
 #include "PlatformManager.h"
 #include "BlockManager.h"
 #include "TaskManager.h"
-#include "Logger.h"
 
 using namespace boost::asio;
 
@@ -26,6 +24,57 @@ typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 namespace blaze {
 
 typedef boost::shared_ptr<Task> Task_ptr;
+
+/*
+ * Communicator design for Node Manager
+ */
+class CommManager
+: public boost::basic_lockable_adapter<boost::mutex>
+{
+public:
+  CommManager(
+      PlatformManager* _platform,
+      std::string address = "127.0.0.1",
+      int ip_port = 1027
+    ):
+    ip_address(address), 
+    srv_port(ip_port), 
+    platform_manager(_platform)
+  { 
+    // asynchronously start listening for new connections
+    boost::thread t(boost::bind(&CommManager::listen, this));
+  }
+
+protected:
+  void recv(::google::protobuf::Message&, socket_ptr);
+
+  void send(::google::protobuf::Message&, socket_ptr);
+
+  // pure virtual method called by listen
+  virtual void process(socket_ptr) {};
+
+  // reference to platform manager
+  PlatformManager *platform_manager;
+
+private:
+  void listen();
+
+  int srv_port;
+  std::string ip_address;
+};
+
+// Manage communication with Application
+class AppCommManager : public CommManager 
+{
+public:
+  AppCommManager(
+      PlatformManager* _platform,
+      std::string address = "127.0.0.1",
+      int ip_port = 1027
+    ): CommManager(_platform, address, ip_port) {;}
+private:
+  void process(socket_ptr);
+};
 
 class AccReject : public std::logic_error {
 public:
@@ -39,50 +88,21 @@ public:
     std::logic_error(what_arg) {;}
 };
 
-/*
- * Communicator design for Acc_Manager
- */
-class CommManager
-: public boost::basic_lockable_adapter<boost::mutex>
+// Manager communication with GAM
+class GAMCommManager : public CommManager 
 {
 public:
-  CommManager(
+  GAMCommManager(
       PlatformManager* _platform,
-      Logger* _logger,
       std::string address = "127.0.0.1",
-      int ip_port = 1027
-    ):
-    ip_address(address), 
-    srv_port(ip_port), 
-    platform_manager(_platform),
-    logger(_logger)
-  { 
-    // asynchronously start listening for new connections
-    boost::thread t(boost::bind(&CommManager::listen, this));
-  }
-
-  void addTask(std::string id);
-  void removeTask(std::string id);
-  
+      int ip_port = 1028
+    ): CommManager(_platform, address, ip_port) {;}
 private:
-  void recv(TaskMsg&, socket_ptr);
-  void send(TaskMsg&, socket_ptr);
-
-  // processing messages
   void process(socket_ptr);
-
-  void listen();
-
-  int srv_port;
-  std::string ip_address;
-
-  std::map<std::string, int> num_tasks;
-
-  // reference to platform manager
-  PlatformManager *platform_manager;
-
-  Logger *logger;
+  std::vector<std::string> last_names;
 };
+
+
 }
 
 #endif

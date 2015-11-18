@@ -11,7 +11,6 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
-#include "Logger.h"
 #include "Block.h"
 #include "Platform.h"
 
@@ -39,15 +38,13 @@ public:
 
   BlockManager(
       Platform* _platform,
-      Logger* _logger,
       size_t _maxCacheSize = (1L<<30), 
       size_t _maxScratchSize = (1L<<28)
       ):
     cacheSize(0), scratchSize(0),
     maxCacheSize(_maxCacheSize), 
     maxScratchSize(_maxScratchSize),
-    platform(_platform),
-    logger(_logger)
+    platform(_platform)
   {
   }
 
@@ -125,7 +122,6 @@ private:
   size_t scratchSize;
 
   Platform* platform;
-  Logger* logger;
 };
 
 typedef boost::shared_ptr<BlockManager> BlockManager_ptr;

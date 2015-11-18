@@ -21,7 +21,9 @@ package org.apache.hadoop.yarn.server.api.records.impl.pb;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -48,6 +50,7 @@ public class NodeStatusPBImpl extends NodeStatus {
   private List<ContainerStatus> containers = null;
   private NodeHealthStatus nodeHealthStatus = null;
   private List<ApplicationId> keepAliveApplications = null;
+  private Set<String> accNames = null;
   
   public NodeStatusPBImpl() {
     builder = NodeStatusProto.newBuilder();
@@ -77,6 +80,10 @@ public class NodeStatusPBImpl extends NodeStatus {
     }
     if (this.keepAliveApplications != null) {
       addKeepAliveApplicationsToProto();
+    }
+    if (this.accNames != null) {
+      builder.clearAccNames();
+      builder.addAllAccNames(this.accNames);
     }
   }
 
@@ -289,6 +296,28 @@ public class NodeStatusPBImpl extends NodeStatus {
       builder.clearNodeHealthStatus();
     }
     this.nodeHealthStatus = healthStatus;
+  }
+
+  @Override
+  public Set<String> getAccNames() {
+    initAccNames();
+    return this.accNames;
+  }
+
+  @Override
+  public void setAccNames(Set<String> accNames) {
+    maybeInitBuilder();
+    builder.clearAccNames();
+    this.accNames = accNames;
+  }
+
+  private void initAccNames() {
+    if (this.accNames != null) {
+      return;
+    }
+    NodeStatusProtoOrBuilder p = viaProto ? proto : builder;
+    this.accNames = new HashSet<String>();
+    this.accNames.addAll(p.getAccNamesList());
   }
 
   private NodeIdProto convertToProtoFormat(NodeId nodeId) {
