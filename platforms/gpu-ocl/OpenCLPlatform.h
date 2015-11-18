@@ -8,7 +8,7 @@
 
 #include <CL/opencl.h>
 
-#include "blaze.h"
+#include "Platform.h"
 #include "OpenCLBlock.h"
 #include "OpenCLEnv.h"
 

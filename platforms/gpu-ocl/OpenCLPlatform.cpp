@@ -85,21 +85,14 @@ void OpenCLPlatform::setupProgram(std::string acc_id) {
       clReleaseKernel(prev_kernel);
     }
 
-    // get specific ACC Conf from key-value pair
-    std::string program_path;
-    std::string kernel_name;
-
-    for (int i=0; i<conf.param_size(); i++) {
-      if (conf.param(i).key().compare("ocl_program_path")==0) {
-        program_path = conf.param(i).value();
-      }
-      else if (conf.param(i).key().compare("ocl_kernel_name")==0) {
-        kernel_name = conf.param(i).value();
-      }
-    }
-    if (program_path.empty() || kernel_name.empty()) {
+    // get opencl kernel name and program path
+    if (!conf.has_kernel_path() || 
+        !conf.has_kernel_name()) 
+    {
       throw std::runtime_error("Invalid configuration");
     }
+    std::string program_path = conf.kernel_path();
+    std::string kernel_name  = conf.kernel_name();
 
     if (bitstreams.find(acc_id) != bitstreams.end()) {
 

@@ -8,6 +8,8 @@ ifeq ($(PROTOBUF_DIR),)
 $(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
 
+CUDA_DIR=/usr/local/cuda
+
 PP=g++
 CC=gcc
 
