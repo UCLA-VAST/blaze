@@ -6,7 +6,8 @@
 #include <vector>
 #include <cstdlib>
 #include <stdexcept>
-#include "Block.h"
+
+#include <boost/smart_ptr.hpp>
 
 namespace blaze {
 
@@ -17,6 +18,8 @@ template <typename U, typename T> class BlazeTest;
 
 class Platform;
 class TaskEnv;
+class DataBlock;
+typedef boost::shared_ptr<DataBlock> DataBlock_ptr;
 
 /**
  * Task is the base clase of an accelerator task

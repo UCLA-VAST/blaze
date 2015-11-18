@@ -1,6 +1,8 @@
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/atomic.hpp>
+
+#define "OpenCLQueueManager"
 #include <glog/logging.h>
 
 #include "TaskManager.h"
@@ -38,7 +40,18 @@ void OpenCLQueueManager::do_start() {
     DLOG(INFO) << "One accelerator on the platform, "
       << "Setup program and start TaskManager scheduler and executor";
 
-    ocl_platform->setupProgram(acc_id);
+    try {
+      ocl_platform->setupProgram(acc_id);
+    }
+    catch (std::exception &e) {
+      // if setup program failed, remove accelerator from queue_table 
+      LOG(ERROR) << "Failed to setup bitstream for " << acc_id 
+        << ": " << e.what()
+        << ". Remove it from QueueManager.";
+      queue_table.erase(queue_table.find(acc_id));
+
+      return;
+    }
 
     task_manager->start();
   }

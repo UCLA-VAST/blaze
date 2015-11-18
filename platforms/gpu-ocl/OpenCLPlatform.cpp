@@ -1,3 +1,4 @@
+#define LOG_HEADER "OpenCLPlatform"
 #include <glog/logging.h>
 
 #include "OpenCLPlatform.h"
