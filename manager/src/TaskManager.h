@@ -31,7 +31,7 @@ public:
     Task* (*create_func)(), 
     void (*destroy_func)(Task*),
     Platform *_platform
-  ): power(true),  // TODO: 
+  ): taskCounter(0),
      exeQueueLength(0),
      nextTaskId(0),
      lobbyWaitTime(0),
@@ -80,7 +80,8 @@ public:
 
 private:
 
-  bool power;
+  // Debugging feature, count how many task has be executed
+  int taskCounter;
 
   // wait time for currently enqueued tasks
   mutable boost::atomic<int> lobbyWaitTime;   
@@ -106,8 +107,6 @@ private:
   void do_execute();
 
   void updateDelayModel(Task* task, int estimateTime, int realTime);
-
-  //TODO: add a pointer to GAM communicator
 
   // application queues mapped by application id
   std::map<std::string, TaskQueue_ptr> app_queues;

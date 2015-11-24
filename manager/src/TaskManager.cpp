@@ -66,23 +66,26 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
   }
   
   // TODO: when do we remove the queue?
+  
+  TaskQueue_ptr queue;
   // create a new app queue if it does not exist
   if (app_queues.find(app_id) == app_queues.end()) {
-    TaskQueue_ptr queue(new TaskQueue());
+    TaskQueue_ptr new_queue(new TaskQueue());
     app_queues.insert(std::make_pair(app_id, queue));
+    queue = new_queue;
   }
+  else {
+    queue = app_queues[app_id];
+  }
+
   // once called, the task estimation time will stored
   int delay_time = estimateTime(task);
 
   // push task to queue
-  TaskQueue_ptr queue = app_queues[app_id];
-  if (!queue) {
-    throw std::runtime_error("Application queue not found, unexpected");
-  }
-
   bool enqueued = queue->push(task);
+  // incase task queue is full
   while (!enqueued) {
-    boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(10)); 
     enqueued = queue->push(task);
   }
 
@@ -145,7 +148,7 @@ void TaskManager::execute() {
 
   int delay_estimate = estimateTime(task);
 
-  LOG(INFO) << "Started a new task";
+  VLOG(1) << "Started a new task";
 
   try {
     // record task execution time
@@ -167,6 +170,8 @@ void TaskManager::execute() {
 
     // decrease the length of the execution queue
     exeQueueLength.fetch_sub(1);
+
+    taskCounter++;
   } 
   catch (std::runtime_error &e) {
     LOG(ERROR) << "Task error " << e.what();
@@ -195,7 +200,7 @@ std::string TaskManager::getConfig(int idx, std::string key) {
 
 void TaskManager::do_execute() {
 
-  LOG(INFO) << "Started an executor";
+  VLOG(1) << "Started an executor";
 
   // continuously execute tasks from the task queue
   while (1) { 
@@ -205,7 +210,7 @@ void TaskManager::do_execute() {
 
 void TaskManager::do_schedule() {
   
-  LOG(INFO) << "Started an scheduler";
+  VLOG(1) << "Started an scheduler";
 
   while (1) {
     schedule();
