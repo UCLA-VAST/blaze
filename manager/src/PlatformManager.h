@@ -8,11 +8,7 @@
 #include <boost/smart_ptr.hpp>
 
 #include "proto/acc_conf.pb.h"
-#include "Platform.h"
-#include "Block.h"
-#include "BlockManager.h"
-#include "QueueManager.h"
-#include "TaskManager.h"
+#include "Common.h"
 
 namespace blaze {
 
@@ -22,32 +18,14 @@ public:
   
   PlatformManager(ManagerConf *conf);
 
-  BlockManager* getBlockManager(std::string acc_id) {
-    if (acc_table.find(acc_id) != acc_table.end()) {
-      return block_manager_table[acc_table[acc_id]].get();
-    }
-    else {
-      return NULL;
-    }
-  }
+  BlockManager* getBlockManager(std::string acc_id);
 
-  TaskManager_ptr getTaskManager(std::string acc_id) {
-    if (acc_table.find(acc_id) == acc_table.end() || 
-        queue_manager_table.find(acc_table[acc_id]) == 
-          queue_manager_table.end())
-    {
-      return NULL_TASK_MANAGER;
-    }
-    else {
-      return queue_manager_table[acc_table[acc_id]]->get(acc_id);  
-    }
-  }
+  TaskManager_ptr getTaskManager(std::string acc_id);
 
   AccWorker getConfig(std::string acc_id) {
     // exception should be handled by previous steps
     return acc_config_table[acc_id];
   }
-
 
   DataBlock_ptr getShared(int64_t block_id);
   void addShared(int64_t block_id, DataBlock_ptr block);

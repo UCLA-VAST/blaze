@@ -7,8 +7,8 @@
 #include <map>
 
 #include "proto/acc_conf.pb.h"
+#include "Common.h"
 #include "TaskEnv.h"
-#include "Block.h"
 #include "QueueManager.h"
 
 namespace blaze {
@@ -46,10 +46,7 @@ public:
       int item_size, 
       int align_width = 0) 
   {
-    DataBlock_ptr block(new DataBlock(
-          num_items, item_length, item_size, align_width)
-        );
-    return block;
+    return env->createBlock(num_items, item_length, item_size, align_width);
   }
 
   // get an entry in the config_table matching the key
@@ -65,15 +62,15 @@ public:
   TaskEnv* getEnv() {return env;}
 
 protected:
-  TaskEnv* env;
-  
   // a table storing platform configurations mapped by key
   std::map<std::string, std::string> config_table;
 
   // a table storing platform configurations mapped by key
   std::map<std::string, AccWorker> acc_table;
+
+private:
+  TaskEnv* env;
 };
 
-typedef boost::shared_ptr<Platform> Platform_ptr;
 } // namespace blaze
 #endif

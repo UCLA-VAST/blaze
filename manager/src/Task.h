@@ -11,18 +11,11 @@
 #include "hdfs.h"
 #endif
 
-#include <boost/lexical_cast.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/iostreams/device/mapped_file.hpp>
-
-#include "Block.h"
-#include "Platform.h"
+#include "Common.h"
 
 namespace blaze {
 
 // forward declaration of 
-class TaskManager;
-class AppCommManager;
 template <typename U, typename T> class BlazeTest;
 
 /**
@@ -32,7 +25,9 @@ template <typename U, typename T> class BlazeTest;
 class Task {
 
 friend class TaskManager;
+friend class QueueManager;
 friend class AppCommManager;
+
 template <typename U, typename T> 
 friend class BlazeTest;
 
@@ -93,7 +88,7 @@ protected:
 
 private:
 
-  // used by CommManager
+  // used by AppCommManager
   void addInputBlock(int64_t partition_id, DataBlock_ptr block);
   void inputBlockReady(int64_t partition_id, DataBlock_ptr block);
 
@@ -103,7 +98,8 @@ private:
   // return true if there are more blocks to output
   bool getOutputBlock(DataBlock_ptr &block);
    
-  void setPlatform(Platform *_platform) { platform = _platform;  }
+  // used by QueueManager
+  void setEnv(TaskEnv *_env) { env = _env; }
 
   bool isReady();
 
@@ -120,8 +116,8 @@ private:
 
   int estimated_time;
 
-  // pointer to the platform
-  Platform *platform;
+  // pointer to the TaskEnv
+  TaskEnv *env;
 
   // number of total input blocks
   int num_input;
@@ -141,7 +137,5 @@ private:
   // a table that maps block index to configurations
   std::map<int, std::map<std::string, std::string> > config_table;
 };
-
-typedef boost::shared_ptr<Task> Task_ptr;
 }
 #endif

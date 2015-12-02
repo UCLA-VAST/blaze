@@ -11,8 +11,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
-#include "Block.h"
-#include "Platform.h"
+#include "Common.h"
 
 /* TODO list:
  * - guarantee an unique partition id shared by possibly multiple
@@ -124,7 +123,6 @@ private:
   Platform* platform;
 };
 
-typedef boost::shared_ptr<BlockManager> BlockManager_ptr;
 }
 
 #endif

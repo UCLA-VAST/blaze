@@ -1,9 +1,15 @@
+#include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
+
+#include "Block.h"
+#include "TaskEnv.h"
 #include "Task.h"
 
 namespace blaze {
 
 TaskEnv* Task::getEnv() { 
-  return platform->getEnv();
+  return env;
 }
 
 std::string Task::getConfig(int idx, std::string key) 
@@ -30,7 +36,7 @@ char* Task::getOutput(
   }
   else {
     // if output does not exist, create one
-    DataBlock_ptr block = platform->createBlock(num_items, 
+    DataBlock_ptr block = env->createBlock(num_items, 
         item_length, item_length*data_width);
 
     output_blocks.push_back(block);

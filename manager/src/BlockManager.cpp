@@ -1,7 +1,9 @@
 #include <climits>
 #include <glog/logging.h>
 
+#include "Block.h"
 #include "BlockManager.h"
+#include "Platform.h"
 
 namespace blaze {
 

@@ -3,7 +3,12 @@
 #include <dlfcn.h>
 
 #include <glog/logging.h>
+
+#include "BlockManager.h"
+#include "Platform.h"
 #include "PlatformManager.h"
+#include "QueueManager.h"
+#include "TaskManager.h"
 
 namespace blaze {
 
@@ -95,6 +100,27 @@ PlatformManager::PlatformManager(ManagerConf *conf)
       LOG(ERROR) << "Cannot create platform " << id <<
         ": " << e.what();
     }
+  }
+}
+
+BlockManager* PlatformManager::getBlockManager(std::string acc_id) {
+  if (acc_table.find(acc_id) != acc_table.end()) {
+    return block_manager_table[acc_table[acc_id]].get();
+  }
+  else {
+    return NULL;
+  }
+}
+
+TaskManager_ptr PlatformManager::getTaskManager(std::string acc_id) {
+  if (acc_table.find(acc_id) == acc_table.end() || 
+      queue_manager_table.find(acc_table[acc_id]) == 
+        queue_manager_table.end())
+  {
+    return NULL_TASK_MANAGER;
+  }
+  else {
+    return queue_manager_table[acc_table[acc_id]]->get(acc_id);  
   }
 }
 

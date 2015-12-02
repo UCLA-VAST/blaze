@@ -6,18 +6,25 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
-namespace blaze {
+#include "Common.h"
+#include "Block.h"
 
-class Platform;
+namespace blaze {
 
 class TaskEnv 
   : public boost::basic_lockable_adapter<boost::mutex> 
 {
-protected: 
-  virtual void setPlatform(Platform* platform) {;}
+public: 
+  virtual DataBlock_ptr createBlock(
+      int num_items, 
+      int item_length,
+      int item_size, 
+      int align_width = 0) 
+  {
+    DataBlock_ptr block(new DataBlock(
+          num_items, item_length, item_size, align_width));
+    return block;
+  }
 };
-
-typedef boost::shared_ptr<TaskEnv> TaskEnv_ptr;
-const TaskEnv_ptr NULL_TASK_ENV;
 }
 #endif

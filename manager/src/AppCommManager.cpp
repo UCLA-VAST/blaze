@@ -9,10 +9,18 @@
 #include <stdexcept>
 #include <cstdint>
 
+#include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
 #include <glog/logging.h>
 
 #include "proto/task.pb.h"
+#include "Block.h"
+#include "Task.h"
 #include "CommManager.h"
+#include "BlockManager.h"
+#include "PlatformManager.h"
+#include "TaskManager.h"
 
 namespace blaze {
 

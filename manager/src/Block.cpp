@@ -1,12 +1,84 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdexcept>
+
+#include <boost/smart_ptr.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
+
 #include "Block.h"
 
 namespace blaze {
+
+// create basic data block 
+DataBlock::DataBlock(
+    int _num_items, 
+    int _item_length,
+    int _item_size,
+    int _align_width):
+  num_items(_num_items),
+  item_length(_item_length),
+  align_width(_align_width),
+  allocated(false),
+  ready(false),
+  data(NULL)
+{
+  data_width = _item_size / _item_length;
+
+  if (_align_width == 0 ||
+      _item_size % _align_width == 0) 
+  {
+    item_size = _item_size;
+    aligned = false;
+  }
+  else {
+    item_size = (_item_length*data_width + _align_width - 1) /
+      _align_width * _align_width;
+    aligned = true;
+  }
+  length = num_items * item_length;
+  size   = num_items * item_size;
+
+  if (length <= 0 || size <= 0 || data_width < 1) {
+    throw std::runtime_error("Invalid parameters");
+  }
+
+  // NOTE: lazy allocation
+  //data = new char[_size];
+}
+
+DataBlock::DataBlock(const DataBlock &block) {
+  num_items = block.num_items;
+  item_length = block.item_length;
+  item_size = block.item_length;
+  length = block.length;
+  size = block.size;
+  align_width = block.align_width;
+  allocated = block.allocated;
+  aligned = block.aligned;
+  ready = block.ready;
+}
 
 void DataBlock::alloc() {
   if (!allocated) {
     data = new char[size];
     allocated = true;
   }
+}
+
+char* DataBlock::getData() { 
+  boost::lock_guard<DataBlock> guard(*this);
+  alloc();
+  return data; 
+}
+
+bool DataBlock::isAllocated() { 
+  boost::lock_guard<DataBlock> guard(*this);
+  return allocated; 
+}
+
+bool DataBlock::isReady() { 
+  boost::lock_guard<DataBlock> guard(*this);
+  return ready; 
 }
 
 void DataBlock::writeData(void* src, size_t _size) {

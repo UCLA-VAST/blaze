@@ -5,21 +5,13 @@
 #include <vector>
 #include <iostream>
 
-#include <boost/smart_ptr.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/thread/thread.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/lockable_adapter.hpp>
-
 #include "proto/acc_conf.pb.h"
+#include "Common.h"
 
 namespace blaze {
 
 class Platform;
 class TaskManager;
-
-typedef boost::shared_ptr<TaskManager> TaskManager_ptr;
-const TaskManager_ptr NULL_TASK_MANAGER;
 
 class QueueManager {
 
@@ -46,8 +38,6 @@ protected:
   std::map<std::string, TaskManager_ptr> queue_table;
   Platform *platform;
 };
-
-typedef boost::shared_ptr<QueueManager> QueueManager_ptr;
 }
 
 #endif

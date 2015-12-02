@@ -16,6 +16,7 @@
 
 #include "proto/msgGamNam.pb.h"
 #include "CommManager.h"
+#include "PlatformManager.h"
 
 namespace blaze {
 

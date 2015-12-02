@@ -4,18 +4,16 @@
 #include <string>
 #include <vector>
 
+#include <boost/smart_ptr.hpp>
 #include <boost/asio.hpp>
 #include <boost/lexical_cast.hpp>
-#include <boost/smart_ptr.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
 #include <google/protobuf/message.h>
 
-#include "PlatformManager.h"
-#include "BlockManager.h"
-#include "TaskManager.h"
+#include "Common.h"
 
 using namespace boost::asio;
 

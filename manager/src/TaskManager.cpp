@@ -1,9 +1,11 @@
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/atomic.hpp>
-
 #include <glog/logging.h>
 
+#include "TaskEnv.h"
+#include "Task.h"
+#include "Block.h"
+#include "TaskQueue.h"
 #include "TaskManager.h"
+#include "Platform.h"
 
 namespace blaze {
 
@@ -50,7 +52,7 @@ Task_ptr TaskManager::create() {
   Task_ptr task(createTask(), destroyTask);
 
   // link the task platform 
-  task->setPlatform(platform);
+  task->setEnv(platform->getEnv());
 
   // give task an unique ID
   task->task_id = nextTaskId.fetch_add(1);
@@ -148,11 +150,11 @@ void TaskManager::execute() {
 
   try {
     // record task execution time
-    uint64_t start_time = logger->getUs();
+    uint64_t start_time = getUs();
 
     // start execution
     task->execute();
-    uint64_t delay_time = logger->getUs() - start_time;
+    uint64_t delay_time = getUs() - start_time;
 
     VLOG(1) << "Task finishes in " << delay_time << " us";
 

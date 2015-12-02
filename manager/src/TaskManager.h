@@ -9,12 +9,11 @@
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/atomic.hpp>
 
-#include "TaskEnv.h"
-#include "Task.h"
+#include "Common.h"
 #include "TaskQueue.h"
-#include "Block.h"
-#include "Logger.h"
 
 namespace blaze {
 
@@ -40,13 +39,7 @@ public:
      createTask(create_func),
      destroyTask(destroy_func),
      platform(_platform)
-  {
-    logger = new Logger();
-  }
-
-  ~TaskManager() {
-    delete logger;
-  }
+  {;}
 
   int estimateTime(Task* task);
 
@@ -55,6 +48,9 @@ public:
 
   // enqueue a task in the corresponding application queue
   void enqueue(std::string app_id, Task* task);
+
+  // dequeue a task from the execute queue
+  bool dequeue(Task* &task);
 
   // schedule a task from app queues to execution queue  
   void schedule();
@@ -99,7 +95,6 @@ private:
   void (*destroyTask)(Task*);
 
   Platform *platform;
-  Logger  *logger;
 
   // thread function body for scheduler and executor
   void do_schedule();
@@ -114,6 +109,8 @@ private:
 
   TaskQueue execution_queue;
 };
+
+const TaskManager_ptr NULL_TASK_MANAGER;
 }
 
 #endif
