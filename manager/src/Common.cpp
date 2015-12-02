@@ -8,8 +8,9 @@
 #include <string>
 #include <stdexcept>
 
-#include <boost/lexical_cast.hpp>
-#include <boost/thread/thread.hpp>
+#include <syscall.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include "Common.h"
 
@@ -52,12 +53,25 @@ namespace blaze {
   }
 
   // get current thread id
-  std::string getTid() {
-    //long long int tid = 0;
-    std::string tid_str = boost::lexical_cast<std::string>(boost::this_thread::get_id());
-    //sscanf(tid_str.c_str(), "%lx", &tid);
+  // using the same code from googlelog/src/utilities.cc
+  // without OS checking
+  uint32_t getTid() {
+    static bool lacks_gettid = false;
 
-    return tid_str;
+    if (!lacks_gettid) {
+      pid_t tid = syscall(__NR_gettid);
+      if (tid != -1) {
+        return (uint32_t)tid;
+      }
+      // Technically, this variable has to be volatile, but there is a small
+      // performance penalty in accessing volatile variables and there should
+      // not be any serious adverse effect if a thread does not immediately see
+      // the value change to "true".
+      lacks_gettid = true;
+    }
+
+    // If gettid() could not be used, we use one of the following.
+    return (uint32_t)getpid(); 
   }
 }
 

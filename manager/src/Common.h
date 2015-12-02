@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <string>
 
+#include <boost/smart_ptr.hpp>
+
 namespace blaze {
 
 // forward declaration of all classes
@@ -27,8 +29,8 @@ typedef boost::shared_ptr<QueueManager> QueueManager_ptr;
 // common functions
 uint64_t getUs();
 uint64_t getMs();
+uint32_t getTid();
 std::string getTS();
-std::string getTid();
 
 } // namespace blaze
 

@@ -41,6 +41,7 @@ DEPS= Common.o \
 			CommManager.o \
 			AppCommManager.o \
 			GAMCommManager.o \
+			Platform.o \
 			PlatformManager.o \
 			BlockManager.o \
 			TaskManager.o \
