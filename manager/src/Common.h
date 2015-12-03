@@ -21,6 +21,7 @@ class QueueManager;
 
 typedef boost::shared_ptr<DataBlock> DataBlock_ptr;
 typedef boost::shared_ptr<Task> Task_ptr;
+typedef boost::shared_ptr<TaskEnv> TaskEnv_ptr;
 typedef boost::shared_ptr<Platform> Platform_ptr;
 typedef boost::shared_ptr<BlockManager> BlockManager_ptr;
 typedef boost::shared_ptr<TaskManager> TaskManager_ptr;

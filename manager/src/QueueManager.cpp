@@ -43,7 +43,7 @@ void QueueManager::add(
 
   // construct the corresponding task queue
   TaskManager_ptr taskManager(
-      new TaskManager(create_func, destroy_func, platform));
+      new TaskManager(create_func, destroy_func, id, platform));
 
   queue_table.insert(std::make_pair(id, taskManager));
 

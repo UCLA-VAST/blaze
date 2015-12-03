@@ -29,6 +29,7 @@ public:
   TaskManager(
     Task* (*create_func)(), 
     void (*destroy_func)(Task*),
+    std::string _acc_id,
     Platform *_platform
   ): power(true),  // TODO: 
      exeQueueLength(0),
@@ -36,6 +37,7 @@ public:
      lobbyWaitTime(0),
      doorWaitTime(0),
      deltaDelay(0),
+     acc_id(_acc_id),
      createTask(create_func),
      destroyTask(destroy_func),
      platform(_platform)
@@ -50,7 +52,7 @@ public:
   void enqueue(std::string app_id, Task* task);
 
   // dequeue a task from the execute queue
-  bool dequeue(Task* &task);
+  bool pop(Task* &task);
 
   // schedule a task from app queues to execution queue  
   void schedule();
@@ -78,6 +80,8 @@ private:
 
   bool power;
 
+  std::string acc_id;
+
   // wait time for currently enqueued tasks
   mutable boost::atomic<int> lobbyWaitTime;   
   // wait time for all tasks waiting to enqueue
@@ -94,6 +98,7 @@ private:
   Task* (*createTask)();
   void (*destroyTask)(Task*);
 
+  // TODO: this part should deprecated
   Platform *platform;
 
   // thread function body for scheduler and executor

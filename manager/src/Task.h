@@ -99,7 +99,7 @@ private:
   bool getOutputBlock(DataBlock_ptr &block);
    
   // used by QueueManager
-  void setEnv(TaskEnv *_env) { env = _env; }
+  void setEnv(TaskEnv_ptr _env) { env = _env; }
 
   bool isReady();
 
@@ -117,7 +117,7 @@ private:
   int estimated_time;
 
   // pointer to the TaskEnv
-  TaskEnv *env;
+  TaskEnv_ptr env;
 
   // number of total input blocks
   int num_input;

@@ -1,59 +1,142 @@
 #include <glog/logging.h>
 
-#include "OpenCLPlatform.h"
+#include "OpenCLEnv.h"
+#include "OpenCLBlock.h"
 #include "OpenCLQueueManager.h"
+#include "OpenCLPlatform.h"
+
+#define MAX_PLATFORMS 32
 
 namespace blaze {
 
 OpenCLPlatform::OpenCLPlatform()
-  : prev_program(NULL), prev_kernel(NULL) 
 {
-  // start platform setting up
   int err;
 
-  cl_platform_id platform_id;
+  // start platform setting up
+  cl_platform_id  platforms[MAX_PLATFORMS];
+  cl_device_id    devices[MAX_PLATFORMS];
+  uint32_t        num_platforms = 0;
 
-  char cl_platform_vendor[1001];
-  char cl_platform_name[1001];
+  err = clGetPlatformIDs(MAX_PLATFORMS, platforms, &num_platforms);
 
-  // Connect to first platform
-  err = clGetPlatformIDs(1, &platform_id, NULL);
-
-  if (err != CL_SUCCESS) {
+  if (err != CL_SUCCESS || num_platforms == 0) {
     throw std::runtime_error(
-        "Failed to find an OpenCL platform!");
+        "No OpenCL platform exists on this host");
+  }
+
+  // iterate through all platforms and find NVidia GPU
+  int platform_idx = 0;
+  for (platform_idx=0; platform_idx<num_platforms; platform_idx++) {
+    char cl_platform_name[1001];
+
+    err = clGetPlatformInfo(
+        platforms[platform_idx], CL_PLATFORM_NAME, 
+        1000, (void *)cl_platform_name, NULL);
+
+    if (err != CL_SUCCESS) {
+      LOG(ERROR) << "clGetPlatformInfo(CL_PLATFORM_NAME) "
+        << "failed on platform " << platform_idx;;
+    }
+    if (strstr(cl_platform_name, "NVIDIA")!=NULL) {
+      // found platform
+      break;
+    }
+  }
+  if (platform_idx>=num_platforms) {
+    LOG(ERROR) << "No NVidia platform found, this binary only " <<
+      "supports NVidia GPUs";
+    throw std::runtime_error("No supported platform found");
   }
 
   // Connect to a compute device
   err = clGetDeviceIDs(
-      platform_id, 
-      CL_DEVICE_TYPE_GPU, 
-      1, 
-      &device_id, 
-      NULL);
+      platforms[platform_idx], CL_DEVICE_TYPE_GPU, 
+      MAX_PLATFORMS, devices, &num_devices);
 
   if (err != CL_SUCCESS) {
     throw std::runtime_error(
         "Failed to create a device group!");
   }
 
+  DLOG(INFO) << "Found " << num_devices << " GPUs";
+
+  // use the first device to collect program build log
+  device_id = devices[0];
+
   // Create a compute context 
-  context = clCreateContext(0, 1, &device_id, NULL, NULL, &err);
+  context = clCreateContext(0, num_devices, devices, NULL, NULL, &err);
 
   if (!context) {
     throw std::runtime_error(
-        "Failed to create a compute context!");
+        "Failed to create a compute context");
   }
 
-  // Create a command commands
-  cmd_queue = clCreateCommandQueue(context, device_id, 0, &err);
+  // Create command queues
+  for (int d=0; d<num_devices; d++) {
+    cl_command_queue cmd_queue = clCreateCommandQueue(
+        context, devices[d], 0, &err);
 
-  if (!cmd_queue) {
-    throw std::runtime_error(
-        "Failed to create a command queue context!");
+    if (!cmd_queue) {
+      throw std::runtime_error(
+          "Failed to create a command queue");
+    }
+
+    env_list.push_back(new OpenCLEnv(d, context, cmd_queue));
+  }
+}
+
+OpenCLPlatform::~OpenCLPlatform() {
+
+  for (std::map<std::string, cl_program>::iterator 
+      iter = programs.begin(); 
+      iter != programs.end(); 
+      iter ++) 
+  {
+    clReleaseProgram(iter->second);
   }
 
-  env = new OpenCLEnv(context, cmd_queue);
+  for (std::vector<OpenCLEnv*>::iterator iter = env_list.begin(); 
+      iter != env_list.end(); iter ++) 
+  {
+    clReleaseCommandQueue((*iter)->getCmdQueue());
+  }
+
+  clReleaseContext(context);
+}
+
+TaskEnv_ptr OpenCLPlatform::getEnv(std::string id) {
+
+  // use threadid to distribute tasks to different command queues
+  int device_id = getTid() % num_devices;
+
+  OpenCLEnv* env = env_list[device_id];
+  TaskEnv_ptr taskEnv(new OpenCLTaskEnv(env, programs[id]));
+  
+  DLOG(INFO) << "Assign GPU_" << device_id << 
+    " for Task " << id;
+
+  return taskEnv;
+}
+
+DataBlock_ptr OpenCLPlatform::createBlock(
+    int num_items, 
+    int item_length,
+    int item_size, 
+    int align_width)
+{
+  // use threadid to distribute tasks to different command queues
+  int device_id = getTid() % num_devices;
+
+  OpenCLEnv* env = env_list[device_id];
+  
+  DLOG(INFO) << "Assign GPU_" << device_id << " for this block";
+  
+  DataBlock_ptr block(
+      new OpenCLBlock(env,
+        num_items, item_length, item_size, align_width)
+      );  
+  return block;
 }
 
 QueueManager_ptr OpenCLPlatform::createQueue() {
@@ -66,123 +149,66 @@ void OpenCLPlatform::setupProgram(std::string acc_id) {
   // NOTE: current version reprograms FPGA everytime a new kernel
   // is required
   // NOTE: there is an assumption that kernel and program are one-to-one mapped
-  
-  // check if corresponding kernel is current
-  if (curr_acc_id != acc_id) {
 
-    OpenCLEnv* ocl_env = (OpenCLEnv*)env;
-    AccWorker conf = acc_table[acc_id];
+  AccWorker conf = acc_table[acc_id];
 
-    int err;
-    int status = 0;
-    size_t n_t = 0;
-    char* kernelSource;
+  int err;
+  int status = 0;
+  size_t n_t = 0;
+  char* kernelSource;
 
-    // release previous kernel
-    if (prev_program && prev_kernel) {
-      clReleaseProgram(prev_program);
-      clReleaseKernel(prev_kernel);
+  // get specific ACC Conf from key-value pair
+  std::string program_path;
+
+  for (int i=0; i<conf.param_size(); i++) {
+    if (conf.param(i).key().compare("program_path")==0) {
+      program_path = conf.param(i).value();
     }
-
-    // get specific ACC Conf from key-value pair
-    std::string program_path;
-    std::string kernel_name;
-
-    for (int i=0; i<conf.param_size(); i++) {
-      if (conf.param(i).key().compare("ocl_program_path")==0) {
-        program_path = conf.param(i).value();
-      }
-      else if (conf.param(i).key().compare("ocl_kernel_name")==0) {
-        kernel_name = conf.param(i).value();
-      }
-    }
-    if (program_path.empty() || kernel_name.empty()) {
-      throw std::runtime_error("Invalid configuration");
-    }
-
-    if (bitstreams.find(acc_id) != bitstreams.end()) {
-
-      DLOG(INFO) << "Binary already stored in memory";
-
-      // Load bitstream from memory
-      std::pair<int, char*> bitstream = bitstreams[acc_id];
-
-      n_t = bitstream.first;
-      kernelSource = bitstream.second;
-    }
-    else { // required programs have not been loaded yet
-
-      DLOG(INFO) << "Load program from file " << program_path.c_str();
-
-      // Load binary from disk
-      int n_i = load_file(
-          program_path.c_str(), 
-          &kernelSource);
-
-      if (n_i < 0) {
-        throw std::runtime_error(
-            "failed to load kernel from xclbin");
-      }
-      n_t = n_i;
-
-      // save bitstream
-      bitstreams.insert(std::make_pair(
-            conf.id(), 
-            std::make_pair(n_i, kernelSource)));
-    }
-
-    // lock OpenCL Context
-    boost::lock_guard<OpenCLEnv> guard(*ocl_env);
-
-    cl_program program = clCreateProgramWithSource(context, 1,
-            (const char **) &kernelSource, &n_t, &err);
-
-    if ((!program) || (err!=CL_SUCCESS)) {
-      throw std::runtime_error(
-          "Failed to create compute program from source");
-    }
-
-    // Build the program executable
-    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-
-    if (err != CL_SUCCESS) {
-      // Determine the size of the log
-      size_t log_size;
-      clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-
-      // Allocate memory for the log
-      char *log = (char *) malloc(log_size);
-
-      // Get the log
-      clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
-
-      // Print the log
-      LOG(ERROR) << log;
-      throw std::runtime_error("Failed to build program executable!");
-    }
-
-    // Create the compute kernel in the program we wish to run
-    cl_kernel kernel = clCreateKernel(
-        program, 
-        kernel_name.c_str(), 
-        &err);
-
-    if (!kernel || err != CL_SUCCESS) {
-      throw std::runtime_error(
-          "Failed to create compute kernel!");
-    }
-
-    prev_program = program;
-    prev_kernel = kernel;
-
-    // setup kernel in the TaskEnv
-    ocl_env->changeKernel(kernel);
-
-    LOG(INFO) << "Switched to new accelerator: " << acc_id;
-
-    // set current acc_id
-    curr_acc_id = acc_id;
   }
+  if (program_path.empty()) {
+    throw std::runtime_error("Invalid configuration");
+  }
+
+  DLOG(INFO) << "Load program from file " << program_path.c_str();
+
+  // Load binary from disk
+  int n_i = load_file(
+      program_path.c_str(), 
+      &kernelSource);
+
+  if (n_i < 0) {
+    throw std::runtime_error(
+        "failed to load kernel from xclbin");
+  }
+  n_t = n_i;
+
+  cl_program program = clCreateProgramWithSource(context, 1,
+      (const char **) &kernelSource, &n_t, &err);
+
+  if ((!program) || (err!=CL_SUCCESS)) {
+    throw std::runtime_error(
+        "Failed to create compute program from source");
+  }
+
+  // Build the program executable
+  err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+
+  if (err != CL_SUCCESS) {
+    // Determine the size of the log
+    size_t log_size;
+    clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+
+    // Allocate memory for the log
+    char *log = (char *) malloc(log_size);
+
+    // Get the log
+    clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+
+    // Print the log
+    LOG(ERROR) << log;
+    throw std::runtime_error("Failed to build program executable!");
+  }
+  programs.insert(std::make_pair(acc_id, program));
 }  
 
 int OpenCLPlatform::load_file(

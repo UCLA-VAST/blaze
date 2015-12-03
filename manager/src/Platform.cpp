@@ -7,11 +7,8 @@
 namespace blaze {
 
 Platform::Platform() {
-  env = new TaskEnv();
-}
-
-Platform::~Platform() {
-  delete env;  
+  TaskEnv_ptr env_ptr(new TaskEnv());
+  env = env_ptr;
 }
 
 // store an accelerator setup on the platform
@@ -46,7 +43,7 @@ std::string Platform::getConfig(std::string &key) {
 }
 
 // get TaskEnv to pass to Task
-TaskEnv* Platform::getEnv() {
+TaskEnv_ptr Platform::getEnv(std::string id) {
   return env;
 }
 } // namespace blaze

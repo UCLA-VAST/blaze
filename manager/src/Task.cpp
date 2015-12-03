@@ -9,7 +9,7 @@
 namespace blaze {
 
 TaskEnv* Task::getEnv() { 
-  return env;
+  return env.get();
 }
 
 std::string Task::getConfig(int idx, std::string key) 

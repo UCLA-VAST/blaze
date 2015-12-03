@@ -11,9 +11,7 @@
 
 namespace blaze {
 
-class TaskEnv 
-  : public boost::basic_lockable_adapter<boost::mutex> 
-{
+class TaskEnv {
 public: 
   virtual DataBlock_ptr createBlock(
       int num_items, 

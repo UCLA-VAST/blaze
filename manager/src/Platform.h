@@ -15,7 +15,6 @@ class Platform {
   
 public:
   Platform();
-  ~Platform();
 
   // store an accelerator setup on the platform
   void setupAcc(AccWorker &conf);
@@ -34,7 +33,7 @@ public:
   std::string getConfig(std::string &key);
 
   // get TaskEnv to pass to Task
-  TaskEnv* getEnv();
+  virtual TaskEnv_ptr getEnv(std::string id);
 
 protected:
   // a table storing platform configurations mapped by key
@@ -44,7 +43,7 @@ protected:
   std::map<std::string, AccWorker> acc_table;
 
 private:
-  TaskEnv* env;
+  TaskEnv_ptr env;
 };
 
 } // namespace blaze

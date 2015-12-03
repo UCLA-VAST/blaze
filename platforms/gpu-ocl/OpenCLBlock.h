@@ -9,7 +9,8 @@
 #include <boost/smart_ptr.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
-#include "blaze.h"
+#include "Common.h"
+#include "Block.h"
 #include "OpenCLEnv.h"
 
 namespace blaze {
@@ -23,13 +24,10 @@ public:
       int _num_items, 
       int _item_length,
       int _item_size,
-      int _align_width = 0)
-      :
+      int _align_width = 0) :
     env(_env), 
     DataBlock(_num_items, _item_length, _item_size, _align_width)
-  {
-    ;
-  }
+  {;}
   
   // used to copy data from CPU memory
   OpenCLBlock(OpenCLEnv* _env, DataBlock *block):
@@ -78,7 +76,7 @@ public:
 
 private:
   cl_mem data;
-  OpenCLEnv *env;
+  OpenCLEnv* env;
 
 };
 }

@@ -51,8 +51,8 @@ Task_ptr TaskManager::create() {
   // create a new task by the constructor loaded form user implementation
   Task_ptr task(createTask(), destroyTask);
 
-  // link the task platform 
-  task->setEnv(platform->getEnv());
+  // link the TaskEnv
+  task->setEnv(platform->getEnv(acc_id));
 
   // give task an unique ID
   task->task_id = nextTaskId.fetch_add(1);

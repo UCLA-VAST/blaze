@@ -1,3 +1,4 @@
+#include "OpenCLEnv.h"
 #include "OpenCLBlock.h"
 
 namespace blaze {
@@ -97,7 +98,7 @@ void OpenCLBlock::writeData(void* src, size_t _size) {
     writeData(src, _size, 0);
     ready = true;
   }
-  else {
+  else { // NOTE: there is no need to support aligned data 
     // get the command queue handler
     cl_command_queue command = env->getCmdQueue();
 
