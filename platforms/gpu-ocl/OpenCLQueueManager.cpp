@@ -4,10 +4,30 @@
 #include <glog/logging.h>
 
 #include "TaskManager.h"
+#include "OpenCLEnv.h"
 #include "OpenCLPlatform.h"
 #include "OpenCLQueueManager.h"
 
 namespace blaze {
+
+OpenCLQueueManager::OpenCLQueueManager(Platform* _platform):
+  QueueManager(_platform) 
+{
+  ocl_platform = dynamic_cast<OpenCLPlatform*>(platform);
+
+  if (!ocl_platform) {
+    LOG(ERROR) << "Platform pointer type is not OpenCLPlatform";
+    throw std::runtime_error("Cannot create OpenCLQueueManager");
+  }
+
+  // allocate platform queues
+  int num_devices = ocl_platform->getNumDevices();
+
+  for (int d=0; d<num_devices; d++) {
+    TaskQueue_ptr queue(new TaskQueue());
+    platform_queues.push_back(queue);
+  }
+}
 
 void OpenCLQueueManager::startAll() {
   
@@ -15,36 +35,7 @@ void OpenCLQueueManager::startAll() {
     LOG(WARNING) << "No accelerator setup for the current platform";
   }
   else {
-    boost::thread executor(
-        boost::bind(&OpenCLQueueManager::do_start, this));
-  }
-}
-
-void OpenCLQueueManager::do_start() {
-  
-  OpenCLPlatform* ocl_platform = dynamic_cast<OpenCLPlatform*>(platform);
-
-  if (!ocl_platform) {
-    LOG(FATAL) << "Platform pointer incorrect";
-  }
-  // NOTE: In current implementation dynamic accelerator registration
-  // is not supported, so if there is only one accelerator skip the 
-  // bitstream reprogramming logics
-  if (queue_table.size() == 1) {
-
-    std::string acc_id = queue_table.begin()->first;
-    TaskManager_ptr task_manager = queue_table.begin()->second;
-
-    DLOG(INFO) << "One accelerator on the platform, "
-      << "Setup program and start TaskManager scheduler and executor";
-
-    ocl_platform->setupProgram(acc_id);
-
-    task_manager->start();
-  }
-  else {
-
-    // start the scheduler for each queue;
+    // start the scheduler for each TaskManager
     std::map<std::string, TaskManager_ptr>::iterator iter;
     for (iter = queue_table.begin();
         iter != queue_table.end();
@@ -52,93 +43,101 @@ void OpenCLQueueManager::do_start() {
     {
       iter->second->startScheduler();
     }
+    boost::thread dispatcher(
+        boost::bind(&OpenCLQueueManager::do_dispatch, this));
 
-    std::list<std::string> ready_queues;
-    while (1) {
+    for (int d=0; d<platform_queues.size(); d++) {
+      boost::thread executor(
+        boost::bind(&OpenCLQueueManager::do_execute, this, d));
+    }
+  }
+}
 
-      // here a round-robin policy is enforced
-      if (ready_queues.empty()) {
-        std::map<std::string, TaskManager_ptr>::iterator iter;
-        for (iter = queue_table.begin();
-            iter != queue_table.end();
-            ++iter)
-        {
-          int queue_length = iter->second->getExeQueueLength();
-          if (queue_length > 0) {
-            ready_queues.push_back(iter->first);
-          }
+void OpenCLQueueManager::do_dispatch() {
+
+  VLOG(1) << "Start a dispatcher for GPU Queue Manager";
+
+  while (1) {
+
+    // NOTE: no reprogramming optimization, assuming GPU 
+    // reprogramming cost is trivial
+
+    bool allEmpty = true;
+
+    // iterate through all task queues
+    std::map<std::string, TaskManager_ptr>::iterator iter;
+    for (iter = queue_table.begin();
+        iter != queue_table.end();
+        ++iter)
+    {
+      Task* task;
+      bool taskReady = iter->second->popReady(task);
+
+      if (taskReady) { 
+        if (!task) {
+          DLOG(ERROR) << "Unexpected NULL Task pointer";
+          continue;
+        }
+        allEmpty = false;
+        // add the task to platform queue based on env assignment
+        // NOTE: here should be some locality-based scheduling 
+        // and load balancing
+
+        OpenCLTaskEnv* taskEnv = 
+          dynamic_cast<OpenCLTaskEnv*>(getTaskEnv(task));
+
+        if (!taskEnv) {
+          DLOG(ERROR) << "TaskEnv pointer NULL";
+          continue;
+        }
+
+        // device assignment based on Task creation
+        int taskLoc = taskEnv->env->getDeviceId();
+
+        DLOG(INFO) << "Assigned task to GPU_" << taskLoc;
+
+        if (taskLoc < platform_queues.size()) {
+          platform_queues[taskLoc]->push(task);
         }
       }
+    }
 
-      if (ready_queues.empty()) {
-        // no ready queues at this point, sleep and check again
-        boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
-      }
-      else {
-        // select first queue and remove it from list
-        std::string queue_name = ready_queues.front();
+    if (allEmpty) {
+      // no ready queues at this point, sleep and check again
+      boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
+    }
+  }
+}
 
-        // switch bitstream for the selected queue
-        try {
-          ocl_platform->setupProgram(queue_name);
-        }
-        catch (std::runtime_error &e) {
+void OpenCLQueueManager::do_execute(int device_id) {
 
-          // if setup program failed, remove accelerator from queue_table 
-          LOG(ERROR) << "Failed to setup bitstream for " << queue_name
-            << ": " << e.what()
-            << ". Remove it from QueueManager.";
-          queue_table.erase(queue_table.find(queue_name));
+  VLOG(1) << "Start an executor for GPU_" << device_id;
 
-          break;
-        }
+  TaskQueue_ptr queue = platform_queues[device_id];
+  
+  while (1) {
+    // wait if there is no task to be executed
+    if (queue->empty()) {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+    }
+    else {
+      VLOG(1) << "Started a new task";
 
-        TaskManager_ptr queue = queue_table[queue_name];
+      try {
+        Task* task;
+        queue->pop(task);
 
-        // start a batch of executions
-        int b;
-        for (b=0; b<batch_size; b++) {
-          if (queue->getExeQueueLength() > 0) {
-            DLOG(INFO) << "Execute one task from " << queue_name;
+        // record task execution time
+        uint64_t start_time = getUs();
 
-            // execute one task
-            queue->execute();
-          }
-          else {
-            if (ready_queues.size() > 1) {
-              // wait for new tasks for the current acc
-              boost::this_thread::sleep_for(boost::chrono::milliseconds(200)); 
+        // start execution
+        task->execute();
+        uint64_t delay_time = getUs() - start_time;
 
-              // only switch acc if queue stays empty
-              if (queue->getExeQueueLength()==0) {
-                ready_queues.pop_front(); 
-              }
-            }
-            else {
-              ready_queues.pop_front(); 
-            }
-            break; 
-          }
-        }
-
-        // modify batch size to reduce reprogramming
-        // TODO: disabled for now
-        if (b<batch_size) {
-          DLOG(INFO) << "Batch not finished, executed " << 
-            b << " out of " <<
-            batch_size << " tasks.";
-
-          // reduce the batch size if batch not finished
-          ///if (batch_size > 4) {
-          ///  batch_size = batch_size / 2;
-          ///}
-        }
-        else {
-          DLOG(INFO) << "Batch of size " << batch_size << " finished";
-
-          // increase batch 
-          //batch_size = batch_size * 2;
-        }
+        VLOG(1) << "Task finishes in " << delay_time << " us";
+      } 
+      catch (std::runtime_error &e) {
+        LOG(ERROR) << "Task error " << e.what();
       }
     }
   }

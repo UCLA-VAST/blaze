@@ -17,7 +17,7 @@ public:
   Platform();
 
   // store an accelerator setup on the platform
-  void setupAcc(AccWorker &conf);
+  virtual void setupAcc(AccWorker &conf);
 
   // create a platform-specific queue manager
   virtual QueueManager_ptr createQueue(); 

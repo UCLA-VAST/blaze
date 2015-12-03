@@ -60,6 +60,10 @@ TaskManager_ptr QueueManager::get(std::string id) {
   }
 }
 
+TaskEnv* QueueManager::getTaskEnv(Task* task) {
+  return task->getEnv();
+}
+
 // Start TaskQueues for the CPU platform
 // all the task queues can have simultaneous executors
 void QueueManager::start(std::string id) {

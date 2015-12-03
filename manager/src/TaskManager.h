@@ -52,7 +52,7 @@ public:
   void enqueue(std::string app_id, Task* task);
 
   // dequeue a task from the execute queue
-  bool pop(Task* &task);
+  bool popReady(Task* &task);
 
   // schedule a task from app queues to execution queue  
   void schedule();

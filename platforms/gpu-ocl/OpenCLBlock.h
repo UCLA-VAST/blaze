@@ -9,7 +9,7 @@
 #include <boost/smart_ptr.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
-#include "Common.h"
+#include "OpenCLCommon.h"
 #include "Block.h"
 #include "OpenCLEnv.h"
 
@@ -17,6 +17,7 @@ namespace blaze {
 
 class OpenCLBlock : public DataBlock 
 {
+  friend OpenCLQueueManager;
 
 public:
   // create a single output elements
@@ -76,8 +77,9 @@ public:
 
 private:
   cl_mem data;
-  OpenCLEnv* env;
 
+  // can be accessed by OpenCLQueueManager
+  OpenCLEnv* env;
 };
 }
 

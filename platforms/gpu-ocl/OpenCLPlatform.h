@@ -28,9 +28,13 @@ public:
       int item_size, 
       int align_width = 0);
 
+  int getNumDevices();
+
   virtual TaskEnv_ptr getEnv(std::string id);
 
-  void setupProgram(std::string acc_id);
+  OpenCLEnv* getEnv(int device_id);
+
+  virtual void setupAcc(AccWorker &con);
 
 private:
   int load_file(const char* filename, char** result);

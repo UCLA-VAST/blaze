@@ -21,7 +21,7 @@ public:
   {;}
 
   // add a new queue regarding an existing accelerator
-  void add(
+  virtual void add(
     std::string id, 
     std::string lib_path);
 
@@ -33,6 +33,9 @@ public:
 
   // start the executor and commiter for all queues
   virtual void startAll();
+
+  // read TaskEnv for scheduling
+  TaskEnv* getTaskEnv(Task* task);
 
 protected:
   std::map<std::string, TaskManager_ptr> queue_table;

@@ -119,6 +119,15 @@ TaskEnv_ptr OpenCLPlatform::getEnv(std::string id) {
   return taskEnv;
 }
 
+OpenCLEnv* OpenCLPlatform::getEnv(int device_id) {
+  if (device_id<0 || device_id>=num_devices) {
+    return NULL; 
+  }
+  else {
+    return env_list[device_id];
+  }
+}
+
 DataBlock_ptr OpenCLPlatform::createBlock(
     int num_items, 
     int item_length,
@@ -144,22 +153,17 @@ QueueManager_ptr OpenCLPlatform::createQueue() {
   return queue;
 }
 
-void OpenCLPlatform::setupProgram(std::string acc_id) {
-
-  // NOTE: current version reprograms FPGA everytime a new kernel
-  // is required
-  // NOTE: there is an assumption that kernel and program are one-to-one mapped
-
-  AccWorker conf = acc_table[acc_id];
+void OpenCLPlatform::setupAcc(AccWorker &conf) {
 
   int err;
   int status = 0;
   size_t n_t = 0;
   char* kernelSource;
 
-  // get specific ACC Conf from key-value pair
+  std::string acc_id = conf.id();
   std::string program_path;
 
+  // get specific ACC Conf from key-value pair
   for (int i=0; i<conf.param_size(); i++) {
     if (conf.param(i).key().compare("program_path")==0) {
       program_path = conf.param(i).value();

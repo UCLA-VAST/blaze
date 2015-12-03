@@ -65,12 +65,13 @@ PlatformManager::PlatformManager(ManagerConf *conf)
 
         AccWorker acc_conf = platform_conf.acc(j);
         try {
-
           // check if acc of the same already exists
           if (acc_table.find(acc_conf.id()) != acc_table.end()) {
             throw std::runtime_error(
                 "accelerator of the same id already exists");
           }
+          // setup the task environment with ACC conf
+          platform->setupAcc(acc_conf);
 
           // add acc mapping to table
           acc_table.insert(std::make_pair(
@@ -79,9 +80,6 @@ PlatformManager::PlatformManager(ManagerConf *conf)
           // add acc configuration to table
           acc_config_table.insert(
               std::make_pair(acc_conf.id(), acc_conf));
-
-          // setup the task environment with ACC conf
-          platform->setupAcc(acc_conf);
 
           // create a corresponding task manager 
           queue_manager->add(acc_conf.id(), acc_conf.path());

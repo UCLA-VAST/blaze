@@ -38,6 +38,8 @@ private:
 
 class OpenCLTaskEnv : public TaskEnv 
 {
+  friend OpenCLQueueManager;
+
 public:
   OpenCLTaskEnv(OpenCLEnv* _env, cl_program _program):
     env(_env), program(_program) 
@@ -59,6 +61,7 @@ public:
       int align_width = 0);
 
 private:
+  // maybe switched by OpenCLQueueManager
   OpenCLEnv* env;
   cl_program program;
 };

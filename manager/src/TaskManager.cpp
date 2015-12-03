@@ -133,6 +133,16 @@ void TaskManager::schedule() {
   VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
 }
 
+bool TaskManager::popReady(Task* &task) {
+  if (execution_queue.empty()) {
+    return false;
+  }
+  else {
+    execution_queue.pop(task);
+    return true;
+  }
+}
+
 void TaskManager::execute() {
 
   // wait if there is no task to be executed
@@ -146,7 +156,7 @@ void TaskManager::execute() {
 
   int delay_estimate = estimateTime(task);
 
-  LOG(INFO) << "Started a new task";
+  VLOG(1) << "Started a new task";
 
   try {
     // record task execution time

@@ -1,25 +1,35 @@
 #ifndef OPENCL_QUEUE_MANAGER_H
 #define OPENCL_QUEUE_MANAGER_H
 
+#include "OpenCLCommon.h"
 #include "QueueManager.h"
+#include "TaskQueue.h"
 
 namespace blaze {
 
 class OpenCLQueueManager : public QueueManager {
 public:
 
-  OpenCLQueueManager(Platform* _platform)
-    : QueueManager(_platform),
-      batch_size(8)
-  {;}
+  OpenCLQueueManager(Platform* _platform);
 
+  // setup program during task queue add
+  virtual void add(std::string id, std::string lib_path);
+
+  // start dispatch and executors for all GPU devices
   void startAll();
 
 private:
-  // thread body of executing tasks from children TaskManagers
-  void do_start();
+  OpenCLPlatform* ocl_platform;
 
-  int batch_size;
+  // thread body of dispatching tasks from 
+  // TaskQueue to PlatformQueue
+  void do_dispatch();
+
+  // thread body of PlatformQueue
+  void do_execute(int device_id);
+
+  // Platform Queues
+  std::vector<TaskQueue_ptr> platform_queues;
 };
 } // namespace blaze
 
