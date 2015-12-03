@@ -91,6 +91,8 @@ void OpenCLQueueManager::do_dispatch() {
           continue;
         }
 
+        //OpenCLEnv* blockEnv = task->
+
         // device assignment based on Task creation
         int taskLoc = taskEnv->env->getDeviceId();
 
@@ -111,7 +113,7 @@ void OpenCLQueueManager::do_dispatch() {
 
 void OpenCLQueueManager::do_execute(int device_id) {
 
-  VLOG(1) << "Start an executor for GPU_" << device_id;
+  VLOG(1) << "Started an executor for GPU_" << device_id;
 
   TaskQueue_ptr queue = platform_queues[device_id];
   
@@ -121,7 +123,7 @@ void OpenCLQueueManager::do_execute(int device_id) {
       boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
     }
     else {
-      VLOG(1) << "Started a new task";
+      VLOG(1) << "<GPU_" << device_id<< "> Started a new task";
 
       try {
         Task* task;
@@ -134,7 +136,8 @@ void OpenCLQueueManager::do_execute(int device_id) {
         task->execute();
         uint64_t delay_time = getUs() - start_time;
 
-        VLOG(1) << "Task finishes in " << delay_time << " us";
+        VLOG(1) << "<GPU_" << device_id<< "> Task finishes in " 
+          << delay_time << " us";
       } 
       catch (std::runtime_error &e) {
         LOG(ERROR) << "Task error " << e.what();

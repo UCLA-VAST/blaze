@@ -2,8 +2,8 @@
 
 #include "OpenCLEnv.h"
 #include "OpenCLBlock.h"
-#include "OpenCLQueueManager.h"
 #include "OpenCLPlatform.h"
+#include "OpenCLQueueManager.h"
 
 #define MAX_PLATFORMS 32
 
@@ -103,6 +103,10 @@ OpenCLPlatform::~OpenCLPlatform() {
   }
 
   clReleaseContext(context);
+}
+
+int OpenCLPlatform::getNumDevices() {
+  return num_devices;
 }
 
 TaskEnv_ptr OpenCLPlatform::getEnv(std::string id) {

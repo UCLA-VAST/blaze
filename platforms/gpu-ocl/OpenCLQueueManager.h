@@ -12,9 +12,6 @@ public:
 
   OpenCLQueueManager(Platform* _platform);
 
-  // setup program during task queue add
-  virtual void add(std::string id, std::string lib_path);
-
   // start dispatch and executors for all GPU devices
   void startAll();
 
