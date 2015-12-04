@@ -1,12 +1,11 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/atomic.hpp>
 
+#include <glog/logging.h>
+
 #include "TaskManager.h"
 
 namespace blaze {
-#define LOG_HEADER  std::string("TaskManager::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
 
 int TaskManager::estimateTime(Task* task) {
 
@@ -90,92 +89,76 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
 }
 
 void TaskManager::schedule() {
-  
-  logger->logInfo(LOG_HEADER + std::string("started a scheduler"));
 
-  while (power) {
-    // iterate through all app queues and record which are non-empty
-    std::vector<std::string> ready_queues;
-    std::map<std::string, TaskQueue_ptr>::iterator iter;
+  // iterate through all app queues and record which are non-empty
+  std::vector<std::string> ready_queues;
+  std::map<std::string, TaskQueue_ptr>::iterator iter;
 
-    while (ready_queues.empty()) {
-      for (iter = app_queues.begin();
-          iter != app_queues.end();
-          iter ++)
-      {
-        if (iter->second && !iter->second->empty()) {
-          ready_queues.push_back(iter->first);
-        }
-      }
-      if (ready_queues.empty()) {
-        boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
+  while (ready_queues.empty()) {
+    for (iter = app_queues.begin();
+        iter != app_queues.end();
+        iter ++)
+    {
+      if (iter->second && !iter->second->empty()) {
+        ready_queues.push_back(iter->first);
       }
     }
-    Task* next_task;
-
-    // select the next task to execute from application queues
-    // use RoundRobin scheduling
-    int idx_next = rand()%ready_queues.size();
-
-    if (app_queues.find(ready_queues[idx_next]) == app_queues.end()) {
-      logger->logErr(LOG_HEADER+
-        std::string("Did not find app_queue, unexpected"));
-      break;
+    if (ready_queues.empty()) {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
     }
-    app_queues[ready_queues[idx_next]]->pop(next_task);
-
-    logger->logInfo(LOG_HEADER+
-        std::string("Schedule a task to execute from ")+
-        ready_queues[idx_next]);
-
-    execution_queue.push(next_task);
   }
+  Task* next_task;
+
+  // select the next task to execute from application queues
+  // use RoundRobin scheduling
+  int idx_next = rand()%ready_queues.size();
+
+  if (app_queues.find(ready_queues[idx_next]) == app_queues.end()) {
+    LOG(ERROR) << "Did not find app_queue, unexpected";
+    return;
+  }
+  app_queues[ready_queues[idx_next]]->pop(next_task);
+
+  VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
+
+  execution_queue.push(next_task);
 }
 
 void TaskManager::execute() {
 
-  logger->logInfo(LOG_HEADER + std::string("started an executor"));
+  // wait if there is no task to be executed
+  while (execution_queue.empty()) {
+    boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+  }
+  // get next task and remove it from the task queue
+  // this part is thread-safe with boost::lockfree::queue
+  Task* task;
+  execution_queue.pop(task);
 
-  // continuously execute tasks from the task queue
-  while (power) { 
+  int delay_estimate = estimateTime(task);
 
-    // wait if there is no task to be executed
-    if (execution_queue.empty()) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+  LOG(INFO) << "Started a new task";
+
+  try {
+    // record task execution time
+    uint64_t start_time = logger->getUs();
+
+    // start execution
+    task->execute();
+    uint64_t delay_time = logger->getUs() - start_time;
+
+    VLOG(1) << "Task finishes in " << delay_time << " us";
+
+    // if the task is successful, update delay estimation model
+    if (task->status == Task::FINISHED) {
+      updateDelayModel(task, delay_estimate, delay_time);
     }
-    else {
-      // get next task and remove it from the task queue
-      // this part is thread-safe with boost::lockfree::queue
-      Task* task;
-      execution_queue.pop(task);
 
-      int delay_estimate = estimateTime(task);
-
-      logger->logInfo(LOG_HEADER + std::string("Started a new task"));
-
-      // record task execution time
-      uint64_t start_time = logger->getUs();
-      try {
-        // start execution
-        task->execute();
-      } 
-      catch (std::runtime_error &e) {
-        logger->logErr(LOG_HEADER+ 
-            std::string("task->execute() error: ")+
-            e.what());
-      }
-      uint64_t delay_time = logger->getUs() - start_time;
-      logger->logInfo(LOG_HEADER + std::string("Task finishes in ")+
-          std::to_string((long long) delay_time) + std::string(" us"));
-
-      // if the task is successful, update delay estimation model
-      if (task->status == Task::FINISHED) {
-        updateDelayModel(task, delay_estimate, delay_time);
-      }
-
-      // decrease the waittime, use the recorded estimation 
-      lobbyWaitTime.fetch_sub(delay_estimate);
-    }
+    // decrease the waittime, use the recorded estimation 
+    lobbyWaitTime.fetch_sub(delay_estimate);
+  } 
+  catch (std::runtime_error &e) {
+    LOG(ERROR) << "Task error " << e.what();
   }
 }
 
@@ -199,14 +182,38 @@ std::string TaskManager::getConfig(int idx, std::string key) {
   return config;
 }
 
-void TaskManager::start() {
-  power = true;
-  
-  boost::thread scheduler(
-      boost::bind(&TaskManager::schedule, this));
+void TaskManager::do_execute() {
 
+  LOG(INFO) << "Started an executor";
+
+  // continuously execute tasks from the task queue
+  while (1) { 
+    execute();
+  }
+}
+
+void TaskManager::do_schedule() {
+  
+  LOG(INFO) << "Started an scheduler";
+
+  while (1) {
+    schedule();
+  }
+}
+
+void TaskManager::start() {
+  startExecutor();
+  startScheduler();
+}
+
+void TaskManager::startExecutor() {
   boost::thread executor(
-      boost::bind(&TaskManager::execute, this));
+      boost::bind(&TaskManager::do_execute, this));
+}
+
+void TaskManager::startScheduler() {
+  boost::thread scheduler(
+      boost::bind(&TaskManager::do_schedule, this));
 }
 
 } // namespace blaze

@@ -16,7 +16,6 @@
 #include "PlatformManager.h"
 #include "BlockManager.h"
 #include "TaskManager.h"
-#include "Logger.h"
 
 using namespace boost::asio;
 
@@ -33,14 +32,12 @@ class CommManager
 public:
   CommManager(
       PlatformManager* _platform,
-      Logger* _logger,
       std::string address = "127.0.0.1",
       int ip_port = 1027
     ):
     ip_address(address), 
     srv_port(ip_port), 
-    platform_manager(_platform),
-    logger(_logger)
+    platform_manager(_platform)
   { 
     // asynchronously start listening for new connections
     boost::thread t(boost::bind(&CommManager::listen, this));
@@ -56,7 +53,6 @@ protected:
 
   // reference to platform manager
   PlatformManager *platform_manager;
-  Logger *logger;
 
 private:
   void listen();
@@ -71,10 +67,9 @@ class AppCommManager : public CommManager
 public:
   AppCommManager(
       PlatformManager* _platform,
-      Logger* _logger,
       std::string address = "127.0.0.1",
       int ip_port = 1027
-    ): CommManager(_platform, _logger, address, ip_port) {;}
+    ): CommManager(_platform, address, ip_port) {;}
 private:
   void process(socket_ptr);
 };
@@ -97,10 +92,9 @@ class GAMCommManager : public CommManager
 public:
   GAMCommManager(
       PlatformManager* _platform,
-      Logger* _logger,
       std::string address = "127.0.0.1",
       int ip_port = 1028
-    ): CommManager(_platform, _logger, address, ip_port) {;}
+    ): CommManager(_platform, address, ip_port) {;}
 private:
   void process(socket_ptr);
   std::vector<std::string> last_names;

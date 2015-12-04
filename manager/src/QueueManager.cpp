@@ -2,13 +2,10 @@
 #include <stdexcept>
 #include <dlfcn.h>
 
+#include <glog/logging.h>
 #include "QueueManager.h"
 
 namespace blaze {
-
-#define LOG_HEADER  std::string("QueueManager::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
 
 void QueueManager::add(
     std::string id, 
@@ -17,7 +14,6 @@ void QueueManager::add(
   void* handle = dlopen(lib_path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
 
   if (handle == NULL) {
-    logger->logErr(LOG_HEADER + dlerror());
     throw std::runtime_error(dlerror());
   }
   // reset errors
@@ -33,20 +29,16 @@ void QueueManager::add(
 
   const char* error = dlerror();
   if (error) {
-    logger->logErr(LOG_HEADER + error);
     throw std::runtime_error(error);
   }
 
   // construct the corresponding task queue
   TaskManager_ptr taskManager(
-      new TaskManager(create_func, destroy_func, platform, logger));
+      new TaskManager(create_func, destroy_func, platform));
 
   queue_table.insert(std::make_pair(id, taskManager));
 
-  logger->logInfo(
-      LOG_HEADER +
-      "added a new task queue: "+
-      id);
+  LOG(INFO) << "added a new task queue: " << id;
 }
 
 TaskManager_ptr QueueManager::get(std::string id) {

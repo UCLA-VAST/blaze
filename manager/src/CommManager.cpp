@@ -9,12 +9,11 @@
 #include <stdexcept>
 #include <cstdint>
 
+#include <glog/logging.h>
+
 #include "CommManager.h"
 
 #define MAX_MSGSIZE 4096
-#define LOG_HEADER  std::string("CommManager::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
 
 namespace blaze {
 
@@ -43,7 +42,7 @@ void CommManager::recv(
 
     delete [] msg_data;
   } catch (std::exception &e) {
-    throw std::runtime_error(LOG_HEADER+std::string(e.what()));
+    throw std::runtime_error(e.what());
   }
 }
 
@@ -64,7 +63,7 @@ void CommManager::send(
 
     socket->send(buffer(msg_data, msg_size),0);
   } catch (std::exception &e) {
-    throw std::runtime_error(LOG_HEADER+std::string(e.what()));
+    throw std::runtime_error(e.what());
   }
 }
 
@@ -79,9 +78,8 @@ void CommManager::listen() {
 
     ip::tcp::acceptor acceptor(ios, endpoint);
 
-    logger->logInfo(LOG_HEADER + 
-        std::string("Listening for new connections at ")+
-        ip_address + std::string(":") + std::to_string((long long)srv_port));
+    LOG(INFO) << "Listening for new connections at "
+      << ip_address << ":" << srv_port;
 
     while(1) {
 
@@ -97,7 +95,7 @@ void CommManager::listen() {
   }
   catch (std::exception &e) {
     // do not throw exception, just end current thread
-    logger->logErr(LOG_HEADER+e.what());
+    LOG(ERROR) << e.what();
   }
 }
 } // namespace blaze

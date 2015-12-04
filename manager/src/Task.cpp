@@ -2,10 +2,6 @@
 
 namespace blaze {
 
-#define LOG_HEADER  std::string("Task::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
-
 std::string Task::getConfig(int idx, std::string key) 
 {
   if (config_table.find(idx) != config_table.end() &&
