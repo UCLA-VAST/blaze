@@ -10,6 +10,8 @@
 
 #include <glog/logging.h>
 
+#include "Task.h"
+#include "Block.h"
 #include "Platform.h"
 #include "TaskManager.h"
 #include "QueueManager.h"
@@ -62,6 +64,21 @@ TaskManager_ptr QueueManager::get(std::string id) {
 
 TaskEnv* QueueManager::getTaskEnv(Task* task) {
   return task->getEnv();
+}
+
+void QueueManager::setTaskEnv(Task* task, TaskEnv_ptr env) {
+  task->env = env;
+}
+
+DataBlock_ptr QueueManager::getTaskInputBlock(Task *task, int idx) {
+  if (idx < task->input_blocks.size() &&
+      task->input_table.find(task->input_blocks[idx]) 
+        != task->input_table.end())
+  {
+    return task->input_table[task->input_blocks[idx]];
+  } else {
+    return NULL_DATA_BLOCK; 
+  }
 }
 
 // Start TaskQueues for the CPU platform

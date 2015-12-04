@@ -3,8 +3,10 @@
 #include <boost/atomic.hpp>
 #include <glog/logging.h>
 
+#include "Task.h"
 #include "TaskManager.h"
 #include "OpenCLEnv.h"
+#include "OpenCLBlock.h"
 #include "OpenCLPlatform.h"
 #include "OpenCLQueueManager.h"
 
@@ -79,27 +81,41 @@ void OpenCLQueueManager::do_dispatch() {
           continue;
         }
         allEmpty = false;
-        // add the task to platform queue based on env assignment
-        // NOTE: here should be some locality-based scheduling 
-        // and load balancing
 
+        // get the task env to query device assignment
         OpenCLTaskEnv* taskEnv = 
           dynamic_cast<OpenCLTaskEnv*>(getTaskEnv(task));
-
         if (!taskEnv) {
           DLOG(ERROR) << "TaskEnv pointer NULL";
           continue;
         }
 
-        //OpenCLEnv* blockEnv = task->
+        // get the block env of first input
+        // NOTE: here use input idx=0, assuming that is the 
+        // main input data of the task
+        DataBlock* block = getTaskInputBlock(task, 0).get();
+        OpenCLBlock* ocl_block = dynamic_cast<OpenCLBlock*>(block);
+        if (!ocl_block) {
+          DLOG(ERROR) << "Block is not of type OpenCLBlock";
+          continue; 
+          // TODO: fail task
+        }
+        OpenCLEnv* blockEnv = ocl_block->env;
 
-        // device assignment based on Task creation
+        // query device assignment based on task env and block env
         int taskLoc = taskEnv->env->getDeviceId();
+        int blockLoc = blockEnv->getDeviceId();
 
-        DLOG(INFO) << "Assigned task to GPU_" << taskLoc;
+        // assign task based on the block location
+        // NOTE: here there could be additional load balancing
+        int queueLoc = blockLoc;
+        DLOG(INFO) << "Assigned task to GPU_" << blockLoc;
 
-        if (taskLoc < platform_queues.size()) {
-          platform_queues[taskLoc]->push(task);
+        // switch task environment to match the block device
+        taskEnv->env = queueLoc;
+
+        if (queueLoc < platform_queues.size()) {
+          platform_queues[queueLoc]->push(task);
         }
       }
     }
@@ -128,6 +144,9 @@ void OpenCLQueueManager::do_execute(int device_id) {
       try {
         Task* task;
         queue->pop(task);
+
+        OpenCLTaskEnv* taskEnv = 
+          dynamic_cast<OpenCLTaskEnv*>(getTaskEnv(task));
 
         // record task execution time
         uint64_t start_time = getUs();

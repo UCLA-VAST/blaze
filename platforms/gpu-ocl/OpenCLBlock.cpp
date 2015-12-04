@@ -1,3 +1,5 @@
+#include <glog/logging.h>
+
 #include "OpenCLEnv.h"
 #include "OpenCLBlock.h"
 
@@ -16,7 +18,7 @@ void OpenCLBlock::alloc() {
     cl_int err = 0;
 
     data = clCreateBuffer(
-        context, CL_MEM_READ_ONLY,  
+        context, CL_MEM_READ_WRITE,  
         size, NULL, &err);
 
     if (err != CL_SUCCESS) {
@@ -151,7 +153,10 @@ void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
       _size, src, 0, NULL, &event);
 
   if (err != CL_SUCCESS) {
-    throw std::runtime_error("Failed to write to OpenCL block");
+    DLOG(ERROR) << "clEnqueueWriteBuffer error: " << err;
+    DLOG(ERROR) << "block infomation: size=" << _size <<
+      ", offset=" << offset;
+    throw std::runtime_error("clEnqueueWriteBuffer error");
   }
   //env->unlock();
   //clWaitForEvents(1, &event);
@@ -179,7 +184,9 @@ void OpenCLBlock::readData(void* dst, size_t size) {
       size, dst, 0, NULL, &event);
 
     if (err != CL_SUCCESS) {
-      throw std::runtime_error("Failed to write to OpenCL block");
+      DLOG(ERROR) << "clEnqueueReadBuffer error: " << err;
+      DLOG(ERROR) << "block infomation: size=" << size;
+      throw std::runtime_error("Failed to read an OpenCL block");
     }
     //env->unlock();
     //clWaitForEvents(1, &event);

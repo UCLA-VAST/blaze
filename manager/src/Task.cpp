@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <glog/logging.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
@@ -10,6 +12,16 @@ namespace blaze {
 
 TaskEnv* Task::getEnv() { 
   return env.get();
+}
+
+bool Task::isInputReady(int64_t block_id) {
+  if (input_table.find(block_id) != input_table.end() &&
+      input_table[block_id]->isReady()) 
+  {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 std::string Task::getConfig(int idx, std::string key) 
@@ -131,14 +143,18 @@ void Task::inputBlockReady(int64_t partition_id, DataBlock_ptr block) {
   }
 }
 
-DataBlock_ptr Task::getInputBlock(int64_t block_id) {
-  if (input_table.find(block_id) != input_table.end()) {
-    return input_table[block_id];
+/*
+DataBlock_ptr Task::getInputBlock(int idx) {
+  if (idx >= input_blocks.size() || 
+      input_table.find(input_blocks[idx]) == input_table.end()) 
+  {
+    return NULL_DATA_BLOCK; 
   }
   else {
-    return NULL_DATA_BLOCK;
+    return input_table[input_blocks[idx]];
   }
 }
+*/
 
 // push one output block to consumer
 // return true if there are more blocks to output
@@ -192,5 +208,6 @@ bool Task::isReady() {
     }
   }
 }
+
 
 } // namespace

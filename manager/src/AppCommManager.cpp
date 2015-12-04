@@ -277,9 +277,7 @@ void AppCommManager::process(socket_ptr sock) {
           int64_t blockId = recv_block.partition_id();
           std::string path = recv_block.file_path();
 
-          if (task->getInputBlock(blockId) &&
-              task->getInputBlock(blockId)->isReady()) 
-          {
+          if (task->isInputReady(blockId)) {
             LOG(WARNING) << "Skipping ready block " << blockId;
             break;
           }

@@ -73,6 +73,8 @@ OpenCLPlatform::OpenCLPlatform()
   }
 
   // Create command queues
+  //DLOG(INFO) << "Use only 1 device";
+  //num_devices = 1;
   for (int d=0; d<num_devices; d++) {
     cl_command_queue cmd_queue = clCreateCommandQueue(
         context, devices[d], 0, &err);

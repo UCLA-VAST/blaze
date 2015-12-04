@@ -52,7 +52,7 @@ Task_ptr TaskManager::create() {
   Task_ptr task(createTask(), destroyTask);
 
   // link the TaskEnv
-  task->setEnv(platform->getEnv(acc_id));
+  task->env = platform->getEnv(acc_id);
 
   // give task an unique ID
   task->task_id = nextTaskId.fetch_add(1);
@@ -86,7 +86,7 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
     boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
     enqueued = queue->push(task);
   }
-
+  
   // update lobby wait time
   lobbyWaitTime.fetch_add(delay_time);
 

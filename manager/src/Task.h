@@ -61,6 +61,8 @@ public:
   // or config for output block
   std::string getConfig(int idx, std::string key);
 
+  bool isInputReady(int64_t block_id);
+
 protected:
 
   // read one line from file and write to an array
@@ -92,15 +94,10 @@ private:
   void addInputBlock(int64_t partition_id, DataBlock_ptr block);
   void inputBlockReady(int64_t partition_id, DataBlock_ptr block);
 
-  DataBlock_ptr getInputBlock(int64_t block_id);
-
   // push one output block to consumer
   // return true if there are more blocks to output
   bool getOutputBlock(DataBlock_ptr &block);
    
-  // used by QueueManager
-  void setEnv(TaskEnv_ptr _env) { env = _env; }
-
   bool isReady();
 
   enum {

@@ -38,7 +38,12 @@ public:
   TaskEnv* getTaskEnv(Task* task);
 
 protected:
+  void setTaskEnv(Task* task, TaskEnv_ptr env);
+
+  DataBlock_ptr getTaskInputBlock(Task* task, int idx);
+
   std::map<std::string, TaskManager_ptr> queue_table;
+
   Platform *platform;
 };
 }

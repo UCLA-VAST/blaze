@@ -61,8 +61,8 @@ public:
       int align_width = 0);
 
 private:
-  // maybe switched by OpenCLQueueManager
   OpenCLEnv* env;
+
   cl_program program;
 };
 }
