@@ -20,6 +20,9 @@ package org.apache.hadoop.yarn.server.resourcemanager.webapp.dao;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -52,6 +55,8 @@ public class NodeInfo {
   protected long usedVirtualAccs;
   protected long availableVirtualAccs;
   protected ArrayList<String> nodeLabels = new ArrayList<String>();
+  protected HashMap<String, HashSet<String>> nodeLabelRelations =
+      new HashMap<String, HashSet<String>>();
 
   public NodeInfo() {
   } // JAXB needs this
@@ -85,6 +90,15 @@ public class NodeInfo {
     if (labelSet != null) {
       nodeLabels.addAll(labelSet);
       Collections.sort(nodeLabels);
+    }
+
+    // add label relationship
+    Map<String, Set<String>> labelRelations = ni.getNodeLabelRelations();
+    if (labelRelations != null) {
+      for (String parentLabel : labelRelations.keySet()) {
+        nodeLabelRelations.put(parentLabel,
+            new HashSet<String>(labelRelations.get(parentLabel)));
+      }
     }
   }
 
@@ -150,5 +164,9 @@ public class NodeInfo {
 
   public ArrayList<String> getNodeLabels() {
     return this.nodeLabels;
+  }
+
+  public HashMap<String, HashSet<String>> getNodeLabelRelations() {
+    return this.nodeLabelRelations;
   }
 }

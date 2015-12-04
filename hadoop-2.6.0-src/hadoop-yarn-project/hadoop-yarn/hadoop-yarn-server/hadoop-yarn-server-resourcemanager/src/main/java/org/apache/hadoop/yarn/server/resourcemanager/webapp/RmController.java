@@ -59,6 +59,10 @@ public class RmController extends Controller {
     render(NodesPage.class);
   }
 
+  public void labels() {
+    render(LabelsPage.class);
+  }
+
   public void scheduler() {
     // limit applications to those in states relevant to scheduling
     set(YarnWebParams.APP_STATE, StringHelper.cjoin(

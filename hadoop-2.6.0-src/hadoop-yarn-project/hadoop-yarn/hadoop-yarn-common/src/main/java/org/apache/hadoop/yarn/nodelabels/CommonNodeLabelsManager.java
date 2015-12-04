@@ -91,6 +91,8 @@ public class CommonNodeLabelsManager extends AbstractService {
   }
 
   protected Set<String> fcsLabels = new HashSet<String>();
+  protected Map<NodeId, Map<String, Set<String>>> deviceToAccOnNode =
+      new HashMap<NodeId, Map<String, Set<String>>>();
 
   /**
    * A <code>Host</code> can have multiple <code>Node</code>s 
@@ -320,7 +322,20 @@ public class CommonNodeLabelsManager extends AbstractService {
   public boolean isFcsLabel(String label) {
     return fcsLabels.contains(label);
   }
+
+  @SuppressWarnings("unchecked")
+  public void replaceDeviceAccMappingOnNode(NodeId id, Map<String, Set<String>> deviceToAcc) {
+    //  throws IOException {
+    deviceToAccOnNode.put(id, deviceToAcc);
+    // TODO(mhhuang) make sure all the labels are covered in this mapping
+  }
   
+  public Map<String, Set<String>> getLabelRelationsOnNode(NodeId id) {
+    if (deviceToAccOnNode.get(id) == null) {
+      return new HashMap<String, Set<String>>();
+    }
+    return Collections.unmodifiableMap(deviceToAccOnNode.get(id));
+  }
   
   protected void checkAddLabelsToNode(
       Map<NodeId, Set<String>> addedLabelsToNode) throws IOException {

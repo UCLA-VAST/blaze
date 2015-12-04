@@ -535,6 +535,11 @@ public class ResourceTrackerService extends AbstractService implements
         } catch (IOException ioe) {
           LOG.info("Exception in replacing labels on node");
         }
+        // refresh device to acc mapping
+        Map<String, Set<String>> deviceToAcc = new HashMap<String, Set<String>>();
+        // TODO(mhhuang) replace the temporary device name "FPGA"
+        deviceToAcc.put("FPGA", accNames);
+        labelManager.replaceDeviceAccMappingOnNode(nodeId, deviceToAcc);
       }
 
       try {
