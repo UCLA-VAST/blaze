@@ -70,7 +70,8 @@ public:
     int num_items, 
     int items_length,
     int items_size,
-    int align_size = 0);
+    int align_size = 0,
+    int flag = BLAZE_INPUT_BLOCK);
 
   // create a block and add it to cache/scratch
   // return true if a new block is created

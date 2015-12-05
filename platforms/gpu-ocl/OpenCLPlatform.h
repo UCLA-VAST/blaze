@@ -20,13 +20,14 @@ public:
   OpenCLPlatform();
   ~OpenCLPlatform();
 
-  virtual QueueManager_ptr createQueue();
+  //virtual QueueManager_ptr createQueue();
 
   virtual DataBlock_ptr createBlock(
       int num_items, 
       int item_length,
       int item_size, 
-      int align_width = 0);
+      int align_width = 0,
+      int flag = BLAZE_INPUT_BLOCK);
 
   int getNumDevices();
 
@@ -35,6 +36,10 @@ public:
   OpenCLEnv* getEnv(int device_id);
 
   virtual void setupAcc(AccWorker &con);
+
+  virtual void createBlockManager(size_t cache_limit, size_t scratch_limit);
+
+  virtual BlockManager* getBlockManager();
 
 private:
   int load_file(const char* filename, char** result);
@@ -45,6 +50,8 @@ private:
 
   std::vector<OpenCLEnv*> env_list; 
   std::map<std::string, cl_program> programs;
+
+  std::vector<BlockManager_ptr> block_manager_list;
 
   //std::map<std::string, std::pair<int, char*> > bitstreams;
   //std::map<std::string, cl_kernel>  kernels;

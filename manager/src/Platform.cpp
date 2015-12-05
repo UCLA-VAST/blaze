@@ -1,6 +1,8 @@
 #include <glog/logging.h>
 
 #include "TaskEnv.h"
+#include "TaskManager.h"
+#include "BlockManager.h"
 #include "QueueManager.h"
 #include "Platform.h"
 
@@ -9,6 +11,10 @@ namespace blaze {
 Platform::Platform() {
   TaskEnv_ptr env_ptr(new TaskEnv());
   env = env_ptr;
+
+  // create queue
+  QueueManager_ptr queue(new QueueManager(this));
+  queue_manager = queue;
 }
 
 // store an accelerator setup on the platform
@@ -18,19 +24,49 @@ void Platform::setupAcc(AccWorker &conf) {
   }
 }
 
-// create a platform-specific queue manager
-QueueManager_ptr Platform::createQueue() {
-  QueueManager_ptr queue(new QueueManager(this));
-  return queue;
-}
-
 // create a block object for the specific platform
 DataBlock_ptr Platform::createBlock(
     int num_items, int item_length, int item_size, 
-    int align_width) 
+    int align_width, int flag) 
 {
   return env->createBlock(num_items, item_length, 
-      item_size, align_width);
+      item_size, align_width, flag);
+}
+
+// remove a shard block from the block manager
+void Platform::remove(int64_t block_id) {
+  block_manager->remove(block_id); 
+}
+
+void Platform::createBlockManager(size_t cache_limit, size_t scratch_limit) {
+  BlockManager_ptr bman(new BlockManager(this, cache_limit, scratch_limit));
+  block_manager = bman;
+}
+
+QueueManager* Platform::getQueueManager() {
+  if (queue_manager) {
+    return queue_manager.get();
+  } else {
+    return NULL;
+  }
+}
+
+BlockManager* Platform::getBlockManager() {
+  if (block_manager) {
+    return block_manager.get();
+  } else {
+    return NULL;
+  }
+}
+
+TaskManager* Platform::getTaskManager(std::string acc_id) {
+  if (queue_manager && 
+      queue_manager->get(acc_id)) 
+  {
+    return queue_manager->get(acc_id).get();
+  } else {
+    return NULL;
+  }
 }
 
 // get an entry in the config_table matching the key

@@ -49,7 +49,7 @@ char* Task::getOutput(
   else {
     // if output does not exist, create one
     DataBlock_ptr block = env->createBlock(num_items, 
-        item_length, item_length*data_width);
+        item_length, item_length*data_width, 0, BLAZE_OUTPUT_BLOCK);
 
     output_blocks.push_back(block);
 

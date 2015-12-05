@@ -14,10 +14,12 @@ DataBlock::DataBlock(
     int _num_items, 
     int _item_length,
     int _item_size,
-    int _align_width):
+    int _align_width,
+    int _flag):
   num_items(_num_items),
   item_length(_item_length),
   align_width(_align_width),
+  flag(_flag),
   allocated(false),
   ready(false),
   data(NULL)

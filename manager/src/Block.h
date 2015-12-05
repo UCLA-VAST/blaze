@@ -26,7 +26,8 @@ public:
   DataBlock(int _num_items, 
       int _item_length,
       int _item_size,
-      int _align_width = 0);
+      int _align_width = 0,
+      int _flag = BLAZE_INPUT_BLOCK);
     
   DataBlock(const DataBlock &block);
 
@@ -71,6 +72,7 @@ public:
   bool isReady();
 
 protected:
+  int flag;         /* enum: input, shared, output */
   int item_length;  /* number of elements per data item */
   int item_size;    /* byte size per data item */
   int num_items;    /* number of data items per data block */

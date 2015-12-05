@@ -112,7 +112,7 @@ void OpenCLQueueManager::do_dispatch() {
         DLOG(INFO) << "Assigned task to GPU_" << blockLoc;
 
         // switch task environment to match the block device
-        taskEnv->env = queueLoc;
+        taskEnv->env = blockEnv;
 
         if (queueLoc < platform_queues.size()) {
           platform_queues[queueLoc]->push(task);

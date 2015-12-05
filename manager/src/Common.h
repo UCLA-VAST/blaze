@@ -8,6 +8,11 @@
 
 namespace blaze {
 
+// constant parameter definition
+#define BLAZE_INPUT_BLOCK  0
+#define BLAZE_SHARED_BLOCK 1
+#define BLAZE_OUTPUT_BLOCK 2
+
 // forward declaration of all classes
 class DataBlock;
 class Task;

@@ -1,5 +1,6 @@
 #include <glog/logging.h>
 
+#include "BlockManager.h"
 #include "OpenCLEnv.h"
 #include "OpenCLBlock.h"
 #include "OpenCLPlatform.h"
@@ -86,6 +87,10 @@ OpenCLPlatform::OpenCLPlatform()
 
     env_list.push_back(new OpenCLEnv(d, context, cmd_queue));
   }
+
+  // create QueueManager
+  QueueManager_ptr queue(new OpenCLQueueManager(this)); 
+  queue_manager = queue;
 }
 
 OpenCLPlatform::~OpenCLPlatform() {
@@ -109,6 +114,29 @@ OpenCLPlatform::~OpenCLPlatform() {
 
 int OpenCLPlatform::getNumDevices() {
   return num_devices;
+}
+
+void OpenCLPlatform::createBlockManager(
+    size_t cache_limit, 
+    size_t scratch_limit) 
+{
+  // create a block manager for each device  
+  for (int d=0; d<num_devices; d++) {
+    BlockManager_ptr bman(new BlockManager(this, 
+          cache_limit, scratch_limit));
+
+    block_manager_list.push_back(bman);
+  }
+}
+
+BlockManager* OpenCLPlatform::getBlockManager() {
+
+  // return block manager based on thread id hash
+  int device_id = getTid() % num_devices;
+
+  DLOG(INFO) << "Returning BlockManager of GPU_" << device_id;
+
+  return block_manager_list[device_id].get();
 }
 
 TaskEnv_ptr OpenCLPlatform::getEnv(std::string id) {
@@ -138,7 +166,8 @@ DataBlock_ptr OpenCLPlatform::createBlock(
     int num_items, 
     int item_length,
     int item_size, 
-    int align_width)
+    int align_width,
+    int flag)
 {
   // use threadid to distribute tasks to different command queues
   int device_id = getTid() % num_devices;
@@ -149,14 +178,9 @@ DataBlock_ptr OpenCLPlatform::createBlock(
   
   DataBlock_ptr block(
       new OpenCLBlock(env,
-        num_items, item_length, item_size, align_width)
+        num_items, item_length, item_size, align_width, flag)
       );  
   return block;
-}
-
-QueueManager_ptr OpenCLPlatform::createQueue() {
-  QueueManager_ptr queue(new OpenCLQueueManager(this)); 
-  return queue;
 }
 
 void OpenCLPlatform::setupAcc(AccWorker &conf) {

@@ -17,6 +17,7 @@
 #include "proto/task.pb.h"
 #include "Block.h"
 #include "Task.h"
+#include "Platform.h"
 #include "CommManager.h"
 #include "BlockManager.h"
 #include "PlatformManager.h"
@@ -72,18 +73,26 @@ void AppCommManager::process(socket_ptr sock) {
        * task's input table, in order to get the correct order
        */
 
-      // 1.1 query the queue manager to find matching acc
-      TaskManager_ptr task_manager = 
+      // 1.1 query the PlatformManager to find matching acc
+      TaskManager* task_manager = 
         platform_manager->getTaskManager(task_msg.acc_id());
 
-      if (task_manager == NULL_TASK_MANAGER) { 
+      // 1.2 get correponding block manager based on platform of queried Task
+      Platform* platform = platform_manager->getPlatform(task_msg.acc_id());
+
+      if (!task_manager || !platform) {
         // if there is no matching acc
         throw AccReject("No matching accelerator"); 
       }
 
-      // 1.2 get correponding block manager based on platform of queried Task
-      BlockManager* block_manager = platform_manager->
-        getBlockManager(task_msg.acc_id());
+      // NOTE: ommit pointer check since it is 
+      // already performed in getTaskManager
+
+      BlockManager* block_manager = platform->getBlockManager();
+
+      if (!block_manager) {
+        throw AccReject("Cannot find block manager");
+      }
 
       // create a new task, and make scheduling decision
       Task_ptr task = task_manager->create();
@@ -468,11 +477,14 @@ void AppCommManager::process(socket_ptr sock) {
                     e.what());
               }
 
+              // NOTE: only remove normal input file
               try {
                 // delete memory map file after read
-                boost::filesystem::wpath file(path);
-                if (boost::filesystem::exists(file)) {
-                  boost::filesystem::remove(file);
+                if (blockId >= 0) {
+                  boost::filesystem::wpath file(path);
+                  if (boost::filesystem::exists(file)) {
+                    boost::filesystem::remove(file);
+                  }
                 }
               } catch (std::exception &e) {
                 LOG(WARNING) << "Cannot delete memory mapped file after read";

@@ -58,7 +58,8 @@ public:
       int num_items, 
       int item_length,
       int item_size, 
-      int align_width = 0);
+      int align_width = 0, 
+      int flag = BLAZE_OUTPUT_BLOCK);
 
 private:
   OpenCLEnv* env;
