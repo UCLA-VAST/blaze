@@ -22,16 +22,22 @@ public:
   OpenCLEnv(
       int _id,
       cl_context _context,
-      cl_command_queue _queue
-    ): device_id(_id), context(_context), cmd_queue(_queue)
+      cl_command_queue _queue,
+      cl_device_id _device_id): 
+    id(_id), 
+    context(_context), 
+    cmd_queue(_queue),
+    device_id(_device_id)
   {;}
 
-  int getDeviceId() { return device_id; }
+  int getDevice() { return id; }
+  cl_device_id& getDeviceId() { return device_id; }
   cl_context& getContext() { return context; }
   cl_command_queue& getCmdQueue() { return cmd_queue; }
 
 private:
-  int              device_id;
+  int id;
+  cl_device_id     device_id;
   cl_context       context;
   cl_command_queue cmd_queue;
 };

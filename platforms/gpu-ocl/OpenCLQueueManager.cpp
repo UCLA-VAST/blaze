@@ -103,8 +103,8 @@ void OpenCLQueueManager::do_dispatch() {
         OpenCLEnv* blockEnv = ocl_block->env;
 
         // query device assignment based on task env and block env
-        int taskLoc = taskEnv->env->getDeviceId();
-        int blockLoc = blockEnv->getDeviceId();
+        int taskLoc = taskEnv->env->getDevice();
+        int blockLoc = blockEnv->getDevice();
 
         // assign task based on the block location
         // NOTE: here there could be additional load balancing

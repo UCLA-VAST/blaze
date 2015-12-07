@@ -62,21 +62,18 @@ OpenCLPlatform::OpenCLPlatform()
 
   DLOG(INFO) << "Found " << num_devices << " GPUs";
 
-  // use the first device to collect program build log
-  device_id = devices[0];
-
-  // Create a compute context 
-  context = clCreateContext(0, num_devices, devices, NULL, NULL, &err);
-
-  if (!context) {
-    throw std::runtime_error(
-        "Failed to create a compute context");
-  }
-
-  // Create command queues
-  //DLOG(INFO) << "Use only 1 device";
-  //num_devices = 1;
   for (int d=0; d<num_devices; d++) {
+
+    // Create a compute context for each device
+    cl_context context = clCreateContext(0, 1, 
+        &devices[d], NULL, NULL, &err);
+
+    if (!context) {
+      throw std::runtime_error(
+          "Failed to create a compute context");
+    }
+
+    // Create command queues
     cl_command_queue cmd_queue = clCreateCommandQueue(
         context, devices[d], 0, &err);
 
@@ -85,7 +82,7 @@ OpenCLPlatform::OpenCLPlatform()
           "Failed to create a command queue");
     }
 
-    env_list.push_back(new OpenCLEnv(d, context, cmd_queue));
+    env_list.push_back(new OpenCLEnv(d, context, cmd_queue, devices[d]));
   }
 
   // create QueueManager
@@ -95,21 +92,23 @@ OpenCLPlatform::OpenCLPlatform()
 
 OpenCLPlatform::~OpenCLPlatform() {
 
-  for (std::map<std::string, cl_program>::iterator 
-      iter = programs.begin(); 
-      iter != programs.end(); 
+  for (std::map<std::string, std::vector<cl_program> >::iterator 
+      iter = program_list.begin(); 
+      iter != program_list.end(); 
       iter ++) 
   {
-    clReleaseProgram(iter->second);
+    std::vector<cl_program> programs = iter->second;
+    for (int d=0; d<num_devices; d++) {
+      clReleaseProgram(programs[d]);
+    }
   }
 
   for (std::vector<OpenCLEnv*>::iterator iter = env_list.begin(); 
       iter != env_list.end(); iter ++) 
   {
     clReleaseCommandQueue((*iter)->getCmdQueue());
+    clReleaseContext((*iter)->getContext());
   }
-
-  clReleaseContext(context);
 }
 
 int OpenCLPlatform::getNumDevices() {
@@ -132,33 +131,33 @@ void OpenCLPlatform::createBlockManager(
 BlockManager* OpenCLPlatform::getBlockManager() {
 
   // return block manager based on thread id hash
-  int device_id = getTid() % num_devices;
+  int id = getTid() % num_devices;
 
-  DLOG(INFO) << "Returning BlockManager of GPU_" << device_id;
+  DLOG(INFO) << "Returning BlockManager of GPU_" << id;
 
-  return block_manager_list[device_id].get();
+  return block_manager_list[id].get();
 }
 
 TaskEnv_ptr OpenCLPlatform::getEnv(std::string id) {
 
   // use threadid to distribute tasks to different command queues
-  int device_id = getTid() % num_devices;
+  int loc = getTid() % num_devices;
 
-  OpenCLEnv* env = env_list[device_id];
-  TaskEnv_ptr taskEnv(new OpenCLTaskEnv(env, programs[id]));
+  OpenCLEnv* env = env_list[loc];
+  TaskEnv_ptr taskEnv(new OpenCLTaskEnv(env, program_list[id][loc]));
   
-  DLOG(INFO) << "Assign GPU_" << device_id << 
+  DLOG(INFO) << "Assign GPU_" << loc << 
     " for Task " << id;
 
   return taskEnv;
 }
 
-OpenCLEnv* OpenCLPlatform::getEnv(int device_id) {
-  if (device_id<0 || device_id>=num_devices) {
+OpenCLEnv* OpenCLPlatform::getEnv(int id) {
+  if (id<0 || id>=num_devices) {
     return NULL; 
   }
   else {
-    return env_list[device_id];
+    return env_list[id];
   }
 }
 
@@ -170,11 +169,11 @@ DataBlock_ptr OpenCLPlatform::createBlock(
     int flag)
 {
   // use threadid to distribute tasks to different command queues
-  int device_id = getTid() % num_devices;
+  int id = getTid() % num_devices;
 
-  OpenCLEnv* env = env_list[device_id];
+  OpenCLEnv* env = env_list[id];
   
-  DLOG(INFO) << "Assign GPU_" << device_id << " for this block";
+  DLOG(INFO) << "Assign GPU_" << id << " for this block";
   
   DataBlock_ptr block(
       new OpenCLBlock(env,
@@ -216,33 +215,47 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
   }
   n_t = n_i;
 
-  cl_program program = clCreateProgramWithSource(context, 1,
-      (const char **) &kernelSource, &n_t, &err);
+  std::vector<cl_program> programs;
 
-  if ((!program) || (err!=CL_SUCCESS)) {
-    throw std::runtime_error(
-        "Failed to create compute program from source");
+  // build program for each device context
+  for (int d=0; d<num_devices; d++) {
+
+    // get context and device_id from the first env
+    cl_context   context   = env_list[d]->getContext();
+    cl_device_id device_id = env_list[d]->getDeviceId();
+
+    cl_program program = clCreateProgramWithSource(context, 1,
+        (const char **) &kernelSource, &n_t, &err);
+
+    if ((!program) || (err!=CL_SUCCESS)) {
+      throw std::runtime_error(
+          "Failed to create compute program from source");
+    }
+
+    // Build the program executable
+    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+
+    if (err != CL_SUCCESS) {
+      // Determine the size of the log
+      size_t log_size;
+      clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, 
+          0, NULL, &log_size);
+
+      // Allocate memory for the log
+      char *log = (char *) malloc(log_size);
+
+      // Get the log
+      clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, 
+          log_size, log, NULL);
+
+      // Print the log
+      LOG(ERROR) << log;
+
+      throw std::runtime_error("Failed to build program executable!");
+    }
+    programs.push_back(program);
   }
-
-  // Build the program executable
-  err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-
-  if (err != CL_SUCCESS) {
-    // Determine the size of the log
-    size_t log_size;
-    clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-
-    // Allocate memory for the log
-    char *log = (char *) malloc(log_size);
-
-    // Get the log
-    clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
-
-    // Print the log
-    LOG(ERROR) << log;
-    throw std::runtime_error("Failed to build program executable!");
-  }
-  programs.insert(std::make_pair(acc_id, program));
+  program_list.insert(std::make_pair(acc_id, programs));
 }  
 
 int OpenCLPlatform::load_file(
