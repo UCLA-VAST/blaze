@@ -1,10 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <string>
-#include <stdexcept>
-
-#include <boost/smart_ptr.hpp>
-#include <boost/iostreams/device/mapped_file.hpp>
+#include <glog/logging.h>
 
 #include "OpenCLBlock.h"
 
@@ -14,31 +8,36 @@ namespace blaze {
                     std::string(__func__) +\
                     std::string("(): ")
 
+uint64_t getUs() {
+  struct timespec tr;
+  clock_gettime(CLOCK_REALTIME, &tr);
+
+  return (uint64_t)tr.tv_sec*1e6 + tr.tv_nsec/1e3;
+}
+
 void OpenCLBlock::alloc() {
 
   if (!allocated) {
     //NOTE: assuming buffer allocation is thread-safe
-    //boost::lock_guard<OpenCLBlock> guard(*env);
+    uint64_t start_t = getUs();
+
     cl_context context = env->getContext();
     cl_int err = 0;
 
-    if (flag == BLAZE_INPUT_BLOCK ||
-        flag == BLAZE_SHARED_BLOCK) 
-    {
-      data = clCreateBuffer(
-          context, CL_MEM_READ_ONLY,  
-          size, NULL, &err);
-    } else {
-      data = clCreateBuffer(
-          context, CL_MEM_WRITE_ONLY,  
-          size, NULL, &err);
-    }
+    data = clCreateBuffer(
+        context, CL_MEM_READ_ONLY,  
+        size, NULL, &err);
 
     if (err != CL_SUCCESS) {
       throw std::runtime_error("Failed to allocate OpenCL block");
     }
 
     allocated = true;
+
+    uint64_t elapse_t = getUs() - start_t;
+    DLOG(INFO) << "Allocating OpenCLBlock of size " << 
+      (double)size /1024/1024 << "MB takes " <<
+      elapse_t << "us.";
   }
 }
 
@@ -50,15 +49,31 @@ void OpenCLBlock::readFromMem(std::string path) {
 
   if (fin.is_open()) {
     
+    uint64_t start_t = getUs();
+
     // first copy data from shared memory to a temp buffer 
-    // NOTE: here the "size" maybe aligned size, so mem size 
-    // should be calculated based on length
-    size_t memsize = length * data_width;
+    char* temp_data = new char[size];
+    char* mem_ptr = (char*)fin.data();
 
-    char* temp_data = new char[memsize];
+    if (aligned) {
+      for (int k=0; k<num_items; k++) {
 
-    // memcpy is parallel among all tasks
-    memcpy((void*)temp_data, (void*)fin.data(), memsize);
+        // element size in memory
+        int data_size = item_length*data_width;
+
+        // memcpy is parallel among all tasks
+        memcpy((void*)(temp_data+k*item_size), 
+            (void*)(mem_ptr+k*data_size), data_size);
+      }
+    }
+    else {
+      memcpy((void*)temp_data, (void*)mem_ptr, size);
+    }
+
+    uint64_t elapse_t = getUs() - start_t;
+    DLOG(INFO) << "Read " <<
+      (double)size /1024/1024 << "MB of data from mmap file takes " <<
+      elapse_t << "us.";
 
     // then write temp buffer to FPGA, will be serialized among all tasks
     writeData(temp_data, size);
@@ -109,38 +124,14 @@ void OpenCLBlock::writeData(void* src, size_t _size) {
   // lazy allocation
   alloc();
 
-  if (!aligned) {
-    writeData(src, _size, 0);
-    ready = true;
-  }
-  else {
-    // get the command queue handler
-    cl_command_queue command = env->getCmdQueue();
+  uint64_t start_t = getUs();
+  writeData(src, _size, 0);
+  ready = true;
 
-    // lock TaskEnv for exclusive access to OpenCL command queue
-    boost::lock_guard<OpenCLEnv> guard(*env);
-
-    // array of cl_event to wait until all buffer copy is finished
-    //cl_event *events = new cl_event[num_items];
-
-    // copy the data element-by-element since each element is aligned
-    for (int k=0; k<num_items; k++) {
-
-      // element size in memory
-      int data_size = item_length*data_width;
-
-      int err = clEnqueueWriteBuffer(
-          command, data, CL_TRUE, k*item_size, 
-          data_size, (void*)((char*)src+k*data_size), 
-          0, NULL, NULL);
-
-      if (err != CL_SUCCESS) {
-        throw std::runtime_error("Failed to write to OpenCL block");
-      }
-    }  
-    ready = true;
-    //delete [] events;
-  }
+  uint64_t elapse_t = getUs() - start_t;
+  DLOG(INFO) << "Writting OpenCLBlock of size " << 
+    (double)size /1024/1024 << "MB takes " <<
+    elapse_t << "us.";
 }
 
 void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
