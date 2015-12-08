@@ -55,7 +55,7 @@ public:
 
   Platform_ptr create(std::string id);
 
-  std::vector<std::string> getAccNames();
+  std::vector<std::pair<std::string, std::string> > getLabels();
 
 private:
   // map platform_id to Platform 

@@ -42,7 +42,12 @@ message NodeStatusProto {
 message AccStatusProto {
   optional bool alive = 1;
   optional bool isUpdated = 2;
-  repeated string acc_names = 3;
+  repeated AcceleratorProto accelerators = 3;
+}
+
+message AcceleratorProto {
+  optional string acc_name = 1;
+  optional string device_name = 2;
 }
 
 message MasterKeyProto {

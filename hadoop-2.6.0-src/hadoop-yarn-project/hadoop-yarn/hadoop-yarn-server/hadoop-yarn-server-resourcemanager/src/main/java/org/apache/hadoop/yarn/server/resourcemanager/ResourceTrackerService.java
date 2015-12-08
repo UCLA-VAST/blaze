@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
@@ -56,6 +57,7 @@ import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
 import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerRequest;
 import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerResponse;
 import org.apache.hadoop.yarn.server.api.records.AccStatus;
+import org.apache.hadoop.yarn.server.api.records.Accelerator;
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.api.records.NodeAction;
 import org.apache.hadoop.yarn.server.api.records.NodeStatus;
@@ -489,23 +491,31 @@ public class ResourceTrackerService extends AbstractService implements
     return this.server;
   }
 
-  void processAccStatus(AccStatus accStatus, NodeId nodeId) {
+  private void processAccStatus(AccStatus accStatus, NodeId nodeId) {
     // NAM just becomes dead
     if (!accStatus.getAlive() &&
         nodeToNamAlive.containsKey(nodeId) && nodeToNamAlive.get(nodeId)) {
       nodeToNamAlive.put(nodeId, false);
 
       // clear all the labels on this node
+      // TODO(mhhuang) only removes the FCS labels but keep other labels?
       Map<NodeId, Set<String>> nodeToLabels = new HashMap<NodeId, Set<String>>();
       nodeToLabels.put(nodeId, new HashSet());
       try{
         RMNodeLabelsManager labelManager = rmContext.getNodeLabelManager();
-        labelManager.replaceLabelsOnNode(nodeToLabels);
+        if (labelManager != null) {
+          labelManager.replaceLabelsOnNode(nodeToLabels);
+        }
       } catch (IOException ioe) {
         LOG.info("Exception in replacing labels on node");
       }
-
       // TODO(mhhuang) remove the labels that are no longer in use from cluster
+
+      // clear label relations on this node
+      RMNodeLabelsManager labelManager = rmContext.getNodeLabelManager();
+      if (labelManager != null) {
+        labelManager.removeLabelRelationsOnNode(nodeId);
+      }
       return;
     }
 
@@ -514,18 +524,24 @@ public class ResourceTrackerService extends AbstractService implements
     // NAM is alive and has updated accelerators
     if (accStatus.getAlive() && accStatus.getIsUpdated()) {
       Map<NodeId, Set<String>> nodeToLabels = new HashMap<NodeId, Set<String>>();
-      Set<String> accNames = new HashSet(accStatus.getAccNames());
-      if (accNames.size() == 0) {
+
+      // Collect accNames and accRelations
+      List<Accelerator> accelerators = accStatus.getAccelerators();
+      if (accelerators.size() == 0) {
         return;
       }
-      nodeToLabels.put(nodeId, accNames);
+      Set<String> labels = new HashSet();
+      Map<String, Set<String>> deviceToAcc = new HashMap<String, Set<String>>();
+      getLabelsAndTheirRelations(accelerators, labels, deviceToAcc);
+
+      nodeToLabels.put(nodeId, labels);
 
       // TODO(mhhuang) make these exceptions more visible?
       RMNodeLabelsManager labelManager = rmContext.getNodeLabelManager();
       if (labelManager != null) {
         // add labels to cluster
         try{
-          labelManager.addToCluserFcsNodeLabels(accNames);
+          labelManager.addToCluserFcsNodeLabels(labels);
         } catch (IOException ioe) {
           LOG.info("Exception in adding labels");
         }
@@ -536,9 +552,6 @@ public class ResourceTrackerService extends AbstractService implements
           LOG.info("Exception in replacing labels on node");
         }
         // refresh device to acc mapping
-        Map<String, Set<String>> deviceToAcc = new HashMap<String, Set<String>>();
-        // TODO(mhhuang) replace the temporary device name "FPGA"
-        deviceToAcc.put("FPGA", accNames);
         labelManager.replaceDeviceAccMappingOnNode(nodeId, deviceToAcc);
       }
 
@@ -555,6 +568,22 @@ public class ResourceTrackerService extends AbstractService implements
       } catch (YarnException ye) {
         LOG.info("Exception in refreshing queues ", ye);
       }
+    }
+  }
+
+  private void getLabelsAndTheirRelations(List<Accelerator> accelerators,
+      Set<String> labels, Map<String, Set<String>> deviceToAcc) {
+    for (Accelerator a : accelerators) {
+      String deviceName = a.getDeviceName();
+      String accName = a.getAccName();
+      labels.add(deviceName);
+      labels.add(accName);
+
+      if (deviceToAcc.get(deviceName) == null) {
+        Set<String> s = new HashSet<String>();
+        deviceToAcc.put(deviceName, s);
+      }
+      deviceToAcc.get(deviceName).add(accName);
     }
   }
 }

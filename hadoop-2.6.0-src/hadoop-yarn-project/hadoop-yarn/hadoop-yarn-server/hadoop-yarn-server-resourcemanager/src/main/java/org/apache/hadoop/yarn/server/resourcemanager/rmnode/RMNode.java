@@ -150,4 +150,11 @@ public interface RMNode {
    * @return relationships among labels in this node
    */
   public Map<String, Set<String>> getNodeLabelRelations();
+
+  /**
+   * Get set of labels in this node, excluding accelerators
+   * 
+   * @return labels in this node excluding accelerators
+   */
+  public Set<String> getNodeLabelsWoAccs();
 }

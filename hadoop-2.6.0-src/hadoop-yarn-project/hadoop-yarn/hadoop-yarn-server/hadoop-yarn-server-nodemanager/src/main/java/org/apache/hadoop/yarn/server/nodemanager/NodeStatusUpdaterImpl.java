@@ -62,6 +62,7 @@ import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
 import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerRequest;
 import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerResponse;
 import org.apache.hadoop.yarn.server.api.records.AccStatus;
+import org.apache.hadoop.yarn.server.api.records.Accelerator;
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.api.records.NodeAction;
 import org.apache.hadoop.yarn.server.api.records.NodeHealthStatus;
@@ -404,18 +405,29 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
   private AccStatus getAccStatus() throws IOException {
     try {
       Nam2GamAccNames accNamesProto = getAccNamesFromNam();
+
+      // create accList from accNamesProto
+      List<Accelerator> accList = new ArrayList<Accelerator>();
+
+      List<MsgGamNam.Accelerator> accListFromNam = accNamesProto.getAccNamesList();
+      for (MsgGamNam.Accelerator a : accListFromNam) {
+        Accelerator acc = Accelerator.newInstance(a.getAccName(), a.getDeviceName());
+        accList.add(acc);
+      }
+
       AccStatus status = AccStatus.newInstance(true,
           accNamesProto.getIsUpdated(),
-          accNamesProto.getAccNamesList());
+          accList);
       needAccNamesFromNam = false;
       lostNamTimes = 0;
 
       if (LOG.isDebugEnabled()) {
         if (accNamesProto.getIsUpdated()) {
           LOG.debug("Acc names are updated ");
-          List<String> accNamesList = accNamesProto.getAccNamesList();
-          for(String name : accNamesList) {
-            LOG.debug("received acc names " + name);
+          List<MsgGamNam.Accelerator> accNamesList = accNamesProto.getAccNamesList();
+          for(MsgGamNam.Accelerator name : accNamesList) {
+            LOG.debug("received acc " + name.getAccName()
+                + " on device " + name.getDeviceName());
           }
         }
       }

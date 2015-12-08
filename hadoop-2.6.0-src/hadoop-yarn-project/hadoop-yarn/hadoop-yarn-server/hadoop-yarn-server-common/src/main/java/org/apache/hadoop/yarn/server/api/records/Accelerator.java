@@ -22,21 +22,17 @@ import java.util.List;
 import org.apache.hadoop.yarn.util.Records;
 
 
-public abstract class AccStatus {
+public abstract class Accelerator {
   
-  public static AccStatus newInstance(boolean alive, boolean isUpdated,
-      List<Accelerator> accelerators) {
-    AccStatus accStatus = Records.newRecord(AccStatus.class);
-    accStatus.setAlive(alive);
-    accStatus.setIsUpdated(isUpdated);
-    accStatus.setAccelerators(accelerators);
-    return accStatus;
+  public static Accelerator newInstance(String accName, String deviceName) {
+    Accelerator accelerator = Records.newRecord(Accelerator.class);
+    accelerator.setAccName(accName);
+    accelerator.setDeviceName(deviceName);
+    return accelerator;
   }
-  public abstract boolean getAlive();
-  public abstract boolean getIsUpdated();
-  public abstract List<Accelerator> getAccelerators();
+  public abstract String getAccName();
+  public abstract String getDeviceName();
   
-  public abstract void setAlive(boolean alive);
-  public abstract void setIsUpdated(boolean isUpdated);
-  public abstract void setAccelerators(List<Accelerator> accelerators);
+  public abstract void setAccName(String accName);
+  public abstract void setDeviceName(String deviceName);
 }

@@ -873,4 +873,13 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
     }
     return context.getNodeLabelManager().getLabelRelationsOnNode(nodeId);
   }
+
+  @Override
+  public Set<String> getNodeLabelsWoAccs() {
+    if (context.getNodeLabelManager() == null) {
+      return CommonNodeLabelsManager.EMPTY_STRING_SET;
+    }
+    return context.getNodeLabelManager().getLabelsWoAccsByNode(nodeId);
+  }
+
  }

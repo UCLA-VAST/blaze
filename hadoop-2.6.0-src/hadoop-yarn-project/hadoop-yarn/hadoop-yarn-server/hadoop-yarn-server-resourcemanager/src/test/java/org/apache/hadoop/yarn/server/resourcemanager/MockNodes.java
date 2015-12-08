@@ -211,6 +211,11 @@ public class MockNodes {
     }
 
     @Override
+    public Set<String> getNodeLabelsWoAccs() {
+      return null;
+    }
+
+    @Override
     public Map<String, Set<String>> getNodeLabelRelations() {
       return null;
     }

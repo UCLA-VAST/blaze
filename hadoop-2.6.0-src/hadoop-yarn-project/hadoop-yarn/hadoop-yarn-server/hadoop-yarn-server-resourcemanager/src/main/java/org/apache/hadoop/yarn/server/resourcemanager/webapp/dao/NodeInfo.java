@@ -86,7 +86,7 @@ public class NodeInfo {
     this.version = ni.getNodeManagerVersion();
     
     // add labels
-    Set<String> labelSet = ni.getNodeLabels();
+    Set<String> labelSet = ni.getNodeLabelsWoAccs();
     if (labelSet != null) {
       nodeLabels.addAll(labelSet);
       Collections.sort(nodeLabels);

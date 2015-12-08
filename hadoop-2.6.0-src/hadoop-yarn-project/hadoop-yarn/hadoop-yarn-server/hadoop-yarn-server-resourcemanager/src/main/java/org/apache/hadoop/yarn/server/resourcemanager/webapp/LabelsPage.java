@@ -69,7 +69,7 @@ class LabelsPage extends RmView {
           thead().
           tr().
           th(".nodeids", "Node Ids").
-          th(".nodelabels", "Node Labels").
+          th(".devices", "Devices").
           th(".accelerators", "Accelerators").
           _()._().
           tbody();
@@ -114,13 +114,6 @@ class LabelsPage extends RmView {
             row._();
           }
         }
-        for (String label : info.getNodeLabels()) {
-          TR<TBODY<TABLE<Hamlet>>> row = tbody.tr().
-            td(info.getNodeId()).
-            td(label).
-            td(label);
-          row._();
-        }
       }
       tbody._()._();
     }
@@ -136,7 +129,7 @@ class LabelsPage extends RmView {
     setTitle(title);
     set(DATATABLES_ID, "labels");
     set(initID(DATATABLES, "labels"), labelsTableInit());
-    setTableStyles(html, "labels", ".nodeids {width:10em}", ".nodelabels {width:10em}",
+    setTableStyles(html, "labels", ".nodeids {width:10em}", ".devices {width:10em}",
         ".accelerators {width:20em}");
   }
 
@@ -145,12 +138,7 @@ class LabelsPage extends RmView {
   }
 
   private String labelsTableInit() {
-    StringBuilder b = tableInit().append(", aoColumnDefs: [");
-    b.append("{'bSearchable': false, 'aTargets': [ 6 ]}");
-    b.append(", {'sType': 'title-numeric', 'bSearchable': false, " +
-        "'aTargets': [ 7, 8 ] }");
-    b.append(", {'sType': 'title-numeric', 'aTargets': [ 4 ]}");
-    b.append("]}");
+    StringBuilder b = tableInit().append(", aoColumnDefs: []}");
     return b.toString();
   }
 }

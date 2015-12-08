@@ -59,7 +59,7 @@ public class RmController extends Controller {
     render(NodesPage.class);
   }
 
-  public void labels() {
+  public void accelerators() {
     render(LabelsPage.class);
   }
 

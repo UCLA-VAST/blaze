@@ -20,11 +20,14 @@ package org.apache.hadoop.yarn.server.api.records.impl.pb;
 
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.AccStatusProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.AccStatusProtoOrBuilder;
+import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.AcceleratorProto;
 import org.apache.hadoop.yarn.server.api.records.AccStatus;
+import org.apache.hadoop.yarn.server.api.records.Accelerator;
 
 public class AccStatusPBImpl extends AccStatus {
   AccStatusProto proto = AccStatusProto.getDefaultInstance();
@@ -33,7 +36,7 @@ public class AccStatusPBImpl extends AccStatus {
   
   private boolean alive = false;
   private boolean isUpdated = false;
-  private List<String> accNames = null;
+  private List<Accelerator> accelerators = null;
   
   public AccStatusPBImpl() {
     builder = AccStatusProto.newBuilder();
@@ -52,9 +55,8 @@ public class AccStatusPBImpl extends AccStatus {
   }
 
   private synchronized void mergeLocalToBuilder() {
-    if (this.accNames != null) {
-      builder.clearAccNames();
-      builder.addAllAccNames(this.accNames);
+    if (this.accelerators != null) {
+      addAcceleratorsToProto();
     }
   }
 
@@ -71,6 +73,40 @@ public class AccStatusPBImpl extends AccStatus {
       builder = AccStatusProto.newBuilder(proto);
     }
     viaProto = false;
+  }
+    
+  private synchronized void addAcceleratorsToProto() {
+    maybeInitBuilder();
+    builder.clearAccelerators();
+    if (accelerators == null)
+      return;
+    Iterable<AcceleratorProto> iterable = new Iterable<AcceleratorProto>() {
+      @Override
+      public Iterator<AcceleratorProto> iterator() {
+        return new Iterator<AcceleratorProto>() {
+  
+          Iterator<Accelerator> iter = accelerators.iterator();
+  
+          @Override
+          public boolean hasNext() {
+            return iter.hasNext();
+          }
+  
+          @Override
+          public AcceleratorProto next() {
+            return convertToProtoFormat(iter.next());
+          }
+  
+          @Override
+          public void remove() {
+            throw new UnsupportedOperationException();
+  
+          }
+        };
+  
+      }
+    };
+    builder.addAllAccelerators(iterable);
   }
     
   @Override
@@ -108,24 +144,41 @@ public class AccStatusPBImpl extends AccStatus {
     maybeInitBuilder();
     builder.setIsUpdated(isUpdated);
   }
+
   @Override
-  public List<String> getAccNames() {
-    initAccNames();
-    return this.accNames;
-  }
-  @Override
-  public void setAccNames(List<String> accNames) {
-    maybeInitBuilder();
-    builder.clearAccNames();
-    this.accNames = accNames;
+  public List<Accelerator> getAccelerators() {
+    initAccelerators();
+    return this.accelerators;
   }
 
-  private void initAccNames() {
-    if (this.accNames != null) {
+  @Override
+  public void setAccelerators(List<Accelerator> accelerators) {
+    if (accelerators == null) {
+      builder.clearAccelerators();
+    }
+    this.accelerators = accelerators;
+  }
+
+  private void initAccelerators() {
+    if (this.accelerators != null) {
       return;
     }
     AccStatusProtoOrBuilder p = viaProto ? proto : builder;
-    this.accNames = new ArrayList<String>();
-    this.accNames.addAll(p.getAccNamesList());
+    List<AcceleratorProto> list = p.getAcceleratorsList();
+    this.accelerators = new ArrayList<Accelerator>();
+
+    for (AcceleratorProto a : list) {
+      this.accelerators.add(convertFromProtoFormat(a));
+    }
   }
+
+  private Accelerator convertFromProtoFormat(AcceleratorProto proto) {
+    return new AcceleratorPBImpl(proto);
+  }
+
+  private AcceleratorProto convertToProtoFormat(Accelerator a) {
+    return ((AcceleratorPBImpl)a).getProto();
+  }
+  
+  
 }

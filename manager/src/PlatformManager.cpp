@@ -147,14 +147,15 @@ void PlatformManager::removeShared(int64_t block_id)
   }
 }
 
-std::vector<std::string> PlatformManager::getAccNames() {
-  std::vector<std::string> ret;
+std::vector<std::pair<std::string, std::string> > PlatformManager::getLabels()
+{
+  std::vector<std::pair<std::string, std::string> > ret;
   std::map<std::string, std::string>::iterator iter;
   for (iter = acc_table.begin();
        iter != acc_table.end();
        iter ++ )
   {
-    ret.push_back(iter->first); 
+    ret.push_back(std::make_pair(iter->first, iter->second)); 
   }
   return ret;
 }
