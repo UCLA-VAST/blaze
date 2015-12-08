@@ -1,19 +1,16 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdexcept>
+
+#include <boost/smart_ptr.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
 #include <glog/logging.h>
 
 #include "OpenCLBlock.h"
 
 namespace blaze {
 
-#define LOG_HEADER  std::string("OpenCLBlock::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
-
-uint64_t getUs() {
-  struct timespec tr;
-  clock_gettime(CLOCK_REALTIME, &tr);
-
-  return (uint64_t)tr.tv_sec*1e6 + tr.tv_nsec/1e3;
-}
+#define LOG_HEADER  "OpenCLBlock"
 
 void OpenCLBlock::alloc() {
 
@@ -31,7 +28,6 @@ void OpenCLBlock::alloc() {
     if (err != CL_SUCCESS) {
       throw std::runtime_error("Failed to allocate OpenCL block");
     }
-
     allocated = true;
 
     uint64_t elapse_t = getUs() - start_t;
