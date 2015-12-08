@@ -1,11 +1,6 @@
-#include <stdio.h>
-#include <string.h>
-#include <string>
-#include <stdexcept>
+#include <glog/logging.h>
 
-#include <boost/smart_ptr.hpp>
-#include <boost/iostreams/device/mapped_file.hpp>
-
+#include "OpenCLEnv.h"
 #include "OpenCLBlock.h"
 
 namespace blaze {
@@ -22,7 +17,7 @@ void OpenCLBlock::alloc() {
     cl_context context = env->getContext();
     cl_int err = 0;
 
-    if (flag == BLAZE_INPUT_BLOCK ||
+    if (flag == BLAZE_INPUT_BLOCK || 
         flag == BLAZE_SHARED_BLOCK) 
     {
       data = clCreateBuffer(
@@ -113,12 +108,12 @@ void OpenCLBlock::writeData(void* src, size_t _size) {
     writeData(src, _size, 0);
     ready = true;
   }
-  else {
+  else { // NOTE: there is no need to support aligned data 
     // get the command queue handler
     cl_command_queue command = env->getCmdQueue();
 
     // lock TaskEnv for exclusive access to OpenCL command queue
-    boost::lock_guard<OpenCLEnv> guard(*env);
+    //boost::lock_guard<OpenCLEnv> guard(*env);
 
     // array of cl_event to wait until all buffer copy is finished
     //cl_event *events = new cl_event[num_items];
@@ -158,7 +153,7 @@ void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
 
   // use a lock on TaskEnv to guarantee single-thread access to command queues
   // NOTE: this is unnecessary if the OpenCL runtime is thread-safe
-  boost::lock_guard<OpenCLEnv> guard(*env);
+  //boost::lock_guard<OpenCLEnv> guard(*env);
   //env->lock();
 
   int err = clEnqueueWriteBuffer(
@@ -166,7 +161,10 @@ void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
       _size, src, 0, NULL, &event);
 
   if (err != CL_SUCCESS) {
-    throw std::runtime_error("Failed to write to OpenCL block");
+    DLOG(ERROR) << "clEnqueueWriteBuffer error: " << err;
+    DLOG(ERROR) << "block infomation: size=" << _size <<
+      ", offset=" << offset;
+    throw std::runtime_error("clEnqueueWriteBuffer error");
   }
   //env->unlock();
   //clWaitForEvents(1, &event);
@@ -186,7 +184,7 @@ void OpenCLBlock::readData(void* dst, size_t size) {
 
     // use a lock on TaskEnv to guarantee single-thread access to command queues
     // NOTE: this is unnecessary if the OpenCL runtime is thread-safe
-    boost::lock_guard<OpenCLEnv> guard(*env);
+    //boost::lock_guard<OpenCLEnv> guard(*env);
     //env->lock();
 
     int err = clEnqueueReadBuffer(
@@ -194,7 +192,9 @@ void OpenCLBlock::readData(void* dst, size_t size) {
       size, dst, 0, NULL, &event);
 
     if (err != CL_SUCCESS) {
-      throw std::runtime_error("Failed to write to OpenCL block");
+      DLOG(ERROR) << "clEnqueueReadBuffer error: " << err;
+      DLOG(ERROR) << "block infomation: size=" << size;
+      throw std::runtime_error("Failed to read an OpenCL block");
     }
     //env->unlock();
     //clWaitForEvents(1, &event);

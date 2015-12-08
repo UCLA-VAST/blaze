@@ -4,7 +4,12 @@
 
 #define LOG_HEADER "PlatformManager"
 #include <glog/logging.h>
+
+#include "BlockManager.h"
+#include "Platform.h"
 #include "PlatformManager.h"
+#include "QueueManager.h"
+#include "TaskManager.h"
 
 namespace blaze {
 
@@ -25,48 +30,37 @@ PlatformManager::PlatformManager(ManagerConf *conf)
       }
       platform_table.insert(std::make_pair(id, platform));
 
-      int        cache_limit   = platform_conf.cache_limit();
-      int        scratch_limit = platform_conf.scratch_limit();
-      std::string cache_loc    = platform_conf.cache_loc();
+      int cache_limit   = platform_conf.cache_limit();
+      int scratch_limit = platform_conf.scratch_limit();
+
+      std::string cache_loc = platform_conf.has_cache_loc() ? 
+                                platform_conf.cache_loc() : id;
 
       // create block manager
-      if (block_manager_table.find(cache_loc) != 
-          block_manager_table.end()) 
+      if (cache_table.find(cache_loc) == cache_table.end()) 
       {
-        // if the cache is shared with another platform
-        block_manager_table.insert(
-            std::make_pair(id, block_manager_table[cache_loc]));
-      }
-      else 
-      {
-        BlockManager_ptr block_manager(
-            new BlockManager(
-              platform.get(),
-              (size_t)cache_limit << 20,
-              (size_t)scratch_limit << 20)
-            );
-
-        block_manager_table.insert(
-            std::make_pair(id, block_manager));
+        // if the cache is not shared with another platform
+        // create a block manager in the platform
+        platform->createBlockManager(
+            (size_t)cache_limit << 20, 
+            (size_t)scratch_limit << 20);
+        cache_table.insert(std::make_pair(id, cache_loc));
       }
 
-      // create queue manager
-      QueueManager_ptr queue_manager = platform->createQueue();
-
-      // add the new queue manager to queue table
-      queue_manager_table.insert(std::make_pair(id, queue_manager));
+      QueueManager* queue_manager = platform->getQueueManager();
 
       // add accelerators to the platform
       for (int j=0; j<platform_conf.acc_size(); j++) {
 
         AccWorker acc_conf = platform_conf.acc(j);
         try {
-
           // check if acc of the same already exists
           if (acc_table.find(acc_conf.id()) != acc_table.end()) {
             throw std::runtime_error(
                 "accelerator of the same id already exists");
           }
+          // setup the task environment with ACC conf
+          platform->setupAcc(acc_conf);
 
           // add acc mapping to table
           acc_table.insert(std::make_pair(
@@ -75,9 +69,6 @@ PlatformManager::PlatformManager(ManagerConf *conf)
           // add acc configuration to table
           acc_config_table.insert(
               std::make_pair(acc_conf.id(), acc_conf));
-
-          // setup the task environment with ACC conf
-          platform->setupAcc(acc_conf);
 
           // create a corresponding task manager 
           queue_manager->add(acc_conf.id(), acc_conf.path());
@@ -96,6 +87,22 @@ PlatformManager::PlatformManager(ManagerConf *conf)
       LOG(ERROR) << "Cannot create platform " << id <<
         ": " << e.what();
     }
+  }
+}
+
+Platform* PlatformManager::getPlatform(std::string acc_id) {
+  if (acc_table.find(acc_id) == acc_table.end()) {
+    return NULL;
+  } else {
+    return platform_table[acc_table[acc_id]].get();
+  }
+}
+
+TaskManager* PlatformManager::getTaskManager(std::string acc_id) {
+  if (acc_table.find(acc_id) == acc_table.end()) {
+    return NULL;
+  } else {
+    return platform_table[acc_table[acc_id]]->getTaskManager(acc_id);  
   }
 }
 
@@ -129,9 +136,7 @@ Platform_ptr PlatformManager::create(std::string path) {
       throw std::runtime_error(error);
     }
 
-    // TODO: exception handling?
     Platform_ptr platform(create_func(), destroy_func);
-
 
     return platform;
   }
@@ -140,12 +145,12 @@ Platform_ptr PlatformManager::create(std::string path) {
 void PlatformManager::removeShared(int64_t block_id)
 {
   try {
-    for (std::map<std::string, BlockManager_ptr>::iterator 
-        iter = block_manager_table.begin(); 
-        iter != block_manager_table.end(); 
+    for (std::map<std::string, std::string>::iterator 
+        iter = cache_table.begin(); 
+        iter != cache_table.end(); 
         iter ++) 
     {
-      iter->second->remove(block_id);
+      platform_table[iter->second]->remove(block_id);
     }
   }
   catch (std::runtime_error &e) {

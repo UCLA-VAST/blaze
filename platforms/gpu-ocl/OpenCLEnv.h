@@ -15,27 +15,51 @@
 
 namespace blaze {
 
-class OpenCLEnv : 
-  public TaskEnv, 
-  public boost::basic_lockable_adapter<boost::mutex>
+class OpenCLEnv
+: public boost::basic_lockable_adapter<boost::mutex>
 {
-  friend class OpenCLPlatform;
-
 public:
   OpenCLEnv(
+      int _id,
       cl_context _context,
       cl_command_queue _queue,
       cl_device_id _device_id): 
+    id(_id), 
     context(_context), 
     cmd_queue(_queue),
     device_id(_device_id)
   {;}
 
+  int getDevice() { return id; }
   cl_device_id& getDeviceId() { return device_id; }
   cl_context& getContext() { return context; }
   cl_command_queue& getCmdQueue() { return cmd_queue; }
-  cl_kernel& getKernel() { return kernel; }
 
+private:
+  int id;
+  cl_device_id     device_id;
+  cl_context       context;
+  cl_command_queue cmd_queue;
+};
+
+class OpenCLTaskEnv : public TaskEnv 
+{
+  friend OpenCLQueueManager;
+
+public:
+  OpenCLTaskEnv(OpenCLEnv* _env, cl_program _program):
+    env(_env), program(_program) 
+  {;}
+
+  cl_context& getContext() {
+    return env->getContext();
+  }
+  cl_command_queue& getCmdQueue() {
+    return env->getCmdQueue();
+  }
+  cl_program& getProgram() {
+    return program;
+  }
   virtual DataBlock_ptr createBlock(
       int num_items, 
       int item_length,
@@ -44,12 +68,10 @@ public:
       int flag = BLAZE_OUTPUT_BLOCK);
 
 private:
-  void changeKernel(cl_kernel& _kernel);
+  OpenCLEnv* env;
 
-  cl_device_id     device_id;
-  cl_context       context;
-  cl_command_queue cmd_queue;
-  cl_kernel        kernel;
+  cl_program program;
 };
 }
-#endif
+
+#endif 

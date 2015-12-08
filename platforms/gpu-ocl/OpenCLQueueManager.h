@@ -3,8 +3,7 @@
 
 #include "OpenCLCommon.h"
 #include "QueueManager.h"
-
-#define MAX_WAIT_TIME 500
+#include "TaskQueue.h"
 
 namespace blaze {
 
@@ -13,13 +12,21 @@ public:
 
   OpenCLQueueManager(Platform* _platform);
 
+  // start dispatch and executors for all GPU devices
   void startAll();
 
 private:
   OpenCLPlatform* ocl_platform;
 
-  // thread body of executing tasks from children TaskManagers
-  void do_start();
+  // thread body of dispatching tasks from 
+  // TaskQueue to PlatformQueue
+  void do_dispatch();
+
+  // thread body of PlatformQueue
+  void do_execute(int device_id);
+
+  // Platform Queues
+  std::vector<TaskQueue_ptr> platform_queues;
 };
 } // namespace blaze
 

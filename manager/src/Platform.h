@@ -7,73 +7,57 @@
 #include <map>
 
 #include "proto/acc_conf.pb.h"
-#include "TaskEnv.h"
-#include "Block.h"
-#include "QueueManager.h"
+#include "Common.h"
 
 namespace blaze {
 
 class Platform {
   
 public:
-  // setup platform context in the constructor, exceptions can be thrown
-  // must initialize env if there is no exception
-  Platform() {
-    env = new TaskEnv();
-  }
-
-  ~Platform() {
-    delete env;  
-  }
+  Platform();
 
   // store an accelerator setup on the platform
-  void setupAcc(AccWorker &conf) {
-    if (acc_table.find(conf.id()) == acc_table.end()) {
-      acc_table.insert(std::make_pair(conf.id(), conf));
-    }
-  }
+  virtual void setupAcc(AccWorker &conf);
 
-  // create a platform-specific queue manager
-  virtual QueueManager_ptr createQueue() {
-    QueueManager_ptr queue(new QueueManager(this));
-    return queue;
-  }
+  // obtain a BlockManager
+  virtual void createBlockManager(size_t cache_limit, size_t scratch_limit);
+
+  virtual BlockManager* getBlockManager();
+
+  virtual TaskManager* getTaskManager(std::string id);
+
+  virtual QueueManager* getQueueManager();
 
   // create a block object for the specific platform
   virtual DataBlock_ptr createBlock(
       int num_items, 
       int item_length,
       int item_size, 
-      int align_width = 0) 
-  {
-    DataBlock_ptr block(new DataBlock(
-          num_items, item_length, item_size, align_width)
-        );
-    return block;
-  }
+      int align_width = 0, 
+      int flag = BLAZE_INPUT_BLOCK);
+
+  virtual void remove(int64_t block_id);
 
   // get an entry in the config_table matching the key
-  std::string getConfig(std::string &key) {
-    if (config_table.find(key)==config_table.end()) {
-      return std::string();
-    } else {
-      return config_table[key];
-    }
-  }
+  std::string getConfig(std::string &key);
 
   // get TaskEnv to pass to Task
-  TaskEnv* getEnv() {return env;}
+  virtual TaskEnv_ptr getEnv(std::string id);
 
 protected:
-  TaskEnv* env;
-  
+  QueueManager_ptr queue_manager;
+
+  BlockManager_ptr block_manager;
+
   // a table storing platform configurations mapped by key
   std::map<std::string, std::string> config_table;
 
   // a table storing platform configurations mapped by key
   std::map<std::string, AccWorker> acc_table;
+
+private:
+  TaskEnv_ptr env;
 };
 
-typedef boost::shared_ptr<Platform> Platform_ptr;
 } // namespace blaze
 #endif

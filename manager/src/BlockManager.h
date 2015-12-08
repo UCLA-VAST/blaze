@@ -11,8 +11,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
-#include "Block.h"
-#include "Platform.h"
+#include "Common.h"
 
 /* TODO list:
  * - guarantee an unique partition id shared by possibly multiple
@@ -71,7 +70,8 @@ public:
     int num_items, 
     int items_length,
     int items_size,
-    int align_size = 0);
+    int align_size = 0,
+    int flag = BLAZE_INPUT_BLOCK);
 
   // create a block and add it to cache/scratch
   // return true if a new block is created
@@ -124,7 +124,6 @@ private:
   Platform* platform;
 };
 
-typedef boost::shared_ptr<BlockManager> BlockManager_ptr;
 }
 
 #endif

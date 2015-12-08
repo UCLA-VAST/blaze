@@ -5,21 +5,13 @@
 #include <vector>
 #include <iostream>
 
-#include <boost/smart_ptr.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/thread/thread.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/lockable_adapter.hpp>
-
 #include "proto/acc_conf.pb.h"
+#include "Common.h"
 
 namespace blaze {
 
 class Platform;
 class TaskManager;
-
-typedef boost::shared_ptr<TaskManager> TaskManager_ptr;
-const TaskManager_ptr NULL_TASK_MANAGER;
 
 class QueueManager {
 
@@ -29,7 +21,7 @@ public:
   {;}
 
   // add a new queue regarding an existing accelerator
-  void add(
+  virtual void add(
     std::string id, 
     std::string lib_path);
 
@@ -42,12 +34,18 @@ public:
   // start the executor and commiter for all queues
   virtual void startAll();
 
+  // read TaskEnv for scheduling
+  TaskEnv* getTaskEnv(Task* task);
+
 protected:
+  void setTaskEnv(Task* task, TaskEnv_ptr env);
+
+  DataBlock_ptr getTaskInputBlock(Task* task, int idx);
+
   std::map<std::string, TaskManager_ptr> queue_table;
+
   Platform *platform;
 };
-
-typedef boost::shared_ptr<QueueManager> QueueManager_ptr;
 }
 
 #endif

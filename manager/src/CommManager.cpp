@@ -13,6 +13,9 @@
 #include <glog/logging.h>
 
 #include "CommManager.h"
+#include "PlatformManager.h"
+#include "BlockManager.h"
+#include "TaskManager.h"
 
 #define MAX_MSGSIZE 4096
 

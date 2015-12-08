@@ -32,17 +32,20 @@ LINK= -L../lib -lblaze \
 			-L$(GLOG_DIR)/lib -lglog \
 			-L$(HADOOP_DIR)/lib/native -lhdfs \
 			-L$(JAVA_HOME)/jre/lib/amd64/server -ljvm \
-			-lpthread -lm -ldl
+			-lpthread -lm \
+			-Wl,--no-as-needed -ldl
 
-DEPS= CommManager.o \
+DEPS= Common.o \
+			Block.o \
+			Task.o \
+			CommManager.o \
 			AppCommManager.o \
 			GAMCommManager.o \
+			Platform.o \
 			PlatformManager.o \
-			Block.o \
 			BlockManager.o \
-			QueueManager.o \
-			Task.o \
 			TaskManager.o \
+			QueueManager.o \
 			task.pb.o \
 			acc_conf.pb.o \
 			msgGamNam.pb.o

@@ -10,8 +10,6 @@
 
 #include "OpenCLCommon.h"
 #include "Platform.h"
-#include "OpenCLBlock.h"
-#include "OpenCLEnv.h"
 
 namespace blaze {
 
@@ -22,7 +20,7 @@ public:
   OpenCLPlatform();
   ~OpenCLPlatform();
 
-  virtual TaskEnv_ptr getEnv(std::string id);
+  //virtual QueueManager_ptr createQueue();
 
   virtual DataBlock_ptr createBlock(
       int num_items, 
@@ -31,27 +29,30 @@ public:
       int align_width = 0,
       int flag = BLAZE_INPUT_BLOCK);
 
+  int getNumDevices();
+
+  virtual TaskEnv_ptr getEnv(std::string id);
+
+  OpenCLEnv* getEnv(int device_id);
+
+  virtual void setupAcc(AccWorker &con);
+
   virtual void createBlockManager(size_t cache_limit, size_t scratch_limit);
+
   virtual BlockManager* getBlockManager();
 
-  virtual void setupAcc(AccWorker &conf);
-  void changeProgram(std::string acc_id);
-
-  cl_kernel& getKernel();
-
 private:
-
   int load_file(const char* filename, char** result);
   
-  OpenCLEnv*  env;
-  TaskEnv_ptr env_ptr;
+  uint32_t     num_devices;
 
-  std::string curr_acc_id;
-  cl_program  curr_program;
-  cl_kernel   curr_kernel;
+  std::vector<OpenCLEnv*> env_list; 
 
-  std::map<std::string, std::pair<int, unsigned char*> > bitstreams;
-  std::map<std::string, std::string> kernel_list;
+  std::map<std::string, std::vector<cl_program> > program_list;
+
+  std::vector<BlockManager_ptr> block_manager_list;
+
+  //std::map<std::string, std::pair<int, char*> > bitstreams;
   //std::map<std::string, cl_kernel>  kernels;
 };
 

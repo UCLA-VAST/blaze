@@ -10,10 +10,20 @@
 #include <cstdint>
 
 #define LOG_HEADER "AppCommManager"
+
+#include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
 #include <glog/logging.h>
 
 #include "proto/task.pb.h"
+#include "Block.h"
+#include "Task.h"
+#include "Platform.h"
 #include "CommManager.h"
+#include "BlockManager.h"
+#include "PlatformManager.h"
+#include "TaskManager.h"
 
 namespace blaze {
 
@@ -65,18 +75,26 @@ void AppCommManager::process(socket_ptr sock) {
        * task's input table, in order to get the correct order
        */
 
-      // 1.1 query the queue manager to find matching acc
-      TaskManager_ptr task_manager = 
+      // 1.1 query the PlatformManager to find matching acc
+      TaskManager* task_manager = 
         platform_manager->getTaskManager(task_msg.acc_id());
 
-      if (task_manager == NULL_TASK_MANAGER) { 
+      // 1.2 get correponding block manager based on platform of queried Task
+      Platform* platform = platform_manager->getPlatform(task_msg.acc_id());
+
+      if (!task_manager || !platform) {
         // if there is no matching acc
         throw AccReject("No matching accelerator"); 
       }
 
-      // 1.2 get correponding block manager based on platform of queried Task
-      BlockManager* block_manager = platform_manager->
-        getBlockManager(task_msg.acc_id());
+      // NOTE: ommit pointer check since it is 
+      // already performed in getTaskManager
+
+      BlockManager* block_manager = platform->getBlockManager();
+
+      if (!block_manager) {
+        throw AccReject("Cannot find block manager");
+      }
 
       // create a new task, and make scheduling decision
       Task_ptr task = task_manager->create();
@@ -270,9 +288,7 @@ void AppCommManager::process(socket_ptr sock) {
           int64_t blockId = recv_block.partition_id();
           std::string path = recv_block.file_path();
 
-          if (task->getInputBlock(blockId) &&
-              task->getInputBlock(blockId)->isReady()) 
-          {
+          if (task->isInputReady(blockId)) {
             LOG(WARNING) << "Skipping ready block " << blockId;
             break;
           }
@@ -463,11 +479,14 @@ void AppCommManager::process(socket_ptr sock) {
                     e.what());
               }
 
+              // NOTE: only remove normal input file
               try {
                 // delete memory map file after read
-                boost::filesystem::wpath file(path);
-                if (boost::filesystem::exists(file)) {
-                  boost::filesystem::remove(file);
+                if (blockId >= 0) {
+                  boost::filesystem::wpath file(path);
+                  if (boost::filesystem::exists(file)) {
+                    boost::filesystem::remove(file);
+                  }
                 }
               } catch (std::exception &e) {
                 LOG(WARNING) << "Cannot delete memory mapped file after read";

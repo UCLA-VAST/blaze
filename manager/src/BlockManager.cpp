@@ -3,7 +3,9 @@
 #define LOG_HEADER "BlockManager"
 #include <glog/logging.h>
 
+#include "Block.h"
 #include "BlockManager.h"
+#include "Platform.h"
 
 namespace blaze {
 
@@ -12,7 +14,8 @@ DataBlock_ptr BlockManager::create(
     int num_items, 
     int item_length,
     int item_size,
-    int align_size) 
+    int align_size, 
+    int flag) 
 {
   int block_size;
   if (align_size > 0 && item_size % align_size != 0) {
@@ -30,7 +33,7 @@ DataBlock_ptr BlockManager::create(
   }
   else {
     DataBlock_ptr block = platform->createBlock(
-        num_items, item_length, item_size, align_size);
+        num_items, item_length, item_size, align_size, flag);
 
     return block;
   }
@@ -52,11 +55,15 @@ bool BlockManager::getAlloc(
   if (!contains(tag)) {
 
     // create block never throw exception
-    block = platform->createBlock(
-        num_items, 
-        item_length, 
-        item_size, 
-        align_size);
+    if (tag < 0) {
+      block = platform->createBlock(
+          num_items, item_length, item_size, align_size, 
+          BLAZE_SHARED_BLOCK);
+    } else {
+      block = platform->createBlock(
+          num_items, item_length, item_size, align_size, 
+          BLAZE_INPUT_BLOCK);
+    }
 
     try {
       do_add(tag, block);

@@ -1,13 +1,23 @@
 #ifndef OPENCLBLOCK_H
 #define OPENCLBLOCK_H
 
+#include <stdio.h>
+#include <string.h>
+#include <string>
+#include <stdexcept>
+
+#include <boost/smart_ptr.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
+
 #include "OpenCLCommon.h"
-#include "OpenCLEnv.h"
 #include "Block.h"
+#include "OpenCLEnv.h"
 
 namespace blaze {
 
-class OpenCLBlock : public DataBlock {
+class OpenCLBlock : public DataBlock 
+{
+  friend OpenCLQueueManager;
 
 public:
   // create a single output elements
@@ -15,10 +25,11 @@ public:
       int _num_items, 
       int _item_length,
       int _item_size,
-      int _align_width = 0,
-      int _flag = BLAZE_INPUT_BLOCK):
+      int _align_width = 0, 
+      int _flag = BLAZE_INPUT_BLOCK) :
     env(_env), 
-    DataBlock(_num_items, _item_length, _item_size, _align_width, _flag)
+    DataBlock(_num_items, _item_length, 
+        _item_size, _align_width, _flag)
   {;}
   
   // used to copy data from CPU memory
@@ -68,8 +79,9 @@ public:
 
 private:
   cl_mem data;
-  OpenCLEnv *env;
 
+  // can be accessed by OpenCLQueueManager
+  OpenCLEnv* env;
 };
 }
 

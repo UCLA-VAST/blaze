@@ -1,12 +1,15 @@
 #include <glog/logging.h>
 
+#include "Platform.h"
+#include "BlockManager.h"
+#include "OpenCLEnv.h"
 #include "OpenCLPlatform.h"
 #include "OpenCLQueueManager.h"
 
 namespace blaze {
 
 OpenCLPlatform::OpenCLPlatform() 
-  : prev_program(NULL), prev_kernel(NULL)
+  : curr_program(NULL), curr_kernel(NULL)
 {
   // start platform setting up
   int err;
@@ -24,6 +27,8 @@ OpenCLPlatform::OpenCLPlatform()
         "Failed to find an OpenCL platform!");
   }
 
+  cl_device_id device_id;
+
   // Connect to a compute device
   err = clGetDeviceIDs(
       platform_id, 
@@ -38,7 +43,8 @@ OpenCLPlatform::OpenCLPlatform()
   }
 
   // Create a compute context 
-  context = clCreateContext(0, 1, &device_id, NULL, NULL, &err);
+  cl_context context = clCreateContext(0, 1, 
+      &device_id, NULL, NULL, &err);
 
   if (!context) {
     throw std::runtime_error(
@@ -46,93 +52,135 @@ OpenCLPlatform::OpenCLPlatform()
   }
 
   // Create a command commands
-  cmd_queue = clCreateCommandQueue(context, device_id, 0, &err);
+  cl_command_queue cmd_queue = clCreateCommandQueue(
+      context, device_id, 0, &err);
 
   if (!cmd_queue) {
     throw std::runtime_error(
         "Failed to create a command queue context!");
   }
 
-  env = new OpenCLEnv(context, cmd_queue);
-}
+  env = new OpenCLEnv(context, cmd_queue, device_id);
 
-QueueManager_ptr OpenCLPlatform::createQueue() {
+  TaskEnv_ptr ep(env);
+  env_ptr = ep;
+
   QueueManager_ptr queue(new OpenCLQueueManager(this)); 
-  return queue;
+  queue_manager = queue;
 }
 
-void OpenCLPlatform::setupProgram(std::string acc_id) {
+OpenCLPlatform::~OpenCLPlatform() {
+
+  clReleaseCommandQueue(env->getCmdQueue());
+  clReleaseContext(env->getContext());
+}
+
+void OpenCLPlatform::createBlockManager(
+    size_t cache_limit, 
+    size_t scratch_limit) 
+{
+  BlockManager_ptr bman(new BlockManager(this, 
+        cache_limit, scratch_limit));
+
+  block_manager = bman;
+}
+
+BlockManager* OpenCLPlatform::getBlockManager() {
+  return block_manager.get();
+}
+
+void OpenCLPlatform::setupAcc(AccWorker &conf) {
+
+  int err;
+  int status = 0;
+  size_t n_t = 0;
+  unsigned char* kernelbinary;
+
+  // get specific ACC Conf from key-value pair
+  std::string program_path;
+  std::string kernel_name;
+
+  for (int i=0; i<conf.param_size(); i++) {
+    if (conf.param(i).key().compare("program_path")==0) {
+      program_path = conf.param(i).value();
+    }
+    if (conf.param(i).key().compare("kernel_name")==0) {
+      kernel_name = conf.param(i).value();
+    }
+  }
+  if (program_path.empty() || kernel_name.empty()) {
+    throw std::runtime_error("Invalid configuration");
+  }
+
+  DLOG(INFO) << "Load Bitstream from file " << program_path.c_str();
+
+  // Load binary from disk
+  int n_i = load_file(
+      program_path.c_str(), 
+      (char **) &kernelbinary);
+
+  if (n_i < 0) {
+    throw std::runtime_error(
+        "failed to load kernel from xclbin");
+  }
+  n_t = n_i;
+
+  // save bitstream
+  bitstreams.insert(std::make_pair(
+        conf.id(), 
+        std::make_pair(n_i, kernelbinary)));
+
+  // save kernel name
+  kernel_list.insert(std::make_pair(
+        conf.id(), kernel_name));
+}
+
+void OpenCLPlatform::changeProgram(std::string acc_id) {
 
   // NOTE: current version reprograms FPGA everytime a new kernel
   // is required
   // NOTE: there is an assumption that kernel and program are one-to-one mapped
-  
+  cl_int err;
+  cl_int status;
+
+  uint64_t start_t, elapse_t;
+
   // check if corresponding kernel is current
-  if (curr_acc_id != acc_id) {
+  if (curr_acc_id.compare(acc_id) != 0) {
 
-    OpenCLEnv* ocl_env = (OpenCLEnv*)env;
-    AccWorker conf = acc_table[acc_id];
-
-    int err;
-    int status = 0;
-    size_t n_t = 0;
-    unsigned char* kernelbinary;
+    start_t = getUs();
 
     // release previous kernel
-    if (prev_program && prev_kernel) {
-      clReleaseProgram(prev_program);
-      clReleaseKernel(prev_kernel);
+    if (curr_program && curr_kernel) {
+      clReleaseProgram(curr_program);
+      clReleaseKernel(curr_kernel);
     }
 
-    // get specific ACC Conf from key-value pair
-    std::string program_path;
-    std::string kernel_name;
+    elapse_t = getUs() - start_t;
+    DLOG(INFO) << "Releasing program and kernel takes " << 
+      elapse_t << "us.";
 
-    for (int i=0; i<conf.param_size(); i++) {
-      if (conf.param(i).key().compare("ocl_program_path")==0) {
-        program_path = conf.param(i).value();
-      }
-      else if (conf.param(i).key().compare("ocl_kernel_name")==0) {
-        kernel_name = conf.param(i).value();
-      }
-    }
-    if (program_path.empty() || kernel_name.empty()) {
-      throw std::runtime_error("Invalid configuration");
+    if (bitstreams.find(acc_id) == bitstreams.end() ||
+        kernel_list.find(acc_id) == kernel_list.end()) 
+    {
+      DLOG(ERROR) << "Bitstream not setup correctly";
+      throw std::runtime_error("Cannot find bitstream information");
     }
 
-    if (bitstreams.find(acc_id) != bitstreams.end()) {
+    // load bitstream from memory
+    std::pair<int, unsigned char*> bitstream = bitstreams[acc_id];
+    std::string kernel_name = kernel_list[acc_id];
 
-      DLOG(INFO) << "Bitstream already stored in memory";
+    cl_context context = env->getContext();
+    cl_device_id device_id = env->getDeviceId();
 
-      // Load bitstream from memory
-      std::pair<int, unsigned char*> bitstream = bitstreams[acc_id];
-
-      n_t = bitstream.first;
-      kernelbinary = bitstream.second;
-    }
-    else { // required programs have not been loaded yet
-
-      DLOG(INFO) << "Load Bitstream from file " << program_path.c_str();
-
-      // Load binary from disk
-      int n_i = load_file(
-          program_path.c_str(), 
-          (char **) &kernelbinary);
-
-      if (n_i < 0) {
-        throw std::runtime_error(
-            "failed to load kernel from xclbin");
-      }
-      n_t = n_i;
-
-      // save bitstream
-      bitstreams.insert(std::make_pair(
-            conf.id(), 
-            std::make_pair(n_i, kernelbinary)));
-    }
+    size_t n_t = bitstream.first;
+    unsigned char* kernelbinary = bitstream.second;
 
     // lock OpenCL Context
-    boost::lock_guard<OpenCLEnv> guard(*ocl_env);
+    boost::lock_guard<OpenCLEnv> guard(*env);
+
+    start_t = getUs();
 
     // Switch bitstream in FPGA
     cl_program program = clCreateProgramWithBinary(
@@ -145,36 +193,58 @@ void OpenCLPlatform::setupProgram(std::string acc_id) {
           "Failed to create compute program from binary");
     }
 
+    elapse_t = getUs() - start_t;
+    DLOG(INFO) << "clCreateProgramWithBinary takes " << 
+      elapse_t << "us.";
+
+    start_t = getUs();
+
     // Create the compute kernel in the program we wish to run
     cl_kernel kernel = clCreateKernel(
-        program, 
-        kernel_name.c_str(), 
-        &err);
+        program, kernel_name.c_str(), &err);
 
     if (!kernel || err != CL_SUCCESS) {
       throw std::runtime_error(
           "Failed to create compute kernel!");
     }
 
-    prev_program = program;
-    prev_kernel = kernel;
+    elapse_t = getUs() - start_t;
+    DLOG(INFO) << "clCreateKernel takes " << 
+      elapse_t << "us.";
 
-    // setup kernel in the TaskEnv
-    ocl_env->changeKernel(kernel);
+    // setup current accelerator info
+    curr_program = program;
+    curr_kernel = kernel;
+    curr_acc_id = acc_id;
+
+    // switch kernel handler to OpenCLEnv
+    env->changeKernel(kernel);
 
     LOG(INFO) << "Switched to new accelerator: " << acc_id;
-
-    /*
-    // save kernel handle to the map table
-    kernels.insert(std::make_pair(
-    conf.id(), 
-    kernel));
-    */
-
-    // set current acc_id
-    curr_acc_id = acc_id;
   }
 }  
+
+cl_kernel& OpenCLPlatform::getKernel() {
+  return curr_kernel;
+}
+
+TaskEnv_ptr OpenCLPlatform::getEnv(std::string id) {
+  return env_ptr; 
+}
+
+DataBlock_ptr OpenCLPlatform::createBlock(
+    int num_items, 
+    int item_length,
+    int item_size, 
+    int align_width,
+    int flag)
+{
+  DataBlock_ptr block(new OpenCLBlock(env,
+        num_items, item_length, item_size, 
+        align_width, flag));  
+
+  return block;
+}
 
 int OpenCLPlatform::load_file(
     const char *filename, 

@@ -1,10 +1,15 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/atomic.hpp>
-
-#define LOG_HEADER "TaskManager"
 #include <glog/logging.h>
 
+#define LOG_HEADER "TaskManager"
+
+#include "TaskEnv.h"
+#include "Task.h"
+#include "Block.h"
+#include "TaskQueue.h"
 #include "TaskManager.h"
+#include "Platform.h"
 
 namespace blaze {
 
@@ -50,8 +55,8 @@ Task_ptr TaskManager::create() {
   // create a new task by the constructor loaded form user implementation
   Task_ptr task(createTask(), destroyTask);
 
-  // link the task platform 
-  task->setPlatform(platform);
+  // link the TaskEnv
+  task->env = platform->getEnv(acc_id);
 
   // give task an unique ID
   task->task_id = nextTaskId.fetch_add(1);
@@ -85,7 +90,7 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
     boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
     enqueued = queue->push(task);
   }
-
+  
   // update lobby wait time
   lobbyWaitTime.fetch_add(delay_time);
 
@@ -132,6 +137,16 @@ void TaskManager::schedule() {
   VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
 }
 
+bool TaskManager::popReady(Task* &task) {
+  if (execution_queue.empty()) {
+    return false;
+  }
+  else {
+    execution_queue.pop(task);
+    return true;
+  }
+}
+
 void TaskManager::execute() {
 
   // wait if there is no task to be executed
@@ -145,15 +160,15 @@ void TaskManager::execute() {
 
   int delay_estimate = estimateTime(task);
 
-  LOG(INFO) << "Started a new task";
+  VLOG(1) << "Started a new task";
 
   try {
     // record task execution time
-    uint64_t start_time = logger->getUs();
+    uint64_t start_time = getUs();
 
     // start execution
     task->execute();
-    uint64_t delay_time = logger->getUs() - start_time;
+    uint64_t delay_time = getUs() - start_time;
 
     VLOG(1) << "Task finishes in " << delay_time << " us";
 
