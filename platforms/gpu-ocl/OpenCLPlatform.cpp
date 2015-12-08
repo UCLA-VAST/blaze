@@ -258,6 +258,13 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
   program_list.insert(std::make_pair(acc_id, programs));
 }  
 
+void OpenCLPlatform::remove(int64_t block_id) {
+  
+  for (int i=0; i<block_manager_list; i++) {
+    block_manager_list[i]->remove(block_id);
+  }
+}
+
 int OpenCLPlatform::load_file(
     const char *filename, 
     char **result)

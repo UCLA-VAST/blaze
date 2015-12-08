@@ -20,8 +20,6 @@ public:
   OpenCLPlatform();
   ~OpenCLPlatform();
 
-  //virtual QueueManager_ptr createQueue();
-
   virtual DataBlock_ptr createBlock(
       int num_items, 
       int item_length,
@@ -41,6 +39,8 @@ public:
 
   virtual BlockManager* getBlockManager();
 
+  virtual void remove(int64_t block_id);
+
 private:
   int load_file(const char* filename, char** result);
   
@@ -51,9 +51,6 @@ private:
   std::map<std::string, std::vector<cl_program> > program_list;
 
   std::vector<BlockManager_ptr> block_manager_list;
-
-  //std::map<std::string, std::pair<int, char*> > bitstreams;
-  //std::map<std::string, cl_kernel>  kernels;
 };
 
 extern "C" Platform* create();
