@@ -260,7 +260,7 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
 
 void OpenCLPlatform::remove(int64_t block_id) {
   
-  for (int i=0; i<block_manager_list; i++) {
+  for (int i=0; i<block_manager_list.size(); i++) {
     block_manager_list[i]->remove(block_id);
   }
 }
