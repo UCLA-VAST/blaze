@@ -57,7 +57,12 @@ public:
 
   std::vector<std::pair<std::string, std::string> > getLabels();
 
+  int getNumAcc(std::string platform_id);
+
+  int getNumAcc();
+
 private:
+
   // map platform_id to Platform 
   std::map<std::string, Platform_ptr> platform_table;
 

@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <dlfcn.h>
 
+#define LOG_HEADER "PlatformManager"
 #include <glog/logging.h>
 #include "PlatformManager.h"
 
@@ -49,9 +50,8 @@ PlatformManager::PlatformManager(ManagerConf *conf)
             std::make_pair(id, block_manager));
       }
 
-      // TODO: use different queue manager for each platform
       // create queue manager
-      QueueManager_ptr queue_manager(new QueueManager(platform.get()));
+      QueueManager_ptr queue_manager = platform->createQueue();
 
       // add the new queue manager to queue table
       queue_manager_table.insert(std::make_pair(id, queue_manager));
@@ -59,8 +59,14 @@ PlatformManager::PlatformManager(ManagerConf *conf)
       // add accelerators to the platform
       for (int j=0; j<platform_conf.acc_size(); j++) {
 
+        AccWorker acc_conf = platform_conf.acc(j);
         try {
-          AccWorker acc_conf = platform_conf.acc(j);
+
+          // check if acc of the same already exists
+          if (acc_table.find(acc_conf.id()) != acc_table.end()) {
+            throw std::runtime_error(
+                "accelerator of the same id already exists");
+          }
 
           // add acc mapping to table
           acc_table.insert(std::make_pair(
@@ -78,7 +84,7 @@ PlatformManager::PlatformManager(ManagerConf *conf)
         } 
         catch (std::exception &e) {
           LOG(ERROR) << "Cannot create ACC " << 
-              platform_conf.acc(j).id() <<
+              acc_conf.id() <<
               ": " << e.what();
         }
       }
@@ -126,7 +132,6 @@ Platform_ptr PlatformManager::create(std::string path) {
     // TODO: exception handling?
     Platform_ptr platform(create_func(), destroy_func);
 
-
     return platform;
   }
 }
@@ -159,5 +164,30 @@ std::vector<std::pair<std::string, std::string> > PlatformManager::getLabels()
   }
   return ret;
 }
+
+int PlatformManager::getNumAcc(std::string platform_id) {
+
+  if (queue_manager_table.find(platform_id) == queue_manager_table.end()) 
+  {
+    return 0; 
+  }
+  else { 
+    return queue_manager_table[platform_id]->getNumAcc();
+  }
+}
+
+int PlatformManager::getNumAcc() {
+  int count = 0; 
+  std::map<std::string, QueueManager_ptr>::iterator iter;
+
+  for (iter =  queue_manager_table.begin();
+       iter != queue_manager_table.end();
+       iter ++)
+  {
+    count += iter->second->getNumAcc(); 
+  }
+  return count;
+}
+
 } // namespace blaze
 

@@ -4,9 +4,6 @@ include ../../Makefile.config
 ifeq ($(BOOST_DIR),)
 $(error BOOST_DIR not set properly in Makefile.config)
 endif
-ifeq ($(HADOOP_DIR),)
-$(error HADOOP_DIR not set properly in Makefile.config)
-endif
 ifeq ($(PROTOBUF_DIR),)
 $(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
@@ -18,42 +15,63 @@ PP=g++
 CC=gcc
 AR=ar
 
-CFLAGS= -c -fPIC -std=c++0x -g
-COMPILE= $(CFLAGS) \
-				 -I$(BOOST_DIR)/include \
-				 -I$(PROTOBUF_DIR)/include \
-				 -I$(GLOG_DIR)/include \
-				 -I$(HADOOP_DIR)/include 
+# add support for flex license manage
+FLMDIR = /curr/peichen/work/test/license/production/falcon/build
+FLMLIB = -llmgr_trl -lcrvs -lsb -lnoact -llmgr_dongle_stub
+XTRACFLAG = -DFLEX_INET6 -DRELEASE_VERSION -D__BITS64 -pipe \
+						-DARCH_64 -DARCH_INTEL -DARCH_X86 -DARCH_X86_64 \
+						-DOS_LINUX -pthread -DLM_INTERNAL -DFLEXLM_KITBUILD \
+						-DFLEX_STATIC -DRELEASE_VERSION -DGPLATFORM=\\"x64_lsb\\" \
+						-DLINUX -DLSB3_0 -D__FD_SETSIZE=65535 -DGLIBC \
+						-DLINUX64 -DAMD64 -DREDHAT -DREL -DRHLINUX64 \
+						-DPLATFORM_AMD64_RHLINUX 
 
-LINK= -L../lib -lblaze \
-			-L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
-			-L$(PROTOBUF_DIR)/lib -lprotobuf \
-			-L$(GLOG_DIR)/lib -lglog \
-			-L$(HADOOP_DIR)/lib/native -lhdfs \
-			-L$(JAVA_HOME)/jre/lib/amd64/server -ljvm \
-			-lpthread -lm -ldl
+CFLAGS = -c -fPIC -std=c++0x \
+				 $(XTRACFLAG) -DNO_ACTIVATION_SUPPORT
 
-DEPS= CommManager.o \
-			AppCommManager.o \
-			GAMCommManager.o \
-			PlatformManager.o \
-			Block.o \
-			BlockManager.o \
-			QueueManager.o \
-			Task.o \
-			TaskManager.o \
-			task.pb.o \
-			acc_conf.pb.o \
-			msgGamNam.pb.o
+INCLUDES = -I$(BOOST_DIR)/include \
+				   -I$(PROTOBUF_DIR)/include \
+				 	 -I$(GLOG_DIR)/include \
+				   -I$(HADOOP_DIR)/include \
+					 -I$(FLMDIR)
 
+COMPILE = $(CFLAGS) \
+				 $(INCLUDES)
+
+LINK = -L../lib -lblaze \
+			 -L$(PROTOBUF_DIR)/lib -lprotobuf \
+			 -L$(GLOG_DIR)/lib -lglog \
+			 -L$(FLMDIR) $(FLMLIB) \
+			 -L$(BOOST_DIR)/lib \
+			 -lboost_system -lboost_iostreams -lboost_filesystem -lboost_thread \
+			 -lpthread -lm -ldl -lrt
+
+DEPS = CommManager.o \
+			 AppCommManager.o \
+			 GAMCommManager.o \
+			 PlatformManager.o \
+			 Block.o \
+			 BlockManager.o \
+			 QueueManager.o \
+			 Task.o \
+			 TaskManager.o \
+			 task.pb.o \
+			 acc_conf.pb.o \
+			 msgGamNam.pb.o
+
+LMDEPS = $(FLMDIR)/license.o \
+			 	 $(FLMDIR)/lm_new.o 
 all: ../bin/acc_manager ../lib/libblaze.so
+
+package: 
+	cp ../bin/acc_manager ../../package/nam/bin/nam_daemon
+	cp ../lib/libblaze.so ../../package/nam/lib
 
 ../lib/libblaze.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS)
 
-../bin/acc_manager: ../lib/libblaze.so main.o
-	$(PP) -o $@ main.o $(LINK) 
+../bin/acc_manager: ../lib/libblaze.so main.o $(LMDEPS)
+	$(PP) -o $@ main.o $(LMDEPS) $(LINK)
 
 task.pb.o: proto/task.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 

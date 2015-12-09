@@ -1,11 +1,16 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/atomic.hpp>
 
+#define LOG_HEADER "TaskManager"
 #include <glog/logging.h>
 
 #include "TaskManager.h"
 
 namespace blaze {
+
+int TaskManager::getExeQueueLength() {
+  return exeQueueLength.load();
+}
 
 int TaskManager::estimateTime(Task* task) {
 
@@ -72,7 +77,7 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
   // push task to queue
   TaskQueue_ptr queue = app_queues[app_id];
   if (!queue) {
-    throw std::runtime_error("Unexpected empty queue");
+    throw std::runtime_error("Application queue not found, unexpected");
   }
 
   bool enqueued = queue->push(task);
@@ -119,9 +124,12 @@ void TaskManager::schedule() {
   }
   app_queues[ready_queues[idx_next]]->pop(next_task);
 
-  VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
-
   execution_queue.push(next_task);
+
+  // atomically increase the length of the task queue
+  exeQueueLength.fetch_add(1);
+
+  VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
 }
 
 void TaskManager::execute() {
@@ -156,6 +164,9 @@ void TaskManager::execute() {
 
     // decrease the waittime, use the recorded estimation 
     lobbyWaitTime.fetch_sub(delay_estimate);
+
+    // decrease the length of the execution queue
+    exeQueueLength.fetch_sub(1);
   } 
   catch (std::runtime_error &e) {
     LOG(ERROR) << "Task error " << e.what();

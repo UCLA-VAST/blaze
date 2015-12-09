@@ -5,10 +5,13 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
-#include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <cstdint>
 
+#include <boost/iostreams/device/mapped_file.hpp>
+
+#define LOG_HEADER "AppCommManager"
 #include <glog/logging.h>
 
 #include "proto/task.pb.h"
@@ -536,7 +539,7 @@ void AppCommManager::process(socket_ptr sock) {
           task->status != Task::FAILED) 
       {
         boost::this_thread::sleep_for(
-            boost::chrono::microseconds(1000)); 
+            boost::chrono::microseconds(100)); 
       }
 
       // 3. Handle ACCFINISH message and output data

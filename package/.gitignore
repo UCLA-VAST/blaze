@@ -1,0 +1,6 @@
+spark-1.4.0-bin-fcs
+boost_1_55_0
+
+target
+*.so
+*.tar.gz

@@ -1,12 +1,14 @@
+#define LOG_HEADER "OpenCLPlatform"
+#include <glog/logging.h>
+
 #include "OpenCLPlatform.h"
+#include "OpenCLQueueManager.h"
 
 namespace blaze {
 
-#define LOG_HEADER  std::string("OpenCLPlatform::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
-
-OpenCLPlatform::OpenCLPlatform() {
+OpenCLPlatform::OpenCLPlatform() 
+  : prev_program(NULL), prev_kernel(NULL)
+{
   // start platform setting up
   int err;
 
@@ -21,29 +23,6 @@ OpenCLPlatform::OpenCLPlatform() {
   if (err != CL_SUCCESS) {
     throw std::runtime_error(
         "Failed to find an OpenCL platform!");
-  }
-
-  err = clGetPlatformInfo(
-      platform_id, 
-      CL_PLATFORM_VENDOR, 
-      1000, 
-      (void *)cl_platform_vendor,NULL);
-
-  if (err != CL_SUCCESS) {
-    throw std::runtime_error(
-        "clGetPlatformInfo(CL_PLATFORM_VENDOR) failed!");
-  }
-
-  err = clGetPlatformInfo(
-      platform_id,
-      CL_PLATFORM_NAME,
-      1000,
-      (void *)cl_platform_name,
-      NULL);
-
-  if (err != CL_SUCCESS) {
-    throw std::runtime_error(
-        "clGetPlatformInfo(CL_PLATFORM_NAME) failed!");
   }
 
   // Connect to a compute device
@@ -78,79 +57,78 @@ OpenCLPlatform::OpenCLPlatform() {
   env = new OpenCLEnv(context, cmd_queue);
 }
 
-void OpenCLPlatform::setupAcc(AccWorker &conf) {
+QueueManager_ptr OpenCLPlatform::createQueue() {
+  QueueManager_ptr queue(new OpenCLQueueManager(this)); 
+  return queue;
+}
+
+void OpenCLPlatform::setupProgram(std::string acc_id) {
 
   // NOTE: current version reprograms FPGA everytime a new kernel
   // is required
   // NOTE: there is an assumption that kernel and program are one-to-one mapped
   
   // check if corresponding kernel is current
-  if (curr_acc_id == conf.id()) {
-    return;
-  }
-  else if (programs.find(conf.id()) != programs.end()) {
-
-    int err;
+  if (curr_acc_id != acc_id) {
 
     OpenCLEnv* ocl_env = (OpenCLEnv*)env;
-
-    // lock OpenCL Context
-    boost::lock_guard<OpenCLEnv> guard(*ocl_env);
-    
-    cl_program program = programs[conf.id()];
-
-    // switch bitstream in FPGA   
-    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-
-    if (err != CL_SUCCESS) {
-      throw std::runtime_error(
-          "Failed to build program executable!");
-    }
-
-    // switch kernel in the TaskEnv
-    ocl_env->changeKernel(kernels[conf.id()]);
-  }
-  else { // required programs have not been loaded yet
+    AccWorker conf = acc_table[acc_id];
 
     int err;
+    int status = 0;
+    size_t n_t = 0;
+    unsigned char* kernelbinary;
 
-    // get specific ACC Conf from key-value pair
-    std::string program_path;
-    std::string kernel_name;
-    for (int i=0; i<conf.param_size(); i++) {
-      if (conf.param(i).key().compare("ocl_program_path")==0) {
-        program_path = conf.param(i).value();
-      }
-      else if (conf.param(i).key().compare("ocl_kernel_name")==0) {
-        kernel_name = conf.param(i).value();
-      }
+    // release previous kernel
+    if (prev_program && prev_kernel) {
+      clReleaseProgram(prev_program);
+      clReleaseKernel(prev_kernel);
     }
 
-    if (program_path.empty() || kernel_name.empty()) {
+    // get opencl kernel name and program path
+    if (!conf.has_kernel_path() || 
+        !conf.has_kernel_name()) 
+    {
       throw std::runtime_error("Invalid configuration");
     }
+    std::string program_path = conf.kernel_path();
+    std::string kernel_name  = conf.kernel_name();
 
-    OpenCLEnv* ocl_env = (OpenCLEnv*)env;
+    if (bitstreams.find(acc_id) != bitstreams.end()) {
+
+      DLOG(INFO) << "Bitstream already stored in memory";
+
+      // Load bitstream from memory
+      std::pair<int, unsigned char*> bitstream = bitstreams[acc_id];
+
+      n_t = bitstream.first;
+      kernelbinary = bitstream.second;
+    }
+    else { // required programs have not been loaded yet
+
+      DLOG(INFO) << "Load Bitstream from file " << program_path.c_str();
+
+      // Load binary from disk
+      int n_i = load_file(
+          program_path.c_str(), 
+          (char **) &kernelbinary);
+
+      if (n_i < 0) {
+        throw std::runtime_error(
+            "failed to load kernel from xclbin");
+      }
+      n_t = n_i;
+
+      // save bitstream
+      bitstreams.insert(std::make_pair(
+            conf.id(), 
+            std::make_pair(n_i, kernelbinary)));
+    }
 
     // lock OpenCL Context
     boost::lock_guard<OpenCLEnv> guard(*ocl_env);
 
-    // Load binary from disk
-    unsigned char *kernelbinary;
-
-    int n_i = load_file(
-        program_path.c_str(), 
-        (char **) &kernelbinary);
-
-    if (n_i < 0) {
-      throw std::runtime_error(
-          "failed to load kernel from xclbin");
-    }
-    size_t n_t = n_i;
-
-    int status = 0;
-
-    // Create the compute program from offline
+    // Switch bitstream in FPGA
     cl_program program = clCreateProgramWithBinary(
         context, 1, &device_id, &n_t,
         (const unsigned char **) &kernelbinary, 
@@ -160,19 +138,6 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
       throw std::runtime_error(
           "Failed to create compute program from binary");
     }
-
-    // Build the program executable
-    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-
-    if (err != CL_SUCCESS) {
-      throw std::runtime_error(
-          "Failed to build program executable!");
-    }
-
-    // save program handle to the map table
-    programs.insert(std::make_pair(
-          conf.id(), 
-          program));
 
     // Create the compute kernel in the program we wish to run
     cl_kernel kernel = clCreateKernel(
@@ -185,13 +150,23 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
           "Failed to create compute kernel!");
     }
 
-    // save program handle to the map table
-    kernels.insert(std::make_pair(
-          conf.id(), 
-          kernel));
+    prev_program = program;
+    prev_kernel = kernel;
 
     // setup kernel in the TaskEnv
     ocl_env->changeKernel(kernel);
+
+    LOG(INFO) << "Switched to new accelerator: " << acc_id;
+
+    /*
+    // save kernel handle to the map table
+    kernels.insert(std::make_pair(
+    conf.id(), 
+    kernel));
+    */
+
+    // set current acc_id
+    curr_acc_id = acc_id;
   }
 }  
 
@@ -218,6 +193,14 @@ int OpenCLPlatform::load_file(
   fclose(f);
   (*result)[size] = 0;
   return size;
+}
+
+extern "C" Platform* create() {
+  return new OpenCLPlatform();
+}
+
+extern "C" void destroy(Platform* p) {
+  delete p;
 }
 
 } // namespace blaze

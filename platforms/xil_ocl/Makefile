@@ -2,7 +2,7 @@ include ../../Makefile.config
 
 # check all variables
 ifeq ($(XILINX_OPENCL_DIR),)
-$(error XILINK_OPENCL_DIR not set properly in Makefile.config)
+$(error XILINX_OPENCL_DIR not set properly in Makefile.config)
 endif
 ifeq ($(BOOST_DIR),)
 $(error BOOST_DIR not set properly in Makefile.config)
@@ -15,16 +15,18 @@ PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
 CC=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/gcc
 
 ifeq ("$(wildcard $(PP))","")
-	$(error XILINK_OPENCL_DIR not set properly)
+$(error XILINX_OPENCL_DIR not set properly)
 endif
 
 MANAGER_DIR=../../manager
 
-CFLAGS= -c -fPIC -std=c++0x -g
+CFLAGS= -c -fPIC -std=c++0x #-g
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/include \
+				 -I$(MANAGER_DIR)/src \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
+				 -I$(GLOG_DIR)/include \
 				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
 				 
 LINK= -L$(MANAGER_DIR)/lib -lblaze \
@@ -32,7 +34,8 @@ LINK= -L$(MANAGER_DIR)/lib -lblaze \
 			-lpthread -lm -ldl
 
 DEPS= OpenCLPlatform.o \
-			OpenCLBlock.o 
+			OpenCLBlock.o \
+			OpenCLQueueManager.o
 
 all: xil_ocl.so
 

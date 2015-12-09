@@ -10,13 +10,17 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
+#include "proto/acc_conf.pb.h"
+
+#include "Block.h"
 #include "TaskEnv.h"
 #include "Task.h"
 #include "TaskQueue.h"
-#include "Block.h"
 #include "Logger.h"
 
 namespace blaze {
+
+typedef boost::shared_ptr<Task> Task_ptr;
 
 /**
  * Manages a task queue for one accelerator executor
@@ -32,6 +36,7 @@ public:
     void (*destroy_func)(Task*),
     Platform *_platform
   ): power(true),  // TODO: 
+     exeQueueLength(0),
      nextTaskId(0),
      lobbyWaitTime(0),
      doorWaitTime(0),
@@ -71,6 +76,9 @@ public:
   void start();
   //void stop();
 
+  // query the current execution queue length
+  int getExeQueueLength();
+
   // experimental
   std::string getConfig(int idx, std::string key);
 
@@ -84,6 +92,9 @@ private:
   mutable boost::atomic<int> doorWaitTime;    
 
   mutable boost::atomic<int> nextTaskId;
+
+  // current number of tasks in the execution queue
+  mutable boost::atomic<int> exeQueueLength;
 
   int deltaDelay;
   

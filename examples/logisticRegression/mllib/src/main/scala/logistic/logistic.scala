@@ -20,7 +20,7 @@ object LogisticRegression {
       System.exit(1)
     }
 
-    val reps = args(2).toInt
+    val reps = args(1).toInt
 
     val train = sc.textFile(args(0)).map( line => {
         var parts = line.split(',') 
@@ -28,18 +28,25 @@ object LogisticRegression {
             Vectors.dense(parts(1).split(' ').map(_.toDouble)))
         }).repartition(reps).cache()
 
+    /*
     val test = sc.textFile(args(1)).map( line => {
         var parts = line.split(',') 
         LabeledPoint(parts(0).toDouble, 
             Vectors.dense(parts(1).split(' ').map(_.toDouble)))
         });
+    */
 
+    val startTime = System.nanoTime
+
+    // start training 
     val model = new LogisticRegressionWithLBFGS()
       .setNumClasses(10)
       .run(train)
 
-    println("train finished.")
+    val elapseTime = System.nanoTime - startTime
+    println("Training finished in "+ (elapseTime.toDouble / 1e9) +"s.")
 
+    /*
     // Compute raw scores on the test set.
     val predictionAndLabels = test.map { case LabeledPoint(label, features) =>
       val prediction = model.predict(features)
@@ -50,7 +57,7 @@ object LogisticRegression {
     val metrics = new MulticlassMetrics(predictionAndLabels)
     val precision = metrics.precision
     println("Precision = " + precision)
-
+    */
   }
 }
 

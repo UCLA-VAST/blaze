@@ -2,7 +2,11 @@
 #include <stdexcept>
 #include <dlfcn.h>
 
+#define LOG_HEADER "QueueManager"
 #include <glog/logging.h>
+
+#include "Platform.h"
+#include "TaskManager.h"
 #include "QueueManager.h"
 
 namespace blaze {
@@ -51,6 +55,8 @@ TaskManager_ptr QueueManager::get(std::string id) {
   }
 }
 
+// Start TaskQueues for the CPU platform
+// all the task queues can have simultaneous executors
 void QueueManager::start(std::string id) {
 
   // get the reference to the task queue 
@@ -69,8 +75,7 @@ void QueueManager::startAll() {
       iter != queue_table.end();
       ++iter)
   {
-    TaskManager_ptr task_manager = iter->second;
-    task_manager->start();
+    start(iter->first);
   }
 }
 

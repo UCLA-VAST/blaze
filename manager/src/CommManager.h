@@ -23,6 +23,8 @@ typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 
 namespace blaze {
 
+typedef boost::shared_ptr<Task> Task_ptr;
+
 /*
  * Communicator design for Node Manager
  */

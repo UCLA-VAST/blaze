@@ -1,16 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
+#include <limits>
 #include <stdexcept>
 #include <string>
-#include <vector>
-#include <algorithm>
-#include <sstream>
-#include <limits>
 
 #define DUMP
 
-#include "blaze.h" 
+#include "Task.h" 
 
 using namespace blaze;
 

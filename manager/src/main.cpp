@@ -13,6 +13,9 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <glog/logging.h>
 
+// use flexlm
+#include "license.h"
+
 #include "CommManager.h"
 #include "PlatformManager.h"
 #include "QueueManager.h"
@@ -21,16 +24,45 @@
 
 using namespace blaze;
 
+void licence_check_out() {
+
+  Feature feature = FALCON_RT;
+
+  // initialize for licensing. call once
+  fc_license_init();
+
+  // get a feature
+  fc_license_checkout(feature, 1);
+
+  printf("\n");
+}
+
+void licence_check_in() {
+
+  Feature feature = FALCON_RT;
+
+  fc_license_checkin(feature);
+
+  // cleanup for licensing. call once
+  fc_license_cleanup();
+}
+
 int main(int argc, char** argv) {
 
   google::InitGoogleLogging(argv[0]);
 
+  FLAGS_logtostderr = 1;
+
+  // check license
+  //licence_check_out();
+  
   if (argc < 2) {
     printf("USAGE: %s <conf_path>\n", argv[0]);
     return -1;
   }
 
-  int file_handle = open(argv[1], O_RDONLY);
+  std::string conf_path(argv[1]);
+  int file_handle = open(conf_path.c_str(), O_RDONLY);
 
   if (file_handle < 0) {
     printf("cannot find configure file: %s\n",
@@ -48,10 +80,15 @@ int main(int argc, char** argv) {
 
   // setup Logger
   int verbose = conf->verbose();  
-  //Logger logger(verbose);
 
   // setup PlatformManager
   PlatformManager platform_manager(conf);
+
+  // check if there is accelerator successfully setup
+  if (platform_manager.getNumAcc()==0) {
+    LOG(ERROR) << "No platform is setup, exiting...";
+    return -1;
+  }
 
   // check all network interfaces on this computer, and 
   // open a communicator on each interface using the same port
@@ -93,6 +130,9 @@ int main(int argc, char** argv) {
             &platform_manager, 
             ip_addr, app_port));
 
+      LOG(INFO) << "Start listening " << ip_addr << " on port " <<
+        app_port << " and " << gam_port;
+
       // push the communicator pointer to pool to avoid object
       // being destroyed out of context
       comm_pool.push_back(comm);
@@ -100,11 +140,12 @@ int main(int argc, char** argv) {
     }
   }
 
-  // if no endpoint in the config, skip this part
   while (1) {
-    // potential place for cleaning stage
-    ;
+    boost::this_thread::sleep_for(boost::chrono::seconds(60)); 
   }
+
+  // release license
+  //licence_check_in();
 
   return 0;
 }

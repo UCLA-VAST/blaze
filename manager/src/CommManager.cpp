@@ -6,9 +6,11 @@
 #include <sys/time.h>
 
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <cstdint>
 
+#define LOG_HEADER "CommManager"
 #include <glog/logging.h>
 
 #include "CommManager.h"
@@ -78,10 +80,12 @@ void CommManager::listen() {
 
     ip::tcp::acceptor acceptor(ios, endpoint);
 
-    LOG(INFO) << "Listening for new connections at "
+    VLOG(1) << "Listening for new connections at "
       << ip_address << ":" << srv_port;
 
     while(1) {
+
+      //boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
 
       // create socket for connection
       socket_ptr sock(new ip::tcp::socket(ios));

@@ -13,11 +13,10 @@
 
 #include "proto/acc_conf.pb.h"
 
-#include "Platform.h"
-#include "Task.h"
-#include "TaskManager.h"
-
 namespace blaze {
+
+class Platform;
+class TaskManager;
 
 typedef boost::shared_ptr<TaskManager> TaskManager_ptr;
 const TaskManager_ptr NULL_TASK_MANAGER;
@@ -42,6 +41,8 @@ public:
 
   // start the executor and commiter for all queues
   virtual void startAll();
+
+  int getNumAcc() { return queue_table.size(); }
 
 protected:
   std::map<std::string, TaskManager_ptr> queue_table;

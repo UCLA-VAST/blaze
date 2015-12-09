@@ -1,4 +1,6 @@
 #include <climits>
+
+#define LOG_HEADER "BlockManager"
 #include <glog/logging.h>
 
 #include "BlockManager.h"
@@ -133,10 +135,7 @@ void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
     if (scratchSize + block->getSize() >= maxScratchSize) {
 
       // cannot add because running out of space
-      throw std::runtime_error("Cannot add broadcast with size: " + 
-          std::to_string((long long)block->getSize())+
-          ", maxsize is "+
-          std::to_string((long long)maxScratchSize));
+      throw std::runtime_error("Cannot add broadcast block");
     }
     VLOG(2) << "Adding block " << tag << " to scratch";
 
@@ -182,7 +181,7 @@ void BlockManager::remove(int64_t tag) {
     }
     else {
       DataBlock_ptr block = scratchTable[tag];
-      //scratchSize -= block->getSize();
+      scratchSize -= block->getSize();
 
       //delete block;
       scratchTable.erase(tag);
