@@ -9,36 +9,6 @@
 
 namespace blaze {
 
-// create a block, if no space left then return NULL
-DataBlock_ptr BlockManager::create(
-    int num_items, 
-    int item_length,
-    int item_size,
-    int align_size, 
-    int flag) 
-{
-  int block_size;
-  if (align_size > 0 && item_size % align_size != 0) {
-    block_size = num_items*((item_size+align_size-1)/align_size)*align_size;
-  }
-  else {
-    block_size = num_items*item_size;
-  }
-  // do not create new block if there is no space left 
-  // in either cache or scratch, for safety
-  if (block_size + cacheSize > maxCacheSize &&
-      block_size + scratchSize > maxScratchSize)
-  {
-    return NULL_DATA_BLOCK;
-  }
-  else {
-    DataBlock_ptr block = platform->createBlock(
-        num_items, item_length, item_size, align_size, flag);
-
-    return block;
-  }
-}
-
 // create a block if it does not exist in the manager
 // return true if a new block is created
 bool BlockManager::getAlloc(
@@ -71,7 +41,8 @@ bool BlockManager::getAlloc(
       return true;
     }
     catch (std::runtime_error &e) {
-      LOG(ERROR) << "Cannot to add block " << tag;
+      LOG(ERROR) << "Cannot add block " << tag <<
+        ": " << e.what();
       return false;
     }
   }
@@ -114,21 +85,6 @@ DataBlock_ptr BlockManager::get(int64_t tag) {
 
       return cacheTable[tag].second;
     }
-  }
-}
-
-void BlockManager::add(
-    int64_t tag, 
-    DataBlock_ptr block)
-{
-  // guarantee exclusive access
-  boost::lock_guard<BlockManager> guard(*this);
-  try {
-    do_add(tag, block);
-  }
-  catch (std::runtime_error &e) {
-    // do not throw exceptions, simply log info and return 
-    LOG(ERROR) << "Cannot to add block " << tag;
   }
 }
 

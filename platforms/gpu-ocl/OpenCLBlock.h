@@ -21,37 +21,17 @@ class OpenCLBlock : public DataBlock
 
 public:
   // create a single output elements
-  OpenCLBlock(OpenCLEnv* _env, 
+  OpenCLBlock(
+      std::vector<OpenCLEnv*> &_env_list, 
       int _num_items, 
       int _item_length,
       int _item_size,
       int _align_width = 0, 
-      int _flag = BLAZE_INPUT_BLOCK) :
-    env(_env), 
-    DataBlock(_num_items, _item_length, 
-        _item_size, _align_width, _flag)
-  {;}
-  
-  // used to copy data from CPU memory
-  OpenCLBlock(OpenCLEnv* _env, DataBlock *block):
-    env(_env),
-    DataBlock(*block)
-  {
-    if (block->isAllocated()) {
-      alloc(); 
-    }
-    // if ready, copy the data over
-    if (block->isReady()) {
-      DataBlock::writeData((void*)block->getData(), size);
-      ready = true;
-    }
-  }
-  
-  ~OpenCLBlock() {
-    if (allocated) {
-      clReleaseMemObject(data);
-    }
-  }
+      int _flag = BLAZE_INPUT_BLOCK);
+ 
+  OpenCLBlock(const OpenCLBlock& block);
+
+  ~OpenCLBlock();
 
   virtual void alloc();
 
@@ -69,19 +49,22 @@ public:
   // sample the items in the block by a mask
   virtual DataBlock_ptr sample(char* mask);
 
-  virtual char* getData() { 
+  virtual char* getData();
 
-    alloc();
+  // relocate the block to another device memory
+  void relocate(int loc);
 
-    // this is a reinterpretive cast from cl_mem* to char*
-    return (char*)&data; 
-  }
+  int getDeviceId();
 
 private:
-  cl_mem data;
+  cl_mem* data;
 
-  // can be accessed by OpenCLQueueManager
-  OpenCLEnv* env;
+  // index of device where the block is allocated
+  int location;
+
+  int num_devices;
+
+  std::vector<OpenCLEnv*> &env_list;
 };
 }
 

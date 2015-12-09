@@ -27,6 +27,9 @@ public:
       int align_width = 0,
       int flag = BLAZE_INPUT_BLOCK);
 
+  virtual DataBlock_ptr createBlock(
+      const OpenCLBlock& block);
+
   int getNumDevices();
 
   virtual TaskEnv_ptr getEnv(std::string id);
@@ -35,16 +38,10 @@ public:
 
   virtual void setupAcc(AccWorker &con);
 
-  virtual void createBlockManager(size_t cache_limit, size_t scratch_limit);
-
-  virtual BlockManager* getBlockManager();
-
-  virtual void remove(int64_t block_id);
-
 private:
   int load_file(const char* filename, char** result);
   
-  uint32_t     num_devices;
+  uint32_t num_devices;
 
   std::vector<OpenCLEnv*> env_list; 
 

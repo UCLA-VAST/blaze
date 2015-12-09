@@ -44,14 +44,10 @@ public:
     maxCacheSize(_maxCacheSize), 
     maxScratchSize(_maxScratchSize),
     platform(_platform)
-  {
-  }
-
-  /* all reference in BlockManager will be automatically removed */
-  //~BlockManager();
+  {;}
 
   // check scratch and cache table to see if a certain block exists
-  bool contains(int64_t tag) {
+  virtual bool contains(int64_t tag) {
     if (tag < 0) {
       // check scratch table
       return (scratchTable.find(tag) != scratchTable.end());
@@ -62,47 +58,16 @@ public:
     }
   }
 
-  // create an empty block
-  //DataBlock_ptr create();
-
-  // create a block
-  DataBlock_ptr create(
-    int num_items, 
-    int items_length,
-    int items_size,
-    int align_size = 0,
-    int flag = BLAZE_INPUT_BLOCK);
-
   // create a block and add it to cache/scratch
   // return true if a new block is created
-  bool getAlloc(int64_t tag, DataBlock_ptr &block,
+  virtual bool getAlloc(int64_t tag, DataBlock_ptr &block,
       int num_items, int item_length, int item_size, int align_width=0);
 
   // get a block from cache table or scratch table
-  DataBlock_ptr get(int64_t tag);
-
-  // add a block to cache table or scratch table
-  void add(int64_t tag, DataBlock_ptr block);
+  virtual DataBlock_ptr get(int64_t tag);
 
   // remove a block from scratch table
-  void remove(int64_t tag);
-
-  // used for tests and debugging
-  void printTable() {
-
-    int i = 0;
-    printf("id,\ttag,\trefcnt\n");
-    std::map<int64_t, std::pair<int, DataBlock_ptr> >::iterator iter; 
-    for (iter = cacheTable.begin(); 
-        iter != cacheTable.end(); 
-        iter ++)
-    {
-      int64_t tag = iter->first;
-      std::pair<int, DataBlock_ptr> v = iter->second;
-      printf("%d,\t%ld,\t%d\n", i, tag, v.first);
-      i++;
-    }
-  }
+  virtual void remove(int64_t tag);
 
 private:
   // internal cache operations

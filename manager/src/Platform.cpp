@@ -33,6 +33,11 @@ DataBlock_ptr Platform::createBlock(
       item_size, align_width, flag);
 }
 
+DataBlock_ptr Platform::createBlock(const DataBlock& block) 
+{
+  return env->createBlock(block);
+}
+
 // remove a shard block from the block manager
 void Platform::remove(int64_t block_id) {
   block_manager->remove(block_id); 

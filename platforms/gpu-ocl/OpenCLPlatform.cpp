@@ -115,40 +115,11 @@ int OpenCLPlatform::getNumDevices() {
   return num_devices;
 }
 
-void OpenCLPlatform::createBlockManager(
-    size_t cache_limit, 
-    size_t scratch_limit) 
-{
-  // create a block manager for each device  
-  for (int d=0; d<num_devices; d++) {
-    BlockManager_ptr bman(new BlockManager(this, 
-          cache_limit, scratch_limit));
-
-    block_manager_list.push_back(bman);
-  }
-}
-
-BlockManager* OpenCLPlatform::getBlockManager() {
-
-  // return block manager based on thread id hash
-  int id = getTid() % num_devices;
-
-  DLOG(INFO) << "Returning BlockManager of GPU_" << id;
-
-  return block_manager_list[id].get();
-}
-
 TaskEnv_ptr OpenCLPlatform::getEnv(std::string id) {
 
-  // use threadid to distribute tasks to different command queues
-  int loc = getTid() % num_devices;
-
-  OpenCLEnv* env = env_list[loc];
-  TaskEnv_ptr taskEnv(new OpenCLTaskEnv(env, program_list[id][loc]));
+  TaskEnv_ptr taskEnv(new OpenCLTaskEnv(
+        env_list, program_list[id]));
   
-  DLOG(INFO) << "Assign GPU_" << loc << 
-    " for Task " << id;
-
   return taskEnv;
 }
 
@@ -168,18 +139,18 @@ DataBlock_ptr OpenCLPlatform::createBlock(
     int align_width,
     int flag)
 {
-  // use threadid to distribute tasks to different command queues
-  int id = getTid() % num_devices;
-
-  OpenCLEnv* env = env_list[id];
-  
-  DLOG(INFO) << "Assign GPU_" << id << " for this block";
-  
   DataBlock_ptr block(
-      new OpenCLBlock(env,
+      new OpenCLBlock(env_list,
         num_items, item_length, item_size, align_width, flag)
       );  
   return block;
+}
+
+DataBlock_ptr OpenCLPlatform::createBlock(const OpenCLBlock& block)
+{
+  DataBlock_ptr bp(
+      new OpenCLBlock(block));
+  return bp;
 }
 
 void OpenCLPlatform::setupAcc(AccWorker &conf) {
@@ -257,13 +228,6 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
   }
   program_list.insert(std::make_pair(acc_id, programs));
 }  
-
-void OpenCLPlatform::remove(int64_t block_id) {
-  
-  for (int i=0; i<block_manager_list; i++) {
-    block_manager_list[i]->remove(block_id);
-  }
-}
 
 int OpenCLPlatform::load_file(
     const char *filename, 

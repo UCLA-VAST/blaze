@@ -10,9 +10,6 @@
 
 namespace blaze {
 
-class Platform;
-class TaskManager;
-
 class QueueManager {
 
 public:
@@ -41,6 +38,7 @@ protected:
   void setTaskEnv(Task* task, TaskEnv_ptr env);
 
   DataBlock_ptr getTaskInputBlock(Task* task, int idx);
+  void setTaskInputBlock(Task* task, DataBlock_ptr block, int idx);
 
   std::map<std::string, TaskManager_ptr> queue_table;
 

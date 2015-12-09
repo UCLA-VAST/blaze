@@ -32,7 +32,8 @@ public:
   DataBlock(const DataBlock &block);
 
   ~DataBlock() {
-    if (allocated && !data) {
+    if (allocated && !data && !copied) 
+    {
       delete data; 
     }
   }
@@ -66,6 +67,7 @@ public:
   int getItemSize() { return item_size; }
   int getLength() { return length; }
   int getSize() { return size; }
+  int getFlag() { return flag; }
 
   // status check of DataBlock needs to be exclusive
   bool isAllocated();
@@ -84,10 +86,10 @@ protected:
   bool allocated;
   bool aligned;
   bool ready;
+  bool copied;
 
 private:
   char* data;
-  DataBlock_ptr base_block;
 };
 
 const DataBlock_ptr NULL_DATA_BLOCK;
