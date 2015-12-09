@@ -153,7 +153,7 @@ void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
 
   if (err != CL_SUCCESS) {
     DLOG(ERROR) << "clEnqueueWriteBuffer error: " << err;
-    DLOG(ERROR) << "block infomation: size=" << _size <<
+    DLOG(ERROR) << "block infomation: size=" << _size ;
     throw std::runtime_error("Failed to write to OpenCL block");
   }
 
