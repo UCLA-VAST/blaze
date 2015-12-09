@@ -141,6 +141,14 @@ void Task::inputBlockReady(int64_t partition_id, DataBlock_ptr block) {
       status = READY;
     }
   }
+  else {
+    // overlay this method to set input block to a new block 
+    if (!block || !block->isReady()) {
+      throw std::runtime_error("Task::inputBlockReady(): block not ready");
+    }
+
+    input_table[partition_id] = block;
+  }
 }
 
 /*

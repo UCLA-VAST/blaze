@@ -24,6 +24,11 @@ public:
           num_items, item_length, item_size, align_width, flag));
     return block;
   }
+
+  virtual DataBlock_ptr createBlock(const DataBlock& block) {
+    DataBlock_ptr bp(new DataBlock(block));
+    return bp; 
+  }
 };
 }
 #endif

@@ -5,6 +5,8 @@
 #include <boost/smart_ptr.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
+#include <glog/logging.h>
+
 #include "Block.h"
 
 namespace blaze {
@@ -22,6 +24,7 @@ DataBlock::DataBlock(
   flag(_flag),
   allocated(false),
   ready(false),
+  copied(false),
   data(NULL)
 {
   data_width = _item_size / _item_length;
@@ -49,6 +52,9 @@ DataBlock::DataBlock(
 }
 
 DataBlock::DataBlock(const DataBlock &block) {
+
+  DLOG(INFO) << "Create a duplication of a block";
+
   num_items = block.num_items;
   item_length = block.item_length;
   item_size = block.item_length;
@@ -58,6 +64,9 @@ DataBlock::DataBlock(const DataBlock &block) {
   allocated = block.allocated;
   aligned = block.aligned;
   ready = block.ready;
+  copied = true;
+
+  data = block.data;
 }
 
 void DataBlock::alloc() {

@@ -83,6 +83,18 @@ DataBlock_ptr QueueManager::getTaskInputBlock(Task *task, int idx) {
   }
 }
 
+void QueueManager::setTaskInputBlock(
+    Task *task, 
+    DataBlock_ptr block, 
+    int idx) 
+{
+  if (idx < task->input_blocks.size()) {
+    int64_t block_id = task->input_blocks[idx];
+    DLOG(INFO) << "Reset task input block " << block_id;
+    task->inputBlockReady(block_id, block);
+  }
+}
+
 // Start TaskQueues for the CPU platform
 // all the task queues can have simultaneous executors
 void QueueManager::start(std::string id) {
