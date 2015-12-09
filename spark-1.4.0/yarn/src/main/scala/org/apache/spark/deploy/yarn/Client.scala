@@ -695,7 +695,7 @@ private[spark] class Client(
         userArgs ++ executorLabel ++ Seq(
           "--executor-memory", args.executorMemory.toString + "m",
           "--executor-cores", args.executorCores.toString,
-          "--executor-accs", args.executorAccs.toString,
+          // "--executor-accs", args.executorAccs.toString,
           "--num-executors ", args.numExecutors.toString)
 
     // Command for the ApplicationMaster
