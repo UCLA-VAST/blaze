@@ -1,6 +1,9 @@
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/atomic.hpp>
+
+#define LOG_HEADER  "OpenCLQueueManager"
+
 #include <glog/logging.h>
 
 #include "Task.h"
@@ -90,29 +93,46 @@ void OpenCLQueueManager::do_dispatch() {
           continue;
         }
 
-        // get the block env of first input
+        // decide the device assignment based on input block
         // NOTE: here use input idx=0, assuming that is the 
         // main input data of the task
-        DataBlock* block = getTaskInputBlock(task, 0).get();
-        OpenCLBlock* ocl_block = dynamic_cast<OpenCLBlock*>(block);
+        DataBlock_ptr block = getTaskInputBlock(task, 0);
+        OpenCLBlock* ocl_block = dynamic_cast<OpenCLBlock*>(block.get());
         if (!ocl_block) {
           DLOG(ERROR) << "Block is not of type OpenCLBlock";
           continue; 
           // TODO: fail task
         }
-        OpenCLEnv* blockEnv = ocl_block->env;
-
         // query device assignment based on task env and block env
-        int taskLoc = taskEnv->env->getDevice();
-        int blockLoc = blockEnv->getDevice();
+        int blockLoc = ocl_block->getDeviceId();
 
         // assign task based on the block location
         // NOTE: here there could be additional load balancing
         int queueLoc = blockLoc;
-        DLOG(INFO) << "Assigned task to GPU_" << blockLoc;
 
         // switch task environment to match the block device
-        taskEnv->env = blockEnv;
+        taskEnv->relocate(queueLoc);
+
+        // assign task input blocks to the device;
+        int block_idx = 1;
+        while (block != NULL_DATA_BLOCK) {
+          block = getTaskInputBlock(task, block_idx); 
+          OpenCLBlock* ocl_block = dynamic_cast<OpenCLBlock*>(block.get());
+
+          if (ocl_block) {
+            // other types of data block will not be considered
+            if (ocl_block->getFlag() == BLAZE_SHARED_BLOCK) 
+            {
+              OpenCLBlock* new_block = new OpenCLBlock(*ocl_block);
+              new_block->relocate(queueLoc);
+
+              DataBlock_ptr bp(new_block);   
+
+              setTaskInputBlock(task, bp, block_idx);
+            } 
+          }
+          block_idx++;
+        }
 
         if (queueLoc < platform_queues.size()) {
           platform_queues[queueLoc]->push(task);

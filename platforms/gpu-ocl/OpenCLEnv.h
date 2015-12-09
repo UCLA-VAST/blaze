@@ -47,18 +47,36 @@ class OpenCLTaskEnv : public TaskEnv
   friend OpenCLQueueManager;
 
 public:
-  OpenCLTaskEnv(OpenCLEnv* _env, cl_program _program):
-    env(_env), program(_program) 
-  {;}
+  OpenCLTaskEnv(
+      std::vector<OpenCLEnv*>& _env_list, 
+      std::vector<cl_program>& _program_list):
+    env_list(_env_list), 
+    program_list(_program_list),
+    location(-1)
+  { 
+    num_devices = _env_list.size();
+  }
 
-  cl_context& getContext() {
-    return env->getContext();
+  cl_context getContext() {
+    if (location < 0) {
+      return 0;
+    } else {
+      return env_list[location]->getContext();
+    }
   }
-  cl_command_queue& getCmdQueue() {
-    return env->getCmdQueue();
+  cl_command_queue getCmdQueue() {
+    if (location < 0) {
+      return 0;
+    } else {
+      return env_list[location]->getCmdQueue();
+    }
   }
-  cl_program& getProgram() {
-    return program;
+  cl_program getProgram() {
+    if (location < 0) {
+      return 0;
+    } else {
+      return program_list[location];
+    }
   }
   virtual DataBlock_ptr createBlock(
       int num_items, 
@@ -67,10 +85,19 @@ public:
       int align_width = 0, 
       int flag = BLAZE_OUTPUT_BLOCK);
 
-private:
-  OpenCLEnv* env;
+  virtual DataBlock_ptr createBlock(const OpenCLBlock& block);
 
-  cl_program program;
+  void relocate(int loc);
+
+private:
+  std::vector<OpenCLEnv*> &env_list;
+  std::vector<cl_program> &program_list;
+
+  // index of device where the block is allocated
+  int location;
+
+  int num_devices;
+
 };
 }
 
