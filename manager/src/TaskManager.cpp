@@ -33,34 +33,28 @@ Task_ptr TaskManager::create() {
 
 void TaskManager::enqueue(std::string app_id, Task* task) {
 
-  VLOG(1) << "Enqueue a ready task of application: " << app_id;
   if (!task->isReady()) {
     throw std::runtime_error("Cannot enqueue task that is not ready");
   }
   
   // TODO: when do we remove the queue?
-  
-  TaskQueue_ptr queue;
   // create a new app queue if it does not exist
   if (app_queues.find(app_id) == app_queues.end()) {
-    TaskQueue_ptr new_queue(new TaskQueue());
+    TaskQueue_ptr queue(new TaskQueue());
     app_queues.insert(std::make_pair(app_id, queue));
-    queue = new_queue;
-  }
-  else {
-    queue = app_queues[app_id];
   }
 
   // push task to queue
-  bool enqueued = queue->push(task);
-  // incase task queue is full
-  while (!enqueued) {
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(10)); 
-    enqueued = queue->push(task);
+  TaskQueue_ptr queue = app_queues[app_id];
+  if (!queue) {
+    throw std::runtime_error("Application queue not found, unexpected");
   }
 
-  // increment queue length
-  exeQueueLength.fetch_add(1);
+  bool enqueued = queue->push(task);
+  while (!enqueued) {
+    boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+    enqueued = queue->push(task);
+  }
 }
 
 void TaskManager::schedule() {
@@ -95,6 +89,9 @@ void TaskManager::schedule() {
   app_queues[ready_queues[idx_next]]->pop(next_task);
 
   execution_queue.push(next_task);
+
+  // atomically increase the length of the task queue
+  exeQueueLength.fetch_add(1);
 
   VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
 }
@@ -134,8 +131,6 @@ void TaskManager::execute() {
 
     // decrease the length of the execution queue
     exeQueueLength.fetch_sub(1);
-
-    taskCounter++;
   } 
   catch (std::runtime_error &e) {
     LOG(ERROR) << "Task error " << e.what();
@@ -154,7 +149,7 @@ std::string TaskManager::getConfig(int idx, std::string key) {
 
 void TaskManager::do_execute() {
 
-  VLOG(1) << "Started an executor";
+  LOG(INFO) << "Started an executor";
 
   // continuously execute tasks from the task queue
   while (1) { 
@@ -164,7 +159,7 @@ void TaskManager::do_execute() {
 
 void TaskManager::do_schedule() {
   
-  VLOG(1) << "Started an scheduler";
+  LOG(INFO) << "Started an scheduler";
 
   while (1) {
     schedule();

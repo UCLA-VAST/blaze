@@ -202,15 +202,7 @@ void AppCommManager::process(socket_ptr sock) {
 
               block = NULL_DATA_BLOCK;
 
-              // add block to task
-              task->addInputBlock(blockId, block);
-
               DLOG(INFO) << "Add a non-cachable block to task, id=" << blockId;
-
-              // add block information to a table
-              block_table.insert(std::make_pair(blockId,
-                    std::make_pair(reply_block->cached(), 
-                      reply_block->sampled())));
 
               // mark the block to skip cache
               cache_table.insert(std::make_pair(blockId, false));
@@ -250,17 +242,16 @@ void AppCommManager::process(socket_ptr sock) {
                 reply_block->set_cached(false); 
                 wait_accdata = true;
               }
-              // add block to task
-              task->addInputBlock(blockId, block);
-
-              // add block information to a table
-              block_table.insert(std::make_pair(blockId,
-                    std::make_pair(reply_block->cached(), 
-                      reply_block->sampled())));
-
               cache_table.insert(std::make_pair(blockId, true));
             }
           }
+          // add block to task
+          task->addInputBlock(blockId, block);
+
+          // add block information to a table
+          block_table.insert(std::make_pair(blockId,
+                std::make_pair(reply_block->cached(), 
+                  reply_block->sampled())));
         }
       }
 
