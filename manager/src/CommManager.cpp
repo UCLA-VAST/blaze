@@ -83,9 +83,6 @@ void CommManager::listen() {
 
     ip::tcp::acceptor acceptor(ios, endpoint);
 
-    VLOG(1) << "Listening for new connections at "
-      << ip_address << ":" << srv_port;
-
     while(1) {
 
       //boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
