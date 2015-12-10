@@ -30,13 +30,9 @@ friend class BlazeTest;
 public:
   Task(int _num_args): 
     status(NOTREADY), 
-    estimated_time(-1),
     num_input(_num_args),
     num_ready(0)
   {; }
-
-  virtual int estimateTime() { return -1; }
-  virtual int estimateSpeedup() { return -1; }
 
   // main function to be overwritten by accelerator implementations
   virtual void compute() {;}
@@ -71,21 +67,6 @@ protected:
 
   // add a configuration for a dedicated block 
   void addConfig(int idx, std::string key, std::string val);
-
-  // read one line from file and write to an array
-  // and return the size of bytes put to a buffer
-  virtual char* readLine(
-      std::string line, 
-      size_t &num_elements,
-      size_t &num_bytes) 
-  {
-    num_bytes = 0; 
-    num_elements = 0;
-    return NULL;
-  }
-
-  // pointer to the platform
-  Platform *platform;
 
   TaskEnv* getEnv();
 
@@ -123,8 +104,6 @@ private:
 
   // an unique id within each TaskQueue
   int task_id;
-
-  int estimated_time;
 
   // pointer to the TaskEnv
   TaskEnv_ptr env;

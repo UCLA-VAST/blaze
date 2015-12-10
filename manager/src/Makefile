@@ -50,6 +50,7 @@ LINK= -L../lib -lblaze \
 DEPS= Common.o \
 			Block.o \
 			Task.o \
+			TaskEnv.o \
 			CommManager.o \
 			AppCommManager.o \
 			GAMCommManager.o \

@@ -188,6 +188,9 @@ bool Task::isReady() {
   if (status == READY) {
     return true; 
   }
+  else if (input_table.size() < num_input) {
+    return false;
+  }
   else {
     bool ready = true;
     int num_ready_curr = 0;

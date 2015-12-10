@@ -51,6 +51,11 @@ void AppCommManager::process(socket_ptr sock) {
     // - partition_id: cached, sampled
     std::map<int64_t, std::pair<bool, bool> > block_table;
 
+    // TODO: better naming
+    // a table containing cache information of each input block
+    // - partition_id: enable cache
+    std::map<int64_t, bool> cache_table;
+
     try {
       recv(task_msg, sock);
     }
@@ -121,6 +126,8 @@ void AppCommManager::process(socket_ptr sock) {
            * used to differentiate the blocks in a single task
            */
           task->addInputBlock(i, block);
+
+          DLOG(INFO) << "Received an scalar value";
         }
         // 1.3.2 if this is not a scalar, then its an array
         else {
@@ -184,46 +191,76 @@ void AppCommManager::process(socket_ptr sock) {
           }
           // 1.3.2.2 if the input is a normal input block
           else {
-            if (block_manager->contains(blockId)) {
+            // if the input block is non-cachable
+            if (recv_block.has_cached() && !recv_block.cached()) {
 
-              if (recv_block.has_sampled() && recv_block.sampled()) {
-
-                // wait for mask in ACCDATA 
-                wait_accdata = true; 
-
-                reply_block->set_sampled(true);
-              }
-              else {
-                block = block_manager->get(blockId);
-                reply_block->set_sampled(false);
-              }
-              reply_block->set_cached(true); 
-            }
-            // 1.3.2.2.2 if the input block is not cached
-            else {
-
-              // do not add block to task input table if data is sampled
-              block = NULL_DATA_BLOCK;
-              
-              if (recv_block.has_sampled() && recv_block.sampled()) {
-
-                reply_block->set_sampled(true);
-
-              }
-              else {
-                reply_block->set_sampled(false);
-              }
-              reply_block->set_cached(false); 
               wait_accdata = true;
+
+              // NOTE: do not support sampling at this point
+              reply_block->set_cached(false); 
+              reply_block->set_sampled(false);
+
+              block = NULL_DATA_BLOCK;
+
+              // add block to task
+              task->addInputBlock(blockId, block);
+
+              DLOG(INFO) << "Add a non-cachable block to task, id=" << blockId;
+
+              // add block information to a table
+              block_table.insert(std::make_pair(blockId,
+                    std::make_pair(reply_block->cached(), 
+                      reply_block->sampled())));
+
+              // mark the block to skip cache
+              cache_table.insert(std::make_pair(blockId, false));
+            }
+            else {
+              DLOG(INFO) << "Add a cachable block to task, id=" << blockId;
+
+              if (block_manager->contains(blockId)) {
+
+                if (recv_block.has_sampled() && recv_block.sampled()) {
+
+                  // wait for mask in ACCDATA 
+                  wait_accdata = true; 
+
+                  reply_block->set_sampled(true);
+                }
+                else {
+                  block = block_manager->get(blockId);
+                  reply_block->set_sampled(false);
+                }
+                reply_block->set_cached(true); 
+              }
+              // 1.3.2.2.2 if the input block is not cached
+              else {
+
+                // do not add block to task input table if data is sampled
+                block = NULL_DATA_BLOCK;
+
+                if (recv_block.has_sampled() && recv_block.sampled()) {
+
+                  reply_block->set_sampled(true);
+
+                }
+                else {
+                  reply_block->set_sampled(false);
+                }
+                reply_block->set_cached(false); 
+                wait_accdata = true;
+              }
+              // add block to task
+              task->addInputBlock(blockId, block);
+
+              // add block information to a table
+              block_table.insert(std::make_pair(blockId,
+                    std::make_pair(reply_block->cached(), 
+                      reply_block->sampled())));
+
+              cache_table.insert(std::make_pair(blockId, true));
             }
           }
-          // add block to task
-          task->addInputBlock(blockId, block);
-
-          // add block information to a table
-          block_table.insert(std::make_pair(blockId,
-                std::make_pair(reply_block->cached(), 
-                  reply_block->sampled())));
         }
       }
 
@@ -295,129 +332,7 @@ void AppCommManager::process(socket_ptr sock) {
             if (recv_block.has_num_elements() && 
                 recv_block.num_elements() < 0) { 
               
-              LOG(WARNING) << "Reading file is unstable!";
-
-              if (!recv_block.has_file_size() ||
-                  !recv_block.has_file_offset())
-              {
-                throw AccFailure(std::string(
-                      "Missing information to read from file for block ")+ 
-                    std::to_string((long long)blockId));
-              }
-              int64_t size   = recv_block.file_size();	
-              int64_t offset = recv_block.file_offset();
-
-              //std::vector<std::string> lines;
-              char* buffer = new char[size];
-
-              if (path.compare(0, 7, "hdfs://") == 0) { // read from HDFS
-#ifdef USE_HDFS
-                if (!getenv("HDFS_NAMENODE") ||
-                    !getenv("HDFS_PORT"))
-                {
-                  throw std::runtime_error(
-                      "no HDFS_NAMENODE or HDFS_PORT defined");
-                }
-
-                std::string hdfs_name_node = getenv("HDFS_NAMENODE");
-                uint16_t hdfs_port = 
-                  boost::lexical_cast<uint16_t>(getenv("HDFS_PORT"));
-
-                hdfsFS fs = hdfsConnect(hdfs_name_node.c_str(), hdfs_port);
-
-                if (!fs) {
-                  throw std::runtime_error("Cannot connect to HDFS");
-                }
-
-                hdfsFile fin = hdfsOpenFile(fs, path.c_str(), O_RDONLY, 0, 0, 0); 
-
-                if (!fin) {
-                  throw std::runtime_error("Cannot find file in HDFS");
-                }
-
-                int err = hdfsSeek(fs, fin, offset);
-                if (err != 0) {
-                  throw std::runtime_error(
-                      "Cannot read HDFS from the specific position");
-                }
-
-                int64_t bytes_read = hdfsRead(
-                    fs, fin, (void*)buffer, size);
-
-                if (bytes_read != size) {
-                  throw std::runtime_error("HDFS read error");
-                }
-
-                hdfsCloseFile(fs, fin);
-#else 
-                throw std::runtime_error("HDFS file is not supported");
-#endif
-              }
-              else { // read from normal file
-                std::ifstream fin(path, std::ifstream::binary); 
-
-                if (!fin) {
-                  throw std::runtime_error("Cannot find file");
-                }
-
-                // TODO: error handling
-                fin.seekg(offset);
-                fin.read(buffer, size);
-                fin.close();
-              }
-
-              std::string line_buffer(buffer);
-              delete buffer;
-
-              // buffer for all data
-              std::vector<std::pair<size_t, char*> > data_buf;
-              size_t total_size = 0;
-              size_t item_length = 0;      
-              size_t item_size = 0;      
-
-              // split the file by newline
-              std::istringstream sstream(line_buffer);
-              std::string line;
-
-              while(std::getline(sstream, line)) {
-                char* data;
-                try {
-                  data = task->readLine(line, item_length, item_size);
-                } catch (std::runtime_error &e) {
-                  LOG(ERROR) << "Fail to read line";
-                }
-                if (item_size > 0) {
-                  data_buf.push_back(std::make_pair(item_size, data));
-                  total_size += item_size;
-                }
-              }
-              if (total_size <= 0) {
-                LOG(ERROR) << "Did not read any data for block " << blockId;
-              }
-              // writing data to the corresponding block
-              int align_width = 0;
-              if (!task->getConfig(i, "align_width").empty()) {
-                 align_width = stoi(task->getConfig(i, "align_width"));
-              }
-
-              block_manager->getAlloc(
-                  blockId, block,
-                  data_buf.size(), item_length, item_size, 
-                  align_width);
-
-              int item_offset = 0;
-
-              // lock block for exclusive access during write
-              boost::lock_guard<DataBlock> guard(*block);
-              for (int i=0; i<data_buf.size(); i++) {
-                size_t bytes = data_buf[i].first;
-                char* data   = data_buf[i].second;
-
-                block->writeData((void*)data, bytes, item_offset);
-                item_offset += block->getItemSize();
-
-                delete data;
-              }
+              throw AccFailure("Reading filesystem is unsupported in this version");
             }
             // 2.1.2 Read input data block from memory mapped file
             else {  
@@ -442,11 +357,23 @@ void AppCommManager::process(socket_ptr sock) {
                   align_width = stoi(task->getConfig(i, "align_width"));
                 }
 
-                // the block needs to be created and add to cache
-                block_manager->getAlloc(
-                    blockId, block,
-                    num_elements, element_length, element_size, 
-                    align_width);
+                if ( cache_table.find(blockId) != cache_table.end() &&
+                    !cache_table[blockId]) 
+                {
+                  DLOG(INFO) << "Skip cache for block " << blockId;
+
+                  // the block should skip cache
+                  block = platform->createBlock(
+                      num_elements, element_length, element_size,
+                      align_width);
+                }
+                else {
+                  // the block needs to be created and add to cache
+                  block_manager->getAlloc(
+                      blockId, block,
+                      num_elements, element_length, element_size, 
+                      align_width);
+                }
               }
               else { 
                 // if the block is a broadcast then it already resides in scratch

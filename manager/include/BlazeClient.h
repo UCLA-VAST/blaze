@@ -216,6 +216,9 @@ void BlazeClient::prepareRequest(TaskMsg &msg) {
     }
     else {
       block_info->set_partition_id(blocks[i].first);
+      if (!blocks_cached[i]) {
+        block_info->set_cached(false);
+      }
     }
   }
 
@@ -231,7 +234,7 @@ void BlazeClient::prepareData(TaskMsg &data_msg, TaskMsg &reply_msg) {
   logger->logInfo(LOG_HEADER+
       std::string("Start writing data to memory"));
 
-  for (int i=0; i<num_inputs; i++) {
+  for (int i=0; i<reply_msg.data_size(); i++) {
 
     if (!reply_msg.data(i).cached()) {
 
@@ -256,10 +259,6 @@ void BlazeClient::prepareData(TaskMsg &data_msg, TaskMsg &reply_msg) {
       logger->logInfo(LOG_HEADER+
           std::string("Finish writing block ")+
           std::to_string((long long) i));
-    }
-    // to guarantee the id is unique each time
-    if (!blocks_cached[i]) {
-      blocks[i].first += blocks.size();
     }
   }
 }
