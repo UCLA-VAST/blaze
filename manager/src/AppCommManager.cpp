@@ -9,13 +9,22 @@
 #include <stdexcept>
 #include <cstdint>
 
+#include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
 #define LOG_HEADER "AppCommManager"
+
 #include <glog/logging.h>
 
 #include "proto/task.pb.h"
+#include "Block.h"
+#include "Task.h"
+#include "Platform.h"
 #include "CommManager.h"
+#include "BlockManager.h"
+#include "TaskManager.h"
+#include "PlatformManager.h"
 
 namespace blaze {
 
@@ -58,8 +67,8 @@ void AppCommManager::process(socket_ptr sock) {
       acc_id = task_msg.acc_id();
       app_id = task_msg.app_id();
 
-      LOG(INFO) << "Received an ACCREQUEST for " << acc_id
-        << "from app " << app_id;
+      LOG(INFO) << "Received an request for " << acc_id
+        << " from app " << app_id;
 
       /* Receive acc_id to identify the corresponding TaskManager, 
        * with which create a new Task. 
@@ -67,18 +76,26 @@ void AppCommManager::process(socket_ptr sock) {
        * task's input table, in order to get the correct order
        */
 
-      // 1.1 query the queue manager to find matching acc
-      TaskManager_ptr task_manager = 
+      // 1.1 query the PlatformManager to find matching acc
+      TaskManager* task_manager = 
         platform_manager->getTaskManager(task_msg.acc_id());
 
-      if (task_manager == NULL_TASK_MANAGER) { 
+      // 1.2 get correponding block manager based on platform of queried Task
+      Platform* platform = platform_manager->getPlatform(task_msg.acc_id());
+
+      if (!task_manager || !platform) {
         // if there is no matching acc
         throw AccReject("No matching accelerator"); 
       }
 
-      // 1.2 get correponding block manager based on platform of queried Task
-      BlockManager* block_manager = platform_manager->
-        getBlockManager(task_msg.acc_id());
+      // NOTE: ommit pointer check since it is 
+      // already performed in getTaskManager
+
+      BlockManager* block_manager = platform->getBlockManager();
+
+      if (!block_manager) {
+        throw AccReject("Cannot find block manager");
+      }
 
       // create a new task, and make scheduling decision
       Task_ptr task = task_manager->create();
@@ -210,25 +227,6 @@ void AppCommManager::process(socket_ptr sock) {
         }
       }
 
-      // 1.4 decide to reject the task if wait time is too long
-      int task_time = task_manager->estimateTime(task.get());
-      int task_speedup = task->estimateSpeedup();
-
-      if (task_time > 0 && task_speedup > 0) {
-
-        // <bestcase wait time, worstcase wait time>
-        std::pair<int,int> wait_time = task_manager->getWaitTime(task.get());
-
-        LOG(INFO) << "Wait time = (" << wait_time.first 
-          << ", " << wait_time.second << ") us, task estimated time = "
-          << task_time << " us";
-
-        // use worst cast wait time
-        if (wait_time.second > task_time*task_speedup) {
-          throw AccReject("Wait time too long");
-        }
-      }
-
       // 1.5 send msg back to client
       reply_msg.set_type(ACCGRANT);
       try {
@@ -272,9 +270,7 @@ void AppCommManager::process(socket_ptr sock) {
           int64_t blockId = recv_block.partition_id();
           std::string path = recv_block.file_path();
 
-          if (task->getInputBlock(blockId) &&
-              task->getInputBlock(blockId)->isReady()) 
-          {
+          if (task->isInputReady(blockId)) {
             LOG(WARNING) << "Skipping ready block " << blockId;
             break;
           }
@@ -465,6 +461,7 @@ void AppCommManager::process(socket_ptr sock) {
                     e.what());
               }
 
+              // NOTE: only remove normal input file
               try {
                 // delete memory map file after read
                 boost::filesystem::wpath file(path);
@@ -592,7 +589,7 @@ void AppCommManager::process(socket_ptr sock) {
           throw AccFailure("Cannot send ACCFINISH");
         }
 
-        VLOG(1) << "Task finished, sent an ACCFINISH";
+        LOG(INFO) << "Task finished";
       }
       else {
         throw AccFailure("Task failed");

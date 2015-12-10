@@ -9,18 +9,13 @@
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/atomic.hpp>
 
-#include "proto/acc_conf.pb.h"
-
-#include "Block.h"
-#include "TaskEnv.h"
-#include "Task.h"
+#include "Common.h"
 #include "TaskQueue.h"
-#include "Logger.h"
 
 namespace blaze {
-
-typedef boost::shared_ptr<Task> Task_ptr;
 
 /**
  * Manages a task queue for one accelerator executor
@@ -34,6 +29,7 @@ public:
   TaskManager(
     Task* (*create_func)(), 
     void (*destroy_func)(Task*),
+    std::string _acc_id,
     Platform *_platform
   ): power(true),  // TODO: 
      exeQueueLength(0),
@@ -41,16 +37,11 @@ public:
      lobbyWaitTime(0),
      doorWaitTime(0),
      deltaDelay(0),
+     acc_id(_acc_id),
      createTask(create_func),
      destroyTask(destroy_func),
      platform(_platform)
-  {
-    logger = new Logger();
-  }
-
-  ~TaskManager() {
-    delete logger;
-  }
+  {;}
 
   int estimateTime(Task* task);
 
@@ -59,6 +50,9 @@ public:
 
   // enqueue a task in the corresponding application queue
   void enqueue(std::string app_id, Task* task);
+
+  // dequeue a task from the execute queue
+  bool popReady(Task* &task);
 
   // schedule a task from app queues to execution queue  
   void schedule();
@@ -86,6 +80,8 @@ private:
 
   bool power;
 
+  std::string acc_id;
+
   // wait time for currently enqueued tasks
   mutable boost::atomic<int> lobbyWaitTime;   
   // wait time for all tasks waiting to enqueue
@@ -102,8 +98,8 @@ private:
   Task* (*createTask)();
   void (*destroyTask)(Task*);
 
+  // TODO: this part should deprecated
   Platform *platform;
-  Logger  *logger;
 
   // thread function body for scheduler and executor
   void do_schedule();
@@ -118,6 +114,8 @@ private:
 
   TaskQueue execution_queue;
 };
+
+const TaskManager_ptr NULL_TASK_MANAGER;
 }
 
 #endif

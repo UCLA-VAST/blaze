@@ -26,7 +26,7 @@ XTRACFLAG = -DFLEX_INET6 -DRELEASE_VERSION -D__BITS64 -pipe \
 						-DLINUX64 -DAMD64 -DREDHAT -DREL -DRHLINUX64 \
 						-DPLATFORM_AMD64_RHLINUX 
 
-CFLAGS = -c -fPIC -std=c++0x \
+CFLAGS = -c -fPIC -std=c++0x -g \
 				 $(XTRACFLAG) -DNO_ACTIVATION_SUPPORT
 
 INCLUDES = -I$(BOOST_DIR)/include \
@@ -38,29 +38,33 @@ INCLUDES = -I$(BOOST_DIR)/include \
 COMPILE = $(CFLAGS) \
 				 $(INCLUDES)
 
-LINK = -L../lib -lblaze \
-			 -L$(PROTOBUF_DIR)/lib -lprotobuf \
-			 -L$(GLOG_DIR)/lib -lglog \
-			 -L$(FLMDIR) $(FLMLIB) \
-			 -L$(BOOST_DIR)/lib \
-			 -lboost_system -lboost_iostreams -lboost_filesystem -lboost_thread \
-			 -lpthread -lm -ldl -lrt
+LINK= -L../lib -lblaze \
+			-L$(BOOST_DIR)/lib \
+			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
+			-L$(PROTOBUF_DIR)/lib -lprotobuf \
+			-L$(GLOG_DIR)/lib -lglog \
+			-L$(FLMDIR) $(FLMLIB) \
+			-lpthread -lm \
+			-Wl,--no-as-needed -ldl
 
-DEPS = CommManager.o \
-			 AppCommManager.o \
-			 GAMCommManager.o \
-			 PlatformManager.o \
-			 Block.o \
-			 BlockManager.o \
-			 QueueManager.o \
-			 Task.o \
-			 TaskManager.o \
-			 task.pb.o \
-			 acc_conf.pb.o \
-			 msgGamNam.pb.o
+DEPS= Common.o \
+			Block.o \
+			Task.o \
+			CommManager.o \
+			AppCommManager.o \
+			GAMCommManager.o \
+			Platform.o \
+			PlatformManager.o \
+			BlockManager.o \
+			TaskManager.o \
+			QueueManager.o \
+			task.pb.o \
+			acc_conf.pb.o \
+			msgGamNam.pb.o
 
 LMDEPS = $(FLMDIR)/license.o \
 			 	 $(FLMDIR)/lm_new.o 
+
 all: ../bin/acc_manager ../lib/libblaze.so
 
 package: 

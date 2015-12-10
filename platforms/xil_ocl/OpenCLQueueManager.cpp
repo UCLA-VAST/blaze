@@ -11,6 +11,17 @@
 
 namespace blaze {
 
+OpenCLQueueManager::OpenCLQueueManager(Platform* _platform):
+  QueueManager(_platform) 
+{
+  ocl_platform = dynamic_cast<OpenCLPlatform*>(platform);
+
+  if (!ocl_platform) {
+    LOG(ERROR) << "Platform pointer type is not OpenCLPlatform";
+    throw std::runtime_error("Cannot create OpenCLQueueManager");
+  }
+}
+
 void OpenCLQueueManager::startAll() {
   
   if (queue_table.size() == 0) {
@@ -42,7 +53,7 @@ void OpenCLQueueManager::do_start() {
 
     // program the device
     try {
-      ocl_platform->setupProgram(acc_id);
+      ocl_platform->changeProgram(acc_id);
     }
     catch (std::runtime_error &e) {
 
@@ -90,12 +101,12 @@ void OpenCLQueueManager::do_start() {
         boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
       }
       else {
-        // select first queue and remove it from list
+        // select first queue
         std::string queue_name = ready_queues.front();
 
         // switch bitstream for the selected queue
         try {
-          ocl_platform->setupProgram(queue_name);
+          ocl_platform->changeProgram(queue_name);
         }
         catch (std::runtime_error &e) {
 
@@ -105,55 +116,34 @@ void OpenCLQueueManager::do_start() {
             << ". Remove it from QueueManager.";
           queue_table.erase(queue_table.find(queue_name));
 
-          break;
+          continue;
         }
 
         TaskManager_ptr queue = queue_table[queue_name];
 
-        // start a batch of executions
-        int b;
-        for (b=0; b<batch_size; b++) {
+        // timer to wait for the queue to fill up again
+        int counter = 0;
+        while (counter < MAX_WAIT_TIME) {
           if (queue->getExeQueueLength() > 0) {
+
+            counter = 0;
+            
             DLOG(INFO) << "Execute one task from " << queue_name;
 
             // execute one task
             queue->execute();
           }
-          else {
-            if (ready_queues.size() > 1) {
-              // wait for new tasks for the current acc
-              boost::this_thread::sleep_for(boost::chrono::milliseconds(200)); 
+          else { 
+            DLOG_EVERY_N(INFO, 50) << "Queue " << queue_name << " empty for 50ms";
 
-              // only switch acc if queue stays empty
-              if (queue->getExeQueueLength()==0) {
-                ready_queues.pop_front(); 
-              }
-            }
-            else {
-              ready_queues.pop_front(); 
-            }
-            break; 
+            // start counter
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(1)); 
+            
+            counter++;
           }
         }
-
-        // modify batch size to reduce reprogramming
-        // TODO: disabled for now
-        if (b<batch_size) {
-          DLOG(INFO) << "Batch not finished, executed " << 
-            b << " out of " <<
-            batch_size << " tasks.";
-
-          // reduce the batch size if batch not finished
-          ///if (batch_size > 4) {
-          ///  batch_size = batch_size / 2;
-          ///}
-        }
-        else {
-          DLOG(INFO) << "Batch of size " << batch_size << " finished";
-
-          // increase batch 
-          //batch_size = batch_size * 2;
-        }
+        // if the timer is up, switch to the next queue
+        ready_queues.pop_front(); 
       }
     }
   }

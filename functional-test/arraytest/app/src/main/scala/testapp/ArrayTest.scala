@@ -61,12 +61,11 @@ object TestApp {
 
     println("Functional test: array type AccRDD with array type broadcast value")
 
-    val data = new Array[Array[Double]](16)
-    for (i <- 0 until 16) {
-      data(i) = new Array[Double](8).map(e => random)
+    val data = new Array[Array[Double]](256)
+    for (i <- 0 until 256) {
+      data(i) = new Array[Double](2).map(e => random)
     }
-
-    val rdd = sc.parallelize(data, 4)
+    val rdd = sc.parallelize(data, 256)
 
     val rdd_acc = acc.wrap(rdd)    
     val brdcst_v = acc.wrap(sc.broadcast(v))

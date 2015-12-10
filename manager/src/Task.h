@@ -7,19 +7,12 @@
 #include <cstdlib>
 #include <stdexcept>
 
-#include <boost/smart_ptr.hpp>
+#include "Common.h"
 
 namespace blaze {
 
 // forward declaration of 
-class TaskManager;
-class AppCommManager;
 template <typename U, typename T> class BlazeTest;
-
-class Platform;
-class TaskEnv;
-class DataBlock;
-typedef boost::shared_ptr<DataBlock> DataBlock_ptr;
 
 /**
  * Task is the base clase of an accelerator task
@@ -28,7 +21,9 @@ typedef boost::shared_ptr<DataBlock> DataBlock_ptr;
 class Task {
 
 friend class TaskManager;
+friend class QueueManager;
 friend class AppCommManager;
+
 template <typename U, typename T> 
 friend class BlazeTest;
 
@@ -61,6 +56,8 @@ public:
   // TODO: need a way to specify general configs
   // or config for output block
   std::string getConfig(int idx, std::string key);
+
+  bool isInputReady(int64_t block_id);
 
 protected:
 
@@ -106,18 +103,14 @@ protected:
 
 private:
 
-  // used by CommManager
+  // used by AppCommManager
   void addInputBlock(int64_t partition_id, DataBlock_ptr block);
   void inputBlockReady(int64_t partition_id, DataBlock_ptr block);
-
-  DataBlock_ptr getInputBlock(int64_t block_id);
 
   // push one output block to consumer
   // return true if there are more blocks to output
   bool getOutputBlock(DataBlock_ptr &block);
    
-  void setPlatform(Platform *_platform) { platform = _platform;  }
-
   bool isReady();
 
   enum {
@@ -133,12 +126,14 @@ private:
 
   int estimated_time;
 
-  // number of input blocks that has data initialized
-  int num_ready;
+  // pointer to the TaskEnv
+  TaskEnv_ptr env;
 
   // number of total input blocks
   int num_input;
-};
 
+  // number of input blocks that has data initialized
+  int num_ready;
+};
 }
 #endif

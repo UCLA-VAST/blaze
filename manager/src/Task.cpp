@@ -1,27 +1,36 @@
 #include <stdio.h>
-#include <map>
-#include <vector>
-#include <cstdlib>
-#include <fstream>
-
-#ifdef USEHDFS
-#include "hdfs.h"
-#endif
 
 #include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
+#define LOG_HEADER "Task"
+
+#include <glog/logging.h>
+
+#ifdef USEHDFS
+#include "hdfs.h"
+#endif
+
 #include "Block.h"
+#include "TaskEnv.h"
 #include "Task.h"
 #include "Platform.h"
 
 namespace blaze {
 
-typedef boost::shared_ptr<Task> Task_ptr;
+TaskEnv* Task::getEnv() { 
+  return env.get();
+}
 
-TaskEnv* Task::getEnv() {
-  return platform->getEnv();
+bool Task::isInputReady(int64_t block_id) {
+  if (input_table.find(block_id) != input_table.end() &&
+      input_table[block_id]->isReady()) 
+  {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 char* Task::getOutput(
@@ -37,8 +46,8 @@ char* Task::getOutput(
   }
   else {
     // if output does not exist, create one
-    DataBlock_ptr block = platform->createBlock(num_items, 
-        item_length, item_length*data_width);
+    DataBlock_ptr block = env->createBlock(num_items, 
+        item_length, item_length*data_width, 0, BLAZE_OUTPUT_BLOCK);
 
     output_blocks.push_back(block);
 
@@ -140,14 +149,13 @@ void Task::inputBlockReady(int64_t partition_id, DataBlock_ptr block) {
       status = READY;
     }
   }
-}
-
-DataBlock_ptr Task::getInputBlock(int64_t block_id) {
-  if (input_table.find(block_id) != input_table.end()) {
-    return input_table[block_id];
-  }
   else {
-    return NULL_DATA_BLOCK;
+    // overlay this method to set input block to a new block 
+    if (!block || !block->isReady()) {
+      throw std::runtime_error("Task::inputBlockReady(): block not ready");
+    }
+
+    input_table[partition_id] = block;
   }
 }
 
@@ -203,5 +211,6 @@ bool Task::isReady() {
     }
   }
 }
+
 
 } // namespace

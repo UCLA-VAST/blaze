@@ -20,7 +20,7 @@ endif
 
 MANAGER_DIR=../../manager
 
-CFLAGS= -c -fPIC -std=c++0x #-g
+CFLAGS= -c -fPIC -std=c++0x -g
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/include \
 				 -I$(MANAGER_DIR)/src \
@@ -33,7 +33,8 @@ LINK= -L$(MANAGER_DIR)/lib -lblaze \
 			-L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lxilinxopencl \
 			-lpthread -lm -ldl
 
-DEPS= OpenCLPlatform.o \
+DEPS= OpenCLEnv.o \
+			OpenCLPlatform.o \
 			OpenCLBlock.o \
 			OpenCLQueueManager.o
 

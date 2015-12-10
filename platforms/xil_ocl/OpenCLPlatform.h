@@ -8,79 +8,50 @@
 
 #include <CL/opencl.h>
 
+#include "OpenCLCommon.h"
 #include "Platform.h"
 #include "OpenCLBlock.h"
 #include "OpenCLEnv.h"
 
 namespace blaze {
 
-class QueueManager;
-
-typedef boost::shared_ptr<QueueManager> QueueManager_ptr;
-
 class OpenCLPlatform : public Platform {
 
 public:
 
   OpenCLPlatform();
+  ~OpenCLPlatform();
 
-  ~OpenCLPlatform() {
-    delete env;  
-    /*
-    for (std::map<std::string, cl_program>::iterator 
-        iter = programs.begin(); 
-        iter != programs.end(); 
-        iter ++) 
-    {
-      clReleaseProgram(iter->second);
-    }
-
-    for (std::map<std::string, cl_kernel>::iterator 
-        iter = kernels.begin(); 
-        iter != kernels.end(); 
-        iter ++) 
-    {
-      clReleaseKernel(iter->second);
-    }
-    */
-
-
-    clReleaseCommandQueue(cmd_queue);
-    clReleaseContext(context);
-
-  }
-
-  virtual QueueManager_ptr createQueue();
+  virtual TaskEnv_ptr getEnv(std::string id);
 
   virtual DataBlock_ptr createBlock(
       int num_items, 
       int item_length,
       int item_size, 
-      int align_width = 0) 
-  {
-    DataBlock_ptr block(
-        new OpenCLBlock((OpenCLEnv*)env,
-          num_items, item_length, item_size, align_width)
-        );  
-    return block;
-  }
+      int align_width = 0,
+      int flag = BLAZE_INPUT_BLOCK);
 
-  void setupProgram(std::string acc_id);
+  virtual void createBlockManager(size_t cache_limit, size_t scratch_limit);
+  virtual BlockManager* getBlockManager();
+
+  virtual void setupAcc(AccWorker &conf);
+  void changeProgram(std::string acc_id);
+
+  cl_kernel& getKernel();
 
 private:
 
   int load_file(const char* filename, char** result);
   
+  OpenCLEnv*  env;
+  TaskEnv_ptr env_ptr;
+
   std::string curr_acc_id;
-
-  cl_device_id     device_id;
-  cl_context       context;
-  cl_command_queue cmd_queue;
-
-  cl_program       prev_program;
-  cl_kernel        prev_kernel;
+  cl_program  curr_program;
+  cl_kernel   curr_kernel;
 
   std::map<std::string, std::pair<int, unsigned char*> > bitstreams;
+  std::map<std::string, std::string> kernel_list;
   //std::map<std::string, cl_kernel>  kernels;
 };
 

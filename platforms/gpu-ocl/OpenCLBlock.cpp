@@ -1,27 +1,127 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdexcept>
+
+#include <boost/smart_ptr.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
+
+#define LOG_HEADER  "OpenCLBlock"
+
+#include <glog/logging.h>
+
+#include "OpenCLEnv.h"
 #include "OpenCLBlock.h"
 
 namespace blaze {
 
-#define LOG_HEADER  std::string("OpenCLBlock::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
+OpenCLBlock::OpenCLBlock(
+    std::vector<OpenCLEnv*> &_env_list, 
+    int _num_items, 
+    int _item_length,
+    int _item_size,
+    int _align_width, 
+    int _flag):
+  env_list(_env_list), 
+  location(-1),   // uninitialized location
+  DataBlock(_num_items, _item_length, _item_size, _align_width, _flag)
+{ 
+  num_devices = _env_list.size();
+}
+
+OpenCLBlock::OpenCLBlock(const OpenCLBlock& block): 
+  DataBlock(block),
+  env_list(block.env_list),
+  data(block.data),
+  location(block.location),
+  num_devices(block.num_devices)
+{
+}
+
+OpenCLBlock::~OpenCLBlock() {
+  if (allocated && !copied) {
+    if (flag == BLAZE_INPUT_BLOCK ||
+        flag == BLAZE_OUTPUT_BLOCK) 
+    {
+      clReleaseMemObject(data[0]);
+      delete data;
+    } else {
+      for (int d=0; d<num_devices; d++) {
+        clReleaseMemObject(data[d]);
+      } 
+      delete [] data;
+    }
+  }
+}
 
 void OpenCLBlock::alloc() {
 
   if (!allocated) {
-    //NOTE: assuming buffer allocation is thread-safe
-    //boost::lock_guard<OpenCLBlock> guard(*env);
-    cl_context context = env->getContext();
+    int num_devices = env_list.size();
     cl_int err = 0;
 
-    data = clCreateBuffer(
-        context, CL_MEM_READ_ONLY,  
-        size, NULL, &err);
+    // figure out the device assignment
+    if (flag == BLAZE_INPUT_BLOCK) {
+      // for input block distribute the assignment as much as possible
+      // here use thread id since each alloc() is called by comm threads
+      location = getTid() % num_devices;
+      
+      cl_context context = env_list[location]->getContext();
 
-    if (err != CL_SUCCESS) {
-      throw std::runtime_error("Failed to allocate OpenCL block");
+      data = new cl_mem;
+      data[0] = clCreateBuffer(
+          context, CL_MEM_READ_ONLY,  
+          size, NULL, &err);
+
+      if (err != CL_SUCCESS) {
+        LOG(ERROR) << "Cannot allocate input block, clCreateBuffer returns: "
+          << err;
+
+        throw std::runtime_error("Failed to allocate OpenCL block");
+      }
+      DLOG(INFO) << "Allocate input block on GPU_" << location;
     }
+    else if (flag == BLAZE_SHARED_BLOCK) {
+      // allocate on all devices 
+      data = new cl_mem[num_devices];
 
+      for (int d=0; d<num_devices; d++) {
+        cl_context context = env_list[d]->getContext();
+
+        data[d] = clCreateBuffer(
+            context, CL_MEM_READ_ONLY,  
+            size, NULL, &err);
+
+        if (err != CL_SUCCESS) {
+          LOG(ERROR) << "Cannot allocate shared block, clCreateBuffer returns: "
+            << err;
+
+          throw std::runtime_error("Failed to allocate OpenCL block");
+        }       
+        DLOG(INFO) << "Allocate shared block on GPU_" << d;
+      }
+    }
+    else {
+      // output block should be allocated on the same device as task execution
+      // location should be assigned by dispatcher in queue manager
+      if (location < 0) {
+        DLOG(ERROR) << "Location should be assigned by now";
+        throw std::runtime_error("Unexpected error in allocation");
+      }
+      cl_context context = env_list[location]->getContext();
+
+      data = new cl_mem;
+      data[0] = clCreateBuffer(
+          context, CL_MEM_WRITE_ONLY,  
+          size, NULL, &err);
+
+      if (err != CL_SUCCESS) {
+        LOG(ERROR) << "Cannot allocate output block, clCreateBuffer returns: "
+          << err;
+
+        throw std::runtime_error("Failed to allocate OpenCL block");
+      }
+      DLOG(INFO) << "Allocate output block on GPU_" << location;
+    }
     allocated = true;
   }
 }
@@ -34,15 +134,31 @@ void OpenCLBlock::readFromMem(std::string path) {
 
   if (fin.is_open()) {
     
+    uint64_t start_t = getUs();
+
     // first copy data from shared memory to a temp buffer 
-    // NOTE: here the "size" maybe aligned size, so mem size 
-    // should be calculated based on length
-    size_t memsize = length * data_width;
+    char* temp_data = new char[size];
+    char* mem_ptr = (char*)fin.data();
 
-    char* temp_data = new char[memsize];
+    if (aligned) {
+      for (int k=0; k<num_items; k++) {
 
-    // memcpy is parallel among all tasks
-    memcpy((void*)temp_data, (void*)fin.data(), memsize);
+        // element size in memory
+        int data_size = item_length*data_width;
+
+        // memcpy is parallel among all tasks
+        memcpy((void*)(temp_data+k*item_size), 
+            (void*)(mem_ptr+k*data_size), data_size);
+      }
+    }
+    else {
+      memcpy((void*)temp_data, (void*)mem_ptr, size);
+    }
+
+    uint64_t elapse_t = getUs() - start_t;
+    DLOG(INFO) << "Read " <<
+      (double)size /1024/1024 << "MB of data from mmap file takes " <<
+      elapse_t << "us.";
 
     // then write temp buffer to FPGA, will be serialized among all tasks
     writeData(temp_data, size);
@@ -93,38 +209,14 @@ void OpenCLBlock::writeData(void* src, size_t _size) {
   // lazy allocation
   alloc();
 
-  if (!aligned) {
-    writeData(src, _size, 0);
-    ready = true;
-  }
-  else {
-    // get the command queue handler
-    cl_command_queue command = env->getCmdQueue();
+  uint64_t start_t = getUs();
+  writeData(src, _size, 0);
+  ready = true;
 
-    // lock TaskEnv for exclusive access to OpenCL command queue
-    boost::lock_guard<OpenCLEnv> guard(*env);
-
-    // array of cl_event to wait until all buffer copy is finished
-    //cl_event *events = new cl_event[num_items];
-
-    // copy the data element-by-element since each element is aligned
-    for (int k=0; k<num_items; k++) {
-
-      // element size in memory
-      int data_size = item_length*data_width;
-
-      int err = clEnqueueWriteBuffer(
-          command, data, CL_TRUE, k*item_size, 
-          data_size, (void*)((char*)src+k*data_size), 
-          0, NULL, NULL);
-
-      if (err != CL_SUCCESS) {
-        throw std::runtime_error("Failed to write to OpenCL block");
-      }
-    }  
-    ready = true;
-    //delete [] events;
-  }
+  uint64_t elapse_t = getUs() - start_t;
+  DLOG(INFO) << "Writting OpenCLBlock of size " << 
+    (double)size /1024/1024 << "MB takes " <<
+    elapse_t << "us.";
 }
 
 void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
@@ -132,28 +224,39 @@ void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
   if (offset+_size > size) {
     throw std::runtime_error("Exists block size");
   }
+  cl_event event;
 
   // lazy allocation
   alloc();
 
-  // get the command queue handler
-  cl_command_queue command = env->getCmdQueue();
-  cl_event event;
+  if (flag == BLAZE_INPUT_BLOCK) {
+    // get the command queue handler
+    cl_command_queue command = env_list[location]->getCmdQueue();
 
-  // use a lock on TaskEnv to guarantee single-thread access to command queues
-  // NOTE: this is unnecessary if the OpenCL runtime is thread-safe
-  boost::lock_guard<OpenCLEnv> guard(*env);
-  //env->lock();
+    int err = clEnqueueWriteBuffer(
+        command, data[0], CL_TRUE, offset, 
+        _size, src, 0, NULL, &event);
 
-  int err = clEnqueueWriteBuffer(
-      command, data, CL_TRUE, offset, 
-      _size, src, 0, NULL, &event);
-
-  if (err != CL_SUCCESS) {
-    throw std::runtime_error("Failed to write to OpenCL block");
+    if (err != CL_SUCCESS) {
+      DLOG(ERROR) << "clEnqueueWriteBuffer error: " << err;
+      throw std::runtime_error("writeData() error");
+    }
   }
-  //env->unlock();
-  //clWaitForEvents(1, &event);
+  else { // must be BLAZE_SHARED_BLOCK
+    for (int d=0; d<num_devices; d++) {
+      // get the command queue handler
+      cl_command_queue command = env_list[d]->getCmdQueue();
+       
+      int err = clEnqueueWriteBuffer(
+          command, data[d], CL_TRUE, offset, 
+          _size, src, 0, NULL, &event);
+
+      if (err != CL_SUCCESS) {
+        DLOG(ERROR) << "clEnqueueWriteBuffer error: " << err;
+        throw std::runtime_error("writeData() error");
+      }
+    }
+  }
 
   if (offset + _size == size) {
     ready = true;
@@ -164,24 +267,24 @@ void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
 void OpenCLBlock::readData(void* dst, size_t size) {
   if (allocated) {
 
+    // NOTE: must be BLAZE_OUTPUT_BLOCK
+
     // get the command queue handler
-    cl_command_queue command = env->getCmdQueue();
+    cl_command_queue command = env_list[location]->getCmdQueue();
     cl_event event;
 
     // use a lock on TaskEnv to guarantee single-thread access to command queues
     // NOTE: this is unnecessary if the OpenCL runtime is thread-safe
-    boost::lock_guard<OpenCLEnv> guard(*env);
-    //env->lock();
+    //boost::lock_guard<OpenCLEnv> guard(*env);
 
     int err = clEnqueueReadBuffer(
-      command, data, CL_TRUE, 0, 
+      command, data[0], CL_TRUE, 0, 
       size, dst, 0, NULL, &event);
 
     if (err != CL_SUCCESS) {
-      throw std::runtime_error("Failed to write to OpenCL block");
+      DLOG(ERROR) << "clEnqueueReadBuffer error: " << err;
+      throw std::runtime_error("Failed to read an OpenCL block");
     }
-    //env->unlock();
-    //clWaitForEvents(1, &event);
   }
   else {
     throw std::runtime_error("Block memory not allocated");
@@ -198,7 +301,7 @@ DataBlock_ptr OpenCLBlock::sample(char* mask) {
     }
   }
 
-  OpenCLBlock* ocl_block = new OpenCLBlock(env,
+  OpenCLBlock* ocl_block = new OpenCLBlock(env_list,
         item_length, 
         item_size,
         aligned ? align_width : item_size);
@@ -208,7 +311,7 @@ DataBlock_ptr OpenCLBlock::sample(char* mask) {
   cl_mem masked_data = *((cl_mem*)(ocl_block->getData()));
 
   // get the command queue handler
-  cl_command_queue command = env->getCmdQueue();
+  cl_command_queue command = env_list[location]->getCmdQueue();
   cl_int err = 0;
 
   // start copy the masked data items to the new block,
@@ -221,7 +324,7 @@ DataBlock_ptr OpenCLBlock::sample(char* mask) {
   for (int i=0; i<num_items; i++) {
     if (mask[i] != 0) {
       err = clEnqueueCopyBuffer(command, 
-          data, masked_data,
+          data[0], masked_data,
           i*item_size, k*item_size,
           item_size, 
           0, NULL, events+k);
@@ -245,6 +348,43 @@ DataBlock_ptr OpenCLBlock::sample(char* mask) {
   delete [] events;
 
   return block;
+}
+
+char* OpenCLBlock::getData() {
+  alloc();
+
+  if (flag == BLAZE_INPUT_BLOCK ||
+      flag == BLAZE_OUTPUT_BLOCK)
+  {
+    return (char*)data;
+  }
+  else {
+    // location should be assigned already
+    if (location < 0) {
+      DLOG(ERROR) << "Location for shared block is not assigned";
+      return NULL;
+    }
+    return (char*)&data[location];
+  }
+}
+
+void OpenCLBlock::relocate(int loc) {
+  if (flag == BLAZE_INPUT_BLOCK) {
+    LOG(WARNING) << "relocation of input block is unsupported" ;
+  }
+  else {
+    location = loc;  
+    if (flag == BLAZE_SHARED_BLOCK) {
+      DLOG(INFO) << "Assigned shared block to GPU_" << location;
+    }
+    else {
+      DLOG(INFO) << "Assigned output block to GPU_" << location;
+    }
+  }
+}
+
+int OpenCLBlock::getDeviceId() {
+  return location;
 }
 
 } // namespace

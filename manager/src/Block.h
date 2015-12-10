@@ -1,20 +1,17 @@
 #ifndef BLOCK_H
 #define BLOCK_H
 
-#include <stdio.h>
-#include <string.h>
 #include <string>
-#include <stdexcept>
 
-#include <boost/smart_ptr.hpp>
+#include <boost/thread/lockable_adapter.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/thread/lockable_adapter.hpp>
+
+#include "Common.h"
 
 /*
  * base class extendable to manage memory block
  * on other memory space (e.g. FPGA device memory)
- *
  */
 
 namespace blaze {
@@ -26,62 +23,20 @@ class DataBlock
 public:
 
   // create basic data block 
-  DataBlock(
-      int _num_items, 
+  DataBlock(int _num_items, 
       int _item_length,
       int _item_size,
-      int _align_width = 0)
-    :
-    num_items(_num_items),
-    item_length(_item_length),
-    align_width(_align_width),
-    allocated(false),
-    ready(false),
-    data(NULL)
-  {
-    data_width = _item_size / _item_length;
-
-    if (_align_width == 0 ||
-        _item_size % _align_width == 0) 
-    {
-      item_size = _item_size;
-      aligned = false;
-    }
-    else {
-      item_size = (_item_length*data_width + _align_width - 1) /
-        _align_width * _align_width;
-      aligned = true;
-    }
-    length = num_items * item_length;
-    size   = num_items * item_size;
-
-    if (length <= 0 || size <= 0 || data_width < 1) {
-      throw std::runtime_error("Invalid parameters");
-    }
-
-    // NOTE: lazy allocation
-    //data = new char[_size];
-  }
-
-  DataBlock(const DataBlock &block) {
-    num_items = block.num_items;
-    item_length = block.item_length;
-    item_size = block.item_length;
-    length = block.length;
-    size = block.size;
-    align_width = block.align_width;
-    allocated = block.allocated;
-    aligned = block.aligned;
-    ready = block.ready;
-  }
-
+      int _align_width = 0,
+      int _flag = BLAZE_INPUT_BLOCK);
+    
+  DataBlock(const DataBlock &block);
 
   ~DataBlock() {
-    if (allocated && !data) {
+    if (allocated && !data && !copied) 
+    {
       delete data; 
     }
   }
-
 
   // allocate data aligned to a given width
   void alloc(int _align_width);
@@ -99,11 +54,7 @@ public:
   virtual void readData(void* dst, size_t size);
 
   // get the pointer to data
-  virtual char* getData() { 
-    boost::lock_guard<DataBlock> guard(*this);
-    alloc();
-    return data; 
-  }
+  virtual char* getData();
 
   // sample the items in the block by a mask
   virtual boost::shared_ptr<DataBlock> sample(char* mask);
@@ -116,18 +67,14 @@ public:
   int getItemSize() { return item_size; }
   int getLength() { return length; }
   int getSize() { return size; }
+  int getFlag() { return flag; }
 
   // status check of DataBlock needs to be exclusive
-  bool isAllocated() { 
-    boost::lock_guard<DataBlock> guard(*this);
-    return allocated; 
-  }
-  bool isReady() { 
-    boost::lock_guard<DataBlock> guard(*this);
-    return ready; 
-  }
+  bool isAllocated();
+  bool isReady();
 
 protected:
+  int flag;         /* enum: input, shared, output */
   int item_length;  /* number of elements per data item */
   int item_size;    /* byte size per data item */
   int num_items;    /* number of data items per data block */
@@ -139,13 +86,11 @@ protected:
   bool allocated;
   bool aligned;
   bool ready;
+  bool copied;
 
 private:
   char* data;
-  boost::shared_ptr<DataBlock> base_block;
 };
-
-typedef boost::shared_ptr<DataBlock> DataBlock_ptr;
 
 const DataBlock_ptr NULL_DATA_BLOCK;
 

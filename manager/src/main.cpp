@@ -11,6 +11,8 @@
 
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+
+#define LOG_HEADER "main"
 #include <glog/logging.h>
 
 // use flexlm
@@ -85,7 +87,7 @@ int main(int argc, char** argv) {
   PlatformManager platform_manager(conf);
 
   // check if there is accelerator successfully setup
-  if (platform_manager.getNumAcc()==0) {
+  if (platform_manager.getLabels().empty()) {
     LOG(ERROR) << "No platform is setup, exiting...";
     return -1;
   }
