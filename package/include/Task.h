@@ -16,7 +16,6 @@ namespace blaze {
  * will be extended by user 
  */
 class Task {
-
 public:
   Task(int _num_args): 
     status(NOTREADY), 
@@ -39,8 +38,6 @@ public:
   }
   
   // get config for input blocks
-  // TODO: need a way to specify general configs
-  // or config for output block
   std::string getConfig(int idx, std::string key);
 
   bool isInputReady(int64_t block_id);

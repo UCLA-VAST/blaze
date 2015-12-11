@@ -73,6 +73,22 @@ namespace blaze {
     // If gettid() could not be used, we use one of the following.
     return (uint32_t)getpid(); 
   }
+
+  void log(FILE* out, const std::string msg) {
+
+    fprintf(out, "[%s:%u] %s\n", 
+        getTS().c_str(), getTid(), msg.c_str());
+
+    fflush(out);
+  }
+
+  void logInfo(const std::string msg) {
+    log(stdout, msg);
+  }
+
+  void logErr(const std::string msg) {
+    log(stderr, msg);
+  }
 }
 
 #endif

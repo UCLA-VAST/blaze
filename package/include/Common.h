@@ -37,6 +37,9 @@ uint64_t getUs();
 uint64_t getMs();
 uint32_t getTid();
 std::string getTS();
+void log(FILE*, const std::string);
+void logInfo(const std::string);
+void logErr(const std::string);
 
 } // namespace blaze
 

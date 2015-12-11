@@ -51,6 +51,7 @@ DEPS= Common.o \
 			Block.o \
 			Task.o \
 			TaskEnv.o \
+			Client.o \
 			CommManager.o \
 			AppCommManager.o \
 			GAMCommManager.o \
@@ -72,6 +73,7 @@ package:
 	cp ../bin/acc_manager ../../package/nam/bin/nam_daemon
 	cp ../lib/libblaze.so ../../package/nam/lib
 	cp Common.h ../../package/include
+	cp Client.h ../../package/include
 	cp Task.h ../../package/include
 	cp TaskEnv.h ../../package/include
 

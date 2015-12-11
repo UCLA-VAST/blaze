@@ -1,138 +1,76 @@
-#ifndef BlazeClient_H
-#define BlazeClient_H
-
-#include <stdlib.h>
-#include <time.h>
-#include <string>
-#include <vector>
-#include <stdexcept>
-
-#include <boost/asio.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/smart_ptr.hpp>
-#include <boost/filesystem.hpp>
-
-#include "../src/proto/task.pb.h"
-#include "../src/Block.h"
-#include "../src/Logger.h"
-
-#define LOG_HEADER  std::string("BlazeClient::") + \
+#define LOG_HEADER  std::string("Client::") + \
                     std::string(__func__) +\
                     std::string("(): ")
 
-#define BLAZE_INPUT         0
-#define BLAZE_INPUT_CACHED  1
-#define BLAZE_OUTPUT        2
-
-using namespace boost::asio;
+#include "Block.h"
+#include "Client.h"
 
 namespace blaze {
 
-typedef boost::shared_ptr<io_service> ios_ptr;
-typedef boost::shared_ptr<ip::tcp::endpoint> endpoint_ptr;
-typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
+Client::Client(
+    std::string _acc_id, 
+    std::string _app_id, 
+    int port, int verbose):
+  acc_id(_acc_id), 
+  app_id(_app_id), 
+  ip_address("127.0.0.1"),
+  srv_port(port),
+  num_inputs(0),
+  num_outputs(0)
+{
+  srand(time(NULL));
 
-class BlazeClient {
-  
-public:
-  BlazeClient(
-      std::string _acc_id, 
-      std::string _app_id, 
-      int port = 1027,
-      int verbose = 2):
-    acc_id(_acc_id), 
-    app_id(_app_id), 
-    ip_address("127.0.0.1"),
-    srv_port(port),
-    num_inputs(0),
-    num_outputs(0)
-  {
-    srand(time(NULL));
-
-    logger = new Logger(verbose);
-
-    // setup socket connection
-    ios_ptr _ios(new io_service);
-    endpoint_ptr _endpoint(new ip::tcp::endpoint(
+  // setup socket connection
+  ios_ptr _ios(new io_service);
+  endpoint_ptr _endpoint(new ip::tcp::endpoint(
         ip::address::from_string(ip_address),
         srv_port));
 
-    ios = _ios;
-    endpoint = _endpoint;
-  }
+  ios = _ios;
+  endpoint = _endpoint;
+}
 
-  // allocate a new block and return the pointer
-  // NOTE: assuming the blocks are ordered
-  void* alloc(int num_items, int item_length, int item_size, int type);
-
-  // write data to existing block
-  void writeBlock(int idx, void* src, size_t size);
-
-  // read data from existing block 
-  void readBlock(int idx, void* dst, size_t size);
-
-  // get the pointer from a block
-  void* getData(int idx) {
+void* Client::getData(int idx) {
     return (void*)blocks[idx].second->getData();
-  };
+}
 
-  void start();
-
-private:
-
-  // helper functions in communication flow
-  void prepareRequest(TaskMsg &msg);
-  void prepareData(TaskMsg &data_msg, TaskMsg &reply_msg);
-  void processOutput(TaskMsg &msg);
-
-  void recv(TaskMsg&, socket_ptr);
-  void send(TaskMsg&, socket_ptr);
-
-  std::string acc_id;
-  std::string app_id;
-
-  // connection
-  int srv_port;
-  std::string ip_address;
-  ios_ptr ios;
-  endpoint_ptr endpoint;
-
-  // input/output data blocks
-  std::vector<std::pair<int, DataBlock_ptr> > blocks;
-  std::vector<bool> blocks_cached;
-  int num_inputs;
-  int num_outputs;
-
-  // logger
-  Logger *logger;
-};
-
-
-void* BlazeClient::alloc(
+void* Client::alloc(
     int num_items, 
     int item_length, 
     int item_size, 
     int type) {
   
   DataBlock_ptr block(new DataBlock(num_items, item_length, item_size));
-  blocks.push_back(std::make_pair(blocks.size(), block));
 
+  int64_t block_id = 0;
   if (type==BLAZE_INPUT) {
+    block_id = ((int64_t)getTid()<<10) + blocks.size();
+
     num_inputs ++;
     blocks_cached.push_back(false);
   }
   else if (type==BLAZE_INPUT_CACHED) {
+    block_id = ((int64_t)getTid()<<10) + blocks.size();
+
     num_inputs ++;
     blocks_cached.push_back(true);
+  }
+  else if (type==BLAZE_SHARED) {
+    block_id = ((int64_t)getTid()<<10) + blocks.size();
+    block_id = 0 - block_id; // broadcast id is negative
+    
+    num_inputs++;
+    blocks_cached.push_back(false);
   }
   else if (type==BLAZE_OUTPUT) {
     num_outputs ++;
   }
 
+  blocks.push_back(std::make_pair(block_id, block));
   return block->getData();
 }
 
-void BlazeClient::writeBlock(int idx, void* src, size_t size) {
+void Client::writeBlock(int idx, void* src, size_t size) {
   if (idx >= blocks.size()) {
     return;
   }
@@ -140,7 +78,7 @@ void BlazeClient::writeBlock(int idx, void* src, size_t size) {
   block->writeData(src, size);
 }
 
-void BlazeClient::readBlock(int idx, void* dst, size_t size) {
+void Client::readBlock(int idx, void* dst, size_t size) {
   if (idx >= blocks.size()) {
     return;
   }
@@ -148,7 +86,7 @@ void BlazeClient::readBlock(int idx, void* dst, size_t size) {
   block->readData(dst, size);
 }
 
-void BlazeClient::start() {
+void Client::start() {
 
   // create socket for connection
   socket_ptr sock(new ip::tcp::socket(*ios));
@@ -162,7 +100,7 @@ void BlazeClient::start() {
     prepareRequest(request_msg);
     send(request_msg, sock);
 
-    logger->logInfo(LOG_HEADER+std::string("Sent a request"));
+    logInfo(LOG_HEADER+std::string("Sent a request"));
 
     // wait on reply for ACCREQUEST
     TaskMsg reply_msg;
@@ -173,7 +111,7 @@ void BlazeClient::start() {
       TaskMsg data_msg;
       prepareData(data_msg, reply_msg);
       send(data_msg, sock);
-      logger->logInfo(LOG_HEADER+std::string("Sent data"));
+      logInfo(LOG_HEADER+std::string("Sent data"));
     }
     else {
       throw std::runtime_error("request rejected");
@@ -192,13 +130,13 @@ void BlazeClient::start() {
      
   }
   catch (std::exception &e) {
-    logger->logErr(LOG_HEADER+
+    logErr(LOG_HEADER+
         std::string("Task failed because:")+
         e.what());
   }
 }
 
-void BlazeClient::prepareRequest(TaskMsg &msg) {
+void Client::prepareRequest(TaskMsg &msg) {
 
   msg.set_type(ACCREQUEST);
   msg.set_acc_id(acc_id);
@@ -222,16 +160,16 @@ void BlazeClient::prepareRequest(TaskMsg &msg) {
     }
   }
 
-  logger->logInfo(LOG_HEADER+
+  logInfo(LOG_HEADER+
       std::string("Requesting accelerator ")+
       acc_id);
 }
 
-void BlazeClient::prepareData(TaskMsg &data_msg, TaskMsg &reply_msg) {
+void Client::prepareData(TaskMsg &data_msg, TaskMsg &reply_msg) {
  
   data_msg.set_type(ACCDATA);
   
-  logger->logInfo(LOG_HEADER+
+  logInfo(LOG_HEADER+
       std::string("Start writing data to memory"));
 
   for (int i=0; i<reply_msg.data_size(); i++) {
@@ -243,10 +181,9 @@ void BlazeClient::prepareData(TaskMsg &data_msg, TaskMsg &reply_msg) {
 
       // write data to memory mapped file
       // use thread id to create unique output file path
-      std::string path = 
-        "/tmp/" + 
-        logger->getTid() + 
-        std::to_string((long long)blocks[i].first);
+      std::string path = "/tmp/" + 
+            boost::lexical_cast<std::string>(boost::this_thread::get_id())+
+            std::to_string((long long)i);
 
       DataBlock_ptr block = blocks[i].second;
       block->writeToMem(path);
@@ -256,16 +193,16 @@ void BlazeClient::prepareData(TaskMsg &data_msg, TaskMsg &reply_msg) {
       block_info->set_element_length(block->getItemLength());
       block_info->set_element_size(block->getItemSize());
 
-      logger->logInfo(LOG_HEADER+
+      logInfo(LOG_HEADER+
           std::string("Finish writing block ")+
           std::to_string((long long) i));
     }
   }
 }
 
-void BlazeClient::processOutput(TaskMsg &msg) {
+void Client::processOutput(TaskMsg &msg) {
 
-  logger->logInfo(LOG_HEADER+
+  logInfo(LOG_HEADER+
       std::string("Task finished, start reading output"));
 
   if (num_outputs != msg.data_size()) {
@@ -288,17 +225,17 @@ void BlazeClient::processOutput(TaskMsg &msg) {
       }
     }
     catch (std::runtime_error &e) {
-      logger->logErr(LOG_HEADER + 
+      logErr(LOG_HEADER + 
           std::string("Failed to read output block ")+
           std::to_string((long long)i));
       throw std::runtime_error("Failed to process output");
     }
   }
-  logger->logInfo(LOG_HEADER+
+  logInfo(LOG_HEADER+
       std::string("Finish reading output blocks"));
 }
 
-void BlazeClient::recv(TaskMsg &task_msg, socket_ptr socket)
+void Client::recv(TaskMsg &task_msg, socket_ptr socket)
 {
   int msg_size = 0;
 
@@ -321,7 +258,7 @@ void BlazeClient::recv(TaskMsg &task_msg, socket_ptr socket)
 }
 
 // send one message, bytesize first
-void BlazeClient::send(TaskMsg &task_msg, socket_ptr socket)
+void Client::send(TaskMsg &task_msg, socket_ptr socket)
 {
   int msg_size = task_msg.ByteSize();
 
@@ -333,7 +270,4 @@ void BlazeClient::send(TaskMsg &task_msg, socket_ptr socket)
 
   socket->send(buffer(msg_data, msg_size),0);
 }
-
 } // namespace blaze
-
-#endif

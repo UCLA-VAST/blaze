@@ -15,7 +15,7 @@ endif
 CFLAGS= -shared -fPIC -std=c++0x -m64 -g 
 COMPILE= $(CFLAGS) \
 				 -I$(FCS_RT_ROOT)/include \
-				 -I$(FCS_RT_ROOT)/boost_1_55_0/include \
+				 -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
 				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
 
 ACC = LogisticGradientWithLoss
