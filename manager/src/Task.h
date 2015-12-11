@@ -42,9 +42,9 @@ public:
     try {
       compute();
       status = FINISHED;
-    } catch (std::runtime_error &e) {
+    } catch (std::exception &e) {
       status = FAILED; 
-      throw e;
+      throw std::runtime_error(e.what());
     }
   }
   

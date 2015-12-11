@@ -76,19 +76,18 @@ int main(int argc, char** argv) {
   google::protobuf::io::FileInputStream fin(file_handle);
   
   if (!google::protobuf::TextFormat::Parse(&fin, conf)) {
-    printf("cannot parse configuration from %s\n", argv[1]);  
-    return 1;
+    LOG(FATAL) << "cannot parse configuration from " << argv[1];
   }
 
   // setup Logger
-  int verbose = conf->verbose();  
+  FLAGS_v = conf->verbose();
 
   // setup PlatformManager
   PlatformManager platform_manager(conf);
 
   // check if there is accelerator successfully setup
   if (platform_manager.getLabels().empty()) {
-    LOG(ERROR) << "No platform is setup, exiting...";
+    LOG(ERROR) << "No accelerator is setup, exiting...";
     return -1;
   }
 

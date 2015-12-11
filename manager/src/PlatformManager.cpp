@@ -2,6 +2,8 @@
 #include <stdexcept>
 #include <dlfcn.h>
 
+#include <boost/regex.hpp>
+
 #define LOG_HEADER "PlatformManager"
 #include <glog/logging.h>
 
@@ -22,6 +24,14 @@ PlatformManager::PlatformManager(ManagerConf *conf)
     std::string id   = platform_conf.id();
     std::string path = platform_conf.path();
 
+    // check platform id for special characters
+    boost::regex special_char_test("\\w+", boost::regex::perl);
+    if (!boost::regex_match(id.begin(), id.end(), special_char_test)) {
+      LOG(ERROR) << "Platform id [" << id << "] cannot contain " 
+        << "special characters beside alphanumeric and '_'";
+      continue;
+    }
+
     try {
       Platform_ptr platform = this->create(path);
 
@@ -37,15 +47,23 @@ PlatformManager::PlatformManager(ManagerConf *conf)
                                 platform_conf.cache_loc() : id;
 
       // create block manager
-      if (cache_table.find(cache_loc) == cache_table.end()) 
+      if (cache_table.find(cache_loc) == cache_table.end())
       {
+        if (cache_loc.compare(id) != 0) {
+          LOG(WARNING) << "Unspecificed cache location, use private instead";
+          cache_loc = id;
+        }
         // if the cache is not shared with another platform
-        // create a block manager in the platform
+        // create a block manager in current platform
         platform->createBlockManager(
             (size_t)cache_limit << 20, 
             (size_t)scratch_limit << 20);
-        cache_table.insert(std::make_pair(id, cache_loc));
+
+        DLOG(INFO) << "Create a block manager for " << cache_loc;
       }
+      cache_table.insert(std::make_pair(id, cache_loc));
+      VLOG(1) << "Config platform " << id << 
+        " to use device memory on " << cache_loc;
 
       QueueManager* queue_manager = platform->getQueueManager();
 

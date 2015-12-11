@@ -26,7 +26,7 @@ XTRACFLAG = -DFLEX_INET6 -DRELEASE_VERSION -D__BITS64 -pipe \
 						-DLINUX64 -DAMD64 -DREDHAT -DREL -DRHLINUX64 \
 						-DPLATFORM_AMD64_RHLINUX 
 
-CFLAGS = -c -fPIC -std=c++0x -g \
+CFLAGS = -c -fPIC -std=c++0x \
 				 $(XTRACFLAG) -DNO_ACTIVATION_SUPPORT
 
 INCLUDES = -I$(BOOST_DIR)/include \
@@ -40,7 +40,7 @@ COMPILE = $(CFLAGS) \
 
 LINK= -L../lib -lblaze \
 			-L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
+			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex\
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \
 			-L$(GLOG_DIR)/lib -lglog \
 			-L$(FLMDIR) $(FLMLIB) \
@@ -71,6 +71,9 @@ all: ../bin/acc_manager ../lib/libblaze.so
 package: 
 	cp ../bin/acc_manager ../../package/nam/bin/nam_daemon
 	cp ../lib/libblaze.so ../../package/nam/lib
+	cp Common.h ../../package/include
+	cp Task.h ../../package/include
+	cp TaskEnv.h ../../package/include
 
 ../lib/libblaze.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS)
