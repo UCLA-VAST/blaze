@@ -9,13 +9,13 @@
 
 using namespace blaze;
 
-class Logistic : public Task {
+class Logistic_GPU : public Task {
 public:
 
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  Logistic(): Task(2) {;}
+  Logistic_GPU(): Task(2) {;}
 
   // overwrites the compute function
   // Input data:
@@ -140,7 +140,7 @@ public:
 };
 
 extern "C" Task* create() {
-  return new Logistic();
+  return new Logistic_GPU();
 }
 
 extern "C" void destroy(Task* p) {

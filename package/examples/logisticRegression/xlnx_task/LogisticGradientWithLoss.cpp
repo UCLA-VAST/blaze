@@ -12,13 +12,13 @@
 
 using namespace blaze;
 
-class Logistic : public Task {
+class Logistic_FPGA : public Task {
 public:
 
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  Logistic(): Task(2) {
+  Logistic_FPGA(): Task(2) {
     addConfig(0, "align_width", "64");
   }
 
@@ -95,7 +95,7 @@ public:
 };
 
 extern "C" Task* create() {
-  return new Logistic();
+  return new Logistic_FPGA();
 }
 
 extern "C" void destroy(Task* p) {
