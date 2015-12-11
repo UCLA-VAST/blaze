@@ -12,7 +12,7 @@ $SPARK_HOME/bin/spark-submit --class Memcpy \
 	--driver-memory 2G \
 	--executor-memory 1G \
 	--executor-cores 2 \
-	--executor-accs 1 \
+	--executor-label Memcpy \
 	--num-executors 1 \
 	--master yarn-cluster \
 	target/memcpy-1.0.jar $@

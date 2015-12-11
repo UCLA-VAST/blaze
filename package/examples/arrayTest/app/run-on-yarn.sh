@@ -12,7 +12,7 @@ $SPARK_HOME/bin/spark-submit --class TestApp \
 	--driver-memory 2G \
 	--executor-memory 1G \
 	--executor-cores 2 \
-	--executor-accs 1 \
+	--executor-label ArrayTest \
 	--num-executors 1 \
 	--master yarn-cluster \
 	target/arraytest-1.0.jar $@
