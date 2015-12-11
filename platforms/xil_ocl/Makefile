@@ -20,7 +20,7 @@ endif
 
 MANAGER_DIR=../../manager
 
-CFLAGS= -c -fPIC -std=c++0x -g
+CFLAGS= -c -fPIC -std=c++0x #-g
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/include \
 				 -I$(MANAGER_DIR)/src \
@@ -38,9 +38,14 @@ DEPS= OpenCLEnv.o \
 			OpenCLBlock.o \
 			OpenCLQueueManager.o
 
-all: xil_ocl.so
+DST= xlnx_opencl.so
 
-xil_ocl.so: $(DEPS)
+all: $(DST)
+
+package: 
+	cp $(DST) ../../package/nam/lib
+
+$(DST): $(DEPS)
 	$(PP) -shared -o $@ $(DEPS) $(LINK) 
 
 %.o: %.cpp *.h Makefile
@@ -48,4 +53,4 @@ xil_ocl.so: $(DEPS)
 
 clean:
 	rm -rf *.o
-	rm -rf ../lib/xil_ocl.so
+	rm -rf $(DST)
