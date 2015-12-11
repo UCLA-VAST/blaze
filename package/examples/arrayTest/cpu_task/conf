@@ -1,4 +1,4 @@
-verbose : 2
+verbose : 0
 platform : {
   cache_limit: 8192
   scratch_limit: 2048

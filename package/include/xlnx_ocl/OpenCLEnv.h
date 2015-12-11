@@ -1,6 +1,11 @@
 #ifndef OPENCLENV_H
 #define OPENCLENV_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+#include <stdexcept>
+
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 #include <CL/opencl.h>

@@ -1,8 +1,7 @@
-verbose : 2
+verbose : 0
 platform : {
-  id : "Xilinx-OpenCL"
-  path : "[FCSROOT]/nam/lib/xil_ocl.so"
-  cache_loc: "Xilinx OpenCL"
+  id : "xlnx_opencl"
+  path : "[FCSROOT]/nam/lib/xlnx_opencl.so"
   cache_limit: 8192
   scratch_limit: 2048
   acc : {

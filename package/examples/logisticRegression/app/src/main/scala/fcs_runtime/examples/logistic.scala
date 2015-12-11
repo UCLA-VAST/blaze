@@ -14,45 +14,36 @@ object LogisticRegression {
     var conf = new SparkConf().setAppName("LogisticRegression")
     val sc = new SparkContext(conf)
 
-    if (args.length < 3) {
-      System.err.println("Usage: LogisticRegression <train_file> <test_file> <part_num>")
+    if (args.length < 2) {
+      System.err.println("Usage: LogisticRegression <train_file> <part_num>")
       System.exit(1)
     }
 
-    val reps = args(2).toInt
+    val reps = args(1).toInt
 
-    val train = sc.textFile(args(0)).map( line => {
-        var parts = line.split(',') 
-        LabeledPoint(parts(0).toDouble, 
-            Vectors.dense(parts(1).split(' ').map(_.toDouble)))
-        }).repartition(reps).cache()
+    var data = MLUtils.loadLibSVMFile(sc, args(0))
+    val splits = data.randomSplit(Array(0.7, 0.3), seed = 42L)
+    val train = splits(0).repartition(reps).cache()
+    //val train = splits(0).cache()
+    val test = splits(1)
 
-    val test = sc.textFile(args(1)).map( line => {
-        var parts = line.split(',') 
-        LabeledPoint(parts(0).toDouble, 
-            Vectors.dense(parts(1).split(' ').map(_.toDouble)))
-        });
-
-    val startTime = System.nanoTime
-
-    // start training 
     val model = new LogisticRegressionWithLBFGS()
       .setNumClasses(10)
       .run(train)
 
-    val elapseTime = System.nanoTime - startTime
-    println("Training finished in "+ (elapseTime.toDouble / 1e9) +"s.")
+    println("training finished.")
 
     // Compute raw scores on the test set.
     val predictionAndLabels = test.map { case LabeledPoint(label, features) =>
-      val prediction = model.predict(features)
-        (prediction, label)
-      }
-    
+          val prediction = model.predict(features)
+          (prediction, label)
+        }
+
     // Get evaluation metrics.
     val metrics = new MulticlassMetrics(predictionAndLabels)
     val precision = metrics.precision
-    println("Precision = " + precision)
+
+    println("Precision = " + precision) 
   }
 }
 
