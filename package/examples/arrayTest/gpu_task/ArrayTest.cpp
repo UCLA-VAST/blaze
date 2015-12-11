@@ -1,30 +1,25 @@
 #include <stdexcept>
 
 #include "Task.h" 
-#include "gpu_ocl/OpenCLEnv.h" 
+#include "nv_ocl/OpenCLEnv.h" 
 
 using namespace blaze;
 
-class Logistic : public Task {
+class ArrayTest : public Task {
 public:
 
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  Logistic(): Task(2) {;}
+  ArrayTest(): Task(2) {;}
 
   // overwrites the compute function
-  // Input data:
-  // - data: layout as num_samples x [double label, double[] feature]
-  // - weight: (num_labels-1) x feature_length
-  // Output data:
-  // - gradient plus loss: [double[] gradient, double loss]
   virtual void compute() {
 
     struct	timeval t1, t2, tr;
 
     // dynamically cast the TaskEnv to OpenCLEnv
-    OpenCLEnv* ocl_env = (OpenCLEnv*)getEnv();
+    OpenCLTaskEnv* ocl_env = (OpenCLTaskEnv*)getEnv();
 
     // get input data length
     int total_length  = getInputLength(0);
@@ -33,11 +28,17 @@ public:
 
     // get OpenCL context
     cl_context       context = ocl_env->getContext();
-    cl_kernel        kernel  = ocl_env->getKernel();
     cl_command_queue command = ocl_env->getCmdQueue();
+    cl_program       program = ocl_env->getProgram();
 
     int err;
     cl_event event;
+
+    cl_kernel kernel = clCreateKernel(program, "arrayTest", &err);
+    if (!kernel || err != CL_SUCCESS) {
+      throw std::runtime_error(
+          "Failed to create compute kernel arrayTest");
+    }
 
     // get the pointer to input/output data
     cl_mem ocl_a = *((cl_mem*)getInput(0));
@@ -64,23 +65,13 @@ public:
     size_t work_gsize[1];
     work_gsize[0] = 64*work_lsize[0];
 
-    ocl_env->lock();
     err = clEnqueueNDRangeKernel(command, kernel, 1, NULL, work_gsize, work_lsize, 0, NULL, &event);
-    ocl_env->unlock();
-    clWaitForEvents(1, &event);
-
-    // Execute the kernel over the entire range of our 1d input data set
-    // using the maximum number of work group items for this device
-    err = clEnqueueTask(command, kernel, 0, NULL, &event);
-    if (err) {
-      throw std::runtime_error("Failed to execute kernel!");
-    }
     clWaitForEvents(1, &event);
   }
 };
 
 extern "C" Task* create() {
-  return new Logistic();
+  return new ArrayTest();
 }
 
 extern "C" void destroy(Task* p) {

@@ -1,6 +1,3 @@
-PP=g++
-CC=gcc
-
 ifeq ($(FCS_RT_ROOT),)	
 FCS_RT_ROOT=../../..
 endif
@@ -10,13 +7,16 @@ endif
 
 CUDA_DIR=/usr/local/cuda
 
-CFLAGS= -shared -fPIC -std=c++0x -m64
+PP=g++
+CC=gcc
+
+CFLAGS= -shared -fPIC -std=c++0x -m64 -g 
 COMPILE= $(CFLAGS) \
 				 -I$(FCS_RT_ROOT)/include \
 				 -I$(FCS_RT_ROOT)/boost_1_55_0/include \
 				 -I$(CUDA_DIR)/include
 
-ACC = ArrayTest
+ACC = Logistic
 
 OBJS= $(addsuffix .so, $(ACC))
 

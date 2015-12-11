@@ -5,11 +5,11 @@ platform : {
   cache_limit: 8192
   scratch_limit: 2048
   acc : {
-    id : "ArrayTest"
-    path : "[PWD]/ArrayTest.so"
+    id : "LogisticGradientAndLoss"
+    path : "[PWD]/Logistic.so"
     param : {
       key : "program_path"
-      value : "[PWD]/ArrayTest.cl"
+      value : "[PWD]/gradient.cl"
     }
   }
 }
