@@ -350,6 +350,9 @@ public class CommonNodeLabelsManager extends AbstractService {
   }
 
   public void removeLabelRelationsOnNode(NodeId nodeId) {
+    if (deviceToAccOnNode.get(nodeId) != null) {
+      deviceToAccOnNode.get(nodeId).clear();
+    }
     if (accOnNode.get(nodeId) != null) {
       accOnNode.get(nodeId).clear();
     }
