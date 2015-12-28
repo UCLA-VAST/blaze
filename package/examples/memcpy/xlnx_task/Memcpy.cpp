@@ -3,8 +3,8 @@
 #include <string.h>
 #include <stdexcept>
 
-#include "OpenCLEnv.h" 
 #include "Task.h" 
+#include "xlnx_ocl/OpenCLEnv.h" 
 
 using namespace blaze;
 

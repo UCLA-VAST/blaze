@@ -37,3 +37,5 @@ fi
 
 echo "FCS Runtime System is successfully installed!"
 echo "Please refer to the quick start for examples at README.md"
+
+rm $0

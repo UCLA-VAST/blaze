@@ -14,7 +14,7 @@
 
 ### Run example Spark applications locally
 
-Assuming the FCS Runtime System is installed in `$FCS_RT_ROOT`, the examples are
+Assuming the FCS Kestrel Runtime System is installed in `$FCS_RT_ROOT`, the examples are
 located at `$FCS_RT_ROOT/examples`. Below is a step-by-step to test an example 
 application `$EXAMPLE`:
 

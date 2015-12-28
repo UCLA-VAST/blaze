@@ -7,6 +7,8 @@
 #include "OpenCLPlatform.h"
 #include "OpenCLQueueManager.h"
 
+#define MAX_PLATFORMS 32
+
 namespace blaze {
 
 OpenCLPlatform::OpenCLPlatform() 
@@ -15,24 +17,46 @@ OpenCLPlatform::OpenCLPlatform()
   // start platform setting up
   int err;
 
-  cl_platform_id platform_id;
-
-  char cl_platform_vendor[1001];
-  char cl_platform_name[1001];
+  cl_platform_id  platforms[MAX_PLATFORMS];
+  cl_device_id    device_id;
+  uint32_t        num_platforms = 0;
 
   // Connect to first platform
-  err = clGetPlatformIDs(1, &platform_id, NULL);
+  err = clGetPlatformIDs(MAX_PLATFORMS, platforms, &num_platforms);
 
-  if (err != CL_SUCCESS) {
+  if (err != CL_SUCCESS || num_platforms == 0) {
     throw std::runtime_error(
-        "Failed to find an OpenCL platform!");
+        "No OpenCL platform exists on this host");
   }
 
-  cl_device_id device_id;
+  // iterate through all platforms and find NVidia GPU
+  int platform_idx = 0;
+  for (platform_idx=0; platform_idx<num_platforms; platform_idx++) {
+    char cl_platform_name[1001];
+
+    err = clGetPlatformInfo(
+        platforms[platform_idx], CL_PLATFORM_NAME, 
+        1000, (void *)cl_platform_name, NULL);
+
+    if (err != CL_SUCCESS) {
+      LOG(ERROR) << "clGetPlatformInfo(CL_PLATFORM_NAME) "
+        << "failed on platform " << platform_idx;;
+    }
+    if (strstr(cl_platform_name, "Xilinx")!=NULL) {
+      // found platform
+      break;
+    }
+  }
+  if (platform_idx>=num_platforms) {
+    LOG(ERROR) << "No Xilinx platform found, this binary only " <<
+      "supports Xilinx FPGAs";
+    throw std::runtime_error("No supported platform found");
+  }
+  DLOG(INFO) << "Found Xilinx OpenCLPlatform at " << platform_idx;
 
   // Connect to a compute device
   err = clGetDeviceIDs(
-      platform_id, 
+      platforms[platform_idx], 
       CL_DEVICE_TYPE_ACCELERATOR, 
       1, 
       &device_id, 

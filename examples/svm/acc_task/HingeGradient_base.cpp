@@ -22,10 +22,9 @@ public:
   // are required
   HingeGradient(): Task(2) {;}
 
-  // overwrites the compute function
   // Input data:
   // - data: layout as num_samples x [double label, double[] feature]
-  // - weight: (num_labels-1) x feature_length
+  // - weight: 1 x feature.length
   // Output data:
   // - (gradient, loss, count): [double[] gradient, double loss, double count]
   virtual void compute() {

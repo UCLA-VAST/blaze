@@ -271,6 +271,7 @@ void AppCommManager::process(socket_ptr sock) {
               std::string("Error in receiving ACCDATA ")+
               std::string(e.what()));
         }
+        DLOG(INFO) << "Received ACCDATA";
 
         // Acquire data from Spark
         if (data_msg.type() != ACCDATA) {

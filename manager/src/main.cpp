@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
   FLAGS_logtostderr = 1;
 
   // check license
-  //licence_check_out();
+  licence_check_out();
   
   if (argc < 2) {
     printf("USAGE: %s <conf_path>\n", argv[0]);
@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
   }
 
   // release license
-  //licence_check_in();
+  licence_check_in();
 
   return 0;
 }

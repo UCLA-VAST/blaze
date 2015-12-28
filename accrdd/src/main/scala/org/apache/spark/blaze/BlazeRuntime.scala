@@ -90,7 +90,6 @@ class BlazeRuntime(sc: SparkContext) extends Logging {
         catch {
           case e: Throwable =>
             val sw = new StringWriter
-            e.printStackTrace(new PrintWriter(sw))
             logInfo("Fail to release broadcast data from Manager " + worker._1 + ": " + sw.toString)
         }
       }

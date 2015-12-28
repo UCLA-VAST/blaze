@@ -17,7 +17,7 @@ namespace blaze {
 
 class OpenCLBlock : public DataBlock 
 {
-  friend OpenCLQueueManager;
+  friend class OpenCLQueueManager;
 
 public:
   // create a single output elements

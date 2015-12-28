@@ -13,15 +13,13 @@ PP=g++
 
 CFLAGS= -c -fPIC -std=c++0x -g
 COMPILE= $(CFLAGS) \
-				 -I$(MANAGER_DIR)/include \
 				 -I$(MANAGER_DIR)/src \
 				 -I$(BOOST_DIR)/include \
-				 -I$(GLOG_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include
 	
 LINK= -L$(MANAGER_DIR)/lib -lblaze \
 			-L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
+			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex \
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \
 			-L$(GLOG_DIR)/lib -lglog \
 			-lpthread -lm -ldl

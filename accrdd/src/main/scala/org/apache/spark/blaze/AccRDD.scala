@@ -199,6 +199,10 @@ class AccRDD[U: ClassTag, T: ClassTag](
             DataTransmitter.addData(dataMsg, blockInfo(i), true, maskFileInfo.fileName)
           }
         }
+        elapseTime = System.nanoTime - startTime
+        logInfo("Partition "+split.index+" preparing input blocks takes: "+elapseTime+"ns");
+
+        startTime = System.nanoTime
 
         // Prepare broadcast blocks
         var numBrdcstBlock: Int = 0
@@ -227,11 +231,14 @@ class AccRDD[U: ClassTag, T: ClassTag](
             numBrdcstBlock += 1
           }
         }
+        elapseTime = System.nanoTime - startTime
+        logInfo("Partition "+split.index+" preparing broadcast blocks takes: "+elapseTime+"ns");
 
         // Send ACCDATA message only when it is required.
         if (requireData == true) {
           transmitter.send(dataMsg)
         }
+
         logInfo("Sent partition "+split.index+" to the accelerator");
 
         val finalRevMsg = transmitter.receive()

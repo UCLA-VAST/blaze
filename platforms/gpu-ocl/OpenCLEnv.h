@@ -44,7 +44,7 @@ private:
 
 class OpenCLTaskEnv : public TaskEnv 
 {
-  friend OpenCLQueueManager;
+  friend class OpenCLQueueManager;
 
 public:
   OpenCLTaskEnv(
