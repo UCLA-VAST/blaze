@@ -201,6 +201,9 @@ public interface MRJobConfig {
 
   public static final String TASK_USERLOG_LIMIT = "mapreduce.task.userlog.limit.kb";
 
+  public static final String MR_LABEL = "mapreduce.label";
+  public static final String DEFAULT_MR_LABEL = "";
+
   public static final String MAP_SORT_SPILL_PERCENT = "mapreduce.map.sort.spill.percent";
 
   public static final String MAP_INPUT_FILE = "mapreduce.map.input.file";
@@ -424,10 +427,6 @@ public interface MRJobConfig {
   public static final String MR_AM_CPU_VCORES =
     MR_AM_PREFIX+"resource.cpu-vcores";
   public static final int DEFAULT_MR_AM_CPU_VCORES = 1;
-
-  /** The container label the MR app master needs.*/
-  public static final String MR_LABEL = "mapreduce.label";
-  public static final String DEFAULT_MR_LABEL = "";
 
   /** Command line arguments passed to the MR app master.*/
   public static final String MR_AM_COMMAND_OPTS =
