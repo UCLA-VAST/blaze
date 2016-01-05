@@ -425,6 +425,10 @@ public interface MRJobConfig {
     MR_AM_PREFIX+"resource.cpu-vcores";
   public static final int DEFAULT_MR_AM_CPU_VCORES = 1;
 
+  /** The container label the MR app master needs.*/
+  public static final String MR_LABEL = "mapreduce.label";
+  public static final String DEFAULT_MR_LABEL = "";
+
   /** Command line arguments passed to the MR app master.*/
   public static final String MR_AM_COMMAND_OPTS =
     MR_AM_PREFIX+"command-opts";
