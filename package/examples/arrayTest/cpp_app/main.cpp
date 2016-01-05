@@ -1,12 +1,38 @@
+#define LOG_HEADER "main"
+#include <glog/logging.h>
 
 #include  "Client.h"
 
-#define LABEL_SIZE		10
-#define FEATURE_SIZE	784
-
 using namespace blaze;
 
+class ArrayTestClient: public Client {
+public:
+  ArrayTestClient(): Client("ArrayTest") {;}
+
+  void compute() {
+    double* data_ptr    = (double*)getData(0);
+    double* weight_ptr  = (double*)getData(1);
+    double* output_ptr  = (double*)getData(2);
+
+    int num_samples = getInputNumItems(0);
+    int feature_size = getInputLength(1);
+
+    for (int i = 0; i < num_samples; i++) {
+      for (int j = 0; j < feature_size; j++) {
+        output_ptr[i * feature_size + j] = 
+          data_ptr[i * feature_size +j] + 
+          weight_ptr[j];
+      }
+    }
+  }
+};
+
 int main(int argc, char** argv) {
+
+  // GLOG configuration
+  google::InitGoogleLogging(argv[0]);
+  FLAGS_logtostderr = 1;
+  FLAGS_v = 0;
 
   if (argc < 2) {
     printf("USAGE: %s <num_samples>\n", argv[0]);
@@ -22,7 +48,7 @@ int main(int argc, char** argv) {
   int data_size = num_samples*feature_size;
 
   try {
-    Client client("ArrayTest", "C++");
+    ArrayTestClient client;
 
     double* data_ptr    = (double*)client.alloc(num_samples, feature_size, feature_size*sizeof(double), BLAZE_INPUT);
     double* weight_ptr  = (double*)client.alloc(feature_size, 1, sizeof(double), BLAZE_INPUT);
