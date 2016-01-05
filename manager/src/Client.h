@@ -30,11 +30,8 @@ typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 class Client {
   
 public:
-  Client(
-      std::string _acc_id, 
-      std::string _app_id, 
-      int port = 1027,
-      int verbose = 2);
+  Client(std::string _acc_id, 
+      int port = 1027);
 
   // allocate a new block and return the pointer
   // NOTE: assuming the blocks are ordered
@@ -49,7 +46,14 @@ public:
   // get the pointer from a block
   void* getData(int idx);
 
+  int getInputLength(int idx);
+
+  int getInputNumItems(int idx);
+
   void start();
+
+  // pure virtual method to be overloaded
+  virtual void compute() = 0;
 
 private:
 

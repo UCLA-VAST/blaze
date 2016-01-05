@@ -26,7 +26,7 @@ XTRACFLAG = -DFLEX_INET6 -DRELEASE_VERSION -D__BITS64 -pipe \
 						-DLINUX64 -DAMD64 -DREDHAT -DREL -DRHLINUX64 \
 						-DPLATFORM_AMD64_RHLINUX 
 
-CFLAGS = -c -fPIC -std=c++0x -g #-O1 -DNDEBUG
+CFLAGS = -c -fPIC -std=c++0x -O1 -DNDEBUG
 #$(XTRACFLAG) -DNO_ACTIVATION_SUPPORT
 
 INCLUDES = -I$(BOOST_DIR)/include \
@@ -97,4 +97,5 @@ msgGamNam.pb.o: proto/msgGamNam.pb.cc
 
 clean:
 	rm -rf *.o
+	rm -rf ../lib/libblaze.so
 	rm -rf ../bin/acc_manager

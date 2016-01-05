@@ -1,0 +1,9 @@
+verbose : 0
+platform : {
+  cache_limit: 8192
+  scratch_limit: 2048
+  acc : {
+    id : "Pi"
+    path : "[PWD]/Pi.so"
+  }
+}

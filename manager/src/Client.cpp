@@ -1,6 +1,8 @@
-#define LOG_HEADER  std::string("Client::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
+#include <stdio.h>
+#include <sstream>
+
+#define LOG_HEADER "Client"
+#include <glog/logging.h>
 
 #include "Block.h"
 #include "Client.h"
@@ -9,10 +11,8 @@ namespace blaze {
 
 Client::Client(
     std::string _acc_id, 
-    std::string _app_id, 
-    int port, int verbose):
+    int port):
   acc_id(_acc_id), 
-  app_id(_app_id), 
   ip_address("127.0.0.1"),
   srv_port(port),
   num_inputs(0),
@@ -20,18 +20,24 @@ Client::Client(
 {
   srand(time(NULL));
 
-  // setup socket connection
-  ios_ptr _ios(new io_service);
-  endpoint_ptr _endpoint(new ip::tcp::endpoint(
-        ip::address::from_string(ip_address),
-        srv_port));
+  // setup app_id
+  std::stringstream ss;
 
-  ios = _ios;
-  endpoint = _endpoint;
+  ss << "native-app-" << getTid() << rand()%1024;
+
+  app_id = ss.str();
 }
 
 void* Client::getData(int idx) {
     return (void*)blocks[idx].second->getData();
+}
+
+int Client::getInputNumItems(int idx) {
+    return blocks[idx].second->getNumItems();
+}
+
+int Client::getInputLength(int idx) {
+    return blocks[idx].second->getLength();
 }
 
 void* Client::alloc(
@@ -88,19 +94,30 @@ void Client::readBlock(int idx, void* dst, size_t size) {
 
 void Client::start() {
 
-  // create socket for connection
-  socket_ptr sock(new ip::tcp::socket(*ios));
-  sock->connect(*endpoint);
-  sock->set_option(ip::tcp::no_delay(true));
-
   try {
+
+    // setup socket connection
+    if (!ios || !endpoint) {
+      ios_ptr _ios(new io_service);
+      endpoint_ptr _endpoint(new ip::tcp::endpoint(
+            ip::address::from_string(ip_address),
+            srv_port));
+
+      ios = _ios;
+      endpoint = _endpoint;
+    }
+
+    // create socket for connection
+    socket_ptr sock(new ip::tcp::socket(*ios));
+    sock->connect(*endpoint);
+    sock->set_option(ip::tcp::no_delay(true));
 
     // send request
     TaskMsg request_msg;
     prepareRequest(request_msg);
     send(request_msg, sock);
 
-    logInfo(LOG_HEADER+std::string("Sent a request"));
+    VLOG(2) << "Sent a request";
 
     // wait on reply for ACCREQUEST
     TaskMsg reply_msg;
@@ -111,7 +128,7 @@ void Client::start() {
       TaskMsg data_msg;
       prepareData(data_msg, reply_msg);
       send(data_msg, sock);
-      logInfo(LOG_HEADER+std::string("Sent data"));
+      VLOG(2) << "Sent data";
     }
     else {
       throw std::runtime_error("request rejected");
@@ -130,9 +147,10 @@ void Client::start() {
      
   }
   catch (std::exception &e) {
-    logErr(LOG_HEADER+
-        std::string("Task failed because:")+
-        e.what());
+    VLOG(1) << "Task failed because: " << e.what();
+    VLOG(1) << "Perform computation on CPU";
+    
+    compute();
   }
 }
 
@@ -140,6 +158,8 @@ void Client::prepareRequest(TaskMsg &msg) {
 
   msg.set_type(ACCREQUEST);
   msg.set_acc_id(acc_id);
+
+  // TODO: generate app_id instead
   msg.set_app_id(app_id);
 
   for (int i=0; i<num_inputs; i++) {
@@ -160,17 +180,14 @@ void Client::prepareRequest(TaskMsg &msg) {
     }
   }
 
-  logInfo(LOG_HEADER+
-      std::string("Requesting accelerator ")+
-      acc_id);
+  VLOG(1) << "Requesting accelerator " << acc_id;
 }
 
 void Client::prepareData(TaskMsg &data_msg, TaskMsg &reply_msg) {
  
   data_msg.set_type(ACCDATA);
   
-  logInfo(LOG_HEADER+
-      std::string("Start writing data to memory"));
+  VLOG(1) << "Start writing data to memory";
 
   for (int i=0; i<reply_msg.data_size(); i++) {
 
@@ -193,17 +210,14 @@ void Client::prepareData(TaskMsg &data_msg, TaskMsg &reply_msg) {
       block_info->set_element_length(block->getItemLength());
       block_info->set_element_size(block->getItemSize());
 
-      logInfo(LOG_HEADER+
-          std::string("Finish writing block ")+
-          std::to_string((long long) i));
+      VLOG(1) << "Finish writing block " << i;
     }
   }
 }
 
 void Client::processOutput(TaskMsg &msg) {
 
-  logInfo(LOG_HEADER+
-      std::string("Task finished, start reading output"));
+  VLOG(1) << "Task finished, start reading output";
 
   if (num_outputs != msg.data_size()) {
     throw std::runtime_error("Failed to process output");
@@ -225,14 +239,10 @@ void Client::processOutput(TaskMsg &msg) {
       }
     }
     catch (std::runtime_error &e) {
-      logErr(LOG_HEADER + 
-          std::string("Failed to read output block ")+
-          std::to_string((long long)i));
       throw std::runtime_error("Failed to process output");
     }
   }
-  logInfo(LOG_HEADER+
-      std::string("Finish reading output blocks"));
+  VLOG(1) << "Finish reading output blocks";
 }
 
 void Client::recv(TaskMsg &task_msg, socket_ptr socket)
