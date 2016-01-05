@@ -35,6 +35,15 @@ else
   exit -1
 fi
 
+echo "#4 Configuring examples..."
+SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+ROOTDIR=$SCRIPT_DIR
+
+EXAMPLE_DIR=$ROOTDIR/examples/pi/app
+
+sed -i "s/\[FCSROOT\]/$(echo $ROOTDIR | sed -e 's/[\/&]/\\&/g')/g" $EXAMPLE_DIR/map.sh
+sed -i "s/\[FCSROOT\]/$(echo $ROOTDIR | sed -e 's/[\/&]/\\&/g')/g" $EXAMPLE_DIR/reduce.sh
+
 echo "FCS Runtime System is successfully installed!"
 echo "Please refer to the quick start for examples at README.md"
 
