@@ -50,6 +50,11 @@ void AppCommManager::process(socket_ptr sock) {
     // - partition_id: cached, sampled
     std::map<int64_t, std::pair<bool, bool> > block_table;
 
+    // TODO: better naming
+    // a table containing cache information of each input block
+    // - partition_id: enable cache
+    std::map<int64_t, bool> cache_table;
+
     try {
       recv(task_msg, sock);
     }
@@ -120,6 +125,8 @@ void AppCommManager::process(socket_ptr sock) {
            * used to differentiate the blocks in a single task
            */
           task->addInputBlock(i, block);
+
+          DLOG(INFO) << "Received an scalar value";
         }
         // 1.3.2 if this is not a scalar, then its an array
         else {
@@ -183,37 +190,58 @@ void AppCommManager::process(socket_ptr sock) {
           }
           // 1.3.2.2 if the input is a normal input block
           else {
-            if (block_manager->contains(blockId)) {
+            // if the input block is non-cachable
+            if (recv_block.has_cached() && !recv_block.cached()) {
 
-              if (recv_block.has_sampled() && recv_block.sampled()) {
-
-                // wait for mask in ACCDATA 
-                wait_accdata = true; 
-
-                reply_block->set_sampled(true);
-              }
-              else {
-                block = block_manager->get(blockId);
-                reply_block->set_sampled(false);
-              }
-              reply_block->set_cached(true); 
-            }
-            // 1.3.2.2.2 if the input block is not cached
-            else {
-
-              // do not add block to task input table if data is sampled
-              block = NULL_DATA_BLOCK;
-              
-              if (recv_block.has_sampled() && recv_block.sampled()) {
-
-                reply_block->set_sampled(true);
-
-              }
-              else {
-                reply_block->set_sampled(false);
-              }
-              reply_block->set_cached(false); 
               wait_accdata = true;
+
+              // NOTE: do not support sampling at this point
+              reply_block->set_cached(false); 
+              reply_block->set_sampled(false);
+
+              block = NULL_DATA_BLOCK;
+
+              DLOG(INFO) << "Add a non-cachable block to task, id=" << blockId;
+
+              // mark the block to skip cache
+              cache_table.insert(std::make_pair(blockId, false));
+            }
+            else {
+              DLOG(INFO) << "Add a cachable block to task, id=" << blockId;
+
+              if (block_manager->contains(blockId)) {
+
+                if (recv_block.has_sampled() && recv_block.sampled()) {
+
+                  // wait for mask in ACCDATA 
+                  wait_accdata = true; 
+
+                  reply_block->set_sampled(true);
+                }
+                else {
+                  block = block_manager->get(blockId);
+                  reply_block->set_sampled(false);
+                }
+                reply_block->set_cached(true); 
+              }
+              // 1.3.2.2.2 if the input block is not cached
+              else {
+
+                // do not add block to task input table if data is sampled
+                block = NULL_DATA_BLOCK;
+
+                if (recv_block.has_sampled() && recv_block.sampled()) {
+
+                  reply_block->set_sampled(true);
+
+                }
+                else {
+                  reply_block->set_sampled(false);
+                }
+                reply_block->set_cached(false); 
+                wait_accdata = true;
+              }
+              cache_table.insert(std::make_pair(blockId, true));
             }
           }
           // add block to task
@@ -268,6 +296,7 @@ void AppCommManager::process(socket_ptr sock) {
               std::string("Error in receiving ACCDATA ")+
               std::string(e.what()));
         }
+        DLOG(INFO) << "Received ACCDATA";
 
         // Acquire data from Spark
         if (data_msg.type() != ACCDATA) {
@@ -460,11 +489,23 @@ void AppCommManager::process(socket_ptr sock) {
                   align_width = stoi(task->getConfig(i, "align_width"));
                 }
 
-                // the block needs to be created and add to cache
-                block_manager->getAlloc(
-                    blockId, block,
-                    num_elements, element_length, element_size, 
-                    align_width);
+                if ( cache_table.find(blockId) != cache_table.end() &&
+                    !cache_table[blockId]) 
+                {
+                  DLOG(INFO) << "Skip cache for block " << blockId;
+
+                  // the block should skip cache
+                  block = platform->createBlock(
+                      num_elements, element_length, element_size,
+                      align_width);
+                }
+                else {
+                  // the block needs to be created and add to cache
+                  block_manager->getAlloc(
+                      blockId, block,
+                      num_elements, element_length, element_size, 
+                      align_width);
+                }
               }
               else { 
                 // if the block is a broadcast then it already resides in scratch
@@ -482,11 +523,9 @@ void AppCommManager::process(socket_ptr sock) {
               // NOTE: only remove normal input file
               try {
                 // delete memory map file after read
-                if (blockId >= 0) {
-                  boost::filesystem::wpath file(path);
-                  if (boost::filesystem::exists(file)) {
-                    boost::filesystem::remove(file);
-                  }
+                boost::filesystem::wpath file(path);
+                if (boost::filesystem::exists(file)) {
+                  boost::filesystem::remove(file);
                 }
               } catch (std::exception &e) {
                 LOG(WARNING) << "Cannot delete memory mapped file after read";

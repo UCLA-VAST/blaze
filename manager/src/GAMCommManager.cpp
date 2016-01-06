@@ -39,23 +39,29 @@ void GAMCommManager::process(socket_ptr sock) {
       Nam2GamAccNames reply_msg;
 
       // compile a list from platform manager
-      std::vector<std::string> names = platform_manager->getAccNames();
+      std::vector<std::pair<std::string, std::string> > labels = 
+        platform_manager->getLabels();
 
       // sort list to avoid permutations
-      std::sort(names.begin(), names.end());
+      //std::sort(labels.begin(), labels.end());
 
       if ((!msg.has_pull() || !msg.pull()) && 
-          names == last_names) 
+          labels == last_labels) 
       {
         reply_msg.set_isupdated(false); 
       }
       else {
         reply_msg.set_isupdated(true); 
       
-        for (int i=0; i<names.size(); i++) {
-          reply_msg.add_acc_names(names[i]);
+        for (int i=0; i<labels.size(); i++) {
+          Accelerator* label = reply_msg.add_acc_names();
+          label->set_acc_name(labels[i].first);
+          label->set_device_name(labels[i].second);
+
+          DLOG(INFO) << "Add acc name: " << labels[i].first << 
+            " | " << labels[i].second;
         }
-        last_names = names;
+        last_labels = labels;
       }
 
       // send reply message

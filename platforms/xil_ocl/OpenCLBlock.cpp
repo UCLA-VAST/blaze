@@ -10,8 +10,6 @@
 
 namespace blaze {
 
-#define LOG_HEADER  "OpenCLBlock"
-
 void OpenCLBlock::alloc() {
 
   if (!allocated) {

@@ -56,8 +56,11 @@ void OpenCLQueueManager::do_start() {
     catch (std::runtime_error &e) {
 
       // if setup program failed, remove accelerator from queue_table 
-      LOG(ERROR) << "Failed to setup bitstream for " << acc_id
-        << ": " << e.what();
+      LOG(ERROR) << "Failed to setup bitstream for " << acc_id 
+        << ": " << e.what()
+        << ". Remove it from QueueManager.";
+      queue_table.erase(queue_table.find(acc_id));
+
       return;
     }
 

@@ -29,7 +29,7 @@ public:
   // remove a shared block from all platforms
   void removeShared(int64_t block_id);
 
-  std::vector<std::string> getAccNames();
+  std::vector<std::pair<std::string, std::string> > getLabels();
 
 private:
   // create a new platform from file
