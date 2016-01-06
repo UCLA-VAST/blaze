@@ -1,0 +1,12 @@
+#!/bin/bash
+
+SPARK_HOME=
+$SPARK_HOME/bin/spark-submit --class LogisticRegression \
+	--driver-memory 8G \
+	--executor-memory 8G \
+	--executor-cores 8 \
+  --executor-label LogisticGradientAndLoss \
+	--num-executors 2 \
+	--master yarn-cluster \
+	target/logistic-1.0.jar $@ 
+
