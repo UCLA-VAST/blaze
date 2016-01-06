@@ -227,8 +227,8 @@ DataBlock_ptr OpenCLBlock::sample(char* mask) {
           0, NULL, events+k);
 
       if (err != CL_SUCCESS) {
-        throw std::runtime_error(LOG_HEADER +
-            std::string("error in clEnqueueCopyBuffer()"));
+        throw std::runtime_error(
+            "Error in clEnqueueCopyBuffer()");
       }
 
       k++;
@@ -237,8 +237,7 @@ DataBlock_ptr OpenCLBlock::sample(char* mask) {
   err = clWaitForEvents(num_items, events);
 
   if (err != CL_SUCCESS) {
-    throw std::runtime_error(LOG_HEADER +
-        std::string("error during sampling"));
+    throw std::runtime_error("Error during sampling");
   }
   ocl_block->ready = true;
 

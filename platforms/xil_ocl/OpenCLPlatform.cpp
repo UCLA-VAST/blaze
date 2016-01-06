@@ -28,7 +28,7 @@ OpenCLPlatform::OpenCLPlatform()
         "No OpenCL platform exists on this host");
   }
 
-  // iterate through all platforms and find NVidia GPU
+  // iterate through all platforms and find Xilinx FPGA
   int platform_idx = 0;
   for (platform_idx=0; platform_idx<num_platforms; platform_idx++) {
     char cl_platform_name[1001];

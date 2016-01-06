@@ -4,9 +4,6 @@ include ../../Makefile.config
 ifeq ($(BOOST_DIR),)
 $(error BOOST_DIR not set properly in Makefile.config)
 endif
-ifeq ($(HADOOP_DIR),)
-$(error HADOOP_DIR not set properly in Makefile.config)
-endif
 ifeq ($(PROTOBUF_DIR),)
 $(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
@@ -27,7 +24,7 @@ COMPILE= $(CFLAGS) \
 
 LINK= -L../lib -lblaze \
 			-L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
+			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex \
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \
 			-L$(GLOG_DIR)/lib -lglog \
 			-L$(HADOOP_DIR)/lib/native -lhdfs \

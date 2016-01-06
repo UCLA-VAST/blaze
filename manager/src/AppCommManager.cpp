@@ -9,8 +9,6 @@
 #include <stdexcept>
 #include <cstdint>
 
-#define LOG_HEADER "AppCommManager"
-
 #include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
