@@ -201,6 +201,9 @@ public interface MRJobConfig {
 
   public static final String TASK_USERLOG_LIMIT = "mapreduce.task.userlog.limit.kb";
 
+  public static final String MR_LABEL = "mapreduce.label";
+  public static final String DEFAULT_MR_LABEL = "";
+
   public static final String MAP_SORT_SPILL_PERCENT = "mapreduce.map.sort.spill.percent";
 
   public static final String MAP_INPUT_FILE = "mapreduce.map.input.file";
