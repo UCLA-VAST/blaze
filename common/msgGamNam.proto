@@ -11,7 +11,12 @@ message Gam2NamRequest {
   optional bool pull = 2 [default = false];
 }
 
+message Accelerator {
+  optional string acc_name = 1;
+  optional string device_name = 2;
+}
+
 message Nam2GamAccNames {
   optional bool isUpdated = 1 [default = false];
-  repeated string acc_names = 2;
+  repeated Accelerator acc_names = 2;
 }
