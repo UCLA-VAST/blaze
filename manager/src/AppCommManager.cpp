@@ -34,8 +34,6 @@ void AppCommManager::process(socket_ptr sock) {
   socket_base::receive_buffer_size option(4*1024*1024);
   sock->set_option(option); 
   
-  srand(time(NULL));
-
   try {
     // 1. Handle ACCREQUEST
     TaskMsg task_msg;

@@ -72,19 +72,24 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
   
   // TODO: when do we remove the queue?
   // create a new app queue if it does not exist
+
+  TaskQueue_ptr queue;
+  // TODO: remove this lock
+  this->lock();
   if (app_queues.find(app_id) == app_queues.end()) {
-    TaskQueue_ptr queue(new TaskQueue());
-    app_queues.insert(std::make_pair(app_id, queue));
+    TaskQueue_ptr new_queue(new TaskQueue());
+    app_queues.insert(std::make_pair(app_id, new_queue));
+    queue = new_queue;
+  } 
+  else {
+    queue = app_queues[app_id];
   }
+  this->unlock();
+
   // once called, the task estimation time will stored
   int delay_time = estimateTime(task);
 
   // push task to queue
-  TaskQueue_ptr queue = app_queues[app_id];
-  if (!queue) {
-    throw std::runtime_error("Application queue not found, unexpected");
-  }
-
   bool enqueued = queue->push(task);
   while (!enqueued) {
     boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
