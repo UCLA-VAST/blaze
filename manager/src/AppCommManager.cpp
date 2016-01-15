@@ -613,11 +613,16 @@ void AppCommManager::process(socket_ptr sock) {
           block_left = task->getOutputBlock(block);
 
           // use thread id to create unique output file path
-          std::string path = 
-            "/tmp/" + 
-            boost::lexical_cast<std::string>(boost::this_thread::get_id())+
-            std::to_string((long long)outId);
+          std::stringstream path_stream;
+          std::string output_dir = "/tmp";
 
+          path_stream << output_dir << "/"
+                      << "nam-output-"
+                      << getTid() 
+                      << std::setw(12) << std::setfill('0') << rand() 
+                      << outId
+                      << ".dat";
+          std::string path = path_stream.str();
           try {
             // write the block to output shared memory
             block->writeToMem(path);

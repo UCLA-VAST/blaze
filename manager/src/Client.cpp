@@ -228,6 +228,7 @@ void Client::processOutput(TaskMsg &msg) {
 
     std::string path = block_info.file_path();
     try {
+      VLOG(1) << "Reading output from " << path;
       blocks[num_inputs + i].second->readFromMem(path);
 
       float* fdata = (float*)(blocks[num_inputs + i].second->getData());
