@@ -31,11 +31,13 @@ public:
   CommManager(
       PlatformManager* _platform,
       std::string address = "127.0.0.1",
-      int ip_port = 1027
+      int ip_port = 1027,
+      int _max_threads = boost::thread::hardware_concurrency()
     ):
     ip_address(address), 
     srv_port(ip_port), 
-    platform_manager(_platform)
+    platform_manager(_platform),
+    max_threads(_max_threads)
   { 
     // asynchronously start listening for new connections
     boost::thread t(boost::bind(&CommManager::listen, this));
@@ -55,6 +57,7 @@ protected:
 private:
   void listen();
 
+  int max_threads;
   int srv_port;
   std::string ip_address;
 };
@@ -67,7 +70,7 @@ public:
       PlatformManager* _platform,
       std::string address = "127.0.0.1",
       int ip_port = 1027
-    ): CommManager(_platform, address, ip_port) {;}
+    ): CommManager(_platform, address, ip_port, 24) {;}
 private:
   void process(socket_ptr);
 };
@@ -92,7 +95,7 @@ public:
       PlatformManager* _platform,
       std::string address = "127.0.0.1",
       int ip_port = 1028
-    ): CommManager(_platform, address, ip_port) {;}
+    ): CommManager(_platform, address, ip_port, 4) {;}
 private:
   void process(socket_ptr);
   std::vector<std::string> last_names;
