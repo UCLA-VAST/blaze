@@ -9,8 +9,12 @@
 
 namespace blaze {
 
-OpenCLQueueManager::OpenCLQueueManager(Platform* _platform):
-  QueueManager(_platform) 
+OpenCLQueueManager::OpenCLQueueManager(
+    Platform* _platform,
+    int _reconfig_timer
+    ):
+  QueueManager(_platform),
+  reconfig_timer(_reconfig_timer)
 {
   ocl_platform = dynamic_cast<OpenCLPlatform*>(platform);
 
@@ -18,6 +22,8 @@ OpenCLQueueManager::OpenCLQueueManager(Platform* _platform):
     LOG(ERROR) << "Platform pointer type is not OpenCLPlatform";
     throw std::runtime_error("Cannot create OpenCLQueueManager");
   }
+
+  DLOG(INFO) << "Set FPGA reconfigure counter = " << _reconfig_timer;
 }
 
 void OpenCLQueueManager::startAll() {
@@ -121,12 +127,12 @@ void OpenCLQueueManager::do_start() {
 
         // timer to wait for the queue to fill up again
         int counter = 0;
-        while (counter < MAX_WAIT_TIME) {
+        while (counter < reconfig_timer) {
           if (queue->getExeQueueLength() > 0) {
 
             counter = 0;
             
-            DLOG(INFO) << "Execute one task from " << queue_name;
+            VLOG(1) << "Execute one task from " << queue_name;
 
             // execute one task
             queue->execute();

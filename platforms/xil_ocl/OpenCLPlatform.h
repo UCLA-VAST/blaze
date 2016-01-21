@@ -19,7 +19,8 @@ class OpenCLPlatform : public Platform {
 
 public:
 
-  OpenCLPlatform();
+  OpenCLPlatform(std::map<std::string, std::string> &conf_table);
+
   ~OpenCLPlatform();
 
   virtual TaskEnv_ptr getEnv(std::string id);
@@ -55,7 +56,8 @@ private:
   //std::map<std::string, cl_kernel>  kernels;
 };
 
-extern "C" Platform* create();
+extern "C" Platform* create(
+    std::map<std::string, std::string> &config_table);
 
 extern "C" void destroy(Platform* p);
 

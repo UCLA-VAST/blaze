@@ -15,7 +15,14 @@ PP=g++
 CC=gcc
 AR=ar
 
-CFLAGS= -c -fPIC -std=c++0x -g
+CFLAGS := -c -fPIC -std=c++0x
+
+ifeq ($(DEBUG),)
+CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+else
+CFLAGS := $(CFLAGS) -g
+endif
+
 COMPILE= $(CFLAGS) \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
@@ -70,4 +77,5 @@ msgGamNam.pb.o: proto/msgGamNam.pb.cc
 
 clean:
 	rm -rf *.o
+	rm -rf ../lib/libblaze.so
 	rm -rf ../bin/acc_manager

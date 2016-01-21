@@ -261,7 +261,7 @@ void AppCommManager::process(socket_ptr sock) {
         // <bestcase wait time, worstcase wait time>
         std::pair<int,int> wait_time = task_manager->getWaitTime(task.get());
 
-        LOG(INFO) << "Wait time = (" << wait_time.first 
+        VLOG(1) << "Wait time = (" << wait_time.first 
           << ", " << wait_time.second << ") us, task estimated time = "
           << task_time << " us";
 

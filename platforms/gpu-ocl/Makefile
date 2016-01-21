@@ -13,7 +13,13 @@ CC=gcc
 
 MANAGER_DIR=../../manager
 
-CFLAGS= -c -fPIC -std=c++0x -g
+CFLAGS := -c -fPIC -std=c++0x
+ifeq ($(DEBUG),)
+CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+else
+CFLAGS := $(CFLAGS) -g
+endif
+
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/src \
 				 -I$(BOOST_DIR)/include \
