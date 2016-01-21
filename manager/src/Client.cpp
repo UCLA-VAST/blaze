@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <sstream>
+#include <iomanip>
 
-#define LOG_HEADER "Client"
 #include <glog/logging.h>
 
 #include "Block.h"
@@ -142,6 +142,8 @@ void Client::start() {
       processOutput(finish_msg);
     }
     else {
+      LOG(ERROR) << "Received " << finish_msg.type() 
+        << " instead of ACCFINISH";
       throw std::runtime_error("did not receive ACCFINISH");
     }
      
@@ -198,9 +200,17 @@ void Client::prepareData(TaskMsg &data_msg, TaskMsg &reply_msg) {
 
       // write data to memory mapped file
       // use thread id to create unique output file path
-      std::string path = "/tmp/" + 
-            boost::lexical_cast<std::string>(boost::this_thread::get_id())+
-            std::to_string((long long)i);
+      std::stringstream path_stream;
+      std::string output_dir = "/tmp";
+
+      path_stream << output_dir << "/"
+        << "client-data-"
+        << getTid() 
+        << std::setw(12) << std::setfill('0') << rand() 
+        << i
+        << ".dat";
+
+      std::string path = path_stream.str();
 
       DataBlock_ptr block = blocks[i].second;
       block->writeToMem(path);

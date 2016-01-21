@@ -29,6 +29,8 @@ int main(int argc, char** argv) {
 
   FLAGS_logtostderr = 1;
 
+  srand(time(NULL));
+
   if (argc < 2) {
     printf("USAGE: %s <conf_path>\n", argv[0]);
     return -1;
