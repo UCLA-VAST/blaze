@@ -10,8 +10,12 @@
 
 namespace blaze {
 
-OpenCLPlatform::OpenCLPlatform() 
-  : curr_program(NULL), curr_kernel(NULL)
+OpenCLPlatform::OpenCLPlatform(
+    std::map<std::string, std::string> &conf_table
+    ): 
+  Platform(conf_table),
+  curr_program(NULL), 
+  curr_kernel(NULL)
 {
   // start platform setting up
   int err;
@@ -89,7 +93,15 @@ OpenCLPlatform::OpenCLPlatform()
   TaskEnv_ptr ep(env);
   env_ptr = ep;
 
-  QueueManager_ptr queue(new OpenCLQueueManager(this)); 
+  // get queue config
+  int reconfig_timer = 500;  // default 500ms
+  if (conf_table.find("reconfig timer") != conf_table.end())
+  {
+    reconfig_timer = stoi(conf_table["reconfig timer"]);
+  }
+
+  QueueManager_ptr queue(
+      new OpenCLQueueManager(this, reconfig_timer)); 
   queue_manager = queue;
 }
 
@@ -218,7 +230,7 @@ void OpenCLPlatform::changeProgram(std::string acc_id) {
     }
 
     elapse_t = getUs() - start_t;
-    DLOG(INFO) << "clCreateProgramWithBinary takes " << 
+    VLOG(1) << "clCreateProgramWithBinary takes " << 
       elapse_t << "us.";
 
     start_t = getUs();
@@ -295,8 +307,10 @@ int OpenCLPlatform::load_file(
   return size;
 }
 
-extern "C" Platform* create() {
-  return new OpenCLPlatform();
+extern "C" Platform* create(
+    std::map<std::string, std::string> &conf_table) 
+{
+  return new OpenCLPlatform(conf_table);
 }
 
 extern "C" void destroy(Platform* p) {

@@ -94,7 +94,7 @@ void CommManager::listen() {
           boost::bind(&io_service::run, &ios));
     }
 
-    LOG(INFO) << "Listening for new connections at "
+    VLOG(2) << "Listening for new connections at "
       << ip_address << ":" << srv_port;
 
     while(1) {

@@ -33,18 +33,29 @@ PlatformManager::PlatformManager(ManagerConf *conf)
     }
 
     try {
-      Platform_ptr platform = this->create(path);
-
+      // generic Platform configuration
       if (platform_table.find(id) != platform_table.end()) {
         throw std::runtime_error("Duplicated platform found: " + id);
       }
-      platform_table.insert(std::make_pair(id, platform));
 
       int cache_limit   = platform_conf.cache_limit();
       int scratch_limit = platform_conf.scratch_limit();
 
       std::string cache_loc = platform_conf.has_cache_loc() ? 
                                 platform_conf.cache_loc() : id;
+
+      // extended Platform configurations
+      std::map<std::string, std::string> conf_table;
+      for (int i=0; i<platform_conf.param_size(); i++) {
+        std::string conf_key   = platform_conf.param(i).key();
+        std::string conf_value = platform_conf.param(i).value();
+        conf_table[conf_key]   = conf_value;
+      }
+
+      // create Platform
+      Platform_ptr platform = this->create(path, conf_table);
+
+      platform_table.insert(std::make_pair(id, platform));
 
       // create block manager
       if (cache_table.find(cache_loc) == cache_table.end())
@@ -64,6 +75,19 @@ PlatformManager::PlatformManager(ManagerConf *conf)
       cache_table.insert(std::make_pair(id, cache_loc));
       VLOG(1) << "Config platform " << id << 
         " to use device memory on " << cache_loc;
+
+      // print extend configs
+      if (!conf_table.empty()) {
+        VLOG(1) << "Extra Configurations for the platform:";
+        std::map<std::string, std::string>::iterator iter;
+        for (iter  = conf_table.begin();
+            iter != conf_table.end();
+            iter ++)
+        {
+          VLOG(1) << "[""" << iter->first << """] = "
+            << iter->second;
+        }
+      }
 
       QueueManager* queue_manager = platform->getQueueManager();
 
@@ -125,14 +149,16 @@ TaskManager* PlatformManager::getTaskManager(std::string acc_id) {
 }
 
 // create a new platform
-Platform_ptr PlatformManager::create(std::string path) {
-
+Platform_ptr PlatformManager::create(
+    std::string path, 
+    std::map<std::string, std::string> &conf_table) 
+{
   if (path.compare("")==0) {
-    Platform_ptr platform(new Platform());
+    Platform_ptr platform(new Platform(conf_table));
     return platform;
   }
   else {
-    void* handle = dlopen(path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
+    void* handle = dlopen(path.c_str(), RTLD_LAZY|RTLD_LOCAL);
 
     if (handle == NULL) {
       throw std::runtime_error(dlerror());
@@ -142,11 +168,12 @@ Platform_ptr PlatformManager::create(std::string path) {
     dlerror();
 
     // load the symbols
-    Platform* (*create_func)();
+    Platform* (*create_func)(std::map<std::string, std::string>&);
     void (*destroy_func)(Platform*);
 
     // read the custom constructor and destructor  
-    create_func = (Platform* (*)())dlsym(handle, "create");
+    create_func = (Platform* (*)(std::map<std::string, std::string>&))
+                    dlsym(handle, "create");
     destroy_func = (void (*)(Platform*))dlsym(handle, "destroy");
 
     const char* error = dlerror();
@@ -154,7 +181,7 @@ Platform_ptr PlatformManager::create(std::string path) {
       throw std::runtime_error(error);
     }
 
-    Platform_ptr platform(create_func(), destroy_func);
+    Platform_ptr platform(create_func(conf_table), destroy_func);
 
     return platform;
   }

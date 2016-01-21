@@ -215,7 +215,7 @@ std::string TaskManager::getConfig(int idx, std::string key) {
 
 void TaskManager::do_execute() {
 
-  LOG(INFO) << "Started an executor";
+  VLOG(1) << "Started an executor";
 
   // continuously execute tasks from the task queue
   while (1) { 
@@ -225,7 +225,7 @@ void TaskManager::do_execute() {
 
 void TaskManager::do_schedule() {
   
-  LOG(INFO) << "Started an scheduler";
+  VLOG(1) << "Started an scheduler";
 
   while (1) {
     schedule();

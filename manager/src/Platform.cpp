@@ -8,13 +8,15 @@
 
 namespace blaze {
 
-Platform::Platform() {
+Platform::Platform(std::map<std::string, std::string> &conf_table)
+{
   TaskEnv_ptr env_ptr(new TaskEnv());
   env = env_ptr;
 
   // create queue
   QueueManager_ptr queue(new QueueManager(this));
   queue_manager = queue;
+
 }
 
 // store an accelerator setup on the platform

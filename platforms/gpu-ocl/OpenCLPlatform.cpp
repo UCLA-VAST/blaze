@@ -10,7 +10,9 @@
 
 namespace blaze {
 
-OpenCLPlatform::OpenCLPlatform()
+OpenCLPlatform::OpenCLPlatform(
+    std::map<std::string, std::string> &conf_table
+    ): Platform(conf_table)
 {
   int err;
 
@@ -254,8 +256,10 @@ int OpenCLPlatform::load_file(
   return size;
 }
 
-extern "C" Platform* create() {
-  return new OpenCLPlatform();
+extern "C" Platform* create(
+    std::map<std::string, std::string> &conf_table) 
+{
+  return new OpenCLPlatform(conf_table);
 }
 
 extern "C" void destroy(Platform* p) {

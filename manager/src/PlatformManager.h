@@ -33,7 +33,9 @@ public:
 
 private:
   // create a new platform from file
-  Platform_ptr create(std::string id);
+  Platform_ptr create(
+      std::string id, 
+      std::map<std::string, std::string> &conf_table);
 
   // map platform_id to Platform 
   std::map<std::string, Platform_ptr> platform_table;
