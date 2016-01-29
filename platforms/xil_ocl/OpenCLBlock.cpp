@@ -19,6 +19,9 @@ void OpenCLBlock::alloc() {
     cl_context context = env->getContext();
     cl_int err = 0;
 
+    DLOG(INFO) << "Allocating OpenCLBlock of size " << 
+      (double)size /1024/1024 << "MB";
+
     data = clCreateBuffer(
         context, CL_MEM_READ_ONLY,  
         size, NULL, &err);
@@ -29,7 +32,7 @@ void OpenCLBlock::alloc() {
     allocated = true;
 
     uint64_t elapse_t = getUs() - start_t;
-    DLOG(INFO) << "Allocating OpenCLBlock of size " << 
+    DLOG(INFO) << "Finished allocating OpenCLBlock of size " << 
       (double)size /1024/1024 << "MB takes " <<
       elapse_t << "us.";
   }
@@ -143,11 +146,16 @@ void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
 
   // use a lock on TaskEnv to guarantee single-thread access to command queues
   // NOTE: this is unnecessary if the OpenCL runtime is thread-safe
-  boost::lock_guard<OpenCLEnv> guard(*env);
+  //boost::lock_guard<OpenCLEnv> guard(*env);
+  env->lock();
+  DLOG(INFO) << "clEnqueueWriteBuffer grab lock";
 
   int err = clEnqueueWriteBuffer(
       command, data, CL_TRUE, offset, 
       _size, src, 0, NULL, &event);
+  DLOG(INFO) << "clEnqueueWriteBuffer finished";
+  env->unlock();
+  DLOG(INFO) << "clEnqueueWriteBuffer release lock";
 
   if (err != CL_SUCCESS) {
     DLOG(ERROR) << "clEnqueueWriteBuffer error: " << err;

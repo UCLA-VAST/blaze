@@ -188,8 +188,9 @@ void OpenCLPlatform::changeProgram(std::string acc_id) {
 
     // release previous kernel
     if (curr_program && curr_kernel) {
-      clReleaseProgram(curr_program);
+      // (mhhuang) change the order
       clReleaseKernel(curr_kernel);
+      clReleaseProgram(curr_program);
     }
 
     elapse_t = getUs() - start_t;
@@ -210,6 +211,10 @@ void OpenCLPlatform::changeProgram(std::string acc_id) {
     cl_context context = env->getContext();
     cl_device_id device_id = env->getDeviceId();
 
+    if (!context || !device_id)
+      throw std::runtime_error("Failed to get OpenCL context from Task env");
+    }
+
     size_t n_t = bitstream.first;
     unsigned char* kernelbinary = bitstream.second;
 
@@ -219,12 +224,19 @@ void OpenCLPlatform::changeProgram(std::string acc_id) {
     start_t = getUs();
 
     // Switch bitstream in FPGA
-    cl_program program = clCreateProgramWithBinary(
-        context, 1, &device_id, &n_t,
-        (const unsigned char **) &kernelbinary, 
-        &status, &err);
+    cl_program program;
+    try {
+      program = clCreateProgramWithBinary(
+          context, 1, &device_id, &n_t,
+          (const unsigned char **) &kernelbinary, 
+          &status, &err);
+    } catch (std::exception &e) {
+      LOG(ERROR) << "clCreateProgramWithBinary throws " << e.what();
+      throw std::runtime_error("clCreateProgramWithBinary fails");
+    }
 
     if ((!program) || (err!=CL_SUCCESS)) {
+      LOG(ERROR) << "clCreateProgramWithBinary error, ret=" << err;
       throw std::runtime_error(
           "Failed to create compute program from binary");
     }
@@ -241,12 +253,11 @@ void OpenCLPlatform::changeProgram(std::string acc_id) {
 
     if (!kernel || err != CL_SUCCESS) {
       throw std::runtime_error(
-          "Failed to create compute kernel!");
+          "Failed to create compute kernel");
     }
 
     elapse_t = getUs() - start_t;
-    DLOG(INFO) << "clCreateKernel takes " << 
-      elapse_t << "us.";
+    DLOG(INFO) << "clCreateKernel takes " << elapse_t << "us.";
 
     // setup current accelerator info
     curr_program = program;
