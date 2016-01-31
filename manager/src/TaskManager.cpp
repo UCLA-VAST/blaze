@@ -110,6 +110,7 @@ void TaskManager::schedule() {
   std::map<std::string, TaskQueue_ptr>::iterator iter;
 
   while (ready_queues.empty()) {
+    this->lock();
     for (iter = app_queues.begin();
         iter != app_queues.end();
         iter ++)
@@ -118,6 +119,7 @@ void TaskManager::schedule() {
         ready_queues.push_back(iter->first);
       }
     }
+    this->unlock();
     if (ready_queues.empty()) {
       boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
     }

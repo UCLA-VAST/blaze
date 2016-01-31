@@ -84,6 +84,8 @@ void OpenCLQueueManager::do_start() {
     }
 
     std::list<std::string> ready_queues;
+
+    int retry_counter = 0;
     while (1) {
 
       // here a round-robin policy is enforced
@@ -114,12 +116,25 @@ void OpenCLQueueManager::do_start() {
         }
         catch (std::runtime_error &e) {
 
-          // if setup program failed, remove accelerator from queue_table 
-          LOG(ERROR) << "Failed to setup bitstream for " << queue_name
-            << ": " << e.what()
-            << ". Remove it from QueueManager.";
-          queue_table.erase(queue_table.find(queue_name));
+          retry_counter++;
 
+          if (retry_counter < 10) {
+            LOG(WARNING) << "Programing bitstream failed " 
+              << retry_counter << " times";
+          }
+          else {
+            // if setup program keeps failing, remove accelerator from queue_table 
+            LOG(ERROR) << "Failed to setup bitstream for " << queue_name
+              << ": " << e.what()
+              << ". Remove it from QueueManager.";
+
+            queue_table.erase(queue_table.find(queue_name));
+
+            // remove queue_name from ready queue since it's already removed
+            ready_queues.pop_front();
+
+            retry_counter = 0;
+          }
           continue;
         }
 
