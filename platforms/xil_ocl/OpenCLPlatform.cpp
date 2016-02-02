@@ -211,7 +211,7 @@ void OpenCLPlatform::changeProgram(std::string acc_id) {
     cl_context context = env->getContext();
     cl_device_id device_id = env->getDeviceId();
 
-    if (!context || !device_id)
+    if (!context || !device_id) {
       throw std::runtime_error("Failed to get OpenCL context from Task env");
     }
 
