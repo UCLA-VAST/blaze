@@ -12,6 +12,8 @@ enum MsgType {
   ACCFAILURE = 5;
   ACCBROADCAST = 6;
 	ACCTERM = 7;
+  ACCREGISTER = 8;
+  ACCDELETE = 9;
 }
 
 message DataMsg {
@@ -33,4 +35,17 @@ message TaskMsg {
   optional string app_id = 2;
   optional string acc_id = 3; 
   repeated DataMsg data = 4;
+  repeated AccMsg acc = 5;
+  optional string msg = 6;
+}
+
+message AccMsg {
+  message KeyValue {
+    required string key = 1; 
+    required string value = 2;
+  }
+  required string acc_id = 1;
+  required string platform_id = 2;
+  required string path = 3;
+  repeated KeyValue param = 4;
 }
