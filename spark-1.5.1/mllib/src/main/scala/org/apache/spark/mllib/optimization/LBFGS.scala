@@ -275,7 +275,7 @@ object LBFGS extends Logging {
       var label = input(0)
       var features = Vectors.dense(input.slice(1, input.length))
       var loss = localGradient.compute(
-        features, label, Vectors.dense(weights.value), grad)
+        features, label, Vectors.dense(weights.data), grad)
       grad.toArray :+ loss
     }
 
@@ -290,7 +290,7 @@ object LBFGS extends Logging {
           var label = array(0)
           var features = Vectors.dense(array.slice(1, array.length))
           val l = localGradient.compute(
-            features, label, Vectors.dense(weights.value), grad)
+            features, label, Vectors.dense(weights.data), grad)
           loss = loss + l
         }
         def hasNext = (idx < 1)
