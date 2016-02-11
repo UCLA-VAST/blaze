@@ -512,8 +512,8 @@ void AppCommManager::process(socket_ptr sock) {
                 block->readFromMem(path);
               }
               catch (std::exception &e) {
-                throw AccFailure(std::string("readFromMem error: ")+
-                    e.what());
+                LOG(ERROR) << "readFromMem error: " << e.what();
+                throw AccFailure(std::string("readFromMem error"));
               }
 
               // NOTE: only remove normal input file
