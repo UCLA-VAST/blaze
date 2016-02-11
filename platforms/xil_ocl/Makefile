@@ -36,7 +36,7 @@ COMPILE= $(CFLAGS) \
 				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
 				 
 LINK= -L$(MANAGER_DIR)/lib -lblaze \
-			-L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lxilinxopencl \
+			-L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL \
 			-lpthread -lm -ldl
 
 DEPS= OpenCLEnv.o \
