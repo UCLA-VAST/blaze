@@ -436,9 +436,9 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
       // NAM does not exist on this node or it might be down
       lostNamTimes += 1;
       needAccNamesFromNam = true;
-      String warnMessage = "NAM does not exist on this node";
-      warnMessage += " or encountered unexpected errors in connecting to NAM @ port 1028";
-      LOG.warn(warnMessage, e);
+      //String warnMessage = "NAM does not exist on this node";
+      //warnMessage += " or encountered unexpected errors in connecting to NAM @ port 1028";
+      //LOG.warn(warnMessage, e);
       if (lostNamTimes == NAM_DEAD_INTERVAL) {
         return AccStatus.newInstance(false, false, null);
       } else {

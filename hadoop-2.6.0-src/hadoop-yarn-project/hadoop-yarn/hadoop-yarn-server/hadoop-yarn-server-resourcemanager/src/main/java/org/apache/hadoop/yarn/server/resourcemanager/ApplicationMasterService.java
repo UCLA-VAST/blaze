@@ -20,17 +20,12 @@ package org.apache.hadoop.yarn.server.resourcemanager;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -102,8 +97,6 @@ import org.apache.hadoop.yarn.server.security.MasterKeyData;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 @SuppressWarnings("unchecked")
 @Private
@@ -235,56 +228,10 @@ public class ApplicationMasterService extends AbstractService implements
     return appTokenIdentifier;
   }
 
-  private String decode(String content) {
-    String key = "FreeLunchMWF";
-    int key_size = 12;
-    String decrypted = "";
-    for(int i = 0; i < content.length(); ++i) {
-      int offset = i % 12;
-      int a = content.charAt(i) - 32;
-      int b = key.charAt(offset) - 32;
-      int c = (a + b) % 91 + 32;
-      decrypted += (char)c;
-    }
-    return decrypted;
-  }
-
-  private boolean CheckFcsLicense() throws IOException {
-    boolean success = false;
-    Date expireDate;
-    try {
-      String hadoopHome = System.getenv().get("HADOOP_HOME");
-      String joinedPath = new File(hadoopHome, "fcs/fcs_conf.dat").getPath();
-
-      String content = Files.toString(new File(joinedPath), Charsets.UTF_8);
-
-      content = decode(content);
-
-      SimpleDateFormat format = new SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH);
-      expireDate = format.parse(content);
-    } catch (Exception e) {
-      throw new IOException("Errors in reading FCS signature.");
-    }
-
-    Date now = new Date();
-    LOG.info("FCS license will expire after " + expireDate.toString());
-    if (!now.after(expireDate)) {
-      success = true;
-    }
-    return success;
-  }
-
   @Override
   public RegisterApplicationMasterResponse registerApplicationMaster(
       RegisterApplicationMasterRequest request) throws YarnException,
       IOException {
-
-    // Check for falcon computing solution license
-    if (!CheckFcsLicense()) {
-      String errorMsg = "TRIAL VERSION HAS EXPIRED. " +
-        "Please contact support@falcon-computing.com";
-      throw new IOException(errorMsg);
-    }
 
     AMRMTokenIdentifier amrmTokenIdentifier = authorizeRequest();
     ApplicationAttemptId applicationAttemptId =
