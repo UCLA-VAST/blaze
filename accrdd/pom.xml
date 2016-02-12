@@ -3,15 +3,15 @@
 	<modelVersion>4.0.0</modelVersion>
 
   <groupId>org.apache.spark</groupId>
-	<artifactId>blaze</artifactId>
+	<artifactId>blaze_2.10</artifactId>
 	<version>1.0</version>
 	<packaging>jar</packaging>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<java.version>1.7</java.version>
-		<scala.version>2.11.7</scala.version>
-		<scala.version.tools>2.11</scala.version.tools>
+		<scala.version>2.10.4</scala.version>
+		<scala.version.tools>2.10</scala.version.tools>
   </properties>
 
   <distributionManagement>

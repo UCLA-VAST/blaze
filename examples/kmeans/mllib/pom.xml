@@ -25,9 +25,9 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<java.version>1.7</java.version>
     <jblas.version>1.2.4</jblas.version>
-    <scala.version>2.11.7</scala.version>
-    <scala.binary.version>2.11</scala.binary.version>
-		<scala.version.tools>2.11</scala.version.tools>
+    <scala.version>2.10.4</scala.version>
+    <scala.binary.version>2.10</scala.binary.version>
+		<scala.version.tools>2.10</scala.version.tools>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
@@ -103,8 +103,8 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>blaze</artifactId>
-      <version>1.0-SNAPSHOT</version>
+      <artifactId>blaze_${scala.binary.version}</artifactId>
+      <version>1.0</version>
     </dependency>
 	</dependencies>
 

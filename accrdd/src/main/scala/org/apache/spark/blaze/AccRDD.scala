@@ -353,7 +353,7 @@ class AccRDD[U: ClassTag, T: ClassTag](
         case e: Throwable =>
           val sw = new StringWriter
           e.printStackTrace(new PrintWriter(sw))
-          logInfo("Partition " + split.index + " fails to be executed on accelerator: " + sw.toString)
+          logWarning("Partition " + split.index + " fails to be executed on accelerator")
           outputIter = computeOnJTP(split, context, partitionMask)
       }
 
@@ -471,8 +471,8 @@ class AccRDD[U: ClassTag, T: ClassTag](
     val dataLength = inputAry.length
     var outputList = List[U]()
 
-    if (partitionMask == null)
-      logWarning("Partition " + split.index + " has no mask")
+    //if (partitionMask == null)
+    //  logWarning("Partition " + split.index + " has no mask")
 
     var j: Int = 0
     while (j < inputAry.length) {
