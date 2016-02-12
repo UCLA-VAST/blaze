@@ -17,14 +17,14 @@
 
 package org.apache.spark.streaming.api.java
 
-import java.io.{Closeable, InputStream}
 import java.lang.{Boolean => JBoolean}
+import java.io.{Closeable, InputStream}
 import java.util.{List => JList, Map => JMap}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.reflect.ClassTag
 
-import org.apache.hadoop.conf.Configuration
+import akka.actor.{Props, SupervisorStrategy}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.{InputFormat => NewInputFormat}
 
@@ -37,9 +37,10 @@ import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming._
+import org.apache.spark.streaming.scheduler.StreamingListener
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.receiver.Receiver
-import org.apache.spark.streaming.scheduler.StreamingListener
+import org.apache.hadoop.conf.Configuration
 
 /**
  * A Java-friendly version of [[org.apache.spark.streaming.StreamingContext]] which is the main
@@ -114,13 +115,7 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
     sparkHome: String,
     jars: Array[String],
     environment: JMap[String, String]) =
-    this(new StreamingContext(
-      master,
-      appName,
-      batchDuration,
-      sparkHome,
-      jars,
-      environment.asScala))
+    this(new StreamingContext(master, appName, batchDuration, sparkHome, jars, environment))
 
   /**
    * Create a JavaStreamingContext using an existing JavaSparkContext.
@@ -202,7 +197,7 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
       converter: JFunction[InputStream, java.lang.Iterable[T]],
       storageLevel: StorageLevel)
   : JavaReceiverInputDStream[T] = {
-    def fn: (InputStream) => Iterator[T] = (x: InputStream) => converter.call(x).iterator().asScala
+    def fn: (InputStream) => Iterator[T] = (x: InputStream) => converter.call(x).toIterator
     implicit val cmt: ClassTag[T] =
       implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[T]]
     ssc.socketStream(hostname, port, fn, storageLevel)
@@ -221,6 +216,8 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
   }
 
   /**
+   * :: Experimental ::
+   *
    * Create an input stream that monitors a Hadoop-compatible filesystem
    * for new files and reads them as flat binary files with fixed record lengths,
    * yielding byte arrays
@@ -231,6 +228,7 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
    * @param directory HDFS directory to monitor for new files
    * @param recordLength The length at which to split the records
    */
+  @Experimental
   def binaryRecordsStream(directory: String, recordLength: Int): JavaDStream[Array[Byte]] = {
     ssc.binaryRecordsStream(directory, recordLength)
   }
@@ -356,6 +354,69 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
   }
 
   /**
+   * Create an input stream with any arbitrary user implemented actor receiver.
+   * @param props Props object defining creation of the actor
+   * @param name Name of the actor
+   * @param storageLevel Storage level to use for storing the received objects
+   *
+   * @note An important point to note:
+   *       Since Actor may exist outside the spark framework, It is thus user's responsibility
+   *       to ensure the type safety, i.e parametrized type of data received and actorStream
+   *       should be same.
+   */
+  def actorStream[T](
+      props: Props,
+      name: String,
+      storageLevel: StorageLevel,
+      supervisorStrategy: SupervisorStrategy
+    ): JavaReceiverInputDStream[T] = {
+    implicit val cm: ClassTag[T] =
+      implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[T]]
+    ssc.actorStream[T](props, name, storageLevel, supervisorStrategy)
+  }
+
+  /**
+   * Create an input stream with any arbitrary user implemented actor receiver.
+   * @param props Props object defining creation of the actor
+   * @param name Name of the actor
+   * @param storageLevel Storage level to use for storing the received objects
+   *
+   * @note An important point to note:
+   *       Since Actor may exist outside the spark framework, It is thus user's responsibility
+   *       to ensure the type safety, i.e parametrized type of data received and actorStream
+   *       should be same.
+   */
+  def actorStream[T](
+      props: Props,
+      name: String,
+      storageLevel: StorageLevel
+    ): JavaReceiverInputDStream[T] = {
+    implicit val cm: ClassTag[T] =
+      implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[T]]
+    ssc.actorStream[T](props, name, storageLevel)
+  }
+
+  /**
+   * Create an input stream with any arbitrary user implemented actor receiver.
+   * Storage level of the data will be the default StorageLevel.MEMORY_AND_DISK_SER_2.
+   * @param props Props object defining creation of the actor
+   * @param name Name of the actor
+   *
+   * @note An important point to note:
+   *       Since Actor may exist outside the spark framework, It is thus user's responsibility
+   *       to ensure the type safety, i.e parametrized type of data received and actorStream
+   *       should be same.
+   */
+  def actorStream[T](
+      props: Props,
+      name: String
+    ): JavaReceiverInputDStream[T] = {
+    implicit val cm: ClassTag[T] =
+      implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[T]]
+    ssc.actorStream[T](props, name)
+  }
+
+  /**
    * Create an input stream from an queue of RDDs. In each batch,
    * it will process either one or all of the RDDs returned by the queue.
    *
@@ -371,7 +432,7 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
     implicit val cm: ClassTag[T] =
       implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[T]]
     val sQueue = new scala.collection.mutable.Queue[RDD[T]]
-    sQueue.enqueue(queue.asScala.map(_.rdd).toSeq: _*)
+    sQueue.enqueue(queue.map(_.rdd).toSeq: _*)
     ssc.queueStream(sQueue)
   }
 
@@ -395,7 +456,7 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
     implicit val cm: ClassTag[T] =
       implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[T]]
     val sQueue = new scala.collection.mutable.Queue[RDD[T]]
-    sQueue.enqueue(queue.asScala.map(_.rdd).toSeq: _*)
+    sQueue.enqueue(queue.map(_.rdd).toSeq: _*)
     ssc.queueStream(sQueue, oneAtATime)
   }
 
@@ -420,7 +481,7 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
     implicit val cm: ClassTag[T] =
       implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[T]]
     val sQueue = new scala.collection.mutable.Queue[RDD[T]]
-    sQueue.enqueue(queue.asScala.map(_.rdd).toSeq: _*)
+    sQueue.enqueue(queue.map(_.rdd).toSeq: _*)
     ssc.queueStream(sQueue, oneAtATime, defaultRDD.rdd)
   }
 
@@ -439,7 +500,7 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
    * Create a unified DStream from multiple DStreams of the same type and same slide duration.
    */
   def union[T](first: JavaDStream[T], rest: JList[JavaDStream[T]]): JavaDStream[T] = {
-    val dstreams: Seq[DStream[T]] = (Seq(first) ++ rest.asScala).map(_.dstream)
+    val dstreams: Seq[DStream[T]] = (Seq(first) ++ asScalaBuffer(rest)).map(_.dstream)
     implicit val cm: ClassTag[T] = first.classTag
     ssc.union(dstreams)(cm)
   }
@@ -451,7 +512,7 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
       first: JavaPairDStream[K, V],
       rest: JList[JavaPairDStream[K, V]]
     ): JavaPairDStream[K, V] = {
-    val dstreams: Seq[DStream[(K, V)]] = (Seq(first) ++ rest.asScala).map(_.dstream)
+    val dstreams: Seq[DStream[(K, V)]] = (Seq(first) ++ asScalaBuffer(rest)).map(_.dstream)
     implicit val cm: ClassTag[(K, V)] = first.classTag
     implicit val kcm: ClassTag[K] = first.kManifest
     implicit val vcm: ClassTag[V] = first.vManifest
@@ -473,11 +534,12 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
     ): JavaDStream[T] = {
     implicit val cmt: ClassTag[T] =
       implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[T]]
+    val scalaDStreams = dstreams.map(_.dstream).toSeq
     val scalaTransformFunc = (rdds: Seq[RDD[_]], time: Time) => {
-      val jrdds = rdds.map(JavaRDD.fromRDD(_)).asJava
+      val jrdds = rdds.map(rdd => JavaRDD.fromRDD[AnyRef](rdd.asInstanceOf[RDD[AnyRef]])).toList
       transformFunc.call(jrdds, time).rdd
     }
-    ssc.transform(dstreams.asScala.map(_.dstream).toSeq, scalaTransformFunc)
+    ssc.transform(scalaDStreams, scalaTransformFunc)
   }
 
   /**
@@ -497,11 +559,12 @@ class JavaStreamingContext(val ssc: StreamingContext) extends Closeable {
       implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[K]]
     implicit val cmv: ClassTag[V] =
       implicitly[ClassTag[AnyRef]].asInstanceOf[ClassTag[V]]
+    val scalaDStreams = dstreams.map(_.dstream).toSeq
     val scalaTransformFunc = (rdds: Seq[RDD[_]], time: Time) => {
-      val jrdds = rdds.map(JavaRDD.fromRDD(_)).asJava
+      val jrdds = rdds.map(rdd => JavaRDD.fromRDD[AnyRef](rdd.asInstanceOf[RDD[AnyRef]])).toList
       transformFunc.call(jrdds, time).rdd
     }
-    ssc.transform(dstreams.asScala.map(_.dstream).toSeq, scalaTransformFunc)
+    ssc.transform(scalaDStreams, scalaTransformFunc)
   }
 
   /**
@@ -631,9 +694,9 @@ object JavaStreamingContext {
    *
    * @param checkpointPath Checkpoint directory used in an earlier JavaStreamingContext program
    * @param factory        JavaStreamingContextFactory object to create a new JavaStreamingContext
-   * @deprecated As of 1.4.0, replaced by `getOrCreate` without JavaStreamingContextFactory.
+   * @deprecated As of 1.4.0, replaced by `getOrCreate` without JavaStreamingContextFactor.
    */
-  @deprecated("use getOrCreate without JavaStreamingContextFactory", "1.4.0")
+  @deprecated("use getOrCreate without JavaStreamingContextFactor", "1.4.0")
   def getOrCreate(
       checkpointPath: String,
       factory: JavaStreamingContextFactory
@@ -654,7 +717,7 @@ object JavaStreamingContext {
    * @param factory        JavaStreamingContextFactory object to create a new JavaStreamingContext
    * @param hadoopConf     Hadoop configuration if necessary for reading from any HDFS compatible
    *                       file system
-   * @deprecated As of 1.4.0, replaced by `getOrCreate` without JavaStreamingContextFactory.
+   * @deprecated As of 1.4.0, replaced by `getOrCreate` without JavaStreamingContextFactor.
    */
   @deprecated("use getOrCreate without JavaStreamingContextFactory", "1.4.0")
   def getOrCreate(
@@ -680,7 +743,7 @@ object JavaStreamingContext {
    *                       file system
    * @param createOnError  Whether to create a new JavaStreamingContext if there is an
    *                       error in reading checkpoint data.
-   * @deprecated As of 1.4.0, replaced by `getOrCreate` without JavaStreamingContextFactory.
+   * @deprecated As of 1.4.0, replaced by `getOrCreate` without JavaStreamingContextFactor.
    */
   @deprecated("use getOrCreate without JavaStreamingContextFactory", "1.4.0")
   def getOrCreate(

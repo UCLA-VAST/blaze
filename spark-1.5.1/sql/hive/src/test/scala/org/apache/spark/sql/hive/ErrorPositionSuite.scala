@@ -19,32 +19,18 @@ package org.apache.spark.sql.hive
 
 import scala.util.Try
 
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.BeforeAndAfter
 
-import org.apache.spark.sql.{AnalysisException, QueryTest}
-import org.apache.spark.sql.catalyst.parser.ParseDriver
 import org.apache.spark.sql.catalyst.util.quietly
-import org.apache.spark.sql.hive.test.TestHiveSingleton
+import org.apache.spark.sql.hive.test.TestHive._
+import org.apache.spark.sql.hive.test.TestHive.implicits._
+import org.apache.spark.sql.{AnalysisException, QueryTest}
 
-class ErrorPositionSuite extends QueryTest with TestHiveSingleton with BeforeAndAfterEach {
-  import hiveContext.implicits._
 
-  override protected def beforeEach(): Unit = {
-    super.beforeEach()
-    if (sqlContext.tableNames().contains("src")) {
-      sqlContext.dropTempTable("src")
-    }
-    Seq((1, "")).toDF("key", "value").registerTempTable("src")
+class ErrorPositionSuite extends QueryTest with BeforeAndAfter {
+
+  before {
     Seq((1, 1, 1)).toDF("a", "a", "b").registerTempTable("dupAttributes")
-  }
-
-  override protected def afterEach(): Unit = {
-    try {
-      sqlContext.dropTempTable("src")
-      sqlContext.dropTempTable("dupAttributes")
-    } finally {
-      super.afterEach()
-    }
   }
 
   positionTest("ambiguous attribute reference 1",
@@ -131,12 +117,12 @@ class ErrorPositionSuite extends QueryTest with TestHiveSingleton with BeforeAnd
    * @param token a unique token in the string that should be indicated by the exception
    */
   def positionTest(name: String, query: String, token: String): Unit = {
-    def ast = ParseDriver.parsePlan(query, hiveContext.conf)
-    def parseTree = Try(quietly(ast.treeString)).getOrElse("<failed to parse>")
+    def parseTree =
+      Try(quietly(HiveQl.dumpTree(HiveQl.getAst(query)))).getOrElse("<failed to parse>")
 
     test(name) {
       val error = intercept[AnalysisException] {
-        quietly(hiveContext.sql(query))
+        quietly(sql(query))
       }
 
       assert(!error.getMessage.contains("Seq("))
@@ -154,7 +140,10 @@ class ErrorPositionSuite extends QueryTest with TestHiveSingleton with BeforeAnd
 
       val expectedStart = line.indexOf(token)
       val actualStart = error.startPosition.getOrElse {
-        fail(s"start not returned for error on token $token\n${ast.treeString}")
+        fail(
+          s"start not returned for error on token $token\n" +
+            HiveQl.dumpTree(HiveQl.getAst(query))
+        )
       }
       assert(expectedStart === actualStart,
        s"""Incorrect start position.

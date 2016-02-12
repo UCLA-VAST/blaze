@@ -32,5 +32,4 @@ object EmptyConf extends CatalystConf {
 }
 
 /** A CatalystConf that can be used for local testing. */
-case class SimpleCatalystConf(caseSensitiveAnalysis: Boolean) extends CatalystConf {
-}
+case class SimpleCatalystConf(caseSensitiveAnalysis: Boolean) extends CatalystConf

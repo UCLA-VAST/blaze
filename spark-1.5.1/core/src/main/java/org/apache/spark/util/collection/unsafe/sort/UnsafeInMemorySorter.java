@@ -19,13 +19,9 @@ package org.apache.spark.util.collection.unsafe.sort;
 
 import java.util.Comparator;
 
-import org.apache.avro.reflect.Nullable;
-
-import org.apache.spark.memory.MemoryConsumer;
-import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.unsafe.Platform;
-import org.apache.spark.unsafe.array.LongArray;
 import org.apache.spark.util.collection.Sorter;
+import org.apache.spark.unsafe.memory.TaskMemoryManager;
 
 /**
  * Sorts records using an AlphaSort-style key-prefix sort. This sort stores pointers to records
@@ -66,93 +62,58 @@ public final class UnsafeInMemorySorter {
     }
   }
 
-  private final MemoryConsumer consumer;
   private final TaskMemoryManager memoryManager;
-  @Nullable
-  private final Sorter<RecordPointerAndKeyPrefix, LongArray> sorter;
-  @Nullable
+  private final Sorter<RecordPointerAndKeyPrefix, long[]> sorter;
   private final Comparator<RecordPointerAndKeyPrefix> sortComparator;
 
   /**
    * Within this buffer, position {@code 2 * i} holds a pointer pointer to the record at
    * index {@code i}, while position {@code 2 * i + 1} in the array holds an 8-byte key prefix.
    */
-  private LongArray array;
+  private long[] pointerArray;
 
   /**
    * The position in the sort buffer where new records can be inserted.
    */
-  private int pos = 0;
+  private int pointerArrayInsertPosition = 0;
 
   public UnsafeInMemorySorter(
-    final MemoryConsumer consumer,
-    final TaskMemoryManager memoryManager,
-    final RecordComparator recordComparator,
-    final PrefixComparator prefixComparator,
-    int initialSize) {
-    this(consumer, memoryManager, recordComparator, prefixComparator,
-      consumer.allocateArray(initialSize * 2));
-  }
-
-  public UnsafeInMemorySorter(
-    final MemoryConsumer consumer,
       final TaskMemoryManager memoryManager,
       final RecordComparator recordComparator,
       final PrefixComparator prefixComparator,
-      LongArray array) {
-    this.consumer = consumer;
+      int initialSize) {
+    assert (initialSize > 0);
+    this.pointerArray = new long[initialSize * 2];
     this.memoryManager = memoryManager;
-    if (recordComparator != null) {
-      this.sorter = new Sorter<>(UnsafeSortDataFormat.INSTANCE);
-      this.sortComparator = new SortComparator(recordComparator, prefixComparator, memoryManager);
-    } else {
-      this.sorter = null;
-      this.sortComparator = null;
-    }
-    this.array = array;
-  }
-
-  /**
-   * Free the memory used by pointer array.
-   */
-  public void free() {
-    if (consumer != null) {
-      consumer.freeArray(array);
-      array = null;
-    }
-  }
-
-  public void reset() {
-    pos = 0;
+    this.sorter = new Sorter<>(UnsafeSortDataFormat.INSTANCE);
+    this.sortComparator = new SortComparator(recordComparator, prefixComparator, memoryManager);
   }
 
   /**
    * @return the number of records that have been inserted into this sorter.
    */
   public int numRecords() {
-    return pos / 2;
+    return pointerArrayInsertPosition / 2;
   }
 
   public long getMemoryUsage() {
-    return array.size() * 8L;
+    return pointerArray.length * 8L;
+  }
+
+  static long getMemoryRequirementsForPointerArray(long numEntries) {
+    return numEntries * 2L * 8L;
   }
 
   public boolean hasSpaceForAnotherRecord() {
-    return pos + 2 <= array.size();
+    return pointerArrayInsertPosition + 2 < pointerArray.length;
   }
 
-  public void expandPointerArray(LongArray newArray) {
-    if (newArray.size() < array.size()) {
-      throw new OutOfMemoryError("Not enough memory to grow pointer array");
-    }
-    Platform.copyMemory(
-      array.getBaseObject(),
-      array.getBaseOffset(),
-      newArray.getBaseObject(),
-      newArray.getBaseOffset(),
-      array.size() * 8L);
-    consumer.freeArray(array);
-    array = newArray;
+  public void expandPointerArray() {
+    final long[] oldArray = pointerArray;
+    // Guard against overflow:
+    final int newLength = oldArray.length * 2 > 0 ? (oldArray.length * 2) : Integer.MAX_VALUE;
+    pointerArray = new long[newLength];
+    System.arraycopy(oldArray, 0, pointerArray, 0, oldArray.length);
   }
 
   /**
@@ -164,56 +125,47 @@ public final class UnsafeInMemorySorter {
    */
   public void insertRecord(long recordPointer, long keyPrefix) {
     if (!hasSpaceForAnotherRecord()) {
-      expandPointerArray(consumer.allocateArray(array.size() * 2));
+      expandPointerArray();
     }
-    array.set(pos, recordPointer);
-    pos++;
-    array.set(pos, keyPrefix);
-    pos++;
+    pointerArray[pointerArrayInsertPosition] = recordPointer;
+    pointerArrayInsertPosition++;
+    pointerArray[pointerArrayInsertPosition] = keyPrefix;
+    pointerArrayInsertPosition++;
   }
 
-  public final class SortedIterator extends UnsafeSorterIterator {
+  public static final class SortedIterator extends UnsafeSorterIterator {
 
-    private final int numRecords;
-    private int position;
+    private final TaskMemoryManager memoryManager;
+    private final int sortBufferInsertPosition;
+    private final long[] sortBuffer;
+    private int position = 0;
     private Object baseObject;
     private long baseOffset;
     private long keyPrefix;
     private int recordLength;
 
-    private SortedIterator(int numRecords) {
-      this.numRecords = numRecords;
-      this.position = 0;
-    }
-
-    public SortedIterator clone() {
-      SortedIterator iter = new SortedIterator(numRecords);
-      iter.position = position;
-      iter.baseObject = baseObject;
-      iter.baseOffset = baseOffset;
-      iter.keyPrefix = keyPrefix;
-      iter.recordLength = recordLength;
-      return iter;
-    }
-
-    @Override
-    public int getNumRecords() {
-      return numRecords;
+    private SortedIterator(
+        TaskMemoryManager memoryManager,
+        int sortBufferInsertPosition,
+        long[] sortBuffer) {
+      this.memoryManager = memoryManager;
+      this.sortBufferInsertPosition = sortBufferInsertPosition;
+      this.sortBuffer = sortBuffer;
     }
 
     @Override
     public boolean hasNext() {
-      return position / 2 < numRecords;
+      return position < sortBufferInsertPosition;
     }
 
     @Override
     public void loadNext() {
       // This pointer points to a 4-byte record length, followed by the record's bytes
-      final long recordPointer = array.get(position);
+      final long recordPointer = sortBuffer[position];
       baseObject = memoryManager.getPage(recordPointer);
       baseOffset = memoryManager.getOffsetInPage(recordPointer) + 4;  // Skip over record length
       recordLength = Platform.getInt(baseObject, baseOffset - 4);
-      keyPrefix = array.get(position + 1);
+      keyPrefix = sortBuffer[position + 1];
       position += 2;
     }
 
@@ -235,9 +187,7 @@ public final class UnsafeInMemorySorter {
    * {@code next()} will return the same mutable object.
    */
   public SortedIterator getSortedIterator() {
-    if (sorter != null) {
-      sorter.sort(array, 0, pos / 2, sortComparator);
-    }
-    return new SortedIterator(pos / 2);
+    sorter.sort(pointerArray, 0, pointerArrayInsertPosition / 2, sortComparator);
+    return new SortedIterator(memoryManager, pointerArrayInsertPosition, pointerArray);
   }
 }

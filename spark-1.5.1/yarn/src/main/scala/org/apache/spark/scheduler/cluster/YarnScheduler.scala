@@ -18,6 +18,7 @@
 package org.apache.spark.scheduler.cluster
 
 import org.apache.hadoop.yarn.util.RackResolver
+
 import org.apache.log4j.{Level, Logger}
 
 import org.apache.spark._

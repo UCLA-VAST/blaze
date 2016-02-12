@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle
 
-import org.apache.spark.{ShuffleDependency, TaskContext}
+import org.apache.spark.{TaskContext, ShuffleDependency}
 
 /**
  * Pluggable interface for shuffle systems. A ShuffleManager is created in SparkEnv on the driver
@@ -28,10 +28,6 @@ import org.apache.spark.{ShuffleDependency, TaskContext}
  * boolean isDriver as parameters.
  */
 private[spark] trait ShuffleManager {
-
-  /** Return short name for the ShuffleManager */
-  val shortName: String
-
   /**
    * Register a shuffle with the manager and obtain a handle for it to pass to tasks.
    */

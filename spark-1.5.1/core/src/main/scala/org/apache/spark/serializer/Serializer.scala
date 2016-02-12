@@ -25,7 +25,7 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.annotation.{DeveloperApi, Private}
-import org.apache.spark.util.{ByteBufferInputStream, NextIterator, Utils}
+import org.apache.spark.util.{Utils, ByteBufferInputStream, NextIterator}
 
 /**
  * :: DeveloperApi ::

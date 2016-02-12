@@ -35,7 +35,6 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -76,11 +75,11 @@ public class JavaDirectKafkaStreamSuite implements Serializable {
     String[] topic1data = createTopicAndSendData(topic1);
     String[] topic2data = createTopicAndSendData(topic2);
 
-    Set<String> sent = new HashSet<>();
+    HashSet<String> sent = new HashSet<String>();
     sent.addAll(Arrays.asList(topic1data));
     sent.addAll(Arrays.asList(topic2data));
 
-    Map<String, String> kafkaParams = new HashMap<>();
+    HashMap<String, String> kafkaParams = new HashMap<String, String>();
     kafkaParams.put("metadata.broker.list", kafkaTestUtils.brokerAddress());
     kafkaParams.put("auto.offset.reset", "smallest");
 
@@ -96,17 +95,17 @@ public class JavaDirectKafkaStreamSuite implements Serializable {
         // Make sure you can get offset ranges from the rdd
         new Function<JavaPairRDD<String, String>, JavaPairRDD<String, String>>() {
           @Override
-          public JavaPairRDD<String, String> call(JavaPairRDD<String, String> rdd) {
+          public JavaPairRDD<String, String> call(JavaPairRDD<String, String> rdd) throws Exception {
             OffsetRange[] offsets = ((HasOffsetRanges) rdd.rdd()).offsetRanges();
             offsetRanges.set(offsets);
-            Assert.assertEquals(topic1, offsets[0].topic());
+            Assert.assertEquals(offsets[0].topic(), topic1);
             return rdd;
           }
         }
     ).map(
         new Function<Tuple2<String, String>, String>() {
           @Override
-          public String call(Tuple2<String, String> kv) {
+          public String call(Tuple2<String, String> kv) throws Exception {
             return kv._2();
           }
         }
@@ -120,10 +119,10 @@ public class JavaDirectKafkaStreamSuite implements Serializable {
         StringDecoder.class,
         String.class,
         kafkaParams,
-        topicOffsetToMap(topic2, 0L),
+        topicOffsetToMap(topic2, (long) 0),
         new Function<MessageAndMetadata<String, String>, String>() {
           @Override
-          public String call(MessageAndMetadata<String, String> msgAndMd) {
+          public String call(MessageAndMetadata<String, String> msgAndMd) throws Exception {
             return msgAndMd.message();
           }
         }
@@ -131,15 +130,17 @@ public class JavaDirectKafkaStreamSuite implements Serializable {
     JavaDStream<String> unifiedStream = stream1.union(stream2);
 
     final Set<String> result = Collections.synchronizedSet(new HashSet<String>());
-    unifiedStream.foreachRDD(new VoidFunction<JavaRDD<String>>() {
+    unifiedStream.foreachRDD(
+        new Function<JavaRDD<String>, Void>() {
           @Override
-          public void call(JavaRDD<String> rdd) {
+          public Void call(JavaRDD<String> rdd) throws Exception {
             result.addAll(rdd.collect());
             for (OffsetRange o : offsetRanges.get()) {
               System.out.println(
                 o.topic() + " " + o.partition() + " " + o.fromOffset() + " " + o.untilOffset()
               );
             }
+            return null;
           }
         }
     );
@@ -154,14 +155,14 @@ public class JavaDirectKafkaStreamSuite implements Serializable {
     ssc.stop();
   }
 
-  private static Set<String> topicToSet(String topic) {
-    Set<String> topicSet = new HashSet<>();
+  private HashSet<String> topicToSet(String topic) {
+    HashSet<String> topicSet = new HashSet<String>();
     topicSet.add(topic);
     return topicSet;
   }
 
-  private static Map<TopicAndPartition, Long> topicOffsetToMap(String topic, Long offsetToStart) {
-    Map<TopicAndPartition, Long> topicMap = new HashMap<>();
+  private HashMap<TopicAndPartition, Long> topicOffsetToMap(String topic, Long offsetToStart) {
+    HashMap<TopicAndPartition, Long> topicMap = new HashMap<TopicAndPartition, Long>();
     topicMap.put(new TopicAndPartition(topic, 0), offsetToStart);
     return topicMap;
   }

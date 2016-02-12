@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.joins
 
 import org.apache.spark.{InternalAccumulator, TaskContext}
+import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -25,9 +26,11 @@ import org.apache.spark.sql.execution.{BinaryNode, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 
 /**
+ * :: DeveloperApi ::
  * Build the right table's join keys into a HashSet, and iteratively go through the left
  * table, to find the if join keys are in the Hash set.
  */
+@DeveloperApi
 case class BroadcastLeftSemiJoinHash(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -54,7 +57,7 @@ case class BroadcastLeftSemiJoinHash(
       val hashSet = buildKeyHashSet(input.toIterator, SQLMetrics.nullLongMetric)
       val broadcastedRelation = sparkContext.broadcast(hashSet)
 
-      left.execute().mapPartitionsInternal { streamIter =>
+      left.execute().mapPartitions { streamIter =>
         hashSemiJoin(streamIter, numLeftRows, broadcastedRelation.value, numOutputRows)
       }
     } else {
@@ -62,11 +65,12 @@ case class BroadcastLeftSemiJoinHash(
         HashedRelation(input.toIterator, SQLMetrics.nullLongMetric, rightKeyGenerator, input.size)
       val broadcastedRelation = sparkContext.broadcast(hashRelation)
 
-      left.execute().mapPartitionsInternal { streamIter =>
+      left.execute().mapPartitions { streamIter =>
         val hashedRelation = broadcastedRelation.value
         hashedRelation match {
           case unsafe: UnsafeHashedRelation =>
-            TaskContext.get().taskMetrics().incPeakExecutionMemory(unsafe.getUnsafeSize)
+            TaskContext.get().internalMetricsToAccumulators(
+              InternalAccumulator.PEAK_EXECUTION_MEMORY).add(unsafe.getUnsafeSize)
           case _ =>
         }
         hashSemiJoin(streamIter, numLeftRows, hashedRelation, numOutputRows)

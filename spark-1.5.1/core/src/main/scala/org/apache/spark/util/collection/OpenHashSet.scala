@@ -18,7 +18,6 @@
 package org.apache.spark.util.collection
 
 import scala.reflect._
-
 import com.google.common.hash.Hashing
 
 import org.apache.spark.annotation.Private

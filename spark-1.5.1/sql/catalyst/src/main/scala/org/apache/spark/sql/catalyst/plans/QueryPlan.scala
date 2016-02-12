@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.catalyst.plans
 
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet, Expression, VirtualColumn}
 import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.types.{DataType, StructType}
 
@@ -25,56 +25,6 @@ abstract class QueryPlan[PlanType <: TreeNode[PlanType]] extends TreeNode[PlanTy
   self: PlanType =>
 
   def output: Seq[Attribute]
-
-  /**
-   * Extracts the relevant constraints from a given set of constraints based on the attributes that
-   * appear in the [[outputSet]].
-   */
-  protected def getRelevantConstraints(constraints: Set[Expression]): Set[Expression] = {
-    constraints
-      .union(constructIsNotNullConstraints(constraints))
-      .filter(constraint =>
-        constraint.references.nonEmpty && constraint.references.subsetOf(outputSet))
-  }
-
-  /**
-   * Infers a set of `isNotNull` constraints from a given set of equality/comparison expressions.
-   * For e.g., if an expression is of the form (`a > 5`), this returns a constraint of the form
-   * `isNotNull(a)`
-   */
-  private def constructIsNotNullConstraints(constraints: Set[Expression]): Set[Expression] = {
-    // Currently we only propagate constraints if the condition consists of equality
-    // and ranges. For all other cases, we return an empty set of constraints
-    constraints.map {
-      case EqualTo(l, r) =>
-        Set(IsNotNull(l), IsNotNull(r))
-      case GreaterThan(l, r) =>
-        Set(IsNotNull(l), IsNotNull(r))
-      case GreaterThanOrEqual(l, r) =>
-        Set(IsNotNull(l), IsNotNull(r))
-      case LessThan(l, r) =>
-        Set(IsNotNull(l), IsNotNull(r))
-      case LessThanOrEqual(l, r) =>
-        Set(IsNotNull(l), IsNotNull(r))
-      case _ =>
-        Set.empty[Expression]
-    }.foldLeft(Set.empty[Expression])(_ union _.toSet)
-  }
-
-  /**
-   * A sequence of expressions that describes the data property of the output rows of this
-   * operator. For example, if the output of this operator is column `a`, an example `constraints`
-   * can be `Set(a > 10, a < 20)`.
-   */
-  lazy val constraints: Set[Expression] = getRelevantConstraints(validConstraints)
-
-  /**
-   * This method can be overridden by any child class of QueryPlan to specify a set of constraints
-   * based on the given operator's constraint propagation logic. These constraints are then
-   * canonicalized and filtered automatically to contain only those attributes that appear in the
-   * [[outputSet]]
-   */
-  protected def validConstraints: Set[Expression] = Set.empty
 
   /**
    * Returns the set of attributes that are output by this node.
@@ -94,22 +44,20 @@ abstract class QueryPlan[PlanType <: TreeNode[PlanType]] extends TreeNode[PlanTy
     AttributeSet(children.flatMap(_.asInstanceOf[QueryPlan[PlanType]].output))
 
   /**
-    * The set of all attributes that are produced by this node.
-    */
-  def producedAttributes: AttributeSet = AttributeSet.empty
-
-  /**
    * Attributes that are referenced by expressions but not provided by this nodes children.
    * Subclasses should override this method if they produce attributes internally as it is used by
    * assertions designed to prevent the construction of invalid plans.
+   *
+   * Note that virtual columns should be excluded. Currently, we only support the grouping ID
+   * virtual column.
    */
-  def missingInput: AttributeSet = references -- inputSet -- producedAttributes
+  def missingInput: AttributeSet =
+    (references -- inputSet).filter(_.name != VirtualColumn.groupingIdName)
 
   /**
    * Runs [[transform]] with `rule` on all expressions present in this query operator.
    * Users should not expect a specific directionality. If a specific directionality is needed,
    * transformExpressionsDown or transformExpressionsUp should be used.
-   *
    * @param rule the rule to be applied to every expression in this operator.
    */
   def transformExpressions(rule: PartialFunction[Expression, Expression]): this.type = {
@@ -118,7 +66,6 @@ abstract class QueryPlan[PlanType <: TreeNode[PlanType]] extends TreeNode[PlanTy
 
   /**
    * Runs [[transformDown]] with `rule` on all expressions present in this query operator.
-   *
    * @param rule the rule to be applied to every expression in this operator.
    */
   def transformExpressionsDown(rule: PartialFunction[Expression, Expression]): this.type = {
@@ -141,7 +88,6 @@ abstract class QueryPlan[PlanType <: TreeNode[PlanType]] extends TreeNode[PlanTy
       case d: DataType => d // Avoid unpacking Structs
       case seq: Traversable[_] => seq.map(recursiveTransform)
       case other: AnyRef => other
-      case null => null
     }
 
     val newArgs = productIterator.map(recursiveTransform).toArray
@@ -151,7 +97,6 @@ abstract class QueryPlan[PlanType <: TreeNode[PlanType]] extends TreeNode[PlanTy
 
   /**
    * Runs [[transformUp]] with `rule` on all expressions present in this query operator.
-   *
    * @param rule the rule to be applied to every expression in this operator.
    * @return
    */
@@ -175,7 +120,6 @@ abstract class QueryPlan[PlanType <: TreeNode[PlanType]] extends TreeNode[PlanTy
       case d: DataType => d // Avoid unpacking Structs
       case seq: Traversable[_] => seq.map(recursiveTransform)
       case other: AnyRef => other
-      case null => null
     }
 
     val newArgs = productIterator.map(recursiveTransform).toArray
@@ -193,17 +137,13 @@ abstract class QueryPlan[PlanType <: TreeNode[PlanType]] extends TreeNode[PlanTy
 
   /** Returns all of the expressions present in this query plan operator. */
   def expressions: Seq[Expression] = {
-    // Recursively find all expressions from a traversable.
-    def seqToExpressions(seq: Traversable[Any]): Traversable[Expression] = seq.flatMap {
-      case e: Expression => e :: Nil
-      case s: Traversable[_] => seqToExpressions(s)
-      case other => Nil
-    }
-
     productIterator.flatMap {
       case e: Expression => e :: Nil
       case Some(e: Expression) => e :: Nil
-      case seq: Traversable[_] => seqToExpressions(seq)
+      case seq: Traversable[_] => seq.flatMap {
+        case e: Expression => e :: Nil
+        case other => Nil
+      }
       case other => Nil
     }.toSeq
   }

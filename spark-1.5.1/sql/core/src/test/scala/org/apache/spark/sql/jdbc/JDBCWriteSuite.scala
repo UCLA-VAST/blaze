@@ -22,12 +22,13 @@ import java.util.Properties
 
 import org.scalatest.BeforeAndAfter
 
+import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.{Row, SaveMode}
 import org.apache.spark.sql.test.SharedSQLContext
 import org.apache.spark.sql.types._
 import org.apache.spark.util.Utils
 
-class JDBCWriteSuite extends SharedSQLContext with BeforeAndAfter {
+class JDBCWriteSuite extends SparkFunSuite with BeforeAndAfter with SharedSQLContext {
 
   val url = "jdbc:h2:mem:testdb2"
   var conn: java.sql.Connection = null
@@ -75,6 +76,8 @@ class JDBCWriteSuite extends SharedSQLContext with BeforeAndAfter {
     conn1.close()
   }
 
+  private lazy val sc = ctx.sparkContext
+
   private lazy val arr2x2 = Array[Row](Row.apply("dave", 42), Row.apply("mary", 222))
   private lazy val arr1x2 = Array[Row](Row.apply("fred", 3))
   private lazy val schema2 = StructType(
@@ -88,50 +91,49 @@ class JDBCWriteSuite extends SharedSQLContext with BeforeAndAfter {
       StructField("seq", IntegerType) :: Nil)
 
   test("Basic CREATE") {
-    val df = sqlContext.createDataFrame(sparkContext.parallelize(arr2x2), schema2)
+    val df = ctx.createDataFrame(sc.parallelize(arr2x2), schema2)
 
     df.write.jdbc(url, "TEST.BASICCREATETEST", new Properties)
-    assert(2 === sqlContext.read.jdbc(url, "TEST.BASICCREATETEST", new Properties).count)
-    assert(
-      2 === sqlContext.read.jdbc(url, "TEST.BASICCREATETEST", new Properties).collect()(0).length)
+    assert(2 === ctx.read.jdbc(url, "TEST.BASICCREATETEST", new Properties).count)
+    assert(2 === ctx.read.jdbc(url, "TEST.BASICCREATETEST", new Properties).collect()(0).length)
   }
 
   test("CREATE with overwrite") {
-    val df = sqlContext.createDataFrame(sparkContext.parallelize(arr2x3), schema3)
-    val df2 = sqlContext.createDataFrame(sparkContext.parallelize(arr1x2), schema2)
+    val df = ctx.createDataFrame(sc.parallelize(arr2x3), schema3)
+    val df2 = ctx.createDataFrame(sc.parallelize(arr1x2), schema2)
 
     df.write.jdbc(url1, "TEST.DROPTEST", properties)
-    assert(2 === sqlContext.read.jdbc(url1, "TEST.DROPTEST", properties).count)
-    assert(3 === sqlContext.read.jdbc(url1, "TEST.DROPTEST", properties).collect()(0).length)
+    assert(2 === ctx.read.jdbc(url1, "TEST.DROPTEST", properties).count)
+    assert(3 === ctx.read.jdbc(url1, "TEST.DROPTEST", properties).collect()(0).length)
 
     df2.write.mode(SaveMode.Overwrite).jdbc(url1, "TEST.DROPTEST", properties)
-    assert(1 === sqlContext.read.jdbc(url1, "TEST.DROPTEST", properties).count)
-    assert(2 === sqlContext.read.jdbc(url1, "TEST.DROPTEST", properties).collect()(0).length)
+    assert(1 === ctx.read.jdbc(url1, "TEST.DROPTEST", properties).count)
+    assert(2 === ctx.read.jdbc(url1, "TEST.DROPTEST", properties).collect()(0).length)
   }
 
   test("CREATE then INSERT to append") {
-    val df = sqlContext.createDataFrame(sparkContext.parallelize(arr2x2), schema2)
-    val df2 = sqlContext.createDataFrame(sparkContext.parallelize(arr1x2), schema2)
+    val df = ctx.createDataFrame(sc.parallelize(arr2x2), schema2)
+    val df2 = ctx.createDataFrame(sc.parallelize(arr1x2), schema2)
 
     df.write.jdbc(url, "TEST.APPENDTEST", new Properties)
     df2.write.mode(SaveMode.Append).jdbc(url, "TEST.APPENDTEST", new Properties)
-    assert(3 === sqlContext.read.jdbc(url, "TEST.APPENDTEST", new Properties).count)
-    assert(2 === sqlContext.read.jdbc(url, "TEST.APPENDTEST", new Properties).collect()(0).length)
+    assert(3 === ctx.read.jdbc(url, "TEST.APPENDTEST", new Properties).count)
+    assert(2 === ctx.read.jdbc(url, "TEST.APPENDTEST", new Properties).collect()(0).length)
   }
 
   test("CREATE then INSERT to truncate") {
-    val df = sqlContext.createDataFrame(sparkContext.parallelize(arr2x2), schema2)
-    val df2 = sqlContext.createDataFrame(sparkContext.parallelize(arr1x2), schema2)
+    val df = ctx.createDataFrame(sc.parallelize(arr2x2), schema2)
+    val df2 = ctx.createDataFrame(sc.parallelize(arr1x2), schema2)
 
     df.write.jdbc(url1, "TEST.TRUNCATETEST", properties)
     df2.write.mode(SaveMode.Overwrite).jdbc(url1, "TEST.TRUNCATETEST", properties)
-    assert(1 === sqlContext.read.jdbc(url1, "TEST.TRUNCATETEST", properties).count)
-    assert(2 === sqlContext.read.jdbc(url1, "TEST.TRUNCATETEST", properties).collect()(0).length)
+    assert(1 === ctx.read.jdbc(url1, "TEST.TRUNCATETEST", properties).count)
+    assert(2 === ctx.read.jdbc(url1, "TEST.TRUNCATETEST", properties).collect()(0).length)
   }
 
   test("Incompatible INSERT to append") {
-    val df = sqlContext.createDataFrame(sparkContext.parallelize(arr2x2), schema2)
-    val df2 = sqlContext.createDataFrame(sparkContext.parallelize(arr2x3), schema3)
+    val df = ctx.createDataFrame(sc.parallelize(arr2x2), schema2)
+    val df2 = ctx.createDataFrame(sc.parallelize(arr2x3), schema3)
 
     df.write.jdbc(url, "TEST.INCOMPATIBLETEST", new Properties)
     intercept[org.apache.spark.SparkException] {
@@ -141,14 +143,14 @@ class JDBCWriteSuite extends SharedSQLContext with BeforeAndAfter {
 
   test("INSERT to JDBC Datasource") {
     sql("INSERT INTO TABLE PEOPLE1 SELECT * FROM PEOPLE")
-    assert(2 === sqlContext.read.jdbc(url1, "TEST.PEOPLE1", properties).count)
-    assert(2 === sqlContext.read.jdbc(url1, "TEST.PEOPLE1", properties).collect()(0).length)
+    assert(2 === ctx.read.jdbc(url1, "TEST.PEOPLE1", properties).count)
+    assert(2 === ctx.read.jdbc(url1, "TEST.PEOPLE1", properties).collect()(0).length)
   }
 
   test("INSERT to JDBC Datasource with overwrite") {
     sql("INSERT INTO TABLE PEOPLE1 SELECT * FROM PEOPLE")
     sql("INSERT OVERWRITE TABLE PEOPLE1 SELECT * FROM PEOPLE")
-    assert(2 === sqlContext.read.jdbc(url1, "TEST.PEOPLE1", properties).count)
-    assert(2 === sqlContext.read.jdbc(url1, "TEST.PEOPLE1", properties).collect()(0).length)
+    assert(2 === ctx.read.jdbc(url1, "TEST.PEOPLE1", properties).count)
+    assert(2 === ctx.read.jdbc(url1, "TEST.PEOPLE1", properties).collect()(0).length)
   }
 }

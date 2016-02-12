@@ -41,7 +41,8 @@ private[deploy] object DeployMessages {
       worker: RpcEndpointRef,
       cores: Int,
       memory: Int,
-      workerWebUiUrl: String)
+      webUiPort: Int,
+      publicAddress: String)
     extends DeployMessage {
     Utils.checkHost(host, "Required hostname")
     assert (port > 0)
@@ -68,14 +69,9 @@ private[deploy] object DeployMessages {
 
   // Master to Worker
 
-  sealed trait RegisterWorkerResponse
-
   case class RegisteredWorker(master: RpcEndpointRef, masterWebUiUrl: String) extends DeployMessage
-    with RegisterWorkerResponse
 
-  case class RegisterWorkerFailed(message: String) extends DeployMessage with RegisterWorkerResponse
-
-  case object MasterInStandby extends DeployMessage with RegisterWorkerResponse
+  case class RegisterWorkerFailed(message: String) extends DeployMessage
 
   case class ReconnectWorker(masterUrl: String) extends DeployMessage
 

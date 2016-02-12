@@ -19,15 +19,18 @@ package org.apache.spark.sql.hive
 
 import java.io.File
 
-import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.{QueryTest, Row, SaveMode, SQLConf}
 import org.apache.spark.sql.hive.client.{ExternalTable, ManagedTable}
-import org.apache.spark.sql.hive.test.TestHiveSingleton
+import org.apache.spark.sql.hive.test.TestHive
+import org.apache.spark.sql.hive.test.TestHive._
+import org.apache.spark.sql.hive.test.TestHive.implicits._
+import org.apache.spark.sql.sources.DataSourceTest
 import org.apache.spark.sql.test.{ExamplePointUDT, SQLTestUtils}
 import org.apache.spark.sql.types.{DecimalType, StringType, StructType}
+import org.apache.spark.sql.{Row, SaveMode, SQLContext}
+import org.apache.spark.{Logging, SparkFunSuite}
 
-class HiveMetastoreCatalogSuite extends SparkFunSuite with TestHiveSingleton {
-  import hiveContext.implicits._
+
+class HiveMetastoreCatalogSuite extends SparkFunSuite with Logging {
 
   test("struct field should accept underscore in sub-column name") {
     val hiveTypeStr = "struct<a: int, b_1: string, c: string>"
@@ -43,15 +46,14 @@ class HiveMetastoreCatalogSuite extends SparkFunSuite with TestHiveSingleton {
   }
 
   test("duplicated metastore relations") {
-    val df = hiveContext.sql("SELECT * FROM src")
+    val df = sql("SELECT * FROM src")
     logInfo(df.queryExecution.toString)
     df.as('a).join(df.as('b), $"a.key" === $"b.key")
   }
 }
 
-class DataSourceWithHiveMetastoreCatalogSuite
-  extends QueryTest with SQLTestUtils with TestHiveSingleton {
-  import hiveContext._
+class DataSourceWithHiveMetastoreCatalogSuite extends DataSourceTest with SQLTestUtils {
+  override def _sqlContext: SQLContext = TestHive
   import testImplicits._
 
   private val testDF = range(1, 3).select(
@@ -74,13 +76,11 @@ class DataSourceWithHiveMetastoreCatalogSuite
   ).foreach { case (provider, (inputFormat, outputFormat, serde)) =>
     test(s"Persist non-partitioned $provider relation into metastore as managed table") {
       withTable("t") {
-        withSQLConf(SQLConf.PARQUET_WRITE_LEGACY_FORMAT.key -> "true") {
-          testDF
-            .write
-            .mode(SaveMode.Overwrite)
-            .format(provider)
-            .saveAsTable("t")
-        }
+        testDF
+          .write
+          .mode(SaveMode.Overwrite)
+          .format(provider)
+          .saveAsTable("t")
 
         val hiveTable = catalog.client.getTable("default", "t")
         assert(hiveTable.inputFormat === Some(inputFormat))
@@ -104,14 +104,12 @@ class DataSourceWithHiveMetastoreCatalogSuite
         withTable("t") {
           val path = dir.getCanonicalFile
 
-          withSQLConf(SQLConf.PARQUET_WRITE_LEGACY_FORMAT.key -> "true") {
-            testDF
-              .write
-              .mode(SaveMode.Overwrite)
-              .format(provider)
-              .option("path", path.toString)
-              .saveAsTable("t")
-          }
+          testDF
+            .write
+            .mode(SaveMode.Overwrite)
+            .format(provider)
+            .option("path", path.toString)
+            .saveAsTable("t")
 
           val hiveTable = catalog.client.getTable("default", "t")
           assert(hiveTable.inputFormat === Some(inputFormat))

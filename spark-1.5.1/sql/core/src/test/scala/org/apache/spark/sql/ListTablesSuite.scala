@@ -19,7 +19,6 @@ package org.apache.spark.sql
 
 import org.scalatest.BeforeAndAfter
 
-import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.test.SharedSQLContext
 import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
 
@@ -33,33 +32,33 @@ class ListTablesSuite extends QueryTest with BeforeAndAfter with SharedSQLContex
   }
 
   after {
-    sqlContext.catalog.unregisterTable(TableIdentifier("ListTablesSuiteTable"))
+    ctx.catalog.unregisterTable(Seq("ListTablesSuiteTable"))
   }
 
   test("get all tables") {
     checkAnswer(
-      sqlContext.tables().filter("tableName = 'ListTablesSuiteTable'"),
+      ctx.tables().filter("tableName = 'ListTablesSuiteTable'"),
       Row("ListTablesSuiteTable", true))
 
     checkAnswer(
       sql("SHOW tables").filter("tableName = 'ListTablesSuiteTable'"),
       Row("ListTablesSuiteTable", true))
 
-    sqlContext.catalog.unregisterTable(TableIdentifier("ListTablesSuiteTable"))
-    assert(sqlContext.tables().filter("tableName = 'ListTablesSuiteTable'").count() === 0)
+    ctx.catalog.unregisterTable(Seq("ListTablesSuiteTable"))
+    assert(ctx.tables().filter("tableName = 'ListTablesSuiteTable'").count() === 0)
   }
 
   test("getting all Tables with a database name has no impact on returned table names") {
     checkAnswer(
-      sqlContext.tables("DB").filter("tableName = 'ListTablesSuiteTable'"),
+      ctx.tables("DB").filter("tableName = 'ListTablesSuiteTable'"),
       Row("ListTablesSuiteTable", true))
 
     checkAnswer(
       sql("show TABLES in DB").filter("tableName = 'ListTablesSuiteTable'"),
       Row("ListTablesSuiteTable", true))
 
-    sqlContext.catalog.unregisterTable(TableIdentifier("ListTablesSuiteTable"))
-    assert(sqlContext.tables().filter("tableName = 'ListTablesSuiteTable'").count() === 0)
+    ctx.catalog.unregisterTable(Seq("ListTablesSuiteTable"))
+    assert(ctx.tables().filter("tableName = 'ListTablesSuiteTable'").count() === 0)
   }
 
   test("query the returned DataFrame of tables") {
@@ -67,7 +66,7 @@ class ListTablesSuite extends QueryTest with BeforeAndAfter with SharedSQLContex
       StructField("tableName", StringType, false) ::
       StructField("isTemporary", BooleanType, false) :: Nil)
 
-    Seq(sqlContext.tables(), sql("SHOW TABLes")).foreach {
+    Seq(ctx.tables(), sql("SHOW TABLes")).foreach {
       case tableDF =>
         assert(expectedSchema === tableDF.schema)
 
@@ -78,9 +77,9 @@ class ListTablesSuite extends QueryTest with BeforeAndAfter with SharedSQLContex
           Row(true, "ListTablesSuiteTable")
         )
         checkAnswer(
-          sqlContext.tables().filter("tableName = 'tables'").select("tableName", "isTemporary"),
+          ctx.tables().filter("tableName = 'tables'").select("tableName", "isTemporary"),
           Row("tables", true))
-        sqlContext.dropTempTable("tables")
+        ctx.dropTempTable("tables")
     }
   }
 }

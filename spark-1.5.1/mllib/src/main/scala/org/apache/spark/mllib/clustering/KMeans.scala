@@ -20,7 +20,7 @@ package org.apache.spark.mllib.clustering
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.Logging
-import org.apache.spark.annotation.Since
+import org.apache.spark.annotation.{Experimental, Since}
 import org.apache.spark.blaze._
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.mllib.linalg.BLAS.{axpy, scal}
@@ -71,13 +71,13 @@ class KMeans private (
   }
 
   /**
-   * Maximum number of iterations allowed.
+   * Maximum number of iterations to run.
    */
   @Since("1.4.0")
   def getMaxIterations: Int = maxIterations
 
   /**
-   * Set maximum number of iterations allowed. Default: 20.
+   * Set maximum number of iterations to run. Default: 20.
    */
   @Since("0.8.0")
   def setMaxIterations(maxIterations: Int): this.type = {
@@ -108,7 +108,7 @@ class KMeans private (
    * Number of runs of the algorithm to execute in parallel.
    */
   @Since("1.4.0")
-  @deprecated("Support for runs is deprecated. This param will have no effect in 2.0.0.", "1.6.0")
+  @Experimental
   def getRuns: Int = runs
 
   /**
@@ -118,7 +118,7 @@ class KMeans private (
    * return the best clustering found over any run. Default: 1.
    */
   @Since("0.8.0")
-  @deprecated("Support for runs is deprecated. This param will have no effect in 2.0.0.", "1.6.0")
+  @Experimental
   def setRuns(runs: Int): this.type = {
     if (runs <= 0) {
       throw new IllegalArgumentException("Number of runs must be positive")
@@ -290,13 +290,17 @@ class KMeans private (
   }
 
   /**
-
    * Implementation of K-Means algorithm.
    */
   private def runAlgorithm(data: RDD[VectorWithNorm]): KMeansModel = {
 
     val sc = data.sparkContext
 
+    /**
+     * Setup Blaze runtime to allow accelerator of CostFun
+     */
+    val blaze = new BlazeRuntime(data.context)
+    
     val initStartTime = System.nanoTime()
 
     // Only one run is allowed when initialModel is given
@@ -323,8 +327,6 @@ class KMeans private (
     logInfo(s"Initialization with $initializationMode took " + "%.3f".format(initTimeInSeconds) +
       " seconds.")
 
-    val blaze = new BlazeRuntime(data.context)
-
     val active = Array.fill(numRuns)(true)
     val costs = Array.fill(numRuns)(0.0)
 
@@ -332,6 +334,9 @@ class KMeans private (
     var iteration = 0
 
     val iterationStartTime = System.nanoTime()
+
+    // convert VectorWithNorm to Array[Double]
+    var blazeData = blaze.wrap(data.map(v => v.vector.toArray :+ v.norm));
 
     // Execute iterations of Lloyd's algorithm until all runs have converged
     while (iteration < maxIterations && !activeRuns.isEmpty) {
@@ -351,11 +356,10 @@ class KMeans private (
       val runs = activeCenters.length
       val k = activeCenters(0).length
       val dims = activeCenters(0)(0).vector.size
-
+      
       val bcActiveCenters = sc.broadcast(flatActiveCenters)
+
       var blazeActiveCenters = blaze.wrap(bcActiveCenters);
-      // convert VectorWithNorm to Array[Double]
-      var blazeData = blaze.wrap(data.map(v => v.vector.toArray :+ v.norm));
 
       // Find the sum and count of points mapping to each center
       val totalContribs = blazeData.mapPartitions_acc { new KMeansWithACC(
@@ -363,8 +367,6 @@ class KMeans private (
       }.map { v =>
         ( (v(0), v(1)), (Vectors.dense(v.slice(2, v.length-1)), v(v.length-1).toLong))
       }.reduceByKey(mergeContribs).collectAsMap()
-
-
 
       // Update the cluster centers and costs for each active run
       for ((run, i) <- activeRuns.zipWithIndex) {
@@ -403,10 +405,13 @@ class KMeans private (
     }
 
     blaze.stop()
+
     // val (minCost, bestRun) = costs.zipWithIndex.min
 
     // logInfo(s"The cost for the best run is $minCost.")
 
+    // TODO: does not support parallel runs yet
+    // new KMeansModel(centers(bestRun).map(_.vector))
     new KMeansModel(centers(0).map(_.vector))
   }
 
@@ -464,7 +469,7 @@ class KMeans private (
           Array.tabulate(runs) { r =>
             math.min(KMeans.pointCost(bcNewCenters.value(r), point), cost(r))
           })
-        }.persist(StorageLevel.MEMORY_AND_DISK)
+      }.persist(StorageLevel.MEMORY_AND_DISK)
       val sumCosts = costs
         .aggregate(new Array[Double](runs))(
           seqOp = (s, v) => {
@@ -486,17 +491,14 @@ class KMeans private (
             s0
           }
         )
-
-      bcNewCenters.unpersist(blocking = false)
       preCosts.unpersist(blocking = false)
-
       val chosen = data.zip(costs).mapPartitionsWithIndex { (index, pointsWithCosts) =>
         val rand = new XORShiftRandom(seed ^ (step << 16) ^ index)
         pointsWithCosts.flatMap { case (p, c) =>
           val rs = (0 until runs).filter { r =>
             rand.nextDouble() < 2.0 * c(r) * k / sumCosts(r)
           }
-          if (rs.length > 0) Some((p, rs)) else None
+          if (rs.length > 0) Some(p, rs) else None
         }
       }.collect()
       mergeNewCenters()
@@ -518,9 +520,6 @@ class KMeans private (
         ((r, KMeans.findClosest(bcCenters.value(r), p)._1), 1.0)
       }
     }.reduceByKey(_ + _).collectAsMap()
-
-    bcCenters.unpersist(blocking = false)
-
     val finalCenters = (0 until runs).par.map { r =>
       val myCenters = centers(r).toArray
       val myWeights = (0 until myCenters.length).map(i => weightMap.getOrElse((r, i), 0.0)).toArray
@@ -547,15 +546,12 @@ object KMeans {
   /**
    * Trains a k-means model using the given set of parameters.
    *
-   * @param data Training points as an `RDD` of `Vector` types.
-   * @param k Number of clusters to create.
-   * @param maxIterations Maximum number of iterations allowed.
-   * @param runs Number of runs to execute in parallel. The best model according to the cost
-   *             function will be returned. (default: 1)
-   * @param initializationMode The initialization algorithm. This can either be "random" or
-   *                           "k-means||". (default: "k-means||")
-   * @param seed Random seed for cluster initialization. Default is to generate seed based
-   *             on system time.
+   * @param data training points stored as `RDD[Vector]`
+   * @param k number of clusters
+   * @param maxIterations max number of iterations
+   * @param runs number of parallel runs, defaults to 1. The best model is returned.
+   * @param initializationMode initialization model, either "random" or "k-means||" (default).
+   * @param seed random seed value for cluster initialization
    */
   @Since("1.3.0")
   def train(
@@ -576,13 +572,11 @@ object KMeans {
   /**
    * Trains a k-means model using the given set of parameters.
    *
-   * @param data Training points as an `RDD` of `Vector` types.
-   * @param k Number of clusters to create.
-   * @param maxIterations Maximum number of iterations allowed.
-   * @param runs Number of runs to execute in parallel. The best model according to the cost
-   *             function will be returned. (default: 1)
-   * @param initializationMode The initialization algorithm. This can either be "random" or
-   *                           "k-means||". (default: "k-means||")
+   * @param data training points stored as `RDD[Vector]`
+   * @param k number of clusters
+   * @param maxIterations max number of iterations
+   * @param runs number of parallel runs, defaults to 1. The best model is returned.
+   * @param initializationMode initialization model, either "random" or "k-means||" (default).
    */
   @Since("0.8.0")
   def train(

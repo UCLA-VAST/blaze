@@ -18,7 +18,6 @@
 package org.apache.spark.ml.feature;
 
 import java.util.Arrays;
-import java.util.List;
 
 import org.junit.After;
 import org.junit.Before;
@@ -59,14 +58,14 @@ public class JavaStopWordsRemoverSuite {
       .setInputCol("raw")
       .setOutputCol("filtered");
 
-    List<Row> data = Arrays.asList(
+    JavaRDD<Row> rdd = jsc.parallelize(Arrays.asList(
       RowFactory.create(Arrays.asList("I", "saw", "the", "red", "baloon")),
       RowFactory.create(Arrays.asList("Mary", "had", "a", "little", "lamb"))
-    );
+    ));
     StructType schema = new StructType(new StructField[] {
       new StructField("raw", DataTypes.createArrayType(DataTypes.StringType), false, Metadata.empty())
     });
-    DataFrame dataset = jsql.createDataFrame(data, schema);
+    DataFrame dataset = jsql.createDataFrame(rdd, schema);
 
     remover.transform(dataset).collect();
   }

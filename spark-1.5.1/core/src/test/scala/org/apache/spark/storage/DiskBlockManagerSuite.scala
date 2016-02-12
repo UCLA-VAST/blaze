@@ -45,27 +45,19 @@ class DiskBlockManagerSuite extends SparkFunSuite with BeforeAndAfterEach with B
   }
 
   override def afterAll() {
-    try {
-      Utils.deleteRecursively(rootDir0)
-      Utils.deleteRecursively(rootDir1)
-    } finally {
-      super.afterAll()
-    }
+    super.afterAll()
+    Utils.deleteRecursively(rootDir0)
+    Utils.deleteRecursively(rootDir1)
   }
 
   override def beforeEach() {
-    super.beforeEach()
     val conf = testConf.clone
     conf.set("spark.local.dir", rootDirs)
     diskBlockManager = new DiskBlockManager(blockManager, conf)
   }
 
   override def afterEach() {
-    try {
-      diskBlockManager.stop()
-    } finally {
-      super.afterEach()
-    }
+    diskBlockManager.stop()
   }
 
   test("basic block creation") {

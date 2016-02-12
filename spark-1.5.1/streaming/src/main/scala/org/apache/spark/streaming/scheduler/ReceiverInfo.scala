@@ -30,7 +30,6 @@ case class ReceiverInfo(
     name: String,
     active: Boolean,
     location: String,
-    executorId: String,
     lastErrorMessage: String = "",
     lastError: String = "",
     lastErrorTime: Long = -1L

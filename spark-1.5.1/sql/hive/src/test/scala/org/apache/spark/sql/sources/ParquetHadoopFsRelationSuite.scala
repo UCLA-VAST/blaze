@@ -23,14 +23,15 @@ import com.google.common.io.Files
 import org.apache.hadoop.fs.Path
 
 import org.apache.spark.deploy.SparkHadoopUtil
-import org.apache.spark.sql._
+import org.apache.spark.sql.{execution, AnalysisException, SaveMode}
 import org.apache.spark.sql.types._
 
 
 class ParquetHadoopFsRelationSuite extends HadoopFsRelationTest {
-  import testImplicits._
-
   override val dataSourceName: String = "parquet"
+
+  import sqlContext._
+  import sqlContext.implicits._
 
   // Parquet does not play well with NullType.
   override protected def supportsDataType(dataType: DataType): Boolean = dataType match {
@@ -57,7 +58,7 @@ class ParquetHadoopFsRelationSuite extends HadoopFsRelationTest {
         StructType(dataSchema.fields :+ StructField("p1", IntegerType, nullable = true))
 
       checkQueries(
-        hiveContext.read.format(dataSourceName)
+        read.format(dataSourceName)
           .option("dataSchema", dataSchemaWithPartition.json)
           .load(file.getCanonicalPath))
     }
@@ -75,7 +76,7 @@ class ParquetHadoopFsRelationSuite extends HadoopFsRelationTest {
         .format("parquet")
         .save(s"${dir.getCanonicalPath}/_temporary")
 
-      checkAnswer(hiveContext.read.format("parquet").load(dir.getCanonicalPath), df.collect())
+      checkAnswer(read.format("parquet").load(dir.getCanonicalPath), df.collect())
     }
   }
 
@@ -103,7 +104,7 @@ class ParquetHadoopFsRelationSuite extends HadoopFsRelationTest {
 
       // This shouldn't throw anything.
       df.write.format("parquet").mode(SaveMode.Overwrite).save(path)
-      checkAnswer(hiveContext.read.format("parquet").load(path), df)
+      checkAnswer(read.format("parquet").load(path), df)
     }
   }
 
@@ -113,7 +114,7 @@ class ParquetHadoopFsRelationSuite extends HadoopFsRelationTest {
         // Parquet doesn't allow field names with spaces.  Here we are intentionally making an
         // exception thrown from the `ParquetRelation2.prepareForWriteJob()` method to trigger
         // the bug.  Please refer to spark-8079 for more details.
-        hiveContext.range(1, 10)
+        range(1, 10)
           .withColumnRenamed("id", "a b")
           .write
           .format("parquet")
@@ -131,7 +132,7 @@ class ParquetHadoopFsRelationSuite extends HadoopFsRelationTest {
       val summaryPath = new Path(path, "_metadata")
       val commonSummaryPath = new Path(path, "_common_metadata")
 
-      val fs = summaryPath.getFileSystem(hadoopConfiguration)
+      val fs = summaryPath.getFileSystem(configuration)
       fs.delete(summaryPath, true)
       fs.delete(commonSummaryPath, true)
 
@@ -149,29 +150,10 @@ class ParquetHadoopFsRelationSuite extends HadoopFsRelationTest {
 
       sqlContext.range(2).select('id as 'a, 'id as 'b).write.partitionBy("b").parquet(path)
       val df = sqlContext.read.parquet(path).filter('a === 0).select('b)
-      val physicalPlan = df.queryExecution.sparkPlan
+      val physicalPlan = df.queryExecution.executedPlan
 
       assert(physicalPlan.collect { case p: execution.Project => p }.length === 1)
       assert(physicalPlan.collect { case p: execution.Filter => p }.length === 1)
-    }
-  }
-
-  test("SPARK-11500: Not deterministic order of columns when using merging schemas.") {
-    import testImplicits._
-    withSQLConf(SQLConf.PARQUET_SCHEMA_MERGING_ENABLED.key -> "true") {
-      withTempPath { dir =>
-        val pathOne = s"${dir.getCanonicalPath}/part=1"
-        Seq(1, 1).zipWithIndex.toDF("a", "b").write.parquet(pathOne)
-        val pathTwo = s"${dir.getCanonicalPath}/part=2"
-        Seq(1, 1).zipWithIndex.toDF("c", "b").write.parquet(pathTwo)
-        val pathThree = s"${dir.getCanonicalPath}/part=3"
-        Seq(1, 1).zipWithIndex.toDF("d", "b").write.parquet(pathThree)
-
-        // The schema consists of the leading columns of the first part-file
-        // in the lexicographic order.
-        assert(sqlContext.read.parquet(dir.getCanonicalPath).schema.map(_.name)
-          === Seq("a", "b", "c", "d", "part"))
-      }
     }
   }
 }

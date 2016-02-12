@@ -17,11 +17,8 @@
 
 package org.apache.spark.examples.streaming;
 
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.regex.Pattern;
-
 import scala.Tuple2;
+import com.google.common.collect.Lists;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -33,6 +30,8 @@ import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+
+import java.util.regex.Pattern;
 
 /**
  * Counts words in UTF8 encoded, '\n' delimited text received from the network every second.
@@ -68,8 +67,8 @@ public final class JavaNetworkWordCount {
             args[0], Integer.parseInt(args[1]), StorageLevels.MEMORY_AND_DISK_SER);
     JavaDStream<String> words = lines.flatMap(new FlatMapFunction<String, String>() {
       @Override
-      public Iterator<String> call(String x) {
-        return Arrays.asList(SPACE.split(x)).iterator();
+      public Iterable<String> call(String x) {
+        return Lists.newArrayList(SPACE.split(x));
       }
     });
     JavaPairDStream<String, Integer> wordCounts = words.mapToPair(

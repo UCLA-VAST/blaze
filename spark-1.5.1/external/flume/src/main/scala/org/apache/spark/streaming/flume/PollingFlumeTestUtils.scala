@@ -17,9 +17,10 @@
 
 package org.apache.spark.streaming.flume
 
-import java.util.{Collections, List => JList, Map => JMap}
 import java.util.concurrent._
+import java.util.{List => JList, Map => JMap}
 
+import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 
 import com.google.common.base.Charsets.UTF_8
@@ -28,7 +29,7 @@ import org.apache.flume.Context
 import org.apache.flume.channel.MemoryChannel
 import org.apache.flume.conf.Configurables
 
-import org.apache.spark.streaming.flume.sink.{SparkSink, SparkSinkConfig}
+import org.apache.spark.streaming.flume.sink.{SparkSinkConfig, SparkSink}
 
 /**
  * Share codes for Scala and Python unit tests
@@ -76,7 +77,7 @@ private[flume] class PollingFlumeTestUtils {
   /**
    * Start 2 sinks and return the ports
    */
-  def startMultipleSinks(): Seq[Int] = {
+  def startMultipleSinks(): JList[Int] = {
     channels.clear()
     sinks.clear()
 
@@ -148,7 +149,7 @@ private[flume] class PollingFlumeTestUtils {
     var counter = 0
     for (k <- 0 until channels.size; i <- 0 until totalEventsPerChannel) {
       val eventBodyToVerify = s"${channels(k).getName}-$i"
-      val eventHeaderToVerify: JMap[String, String] = Collections.singletonMap(s"test-$i", "header")
+      val eventHeaderToVerify: JMap[String, String] = Map[String, String](s"test-$i" -> "header")
       var found = false
       var j = 0
       while (j < eventSize && !found) {
@@ -194,7 +195,7 @@ private[flume] class PollingFlumeTestUtils {
         tx.begin()
         for (j <- 0 until eventsPerBatch) {
           channel.put(EventBuilder.withBody(s"${channel.getName}-$t".getBytes(UTF_8),
-            Collections.singletonMap(s"test-$t", "header")))
+            Map[String, String](s"test-$t" -> "header")))
           t += 1
         }
         tx.commit()

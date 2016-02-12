@@ -28,12 +28,10 @@ import com.google.common.io.ByteStreams
 
 import org.apache.spark.{Logging, SparkEnv, TaskContext}
 import org.apache.spark.annotation.DeveloperApi
-import org.apache.spark.executor.ShuffleWriteMetrics
-import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.serializer.{DeserializationStream, Serializer}
 import org.apache.spark.storage.{BlockId, BlockManager}
-import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalAppendOnlyMap.HashComparator
+import org.apache.spark.executor.ShuffleWriteMetrics
 
 /**
  * :: DeveloperApi ::
@@ -50,6 +48,16 @@ import org.apache.spark.util.collection.ExternalAppendOnlyMap.HashComparator
  * However, if the spill threshold is too low, we spill frequently and incur unnecessary disk
  * writes. This may lead to a performance regression compared to the normal case of using the
  * non-spilling AppendOnlyMap.
+ *
+ * Two parameters control the memory threshold:
+ *
+ *   `spark.shuffle.memoryFraction` specifies the collective amount of memory used for storing
+ *   these maps as a fraction of the executor's total memory. Since each concurrently running
+ *   task maintains one map, the actual threshold for each map is this quantity divided by the
+ *   number of running tasks.
+ *
+ *   `spark.shuffle.safetyFraction` specifies an additional margin of safety as a fraction of
+ *   this threshold, in case map size estimation is not sufficiently accurate.
  */
 @DeveloperApi
 class ExternalAppendOnlyMap[K, V, C](
@@ -57,29 +65,11 @@ class ExternalAppendOnlyMap[K, V, C](
     mergeValue: (C, V) => C,
     mergeCombiners: (C, C) => C,
     serializer: Serializer = SparkEnv.get.serializer,
-    blockManager: BlockManager = SparkEnv.get.blockManager,
-    context: TaskContext = TaskContext.get())
+    blockManager: BlockManager = SparkEnv.get.blockManager)
   extends Iterable[(K, C)]
   with Serializable
   with Logging
   with Spillable[SizeTracker] {
-
-  if (context == null) {
-    throw new IllegalStateException(
-      "Spillable collections should not be instantiated outside of tasks")
-  }
-
-  // Backwards-compatibility constructor for binary compatibility
-  def this(
-      createCombiner: V => C,
-      mergeValue: (C, V) => C,
-      mergeCombiners: (C, C) => C,
-      serializer: Serializer,
-      blockManager: BlockManager) {
-    this(createCombiner, mergeValue, mergeCombiners, serializer, blockManager, TaskContext.get())
-  }
-
-  override protected[this] def taskMemoryManager: TaskMemoryManager = context.taskMemoryManager()
 
   private var currentMap = new SizeTrackingAppendOnlyMap[K, C]
   private val spilledMaps = new ArrayBuffer[DiskMapIterator]
@@ -116,12 +106,6 @@ class ExternalAppendOnlyMap[K, V, C](
   private val ser = serializer.newInstance()
 
   /**
-   * Number of files this map has spilled so far.
-   * Exposed for testing.
-   */
-  private[collection] def numSpills: Int = spilledMaps.size
-
-  /**
    * Insert the given key and value into the map.
    */
   def insert(key: K, value: V): Unit = {
@@ -138,10 +122,6 @@ class ExternalAppendOnlyMap[K, V, C](
    * The shuffle memory usage of the first trackMemoryThreshold entries is not tracked.
    */
   def insertAll(entries: Iterator[Product2[K, V]]): Unit = {
-    if (currentMap == null) {
-      throw new IllegalStateException(
-        "Cannot insert new elements into a map after calling iterator")
-    }
     // An update function for the map that we reuse across entries to avoid allocating
     // a new closure each time
     var curEntry: Product2[K, V] = null
@@ -193,8 +173,8 @@ class ExternalAppendOnlyMap[K, V, C](
       val w = writer
       writer = null
       w.commitAndClose()
-      _diskBytesSpilled += curWriteMetrics.bytesWritten
-      batchSizes.append(curWriteMetrics.bytesWritten)
+      _diskBytesSpilled += curWriteMetrics.shuffleBytesWritten
+      batchSizes.append(curWriteMetrics.shuffleBytesWritten)
       objectsWritten = 0
     }
 
@@ -228,9 +208,7 @@ class ExternalAppendOnlyMap[K, V, C](
           writer.revertPartialWritesAndClose()
         }
         if (file.exists()) {
-          if (!file.delete()) {
-            logWarning(s"Error deleting ${file}")
-          }
+          file.delete()
         }
       }
     }
@@ -239,24 +217,15 @@ class ExternalAppendOnlyMap[K, V, C](
   }
 
   /**
-   * Return a destructive iterator that merges the in-memory map with the spilled maps.
+   * Return an iterator that merges the in-memory map with the spilled maps.
    * If no spill has occurred, simply return the in-memory map's iterator.
    */
   override def iterator: Iterator[(K, C)] = {
-    if (currentMap == null) {
-      throw new IllegalStateException(
-        "ExternalAppendOnlyMap.iterator is destructive and should only be called once.")
-    }
     if (spilledMaps.isEmpty) {
-      CompletionIterator[(K, C), Iterator[(K, C)]](currentMap.iterator, freeCurrentMap())
+      currentMap.iterator
     } else {
       new ExternalIterator()
     }
-  }
-
-  private def freeCurrentMap(): Unit = {
-    currentMap = null // So that the memory can be garbage-collected
-    releaseMemory()
   }
 
   /**
@@ -270,8 +239,7 @@ class ExternalAppendOnlyMap[K, V, C](
 
     // Input streams are derived both from the in-memory map and spilled maps on disk
     // The in-memory map is sorted in place, while the spilled maps are already in sorted order
-    private val sortedMap = CompletionIterator[(K, C), Iterator[(K, C)]](
-      currentMap.destructiveSortedIterator(keyComparator), freeCurrentMap())
+    private val sortedMap = currentMap.destructiveSortedIterator(keyComparator)
     private val inputStreams = (Seq(sortedMap) ++ spilledMaps).map(it => it.buffered)
 
     inputStreams.foreach { it =>
@@ -521,13 +489,16 @@ class ExternalAppendOnlyMap[K, V, C](
         fileStream = null
       }
       if (file.exists()) {
-        if (!file.delete()) {
-          logWarning(s"Error deleting ${file}")
-        }
+        file.delete()
       }
     }
 
-    context.addTaskCompletionListener(context => cleanup())
+    val context = TaskContext.get()
+    // context is null in some tests of ExternalAppendOnlyMapSuite because these tests don't run in
+    // a TaskContext.
+    if (context != null) {
+      context.addTaskCompletionListener(context => cleanup())
+    }
   }
 
   /** Convenience function to hash the given (K, C) pair by the key. */

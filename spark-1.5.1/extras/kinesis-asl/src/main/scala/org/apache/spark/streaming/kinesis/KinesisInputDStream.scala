@@ -17,20 +17,17 @@
 
 package org.apache.spark.streaming.kinesis
 
-import scala.reflect.ClassTag
-
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream
-import com.amazonaws.services.kinesis.model.Record
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.{BlockId, StorageLevel}
-import org.apache.spark.streaming.{Duration, StreamingContext, Time}
 import org.apache.spark.streaming.dstream.ReceiverInputDStream
 import org.apache.spark.streaming.receiver.Receiver
 import org.apache.spark.streaming.scheduler.ReceivedBlockInfo
+import org.apache.spark.streaming.{Duration, StreamingContext, Time}
 
-private[kinesis] class KinesisInputDStream[T: ClassTag](
-    _ssc: StreamingContext,
+private[kinesis] class KinesisInputDStream(
+    @transient _ssc: StreamingContext,
     streamName: String,
     endpointUrl: String,
     regionName: String,
@@ -38,12 +35,11 @@ private[kinesis] class KinesisInputDStream[T: ClassTag](
     checkpointAppName: String,
     checkpointInterval: Duration,
     storageLevel: StorageLevel,
-    messageHandler: Record => T,
     awsCredentialsOption: Option[SerializableAWSCredentials]
-  ) extends ReceiverInputDStream[T](_ssc) {
+  ) extends ReceiverInputDStream[Array[Byte]](_ssc) {
 
   private[streaming]
-  override def createBlockRDD(time: Time, blockInfos: Seq[ReceivedBlockInfo]): RDD[T] = {
+  override def createBlockRDD(time: Time, blockInfos: Seq[ReceivedBlockInfo]): RDD[Array[Byte]] = {
 
     // This returns true even for when blockInfos is empty
     val allBlocksHaveRanges = blockInfos.map { _.metadataOption }.forall(_.nonEmpty)
@@ -60,7 +56,6 @@ private[kinesis] class KinesisInputDStream[T: ClassTag](
         context.sc, regionName, endpointUrl, blockIds, seqNumRanges,
         isBlockIdValid = isBlockIdValid,
         retryTimeoutMs = ssc.graph.batchDuration.milliseconds.toInt,
-        messageHandler = messageHandler,
         awsCredentialsOption = awsCredentialsOption)
     } else {
       logWarning("Kinesis sequence number information was not present with some block metadata," +
@@ -69,8 +64,8 @@ private[kinesis] class KinesisInputDStream[T: ClassTag](
     }
   }
 
-  override def getReceiver(): Receiver[T] = {
+  override def getReceiver(): Receiver[Array[Byte]] = {
     new KinesisReceiver(streamName, endpointUrl, regionName, initialPositionInStream,
-      checkpointAppName, checkpointInterval, storageLevel, messageHandler, awsCredentialsOption)
+      checkpointAppName, checkpointInterval, storageLevel, awsCredentialsOption)
   }
 }

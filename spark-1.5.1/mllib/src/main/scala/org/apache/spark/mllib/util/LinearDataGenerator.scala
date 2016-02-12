@@ -17,14 +17,14 @@
 
 package org.apache.spark.mllib.util
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.util.Random
 
 import com.github.fommil.netlib.BLAS.{getInstance => blas}
 
 import org.apache.spark.SparkContext
 import org.apache.spark.annotation.{DeveloperApi, Since}
-import org.apache.spark.mllib.linalg.{BLAS, Vectors}
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
@@ -54,7 +54,7 @@ object LinearDataGenerator {
       nPoints: Int,
       seed: Int,
       eps: Double): java.util.List[LabeledPoint] = {
-    generateLinearInput(intercept, weights, nPoints, seed, eps).asJava
+    seqAsJavaList(generateLinearInput(intercept, weights, nPoints, seed, eps))
   }
 
   /**
@@ -77,11 +77,13 @@ object LinearDataGenerator {
       nPoints: Int,
       seed: Int,
       eps: Double = 0.1): Seq[LabeledPoint] = {
-    generateLinearInput(intercept, weights, Array.fill[Double](weights.length)(0.0),
-      Array.fill[Double](weights.length)(1.0 / 3.0), nPoints, seed, eps)
-  }
+    generateLinearInput(intercept, weights,
+      Array.fill[Double](weights.length)(0.0),
+      Array.fill[Double](weights.length)(1.0 / 3.0),
+      nPoints, seed, eps)}
 
   /**
+   *
    * @param intercept Data intercept
    * @param weights  Weights to be applied.
    * @param xMean the mean of the generated features. Lots of time, if the features are not properly
@@ -102,58 +104,24 @@ object LinearDataGenerator {
       nPoints: Int,
       seed: Int,
       eps: Double): Seq[LabeledPoint] = {
-    generateLinearInput(intercept, weights, xMean, xVariance, nPoints, seed, eps, 0.0)
-  }
-
-
-  /**
-   * @param intercept Data intercept
-   * @param weights  Weights to be applied.
-   * @param xMean the mean of the generated features. Lots of time, if the features are not properly
-   *              standardized, the algorithm with poor implementation will have difficulty
-   *              to converge.
-   * @param xVariance the variance of the generated features.
-   * @param nPoints Number of points in sample.
-   * @param seed Random seed
-   * @param eps Epsilon scaling factor.
-   * @param sparsity The ratio of zero elements. If it is 0.0, LabeledPoints with
-   *                 DenseVector is returned.
-   * @return Seq of input.
-   */
-  @Since("1.6.0")
-  def generateLinearInput(
-      intercept: Double,
-      weights: Array[Double],
-      xMean: Array[Double],
-      xVariance: Array[Double],
-      nPoints: Int,
-      seed: Int,
-      eps: Double,
-      sparsity: Double): Seq[LabeledPoint] = {
-    require(0.0 <= sparsity && sparsity <= 1.0)
 
     val rnd = new Random(seed)
-    def rndElement(i: Int) = {(rnd.nextDouble() - 0.5) * math.sqrt(12.0 * xVariance(i)) + xMean(i)}
+    val x = Array.fill[Array[Double]](nPoints)(
+      Array.fill[Double](weights.length)(rnd.nextDouble()))
 
-    if (sparsity == 0.0) {
-      (0 until nPoints).map { _ =>
-        val features = Vectors.dense(weights.indices.map { rndElement(_) }.toArray)
-        val label = BLAS.dot(Vectors.dense(weights), features) +
-          intercept + eps * rnd.nextGaussian()
-        // Return LabeledPoints with DenseVector
-        LabeledPoint(label, features)
-      }
-    } else {
-      (0 until nPoints).map { _ =>
-        val indices = weights.indices.filter { _ => rnd.nextDouble() <= sparsity}
-        val values = indices.map { rndElement(_) }
-        val features = Vectors.sparse(weights.length, indices.toArray, values.toArray)
-        val label = BLAS.dot(Vectors.dense(weights), features) +
-          intercept + eps * rnd.nextGaussian()
-        // Return LabeledPoints with SparseVector
-        LabeledPoint(label, features)
+    x.foreach { v =>
+      var i = 0
+      val len = v.length
+      while (i < len) {
+        v(i) = (v(i) - 0.5) * math.sqrt(12.0 * xVariance(i)) + xMean(i)
+        i += 1
       }
     }
+
+    val y = x.map { xi =>
+      blas.ddot(weights.length, xi, 1, weights, 1) + intercept + eps * rnd.nextGaussian()
+    }
+    y.zip(x).map(p => LabeledPoint(p._1, Vectors.dense(p._2)))
   }
 
   /**
@@ -175,7 +143,7 @@ object LinearDataGenerator {
       nfeatures: Int,
       eps: Double,
       nparts: Int = 2,
-      intercept: Double = 0.0): RDD[LabeledPoint] = {
+      intercept: Double = 0.0) : RDD[LabeledPoint] = {
     val random = new Random(42)
     // Random values distributed uniformly in [-0.5, 0.5]
     val w = Array.fill(nfeatures)(random.nextDouble() - 0.5)

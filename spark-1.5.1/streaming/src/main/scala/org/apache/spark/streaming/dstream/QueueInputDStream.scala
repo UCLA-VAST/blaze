@@ -23,11 +23,11 @@ import scala.collection.mutable.{ArrayBuffer, Queue}
 import scala.reflect.ClassTag
 
 import org.apache.spark.rdd.{RDD, UnionRDD}
-import org.apache.spark.streaming.{StreamingContext, Time}
+import org.apache.spark.streaming.{Time, StreamingContext}
 
 private[streaming]
 class QueueInputDStream[T: ClassTag](
-    ssc: StreamingContext,
+    @transient ssc: StreamingContext,
     val queue: Queue[RDD[T]],
     oneAtATime: Boolean,
     defaultRDD: RDD[T]
@@ -57,12 +57,12 @@ class QueueInputDStream[T: ClassTag](
       if (oneAtATime) {
         Some(buffer.head)
       } else {
-        Some(new UnionRDD(context.sc, buffer.toSeq))
+        Some(new UnionRDD(ssc.sc, buffer.toSeq))
       }
     } else if (defaultRDD != null) {
       Some(defaultRDD)
     } else {
-      Some(ssc.sparkContext.emptyRDD)
+      None
     }
   }
 

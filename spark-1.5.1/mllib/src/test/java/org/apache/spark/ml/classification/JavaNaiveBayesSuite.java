@@ -18,13 +18,11 @@
 package org.apache.spark.ml.classification;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
 
+import com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import static org.junit.Assert.assertEquals;
 
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -60,36 +58,37 @@ public class JavaNaiveBayesSuite implements Serializable {
     for (Row r : predictionAndLabels.collect()) {
       double prediction = r.getAs(0);
       double label = r.getAs(1);
-      assertEquals(label, prediction, 1E-5);
+      assert(prediction == label);
     }
   }
 
   @Test
   public void naiveBayesDefaultParams() {
     NaiveBayes nb = new NaiveBayes();
-    assertEquals("label", nb.getLabelCol());
-    assertEquals("features", nb.getFeaturesCol());
-    assertEquals("prediction", nb.getPredictionCol());
-    assertEquals(1.0, nb.getSmoothing(), 1E-5);
-    assertEquals("multinomial", nb.getModelType());
+    assert(nb.getLabelCol() == "label");
+    assert(nb.getFeaturesCol() == "features");
+    assert(nb.getPredictionCol() == "prediction");
+    assert(nb.getSmoothing() == 1.0);
+    assert(nb.getModelType() == "multinomial");
   }
 
   @Test
   public void testNaiveBayes() {
-    List<Row> data = Arrays.asList(
+    JavaRDD<Row> jrdd = jsc.parallelize(Lists.newArrayList(
       RowFactory.create(0.0, Vectors.dense(1.0, 0.0, 0.0)),
       RowFactory.create(0.0, Vectors.dense(2.0, 0.0, 0.0)),
       RowFactory.create(1.0, Vectors.dense(0.0, 1.0, 0.0)),
       RowFactory.create(1.0, Vectors.dense(0.0, 2.0, 0.0)),
       RowFactory.create(2.0, Vectors.dense(0.0, 0.0, 1.0)),
-      RowFactory.create(2.0, Vectors.dense(0.0, 0.0, 2.0)));
+      RowFactory.create(2.0, Vectors.dense(0.0, 0.0, 2.0))
+    ));
 
     StructType schema = new StructType(new StructField[]{
       new StructField("label", DataTypes.DoubleType, false, Metadata.empty()),
       new StructField("features", new VectorUDT(), false, Metadata.empty())
     });
 
-    DataFrame dataset = jsql.createDataFrame(data, schema);
+    DataFrame dataset = jsql.createDataFrame(jrdd, schema);
     NaiveBayes nb = new NaiveBayes().setSmoothing(0.5).setModelType("multinomial");
     NaiveBayesModel model = nb.fit(dataset);
 

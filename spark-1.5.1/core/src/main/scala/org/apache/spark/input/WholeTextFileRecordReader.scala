@@ -17,14 +17,17 @@
 
 package org.apache.spark.input
 
+import org.apache.hadoop.conf.{Configuration, Configurable => HConfigurable}
 import com.google.common.io.{ByteStreams, Closeables}
-import org.apache.hadoop.conf.{Configurable => HConfigurable, Configuration}
+
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.hadoop.mapreduce.InputSplit
+import org.apache.hadoop.mapreduce.lib.input.{CombineFileSplit, CombineFileRecordReader}
 import org.apache.hadoop.mapreduce.RecordReader
 import org.apache.hadoop.mapreduce.TaskAttemptContext
-import org.apache.hadoop.mapreduce.lib.input.{CombineFileRecordReader, CombineFileSplit}
+import org.apache.spark.deploy.SparkHadoopUtil
+
 
 /**
  * A trait to implement [[org.apache.hadoop.conf.Configurable Configurable]] interface.
@@ -46,16 +49,17 @@ private[spark] class WholeTextFileRecordReader(
     split: CombineFileSplit,
     context: TaskAttemptContext,
     index: Integer)
-  extends RecordReader[Text, Text] with Configurable {
+  extends RecordReader[String, String] with Configurable {
 
   private[this] val path = split.getPath(index)
-  private[this] val fs = path.getFileSystem(context.getConfiguration)
+  private[this] val fs = path.getFileSystem(
+    SparkHadoopUtil.get.getConfigurationFromJobContext(context))
 
   // True means the current file has been processed, then skip it.
   private[this] var processed = false
 
-  private[this] val key: Text = new Text(path.toString)
-  private[this] var value: Text = null
+  private[this] val key = path.toString
+  private[this] var value: String = null
 
   override def initialize(split: InputSplit, context: TaskAttemptContext): Unit = {}
 
@@ -63,9 +67,9 @@ private[spark] class WholeTextFileRecordReader(
 
   override def getProgress: Float = if (processed) 1.0f else 0.0f
 
-  override def getCurrentKey: Text = key
+  override def getCurrentKey: String = key
 
-  override def getCurrentValue: Text = value
+  override def getCurrentValue: String = value
 
   override def nextKeyValue(): Boolean = {
     if (!processed) {
@@ -79,7 +83,7 @@ private[spark] class WholeTextFileRecordReader(
         ByteStreams.toByteArray(fileIn)
       }
 
-      value = new Text(innerBuffer)
+      value = new Text(innerBuffer).toString
       Closeables.close(fileIn, false)
       processed = true
       true

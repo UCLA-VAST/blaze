@@ -17,17 +17,16 @@
 
 package org.apache.spark.ml.feature
 
+import org.apache.spark.sql.types.{StringType, StructType, StructField, DoubleType}
 import org.apache.spark.{SparkException, SparkFunSuite}
 import org.apache.spark.ml.attribute.{Attribute, NominalAttribute}
 import org.apache.spark.ml.param.ParamsSuite
-import org.apache.spark.ml.util.{DefaultReadWriteTest, MLTestingUtils}
+import org.apache.spark.ml.util.MLTestingUtils
 import org.apache.spark.mllib.util.MLlibTestSparkContext
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
 
-class StringIndexerSuite
-  extends SparkFunSuite with MLlibTestSparkContext with DefaultReadWriteTest {
+class StringIndexerSuite extends SparkFunSuite with MLlibTestSparkContext {
 
   test("params") {
     ParamsSuite.checkParams(new StringIndexer)
@@ -60,37 +59,6 @@ class StringIndexerSuite
     assert(output === expected)
   }
 
-  test("StringIndexerUnseen") {
-    val data = sc.parallelize(Seq((0, "a"), (1, "b"), (4, "b")), 2)
-    val data2 = sc.parallelize(Seq((0, "a"), (1, "b"), (2, "c")), 2)
-    val df = sqlContext.createDataFrame(data).toDF("id", "label")
-    val df2 = sqlContext.createDataFrame(data2).toDF("id", "label")
-    val indexer = new StringIndexer()
-      .setInputCol("label")
-      .setOutputCol("labelIndex")
-      .fit(df)
-    // Verify we throw by default with unseen values
-    intercept[SparkException] {
-      indexer.transform(df2).collect()
-    }
-    val indexerSkipInvalid = new StringIndexer()
-      .setInputCol("label")
-      .setOutputCol("labelIndex")
-      .setHandleInvalid("skip")
-      .fit(df)
-    // Verify that we skip the c record
-    val transformed = indexerSkipInvalid.transform(df2)
-    val attr = Attribute.fromStructField(transformed.schema("labelIndex"))
-      .asInstanceOf[NominalAttribute]
-    assert(attr.values.get === Array("b", "a"))
-    val output = transformed.select("id", "labelIndex").map { r =>
-      (r.getInt(0), r.getDouble(1))
-    }.collect().toSet
-    // a -> 1, b -> 0
-    val expected = Set((0, 1.0), (1, 0.0))
-    assert(output === expected)
-  }
-
   test("StringIndexer with a numeric input column") {
     val data = sc.parallelize(Seq((0, 100), (1, 200), (2, 300), (3, 100), (4, 100), (5, 300)), 2)
     val df = sqlContext.createDataFrame(data).toDF("id", "label")
@@ -116,23 +84,6 @@ class StringIndexerSuite
       .setOutputCol("labelIndex")
     val df = sqlContext.range(0L, 10L)
     assert(indexerModel.transform(df).eq(df))
-  }
-
-  test("StringIndexer read/write") {
-    val t = new StringIndexer()
-      .setInputCol("myInputCol")
-      .setOutputCol("myOutputCol")
-      .setHandleInvalid("skip")
-    testDefaultReadWrite(t)
-  }
-
-  test("StringIndexerModel read/write") {
-    val instance = new StringIndexerModel("myStringIndexerModel", Array("a", "b", "c"))
-      .setInputCol("myInputCol")
-      .setOutputCol("myOutputCol")
-      .setHandleInvalid("skip")
-    val newInstance = testDefaultReadWrite(instance)
-    assert(newInstance.labels === instance.labels)
   }
 
   test("IndexToString params") {
@@ -190,13 +141,5 @@ class StringIndexerSuite
     val inSchema = StructType(Seq(StructField("input", DoubleType)))
     val outSchema = idxToStr.transformSchema(inSchema)
     assert(outSchema("output").dataType === StringType)
-  }
-
-  test("IndexToString read/write") {
-    val t = new IndexToString()
-      .setInputCol("myInputCol")
-      .setOutputCol("myOutputCol")
-      .setLabels(Array("a", "b", "c"))
-    testDefaultReadWrite(t)
   }
 }

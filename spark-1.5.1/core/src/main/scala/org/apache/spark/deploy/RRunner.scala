@@ -20,11 +20,10 @@ package org.apache.spark.deploy
 import java.io._
 import java.util.concurrent.{Semaphore, TimeUnit}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 import org.apache.hadoop.fs.Path
 
-import org.apache.spark.{SparkException, SparkUserAppException}
 import org.apache.spark.api.r.{RBackend, RUtils}
 import org.apache.spark.util.RedirectThread
 
@@ -40,16 +39,7 @@ object RRunner {
 
     // Time to wait for SparkR backend to initialize in seconds
     val backendTimeout = sys.env.getOrElse("SPARKR_BACKEND_TIMEOUT", "120").toInt
-    val rCommand = {
-      // "spark.sparkr.r.command" is deprecated and replaced by "spark.r.command",
-      // but kept here for backward compatibility.
-      var cmd = sys.props.getOrElse("spark.sparkr.r.command", "Rscript")
-      cmd = sys.props.getOrElse("spark.r.command", cmd)
-      if (sys.props.getOrElse("spark.submit.deployMode", "client") == "client") {
-        cmd = sys.props.getOrElse("spark.r.driver.command", cmd)
-      }
-      cmd
-    }
+    val rCommand = "Rscript"
 
     // Check if the file path exists.
     // If not, change directory to current working directory for YARN cluster mode
@@ -78,14 +68,13 @@ object RRunner {
     if (initialized.tryAcquire(backendTimeout, TimeUnit.SECONDS)) {
       // Launch R
       val returnCode = try {
-        val builder = new ProcessBuilder((Seq(rCommand, rFileNormalized) ++ otherArgs).asJava)
+        val builder = new ProcessBuilder(Seq(rCommand, rFileNormalized) ++ otherArgs)
         val env = builder.environment()
         env.put("EXISTING_SPARKR_BACKEND_PORT", sparkRBackendPort.toString)
         val rPackageDir = RUtils.sparkRPackagePath(isDriver = true)
-        // Put the R package directories into an env variable of comma-separated paths
-        env.put("SPARKR_PACKAGE_DIR", rPackageDir.mkString(","))
+        env.put("SPARKR_PACKAGE_DIR", rPackageDir)
         env.put("R_PROFILE_USER",
-          Seq(rPackageDir(0), "SparkR", "profile", "general.R").mkString(File.separator))
+          Seq(rPackageDir, "SparkR", "profile", "general.R").mkString(File.separator))
         builder.redirectErrorStream(true) // Ugly but needed for stdout and stderr to synchronize
         val process = builder.start()
 
@@ -95,15 +84,12 @@ object RRunner {
       } finally {
         sparkRBackend.close()
       }
-      if (returnCode != 0) {
-        throw new SparkUserAppException(returnCode)
-      }
+      System.exit(returnCode)
     } else {
-      val errorMessage = s"SparkR backend did not initialize in $backendTimeout seconds"
       // scalastyle:off println
-      System.err.println(errorMessage)
+      System.err.println("SparkR backend did not initialize in " + backendTimeout + " seconds")
       // scalastyle:on println
-      throw new SparkException(errorMessage)
+      System.exit(-1)
     }
   }
 }

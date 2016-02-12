@@ -22,18 +22,19 @@ import scala.reflect.ClassTag
 import org.scalatest.BeforeAndAfterAll
 
 import org.apache.spark.{AccumulatorSuite, SparkConf, SparkContext}
-import org.apache.spark.sql.{QueryTest, SQLConf, SQLContext}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.{SQLConf, SQLContext, QueryTest}
 
 /**
- * Test various broadcast join operators.
+ * Test various broadcast join operators with unsafe enabled.
  *
  * Tests in this suite we need to run Spark in local-cluster mode. In particular, the use of
  * unsafe map in [[org.apache.spark.sql.execution.joins.UnsafeHashedRelation]] is not triggered
  * without serializing the hashed relation, which does not happen in local mode.
  */
 class BroadcastJoinSuite extends QueryTest with BeforeAndAfterAll {
-  protected var sqlContext: SQLContext = null
+  private var sc: SparkContext = null
+  private var sqlContext: SQLContext = null
 
   /**
    * Create a new [[SQLContext]] running in local-cluster mode with unsafe and codegen enabled.
@@ -43,12 +44,15 @@ class BroadcastJoinSuite extends QueryTest with BeforeAndAfterAll {
     val conf = new SparkConf()
       .setMaster("local-cluster[2,1,1024]")
       .setAppName("testing")
-    val sc = new SparkContext(conf)
+    sc = new SparkContext(conf)
     sqlContext = new SQLContext(sc)
+    sqlContext.setConf(SQLConf.UNSAFE_ENABLED, true)
+    sqlContext.setConf(SQLConf.CODEGEN_ENABLED, true)
   }
 
   override def afterAll(): Unit = {
-    sqlContext.sparkContext.stop()
+    sc.stop()
+    sc = null
     sqlContext = null
   }
 
@@ -56,13 +60,13 @@ class BroadcastJoinSuite extends QueryTest with BeforeAndAfterAll {
    * Test whether the specified broadcast join updates the peak execution memory accumulator.
    */
   private def testBroadcastJoin[T: ClassTag](name: String, joinType: String): Unit = {
-    AccumulatorSuite.verifyPeakExecutionMemorySet(sqlContext.sparkContext, name) {
+    AccumulatorSuite.verifyPeakExecutionMemorySet(sc, name) {
       val df1 = sqlContext.createDataFrame(Seq((1, "4"), (2, "2"))).toDF("key", "value")
       val df2 = sqlContext.createDataFrame(Seq((1, "1"), (2, "2"))).toDF("key", "value")
       // Comparison at the end is for broadcast left semi join
       val joinExpression = df1("key") === df2("key") && df1("value") > df2("value")
       val df3 = df1.join(broadcast(df2), joinExpression, joinType)
-      val plan = df3.queryExecution.sparkPlan
+      val plan = df3.queryExecution.executedPlan
       assert(plan.collect { case p: T => p }.size === 1)
       plan.executeCollect()
     }

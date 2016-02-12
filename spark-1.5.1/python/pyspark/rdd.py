@@ -48,7 +48,7 @@ from pyspark.statcounter import StatCounter
 from pyspark.rddsampler import RDDSampler, RDDRangeSampler, RDDStratifiedSampler
 from pyspark.storagelevel import StorageLevel
 from pyspark.resultiterable import ResultIterable
-from pyspark.shuffle import Aggregator, ExternalMerger, \
+from pyspark.shuffle import Aggregator, InMemoryMerger, ExternalMerger, \
     get_used_memory, ExternalSorter, ExternalGroupBy
 from pyspark.traceback_utils import SCCallSiteSync
 
@@ -220,18 +220,18 @@ class RDD(object):
 
     def cache(self):
         """
-        Persist this RDD with the default storage level (C{MEMORY_ONLY}).
+        Persist this RDD with the default storage level (C{MEMORY_ONLY_SER}).
         """
         self.is_cached = True
-        self.persist(StorageLevel.MEMORY_ONLY)
+        self.persist(StorageLevel.MEMORY_ONLY_SER)
         return self
 
-    def persist(self, storageLevel=StorageLevel.MEMORY_ONLY):
+    def persist(self, storageLevel=StorageLevel.MEMORY_ONLY_SER):
         """
         Set this RDD's storage level to persist its values across operations
         after the first time it is computed. This can only be used to assign
         a new storage level if the RDD does not have a storage level set yet.
-        If no storage level is specified defaults to (C{MEMORY_ONLY}).
+        If no storage level is specified defaults to (C{MEMORY_ONLY_SER}).
 
         >>> rdd = sc.parallelize(["b", "a", "c"])
         >>> rdd.persist().is_cached
@@ -580,11 +580,12 @@ class RDD(object):
         if numPartitions is None:
             numPartitions = self._defaultReducePartitions()
 
+        spill = (self.ctx._conf.get("spark.shuffle.spill", 'True').lower() == "true")
         memory = _parse_memory(self.ctx._conf.get("spark.python.worker.memory", "512m"))
         serializer = self._jrdd_deserializer
 
         def sortPartition(iterator):
-            sort = ExternalSorter(memory * 0.9, serializer).sorted
+            sort = ExternalSorter(memory * 0.9, serializer).sorted if spill else sorted
             return iter(sort(iterator, key=lambda k_v: keyfunc(k_v[0]), reverse=(not ascending)))
 
         return self.partitionBy(numPartitions, partitionFunc).mapPartitions(sortPartition, True)
@@ -609,11 +610,12 @@ class RDD(object):
         if numPartitions is None:
             numPartitions = self._defaultReducePartitions()
 
+        spill = self._can_spill()
         memory = self._memory_limit()
         serializer = self._jrdd_deserializer
 
         def sortPartition(iterator):
-            sort = ExternalSorter(memory * 0.9, serializer).sorted
+            sort = ExternalSorter(memory * 0.9, serializer).sorted if spill else sorted
             return iter(sort(iterator, key=lambda kv: keyfunc(kv[0]), reverse=(not ascending)))
 
         if numPartitions == 1:
@@ -686,7 +688,7 @@ class RDD(object):
                                              other._jrdd_deserializer)
         return RDD(self._jrdd.cartesian(other._jrdd), self.ctx, deserializer)
 
-    def groupBy(self, f, numPartitions=None, partitionFunc=portable_hash):
+    def groupBy(self, f, numPartitions=None):
         """
         Return an RDD of grouped items.
 
@@ -695,7 +697,7 @@ class RDD(object):
         >>> sorted([(x, sorted(y)) for (x, y) in result])
         [(0, [2, 8]), (1, [1, 1, 3, 5])]
         """
-        return self.map(lambda x: (f(x), x)).groupByKey(numPartitions, partitionFunc)
+        return self.map(lambda x: (f(x), x)).groupByKey(numPartitions)
 
     @ignore_unicode_prefix
     def pipe(self, command, env=None, checkCode=False):
@@ -861,7 +863,7 @@ class RDD(object):
         def func(iterator):
             acc = zeroValue
             for obj in iterator:
-                acc = op(acc, obj)
+                acc = op(obj, acc)
             yield acc
         # collecting result of mapPartitions here ensures that the copy of
         # zeroValue provided to each partition is unique from the one provided
@@ -1539,23 +1541,22 @@ class RDD(object):
         """
         return self.map(lambda x: x[1])
 
-    def reduceByKey(self, func, numPartitions=None, partitionFunc=portable_hash):
+    def reduceByKey(self, func, numPartitions=None):
         """
         Merge the values for each key using an associative reduce function.
 
         This will also perform the merging locally on each mapper before
         sending results to a reducer, similarly to a "combiner" in MapReduce.
 
-        Output will be partitioned with C{numPartitions} partitions, or
+        Output will be hash-partitioned with C{numPartitions} partitions, or
         the default parallelism level if C{numPartitions} is not specified.
-        Default partitioner is hash-partition.
 
         >>> from operator import add
         >>> rdd = sc.parallelize([("a", 1), ("b", 1), ("a", 1)])
         >>> sorted(rdd.reduceByKey(add).collect())
         [('a', 2), ('b', 1)]
         """
-        return self.combineByKey(lambda x: x, func, func, numPartitions, partitionFunc)
+        return self.combineByKey(lambda x: x, func, func, numPartitions)
 
     def reduceByKeyLocally(self, func):
         """
@@ -1740,7 +1741,7 @@ class RDD(object):
 
     # TODO: add control over map-side aggregation
     def combineByKey(self, createCombiner, mergeValue, mergeCombiners,
-                     numPartitions=None, partitionFunc=portable_hash):
+                     numPartitions=None):
         """
         Generic function to combine the elements for each key using a custom
         set of aggregation functions.
@@ -1760,6 +1761,7 @@ class RDD(object):
         In addition, users can control the partitioning of the output RDD.
 
         >>> x = sc.parallelize([("a", 1), ("b", 1), ("a", 1)])
+        >>> def f(x): return x
         >>> def add(a, b): return a + str(b)
         >>> sorted(x.combineByKey(str, add, add).collect())
         [('a', '11'), ('b', '1')]
@@ -1768,26 +1770,28 @@ class RDD(object):
             numPartitions = self._defaultReducePartitions()
 
         serializer = self.ctx.serializer
+        spill = self._can_spill()
         memory = self._memory_limit()
         agg = Aggregator(createCombiner, mergeValue, mergeCombiners)
 
         def combineLocally(iterator):
-            merger = ExternalMerger(agg, memory * 0.9, serializer)
+            merger = ExternalMerger(agg, memory * 0.9, serializer) \
+                if spill else InMemoryMerger(agg)
             merger.mergeValues(iterator)
             return merger.items()
 
         locally_combined = self.mapPartitions(combineLocally, preservesPartitioning=True)
-        shuffled = locally_combined.partitionBy(numPartitions, partitionFunc)
+        shuffled = locally_combined.partitionBy(numPartitions)
 
         def _mergeCombiners(iterator):
-            merger = ExternalMerger(agg, memory, serializer)
+            merger = ExternalMerger(agg, memory, serializer) \
+                if spill else InMemoryMerger(agg)
             merger.mergeCombiners(iterator)
             return merger.items()
 
         return shuffled.mapPartitions(_mergeCombiners, preservesPartitioning=True)
 
-    def aggregateByKey(self, zeroValue, seqFunc, combFunc, numPartitions=None,
-                       partitionFunc=portable_hash):
+    def aggregateByKey(self, zeroValue, seqFunc, combFunc, numPartitions=None):
         """
         Aggregate the values of each key, using given combine functions and a neutral
         "zero value". This function can return a different result type, U, than the type
@@ -1801,9 +1805,9 @@ class RDD(object):
             return copy.deepcopy(zeroValue)
 
         return self.combineByKey(
-            lambda v: seqFunc(createZero(), v), seqFunc, combFunc, numPartitions, partitionFunc)
+            lambda v: seqFunc(createZero(), v), seqFunc, combFunc, numPartitions)
 
-    def foldByKey(self, zeroValue, func, numPartitions=None, partitionFunc=portable_hash):
+    def foldByKey(self, zeroValue, func, numPartitions=None):
         """
         Merge the values for each key using an associative function "func"
         and a neutral "zeroValue" which may be added to the result an
@@ -1818,14 +1822,16 @@ class RDD(object):
         def createZero():
             return copy.deepcopy(zeroValue)
 
-        return self.combineByKey(lambda v: func(createZero(), v), func, func, numPartitions,
-                                 partitionFunc)
+        return self.combineByKey(lambda v: func(createZero(), v), func, func, numPartitions)
+
+    def _can_spill(self):
+        return self.ctx._conf.get("spark.shuffle.spill", "True").lower() == "true"
 
     def _memory_limit(self):
         return _parse_memory(self.ctx._conf.get("spark.python.worker.memory", "512m"))
 
     # TODO: support variant with custom partitioner
-    def groupByKey(self, numPartitions=None, partitionFunc=portable_hash):
+    def groupByKey(self, numPartitions=None):
         """
         Group the values for each key in the RDD into a single sequence.
         Hash-partitions the resulting RDD with numPartitions partitions.
@@ -1851,20 +1857,23 @@ class RDD(object):
             a.extend(b)
             return a
 
+        spill = self._can_spill()
         memory = self._memory_limit()
         serializer = self._jrdd_deserializer
         agg = Aggregator(createCombiner, mergeValue, mergeCombiners)
 
         def combine(iterator):
-            merger = ExternalMerger(agg, memory * 0.9, serializer)
+            merger = ExternalMerger(agg, memory * 0.9, serializer) \
+                if spill else InMemoryMerger(agg)
             merger.mergeValues(iterator)
             return merger.items()
 
         locally_combined = self.mapPartitions(combine, preservesPartitioning=True)
-        shuffled = locally_combined.partitionBy(numPartitions, partitionFunc)
+        shuffled = locally_combined.partitionBy(numPartitions)
 
         def groupByKey(it):
-            merger = ExternalGroupBy(agg, memory, serializer)
+            merger = ExternalGroupBy(agg, memory, serializer)\
+                if spill else InMemoryMerger(agg)
             merger.mergeCombiners(it)
             return merger.items()
 
@@ -2015,7 +2024,7 @@ class RDD(object):
         >>> sc.parallelize([1, 2, 3, 4, 5], 3).coalesce(1).glom().collect()
         [[1, 2, 3, 4, 5]]
         """
-        jrdd = self._jrdd.coalesce(numPartitions, shuffle)
+        jrdd = self._jrdd.coalesce(numPartitions)
         return RDD(jrdd, self.ctx, self._jrdd_deserializer)
 
     def zip(self, other):

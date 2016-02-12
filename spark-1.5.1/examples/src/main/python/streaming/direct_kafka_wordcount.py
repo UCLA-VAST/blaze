@@ -28,7 +28,6 @@
       examples/src/main/python/streaming/direct_kafka_wordcount.py \
       localhost:9092 test`
 """
-from __future__ import print_function
 
 import sys
 

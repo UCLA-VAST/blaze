@@ -17,7 +17,7 @@
 
 package org.apache.spark.util.logging
 
-import java.io.{File, FileOutputStream, InputStream, IOException}
+import java.io.{File, FileOutputStream, InputStream}
 
 import org.apache.spark.{Logging, SparkConf}
 import org.apache.spark.util.{IntParam, Utils}
@@ -29,6 +29,7 @@ private[spark] class FileAppender(inputStream: InputStream, file: File, bufferSi
   extends Logging {
   @volatile private var outputStream: FileOutputStream = null
   @volatile private var markedForStop = false     // has the appender been asked to stopped
+  @volatile private var stopped = false           // has the appender stopped
 
   // Thread that reads the input stream and writes to file
   private val writingThread = new Thread("File appending thread for " + file) {
@@ -46,7 +47,11 @@ private[spark] class FileAppender(inputStream: InputStream, file: File, bufferSi
    * or because of any error in appending
    */
   def awaitTermination() {
-    writingThread.join()
+    synchronized {
+      if (!stopped) {
+        wait()
+      }
+    }
   }
 
   /** Stop the appender */
@@ -58,28 +63,24 @@ private[spark] class FileAppender(inputStream: InputStream, file: File, bufferSi
   protected def appendStreamToFile() {
     try {
       logDebug("Started appending thread")
-      Utils.tryWithSafeFinally {
-        openFile()
-        val buf = new Array[Byte](bufferSize)
-        var n = 0
-        while (!markedForStop && n != -1) {
-          try {
-            n = inputStream.read(buf)
-          } catch {
-            // An InputStream can throw IOException during read if the stream is closed
-            // asynchronously, so once appender has been flagged to stop these will be ignored
-            case _: IOException if markedForStop =>  // do nothing and proceed to stop appending
-          }
-          if (n > 0) {
-            appendToFile(buf, n)
-          }
+      openFile()
+      val buf = new Array[Byte](bufferSize)
+      var n = 0
+      while (!markedForStop && n != -1) {
+        n = inputStream.read(buf)
+        if (n != -1) {
+          appendToFile(buf, n)
         }
-      } {
-        closeFile()
       }
     } catch {
       case e: Exception =>
         logError(s"Error writing stream to file $file", e)
+    } finally {
+      closeFile()
+      synchronized {
+        stopped = true
+        notifyAll()
+      }
     }
   }
 

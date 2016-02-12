@@ -18,8 +18,8 @@
 package org.apache.spark.sql.execution.stat
 
 import org.apache.spark.Logging
-import org.apache.spark.sql.{Column, DataFrame, Row}
-import org.apache.spark.sql.catalyst.expressions.{Cast, GenericMutableRow}
+import org.apache.spark.sql.{Row, Column, DataFrame}
+import org.apache.spark.sql.catalyst.expressions.{GenericMutableRow, Cast}
 import org.apache.spark.sql.catalyst.plans.logical.LocalRelation
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
@@ -29,7 +29,7 @@ private[sql] object StatFunctions extends Logging {
 
   /** Calculate the Pearson Correlation Coefficient for the given columns */
   private[sql] def pearsonCorrelation(df: DataFrame, cols: Seq[String]): Double = {
-    val counts = collectStatisticalData(df, cols, "correlation")
+    val counts = collectStatisticalData(df, cols)
     counts.Ck / math.sqrt(counts.MkX * counts.MkY)
   }
 
@@ -73,14 +73,13 @@ private[sql] object StatFunctions extends Logging {
     def cov: Double = Ck / (count - 1)
   }
 
-  private def collectStatisticalData(df: DataFrame, cols: Seq[String],
-              functionName: String): CovarianceCounter = {
-    require(cols.length == 2, s"Currently $functionName calculation is supported " +
+  private def collectStatisticalData(df: DataFrame, cols: Seq[String]): CovarianceCounter = {
+    require(cols.length == 2, "Currently cov supports calculating the covariance " +
       "between two columns.")
     cols.map(name => (name, df.schema.fields.find(_.name == name))).foreach { case (name, data) =>
       require(data.nonEmpty, s"Couldn't find column with name $name")
-      require(data.get.dataType.isInstanceOf[NumericType], s"Currently $functionName calculation " +
-        s"for columns with dataType ${data.get.dataType} not supported.")
+      require(data.get.dataType.isInstanceOf[NumericType], "Covariance calculation for columns " +
+        s"with dataType ${data.get.dataType} not supported.")
     }
     val columns = cols.map(n => Column(Cast(Column(n).expr, DoubleType)))
     df.select(columns: _*).queryExecution.toRdd.aggregate(new CovarianceCounter)(
@@ -99,7 +98,7 @@ private[sql] object StatFunctions extends Logging {
    * @return the covariance of the two columns.
    */
   private[sql] def calculateCov(df: DataFrame, cols: Seq[String]): Double = {
-    val counts = collectStatisticalData(df, cols, "covariance")
+    val counts = collectStatisticalData(df, cols)
     counts.cov
   }
 

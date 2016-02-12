@@ -24,11 +24,7 @@ from subprocess import Popen, PIPE
 
 try:
     from jira.client import JIRA
-    # Old versions have JIRAError in exceptions package, new (0.5+) in utils.
-    try:
-        from jira.exceptions import JIRAError
-    except ImportError:
-        from jira.utils import JIRAError
+    from jira.exceptions import JIRAError
 except ImportError:
     print "This tool requires the jira-python library"
     print "Install using 'sudo pip install jira'"
@@ -159,6 +155,7 @@ known_components = {
     "build": CORE_COMPONENT,
     "deploy": CORE_COMPONENT,
     "documentation": CORE_COMPONENT,
+    "ec2": "EC2",
     "examples": CORE_COMPONENT,
     "graphx": "GraphX",
     "input/output": CORE_COMPONENT,

@@ -17,8 +17,7 @@
 
 package org.apache.spark.ml.param;
 
-import java.util.Arrays;
-
+import com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -62,7 +61,7 @@ public class JavaParamsSuite {
     ParamValidators.ltEq(1.0);
     ParamValidators.inRange(0, 1, true, false);
     ParamValidators.inRange(0, 1);
-    ParamValidators.inArray(Arrays.asList(0, 1, 3));
-    ParamValidators.inArray(Arrays.asList("a", "b"));
+    ParamValidators.inArray(Lists.newArrayList(0, 1, 3));
+    ParamValidators.inArray(Lists.newArrayList("a", "b"));
   }
 }
