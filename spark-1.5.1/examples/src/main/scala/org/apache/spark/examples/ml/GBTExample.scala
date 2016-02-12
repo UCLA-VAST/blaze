@@ -153,7 +153,7 @@ object GBTExample {
     val labelColName = if (algo == "classification") "indexedLabel" else "label"
     if (algo == "classification") {
       val labelIndexer = new StringIndexer()
-        .setInputCol("label")
+        .setInputCol("labelString")
         .setOutputCol(labelColName)
       stages += labelIndexer
     }

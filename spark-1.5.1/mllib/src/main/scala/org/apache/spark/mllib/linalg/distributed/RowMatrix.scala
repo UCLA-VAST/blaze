@@ -21,19 +21,22 @@ import java.util.Arrays
 
 import scala.collection.mutable.ListBuffer
 
-import breeze.linalg.{axpy => brzAxpy, inv, svd => brzSvd, DenseMatrix => BDM, DenseVector => BDV,
-  MatrixSingularException, SparseVector => BSV}
+import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV, SparseVector => BSV, axpy => brzAxpy,
+  svd => brzSvd, MatrixSingularException, inv}
 import breeze.numerics.{sqrt => brzSqrt}
+import com.github.fommil.netlib.BLAS.{getInstance => blas}
 
 import org.apache.spark.Logging
-import org.apache.spark.annotation.Since
+import org.apache.spark.SparkContext._
+import org.apache.spark.annotation.{Experimental, Since}
 import org.apache.spark.mllib.linalg._
 import org.apache.spark.mllib.stat.{MultivariateOnlineSummarizer, MultivariateStatisticalSummary}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.random.XORShiftRandom
+import org.apache.spark.storage.StorageLevel
 
 /**
+ * :: Experimental ::
  * Represents a row-oriented distributed Matrix with no meaningful row indices.
  *
  * @param rows rows stored as an RDD[Vector]
@@ -43,6 +46,7 @@ import org.apache.spark.util.random.XORShiftRandom
  *              columns will be determined by the size of the first row.
  */
 @Since("1.0.0")
+@Experimental
 class RowMatrix @Since("1.0.0") (
     @Since("1.0.0") val rows: RDD[Vector],
     private var nRows: Long,
@@ -106,8 +110,7 @@ class RowMatrix @Since("1.0.0") (
   }
 
   /**
-   * Computes the Gramian matrix `A^T A`. Note that this cannot be computed on matrices with
-   * more than 65535 columns.
+   * Computes the Gramian matrix `A^T A`.
    */
   @Since("1.0.0")
   def computeGramianMatrix(): Matrix = {
@@ -120,7 +123,7 @@ class RowMatrix @Since("1.0.0") (
     // Compute the upper triangular part of the gram matrix.
     val GU = rows.treeAggregate(new BDV[Double](new Array[Double](nt)))(
       seqOp = (U, v) => {
-        BLAS.spr(1.0, v, U.data)
+        RowMatrix.dspr(1.0, v, U.data)
         U
       }, combOp = (U1, U2) => U1 += U2)
 
@@ -148,8 +151,7 @@ class RowMatrix @Since("1.0.0") (
    *  - s is a Vector of size k, holding the singular values in descending order,
    *  - V is a Matrix of size n x k that satisfies V' * V = eye(k).
    *
-   * We assume n is smaller than m, though this is not strictly required.
-   * The singular values and the right singular vectors are derived
+   * We assume n is smaller than m. The singular values and the right singular vectors are derived
    * from the eigenvalues and the eigenvectors of the Gramian matrix A' * A. U, the matrix
    * storing the right singular vectors, is computed via matrix multiplication as
    * U = A * (V * S^-1^), if requested by user. The actual method to use is determined
@@ -319,8 +321,7 @@ class RowMatrix @Since("1.0.0") (
   }
 
   /**
-   * Computes the covariance matrix, treating each row as an observation. Note that this cannot
-   * be computed on matrices with more than 65535 columns.
+   * Computes the covariance matrix, treating each row as an observation.
    * @return a local dense matrix of size n x n
    */
   @Since("1.0.0")
@@ -354,11 +355,9 @@ class RowMatrix @Since("1.0.0") (
     var alpha = 0.0
     while (i < n) {
       alpha = m / m1 * mean(i)
-      j = i
+      j = 0
       while (j < n) {
-        val Gij = G(i, j) / m1 - alpha * mean(j)
-        G(i, j) = Gij
-        G(j, i) = Gij
+        G(i, j) = G(i, j) / m1 - alpha * mean(j)
         j += 1
       }
       i += 1
@@ -368,8 +367,7 @@ class RowMatrix @Since("1.0.0") (
   }
 
   /**
-   * Computes the top k principal components and a vector of proportions of
-   * variance explained by each principal component.
+   * Computes the top k principal components.
    * Rows correspond to observations and columns correspond to variables.
    * The principal components are stored a local matrix of size n-by-k.
    * Each column corresponds for one principal component,
@@ -377,43 +375,23 @@ class RowMatrix @Since("1.0.0") (
    * The row data do not need to be "centered" first; it is not necessary for
    * the mean of each column to be 0.
    *
-   * Note that this cannot be computed on matrices with more than 65535 columns.
-   *
    * @param k number of top principal components.
-   * @return a matrix of size n-by-k, whose columns are principal components, and
-   * a vector of values which indicate how much variance each principal component
-   * explains
+   * @return a matrix of size n-by-k, whose columns are principal components
    */
-  @Since("1.6.0")
-  def computePrincipalComponentsAndExplainedVariance(k: Int): (Matrix, Vector) = {
+  @Since("1.0.0")
+  def computePrincipalComponents(k: Int): Matrix = {
     val n = numCols().toInt
     require(k > 0 && k <= n, s"k = $k out of range (0, n = $n]")
 
     val Cov = computeCovariance().toBreeze.asInstanceOf[BDM[Double]]
 
-    val brzSvd.SVD(u: BDM[Double], s: BDV[Double], _) = brzSvd(Cov)
-
-    val eigenSum = s.data.sum
-    val explainedVariance = s.data.map(_ / eigenSum)
+    val brzSvd.SVD(u: BDM[Double], _, _) = brzSvd(Cov)
 
     if (k == n) {
-      (Matrices.dense(n, k, u.data), Vectors.dense(explainedVariance))
+      Matrices.dense(n, k, u.data)
     } else {
-      (Matrices.dense(n, k, Arrays.copyOfRange(u.data, 0, n * k)),
-        Vectors.dense(Arrays.copyOfRange(explainedVariance, 0, k)))
+      Matrices.dense(n, k, Arrays.copyOfRange(u.data, 0, n * k))
     }
-  }
-
-  /**
-   * Computes the top k principal components only.
-   *
-   * @param k number of top principal components.
-   * @return a matrix of size n-by-k, whose columns are principal components
-   * @see computePrincipalComponentsAndExplainedVariance
-   */
-  @Since("1.0.0")
-  def computePrincipalComponents(k: Int): Matrix = {
-    computePrincipalComponentsAndExplainedVariance(k)._1
   }
 
   /**
@@ -692,7 +670,44 @@ class RowMatrix @Since("1.0.0") (
 }
 
 @Since("1.0.0")
+@Experimental
 object RowMatrix {
+
+  /**
+   * Adds alpha * x * x.t to a matrix in-place. This is the same as BLAS's DSPR.
+   *
+   * @param U the upper triangular part of the matrix packed in an array (column major)
+   */
+  private def dspr(alpha: Double, v: Vector, U: Array[Double]): Unit = {
+    // TODO: Find a better home (breeze?) for this method.
+    val n = v.size
+    v match {
+      case DenseVector(values) =>
+        blas.dspr("U", n, alpha, values, 1, U)
+      case SparseVector(size, indices, values) =>
+        val nnz = indices.length
+        var colStartIdx = 0
+        var prevCol = 0
+        var col = 0
+        var j = 0
+        var i = 0
+        var av = 0.0
+        while (j < nnz) {
+          col = indices(j)
+          // Skip empty columns.
+          colStartIdx += (col - prevCol) * (col + prevCol + 1) / 2
+          col = indices(j)
+          av = alpha * values(j)
+          i = 0
+          while (i <= j) {
+            U(colStartIdx + indices(i)) += av * values(i)
+            i += 1
+          }
+          j += 1
+          prevCol = col
+        }
+    }
+  }
 
   /**
    * Fills a full square matrix from its upper triangular part.

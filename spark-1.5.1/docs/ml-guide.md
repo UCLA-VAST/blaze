@@ -1,9 +1,7 @@
 ---
 layout: global
-title: "Overview: estimators, transformers and pipelines - spark.ml"
-displayTitle: "Overview: estimators, transformers and pipelines - spark.ml"
+title: Spark ML Programming Guide
 ---
-
 
 `\[
 \newcommand{\R}{\mathbb{R}}
@@ -34,8 +32,7 @@ See the [algorithm guides](#algorithm-guides) section below for guides on sub-pa
 * This will become a table of contents (this text will be scraped).
 {:toc}
 
-
-# Main concepts in Pipelines
+# Main concepts
 
 Spark ML standardizes APIs for machine learning algorithms to make it easier to combine multiple
 algorithms into a single pipeline, or workflow.
@@ -169,11 +166,6 @@ compile-time type checking.
 `Pipeline`s and `PipelineModel`s instead do runtime checking before actually running the `Pipeline`.
 This type checking is done using the `DataFrame` *schema*, a description of the data types of columns in the `DataFrame`.
 
-*Unique Pipeline stages*: A `Pipeline`'s stages should be unique instances.  E.g., the same instance
-`myHashingTF` should not be inserted into the `Pipeline` twice since `Pipeline` stages must have
-unique IDs.  However, different instances `myHashingTF1` and `myHashingTF2` (both of type `HashingTF`)
-can be put into the same `Pipeline` since different instances will be created with different IDs.
-
 ## Parameters
 
 Spark ML `Estimator`s and `Transformer`s use a uniform API for specifying parameters.
@@ -192,9 +184,15 @@ Parameters belong to specific instances of `Estimator`s and `Transformer`s.
 For example, if we have two `LogisticRegression` instances `lr1` and `lr2`, then we can build a `ParamMap` with both `maxIter` parameters specified: `ParamMap(lr1.maxIter -> 10, lr2.maxIter -> 20)`.
 This is useful if there are two algorithms with the `maxIter` parameter in a `Pipeline`.
 
-## Saving and Loading Pipelines
+# Algorithm guides
 
-Often times it is worth it to save a model or a pipeline to disk for later use. In Spark 1.6, a model import/export functionality was added to the Pipeline API. Most basic transformers are supported as well as some of the more basic ML models. Please refer to the algorithm's API documentation to see if saving and loading is supported.
+There are now several algorithms in the Pipelines API which are not in the `spark.mllib` API, so we link to documentation for them here.  These algorithms are mostly feature transformers, which fit naturally into the `Transformer` abstraction in Pipelines, and ensembles, which fit naturally into the `Estimator` abstraction in the Pipelines.
+
+* [Feature extraction, transformation, and selection](ml-features.html)
+* [Decision Trees for classification and regression](ml-decision-tree.html)
+* [Ensembles](ml-ensembles.html)
+* [Linear methods with elastic net regularization](ml-linear-methods.html)
+* [Multilayer perceptron classifier](ml-ann.html)
 
 # Code examples
 
@@ -428,7 +426,7 @@ This example follows the simple text document `Pipeline` illustrated in the figu
 
 <div data-lang="scala">
 {% highlight scala %}
-import org.apache.spark.ml.{Pipeline, PipelineModel}
+import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.ml.feature.{HashingTF, Tokenizer}
 import org.apache.spark.mllib.linalg.Vector
@@ -458,15 +456,6 @@ val pipeline = new Pipeline()
 
 // Fit the pipeline to training documents.
 val model = pipeline.fit(training)
-
-// now we can optionally save the fitted pipeline to disk
-model.save("/tmp/spark-logistic-regression-model")
-
-// we can also save this unfit pipeline to disk
-pipeline.save("/tmp/unfit-lr-model")
-
-// and load it back in during production
-val sameModel = PipelineModel.load("/tmp/spark-logistic-regression-model")
 
 // Prepare test documents, which are unlabeled (id, text) tuples.
 val test = sqlContext.createDataFrame(Seq(
@@ -627,8 +616,8 @@ Currently, `spark.ml` supports model selection using the [`CrossValidator`](api/
 
 The `Evaluator` can be a [`RegressionEvaluator`](api/scala/index.html#org.apache.spark.ml.evaluation.RegressionEvaluator)
 for regression problems, a [`BinaryClassificationEvaluator`](api/scala/index.html#org.apache.spark.ml.evaluation.BinaryClassificationEvaluator)
-for binary data, or a [`MultiClassClassificationEvaluator`](api/scala/index.html#org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator)
-for multiclass problems. The default metric used to choose the best `ParamMap` can be overriden by the `setMetricName`
+for binary data, or a [`MultiClassClassificationEvaluator`](api/scala/index.html#org.apache.spark.ml.evaluation.MultiClassClassificationEvaluator)
+for multiclass problems. The default metric used to choose the best `ParamMap` can be overriden by the `setMetric`
 method in each of these evaluators.
 
 The `ParamMap` which produces the best evaluation metric (averaged over the `$k$` folds) is selected as the best model.
@@ -868,9 +857,10 @@ The `ParamMap` which produces the best evaluation metric is selected as the best
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.regression.LinearRegression
 import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit}
+import org.apache.spark.mllib.util.MLUtils
 
 // Prepare training and test data.
-val data = sqlContext.read.format("libsvm").load("data/mllib/sample_libsvm_data.txt")
+val data = MLUtils.loadLibSVMFile(sc, "data/mllib/sample_libsvm_data.txt").toDF()
 val Array(training, test) = data.randomSplit(Array(0.9, 0.1), seed = 12345)
 
 val lr = new LinearRegression()
@@ -911,9 +901,14 @@ import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.param.ParamMap;
 import org.apache.spark.ml.regression.LinearRegression;
 import org.apache.spark.ml.tuning.*;
+import org.apache.spark.mllib.regression.LabeledPoint;
+import org.apache.spark.mllib.util.MLUtils;
+import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.DataFrame;
 
-DataFrame data = jsql.read().format("libsvm").load("data/mllib/sample_libsvm_data.txt");
+DataFrame data = sqlContext.createDataFrame(
+  MLUtils.loadLibSVMFile(jsc.sc(), "data/mllib/sample_libsvm_data.txt"),
+  LabeledPoint.class);
 
 // Prepare training and test data.
 DataFrame[] splits = data.randomSplit(new double[] {0.9, 0.1}, 12345);

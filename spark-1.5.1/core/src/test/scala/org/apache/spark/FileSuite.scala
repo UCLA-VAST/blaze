@@ -19,18 +19,19 @@ package org.apache.spark
 
 import java.io.{File, FileWriter}
 
+import org.apache.spark.input.PortableDataStream
+import org.apache.spark.storage.StorageLevel
+
 import scala.io.Source
 
 import org.apache.hadoop.io._
 import org.apache.hadoop.io.compress.DefaultCodec
-import org.apache.hadoop.mapred.{FileAlreadyExistsException, FileSplit, JobConf, TextInputFormat, TextOutputFormat}
+import org.apache.hadoop.mapred.{JobConf, FileAlreadyExistsException, FileSplit, TextInputFormat, TextOutputFormat}
 import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.lib.input.{FileSplit => NewFileSplit, TextInputFormat => NewTextInputFormat}
 import org.apache.hadoop.mapreduce.lib.output.{TextOutputFormat => NewTextOutputFormat}
 
-import org.apache.spark.input.PortableDataStream
-import org.apache.spark.rdd.{HadoopRDD, NewHadoopRDD}
-import org.apache.spark.storage.StorageLevel
+import org.apache.spark.rdd.{NewHadoopRDD, HadoopRDD}
 import org.apache.spark.util.Utils
 
 class FileSuite extends SparkFunSuite with LocalSparkContext {
@@ -42,11 +43,8 @@ class FileSuite extends SparkFunSuite with LocalSparkContext {
   }
 
   override def afterEach() {
-    try {
-      Utils.deleteRecursively(tempDir)
-    } finally {
-      super.afterEach()
-    }
+    super.afterEach()
+    Utils.deleteRecursively(tempDir)
   }
 
   test("text files") {
@@ -504,13 +502,12 @@ class FileSuite extends SparkFunSuite with LocalSparkContext {
     sc = new SparkContext("local", "test")
     val randomRDD = sc.parallelize(
       Array(("key1", "a"), ("key2", "a"), ("key3", "b"), ("key4", "c")), 1)
-    val job = Job.getInstance(sc.hadoopConfiguration)
+    val job = new Job(sc.hadoopConfiguration)
     job.setOutputKeyClass(classOf[String])
     job.setOutputValueClass(classOf[String])
     job.setOutputFormatClass(classOf[NewTextOutputFormat[String, String]])
-    val jobConfig = job.getConfiguration
-    jobConfig.set("mapred.output.dir", tempDir.getPath + "/outputDataset_new")
-    randomRDD.saveAsNewAPIHadoopDataset(jobConfig)
+    job.getConfiguration.set("mapred.output.dir", tempDir.getPath + "/outputDataset_new")
+    randomRDD.saveAsNewAPIHadoopDataset(job.getConfiguration)
     assert(new File(tempDir.getPath + "/outputDataset_new/part-r-00000").exists() === true)
   }
 

@@ -18,8 +18,6 @@
 package org.apache.spark.sql
 
 import org.apache.spark.annotation.Experimental
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.rules.Rule
 
 /**
  * :: Experimental ::
@@ -43,8 +41,5 @@ class ExperimentalMethods protected[sql](sqlContext: SQLContext) {
    */
   @Experimental
   var extraStrategies: Seq[Strategy] = Nil
-
-  @Experimental
-  var extraOptimizations: Seq[Rule[LogicalPlan]] = Nil
 
 }

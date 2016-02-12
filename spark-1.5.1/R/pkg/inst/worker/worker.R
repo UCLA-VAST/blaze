@@ -35,11 +35,10 @@ bootTime <- currentTimeSecs()
 bootElap <- elapsedSecs()
 
 rLibDir <- Sys.getenv("SPARKR_RLIBDIR")
-dirs <- strsplit(rLibDir, ",")[[1]]
 # Set libPaths to include SparkR package as loadNamespace needs this
 # TODO: Figure out if we can avoid this by not loading any objects that require
 # SparkR namespace
-.libPaths(c(dirs, .libPaths()))
+.libPaths(c(rLibDir, .libPaths()))
 suppressPackageStartupMessages(library(SparkR))
 
 port <- as.integer(Sys.getenv("SPARKR_WORKER_PORT"))
@@ -95,7 +94,7 @@ if (isEmpty != 0) {
     } else if (deserializer == "string") {
       data <- as.list(readLines(inputCon))
     } else if (deserializer == "row") {
-      data <- SparkR:::readMultipleObjects(inputCon)
+      data <- SparkR:::readDeserializeRows(inputCon)
     }
     # Timing reading input data for execution
     inputElap <- elapsedSecs()
@@ -121,7 +120,7 @@ if (isEmpty != 0) {
     } else if (deserializer == "string") {
       data <- readLines(inputCon)
     } else if (deserializer == "row") {
-      data <- SparkR:::readMultipleObjects(inputCon)
+      data <- SparkR:::readDeserializeRows(inputCon)
     }
     # Timing reading input data for execution
     inputElap <- elapsedSecs()

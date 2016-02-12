@@ -26,7 +26,8 @@ import org.apache.spark.sql.types._
  * A literal value that is not foldable. Used in expression codegen testing to test code path
  * that behave differently based on foldable values.
  */
-case class NonFoldableLiteral(value: Any, dataType: DataType) extends LeafExpression {
+case class NonFoldableLiteral(value: Any, dataType: DataType)
+  extends LeafExpression with CodegenFallback {
 
   override def foldable: Boolean = false
   override def nullable: Boolean = true
@@ -35,7 +36,7 @@ case class NonFoldableLiteral(value: Any, dataType: DataType) extends LeafExpres
 
   override def eval(input: InternalRow): Any = value
 
-  override def genCode(ctx: CodegenContext, ev: ExprCode): String = {
+  override def genCode(ctx: CodeGenContext, ev: GeneratedExpressionCode): String = {
     Literal.create(value, dataType).genCode(ctx, ev)
   }
 }

@@ -27,7 +27,6 @@ import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -47,8 +46,8 @@ public final class JavaWordCount {
 
     JavaRDD<String> words = lines.flatMap(new FlatMapFunction<String, String>() {
       @Override
-      public Iterator<String> call(String s) {
-        return Arrays.asList(SPACE.split(s)).iterator();
+      public Iterable<String> call(String s) {
+        return Arrays.asList(SPACE.split(s));
       }
     });
 

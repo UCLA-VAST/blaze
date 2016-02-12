@@ -17,7 +17,7 @@
 
 package org.apache.spark.mllib.linalg
 
-import breeze.linalg.{CSCMatrix => BSM, DenseMatrix => BDM}
+import breeze.linalg.{DenseMatrix => BDM, CSCMatrix => BSM}
 
 import org.apache.spark.SparkFunSuite
 

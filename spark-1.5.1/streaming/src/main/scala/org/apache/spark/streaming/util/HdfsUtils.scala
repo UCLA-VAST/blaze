@@ -16,8 +16,6 @@
  */
 package org.apache.spark.streaming.util
 
-import java.io.IOException
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs._
 
@@ -44,19 +42,8 @@ private[streaming] object HdfsUtils {
   def getInputStream(path: String, conf: Configuration): FSDataInputStream = {
     val dfsPath = new Path(path)
     val dfs = getFileSystemForPath(dfsPath, conf)
-    if (dfs.isFile(dfsPath)) {
-      try {
-        dfs.open(dfsPath)
-      } catch {
-        case e: IOException =>
-          // If we are really unlucky, the file may be deleted as we're opening the stream.
-          // This can happen as clean up is performed by daemon threads that may be left over from
-          // previous runs.
-          if (!dfs.isFile(dfsPath)) null else throw e
-      }
-    } else {
-      null
-    }
+    val instream = dfs.open(dfsPath)
+    instream
   }
 
   def checkState(state: Boolean, errorMsg: => String) {
@@ -83,12 +70,5 @@ private[streaming] object HdfsUtils {
       case localFs: LocalFileSystem => localFs.getRawFileSystem
       case _ => fs
     }
-  }
-
-  /** Check if the file exists at the given path. */
-  def checkFileExists(path: String, conf: Configuration): Boolean = {
-    val hdpPath = new Path(path)
-    val fs = getFileSystemForPath(hdpPath, conf)
-    fs.isFile(hdpPath)
   }
 }

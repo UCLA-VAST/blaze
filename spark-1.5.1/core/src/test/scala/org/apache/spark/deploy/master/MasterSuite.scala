@@ -90,14 +90,15 @@ class MasterSuite extends SparkFunSuite with Matchers with Eventually with Priva
       cores = 0,
       memory = 0,
       endpoint = null,
-      webUiAddress = "http://localhost:80"
+      webUiPort = 0,
+      publicAddress = ""
     )
 
     val (rpcEnv, _, _) =
       Master.startRpcEnvAndEndpoint("127.0.0.1", 0, 0, conf)
 
     try {
-      rpcEnv.setupEndpointRef(rpcEnv.address, Master.ENDPOINT_NAME)
+      rpcEnv.setupEndpointRef(Master.SYSTEM_NAME, rpcEnv.address, Master.ENDPOINT_NAME)
 
       CustomPersistenceEngine.lastInstance.isDefined shouldBe true
       val persistenceEngine = CustomPersistenceEngine.lastInstance.get
@@ -375,7 +376,7 @@ class MasterSuite extends SparkFunSuite with Matchers with Eventually with Priva
 
   private def makeWorkerInfo(memoryMb: Int, cores: Int): WorkerInfo = {
     val workerId = System.currentTimeMillis.toString
-    new WorkerInfo(workerId, "host", 100, cores, memoryMb, null, "http://localhost:80")
+    new WorkerInfo(workerId, "host", 100, cores, memoryMb, null, 101, "address")
   }
 
   private def scheduleExecutorsOnWorkers(

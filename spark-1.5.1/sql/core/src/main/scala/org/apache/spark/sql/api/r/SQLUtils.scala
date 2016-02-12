@@ -19,33 +19,28 @@ package org.apache.spark.sql.api.r
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
-import scala.util.matching.Regex
-
 import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
 import org.apache.spark.api.r.SerDe
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Column, DataFrame, GroupedData, Row, SaveMode, SQLContext}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, GenericRowWithSchema, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, NamedExpression}
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.{Column, DataFrame, GroupedData, Row, SQLContext, SaveMode}
 
 private[r] object SQLUtils {
-  SerDe.registerSqlSerDe((readSqlObject, writeSqlObject))
-
   def createSQLContext(jsc: JavaSparkContext): SQLContext = {
-    SQLContext.getOrCreate(jsc.sc)
+    new SQLContext(jsc)
   }
 
   def getJavaSparkContext(sqlCtx: SQLContext): JavaSparkContext = {
     new JavaSparkContext(sqlCtx.sparkContext)
   }
 
-  def createStructType(fields : Seq[StructField]): StructType = {
-    StructType(fields)
+  def toSeq[T](arr: Array[T]): Seq[T] = {
+    arr.toSeq
   }
 
-  // Support using regex in string interpolation
-  private[this] implicit class RegexContext(sc: StringContext) {
-    def r: Regex = new Regex(sc.parts.mkString, sc.parts.tail.map(_ => "x"): _*)
+  def createStructType(fields : Seq[StructField]): StructType = {
+    StructType(fields)
   }
 
   def getSQLDataType(dataType: String): DataType = {
@@ -63,27 +58,6 @@ private[r] object SQLUtils {
       case "boolean" => org.apache.spark.sql.types.BooleanType
       case "timestamp" => org.apache.spark.sql.types.TimestampType
       case "date" => org.apache.spark.sql.types.DateType
-      case r"\Aarray<(.+)${elemType}>\Z" =>
-        org.apache.spark.sql.types.ArrayType(getSQLDataType(elemType))
-      case r"\Amap<(.+)${keyType},(.+)${valueType}>\Z" =>
-        if (keyType != "string" && keyType != "character") {
-          throw new IllegalArgumentException("Key type of a map must be string or character")
-        }
-        org.apache.spark.sql.types.MapType(getSQLDataType(keyType), getSQLDataType(valueType))
-      case r"\Astruct<(.+)${fieldsStr}>\Z" =>
-        if (fieldsStr(fieldsStr.length - 1) == ',') {
-          throw new IllegalArgumentException(s"Invaid type $dataType")
-        }
-        val fields = fieldsStr.split(",")
-        val structFields = fields.map { field =>
-          field match {
-            case r"\A(.+)${fieldName}:(.+)${fieldType}\Z" =>
-              createStructField(fieldName, fieldType, true)
-
-            case _ => throw new IllegalArgumentException(s"Invaid type $dataType")
-          }
-        }
-        createStructType(structFields)
       case _ => throw new IllegalArgumentException(s"Invaid type $dataType")
     }
   }
@@ -124,24 +98,46 @@ private[r] object SQLUtils {
     val bos = new ByteArrayOutputStream()
     val dos = new DataOutputStream(bos)
 
-    val cols = (0 until row.length).map(row(_).asInstanceOf[Object]).toArray
-    SerDe.writeObject(dos, cols)
+    SerDe.writeInt(dos, row.length)
+    (0 until row.length).map { idx =>
+      val obj: Object = row(idx).asInstanceOf[Object]
+      SerDe.writeObject(dos, obj)
+    }
     bos.toByteArray()
   }
 
-  def dfToCols(df: DataFrame): Array[Array[Any]] = {
-    val localDF: Array[Row] = df.collect()
+  def dfToCols(df: DataFrame): Array[Array[Byte]] = {
+    // localDF is Array[Row]
+    val localDF = df.collect()
     val numCols = df.columns.length
-    val numRows = localDF.length
+    // dfCols is Array[Array[Any]]
+    val dfCols = convertRowsToColumns(localDF, numCols)
 
-    val colArray = new Array[Array[Any]](numCols)
-    for (colNo <- 0 until numCols) {
-      colArray(colNo) = new Array[Any](numRows)
-      for (rowNo <- 0 until numRows) {
-        colArray(colNo)(rowNo) = localDF(rowNo)(colNo)
-      }
+    dfCols.map { col =>
+      colToRBytes(col)
     }
-    colArray
+  }
+
+  def convertRowsToColumns(localDF: Array[Row], numCols: Int): Array[Array[Any]] = {
+    (0 until numCols).map { colIdx =>
+      localDF.map { row =>
+        row(colIdx)
+      }
+    }.toArray
+  }
+
+  def colToRBytes(col: Array[Any]): Array[Byte] = {
+    val numRows = col.length
+    val bos = new ByteArrayOutputStream()
+    val dos = new DataOutputStream(bos)
+
+    SerDe.writeInt(dos, numRows)
+
+    col.map { item =>
+      val obj: Object = item.asInstanceOf[Object]
+      SerDe.writeObject(dos, obj)
+    }
+    bos.toByteArray()
   }
 
   def saveMode(mode: String): SaveMode = {
@@ -166,28 +162,5 @@ private[r] object SQLUtils {
       schema: StructType,
       options: java.util.Map[String, String]): DataFrame = {
     sqlContext.read.format(source).schema(schema).options(options).load()
-  }
-
-  def readSqlObject(dis: DataInputStream, dataType: Char): Object = {
-    dataType match {
-      case 's' =>
-        // Read StructType for DataFrame
-        val fields = SerDe.readList(dis).asInstanceOf[Array[Object]]
-        Row.fromSeq(fields)
-      case _ => null
-    }
-  }
-
-  def writeSqlObject(dos: DataOutputStream, obj: Object): Boolean = {
-    obj match {
-      // Handle struct type in DataFrame
-      case v: GenericRowWithSchema =>
-        dos.writeByte('s')
-        SerDe.writeObject(dos, v.schema.fieldNames)
-        SerDe.writeObject(dos, v.values)
-        true
-      case _ =>
-        false
-    }
   }
 }

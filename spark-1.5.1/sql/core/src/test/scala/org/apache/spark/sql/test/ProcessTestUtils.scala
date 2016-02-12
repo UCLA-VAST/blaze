@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.test
 
-import java.io.{InputStream, IOException}
+import java.io.{IOException, InputStream}
 
 import scala.sys.process.BasicIO
 

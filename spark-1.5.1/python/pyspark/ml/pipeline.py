@@ -17,7 +17,6 @@
 
 from abc import ABCMeta, abstractmethod
 
-from pyspark import since
 from pyspark.ml.param import Param, Params
 from pyspark.ml.util import keyword_only
 from pyspark.mllib.common import inherit_doc
@@ -27,8 +26,6 @@ from pyspark.mllib.common import inherit_doc
 class Estimator(Params):
     """
     Abstract class for estimators that fit models to data.
-
-    .. versionadded:: 1.3.0
     """
 
     __metaclass__ = ABCMeta
@@ -45,7 +42,6 @@ class Estimator(Params):
         """
         raise NotImplementedError()
 
-    @since("1.3.0")
     def fit(self, dataset, params=None):
         """
         Fits a model to the input dataset with optional parameters.
@@ -77,8 +73,6 @@ class Transformer(Params):
     """
     Abstract class for transformers that transform one dataset into
     another.
-
-    .. versionadded:: 1.3.0
     """
 
     __metaclass__ = ABCMeta
@@ -86,7 +80,7 @@ class Transformer(Params):
     @abstractmethod
     def _transform(self, dataset):
         """
-        Transforms the input dataset.
+        Transforms the input dataset with optional parameters.
 
         :param dataset: input dataset, which is an instance of
                         :py:class:`pyspark.sql.DataFrame`
@@ -94,7 +88,6 @@ class Transformer(Params):
         """
         raise NotImplementedError()
 
-    @since("1.3.0")
     def transform(self, dataset, params=None):
         """
         Transforms the input dataset with optional parameters.
@@ -120,8 +113,6 @@ class Transformer(Params):
 class Model(Transformer):
     """
     Abstract class for models that are fitted by estimators.
-
-    .. versionadded:: 1.4.0
     """
 
     __metaclass__ = ABCMeta
@@ -145,11 +136,7 @@ class Pipeline(Estimator):
     consists of fitted models and transformers, corresponding to the
     pipeline stages. If there are no stages, the pipeline acts as an
     identity transformer.
-
-    .. versionadded:: 1.3.0
     """
-
-    stages = Param(Params._dummy(), "stages", "pipeline stages")
 
     @keyword_only
     def __init__(self, stages=None):
@@ -159,10 +146,11 @@ class Pipeline(Estimator):
         if stages is None:
             stages = []
         super(Pipeline, self).__init__()
+        #: Param for pipeline stages.
+        self.stages = Param(self, "stages", "pipeline stages")
         kwargs = self.__init__._input_kwargs
         self.setParams(**kwargs)
 
-    @since("1.3.0")
     def setStages(self, value):
         """
         Set pipeline stages.
@@ -173,7 +161,6 @@ class Pipeline(Estimator):
         self._paramMap[self.stages] = value
         return self
 
-    @since("1.3.0")
     def getStages(self):
         """
         Get pipeline stages.
@@ -182,7 +169,6 @@ class Pipeline(Estimator):
             return self._paramMap[self.stages]
 
     @keyword_only
-    @since("1.3.0")
     def setParams(self, stages=None):
         """
         setParams(self, stages=None)
@@ -218,14 +204,7 @@ class Pipeline(Estimator):
                 transformers.append(stage)
         return PipelineModel(transformers)
 
-    @since("1.4.0")
     def copy(self, extra=None):
-        """
-        Creates a copy of this instance.
-
-        :param extra: extra parameters
-        :returns: new instance
-        """
         if extra is None:
             extra = dict()
         that = Params.copy(self, extra)
@@ -237,8 +216,6 @@ class Pipeline(Estimator):
 class PipelineModel(Model):
     """
     Represents a compiled pipeline with transformers and fitted models.
-
-    .. versionadded:: 1.3.0
     """
 
     def __init__(self, stages):
@@ -250,14 +227,7 @@ class PipelineModel(Model):
             dataset = t.transform(dataset)
         return dataset
 
-    @since("1.4.0")
     def copy(self, extra=None):
-        """
-        Creates a copy of this instance.
-
-        :param extra: extra parameters
-        :returns: new instance
-        """
         if extra is None:
             extra = dict()
         stages = [stage.copy(extra) for stage in self.stages]

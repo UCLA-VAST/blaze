@@ -17,7 +17,7 @@
 package org.apache.spark.status.api.v1
 
 import java.util.{Arrays, Date, List => JList}
-import javax.ws.rs.{GET, Produces, QueryParam}
+import javax.ws.rs.{GET, PathParam, Produces, QueryParam}
 import javax.ws.rs.core.MediaType
 
 import org.apache.spark.executor.{InputMetrics => InternalInputMetrics, OutputMetrics => InternalOutputMetrics, ShuffleReadMetrics => InternalShuffleReadMetrics, ShuffleWriteMetrics => InternalShuffleWriteMetrics, TaskMetrics => InternalTaskMetrics}
@@ -59,15 +59,6 @@ private[v1] object AllStagesResource {
       stageUiData: StageUIData,
       includeDetails: Boolean): StageData = {
 
-    val taskLaunchTimes = stageUiData.taskData.values.map(_.taskInfo.launchTime).filter(_ > 0)
-
-    val firstTaskLaunchedTime: Option[Date] =
-      if (taskLaunchTimes.nonEmpty) {
-        Some(new Date(taskLaunchTimes.min))
-      } else {
-        None
-      }
-
     val taskData = if (includeDetails) {
       Some(stageUiData.taskData.map { case (k, v) => k -> convertTaskData(v) } )
     } else {
@@ -101,9 +92,6 @@ private[v1] object AllStagesResource {
       numCompleteTasks = stageUiData.numCompleteTasks,
       numFailedTasks = stageUiData.numFailedTasks,
       executorRunTime = stageUiData.executorRunTime,
-      submissionTime = stageInfo.submissionTime.map(new Date(_)),
-      firstTaskLaunchedTime,
-      completionTime = stageInfo.completionTime.map(new Date(_)),
       inputBytes = stageUiData.inputBytes,
       inputRecords = stageUiData.inputRecords,
       outputBytes = stageUiData.outputBytes,
@@ -214,9 +202,9 @@ private[v1] object AllStagesResource {
           raw.shuffleWriteMetrics
         }
         def build: ShuffleWriteMetricDistributions = new ShuffleWriteMetricDistributions(
-          writeBytes = submetricQuantiles(_.bytesWritten),
-          writeRecords = submetricQuantiles(_.recordsWritten),
-          writeTime = submetricQuantiles(_.writeTime)
+          writeBytes = submetricQuantiles(_.shuffleBytesWritten),
+          writeRecords = submetricQuantiles(_.shuffleRecordsWritten),
+          writeTime = submetricQuantiles(_.shuffleWriteTime)
         )
       }.metricOption
 
@@ -237,8 +225,7 @@ private[v1] object AllStagesResource {
   }
 
   def convertAccumulableInfo(acc: InternalAccumulableInfo): AccumulableInfo = {
-    new AccumulableInfo(
-      acc.id, acc.name.orNull, acc.update.map(_.toString), acc.value.map(_.toString).orNull)
+    new AccumulableInfo(acc.id, acc.name, acc.update, acc.value)
   }
 
   def convertUiTaskMetrics(internal: InternalTaskMetrics): TaskMetrics = {
@@ -284,9 +271,9 @@ private[v1] object AllStagesResource {
 
   def convertShuffleWriteMetrics(internal: InternalShuffleWriteMetrics): ShuffleWriteMetrics = {
     new ShuffleWriteMetrics(
-      bytesWritten = internal.bytesWritten,
-      writeTime = internal.writeTime,
-      recordsWritten = internal.recordsWritten
+      bytesWritten = internal.shuffleBytesWritten,
+      writeTime = internal.shuffleWriteTime,
+      recordsWritten = internal.shuffleRecordsWritten
     )
   }
 }

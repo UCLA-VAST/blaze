@@ -89,7 +89,7 @@ public class JavaDeveloperApiExample {
     }
     if (sumPredictions != 0.0) {
       throw new Exception("MyJavaLogisticRegression predicted something other than 0," +
-          " even though all coefficients are 0!");
+          " even though all weights are 0!");
     }
 
     jsc.stop();
@@ -149,12 +149,12 @@ class MyJavaLogisticRegression
     // Extract columns from data using helper method.
     JavaRDD<LabeledPoint> oldDataset = extractLabeledPoints(dataset).toJavaRDD();
 
-    // Do learning to estimate the coefficients vector.
+    // Do learning to estimate the weight vector.
     int numFeatures = oldDataset.take(1).get(0).features().size();
-    Vector coefficients = Vectors.zeros(numFeatures); // Learning would happen here.
+    Vector weights = Vectors.zeros(numFeatures); // Learning would happen here.
 
     // Create a model, and return it.
-    return new MyJavaLogisticRegressionModel(uid(), coefficients).setParent(this);
+    return new MyJavaLogisticRegressionModel(uid(), weights).setParent(this);
   }
 
   @Override
@@ -173,12 +173,12 @@ class MyJavaLogisticRegression
 class MyJavaLogisticRegressionModel
   extends ClassificationModel<Vector, MyJavaLogisticRegressionModel> {
 
-  private Vector coefficients_;
-  public Vector coefficients() { return coefficients_; }
+  private Vector weights_;
+  public Vector weights() { return weights_; }
 
-  public MyJavaLogisticRegressionModel(String uid, Vector coefficients) {
+  public MyJavaLogisticRegressionModel(String uid, Vector weights) {
     this.uid_ = uid;
-    this.coefficients_ = coefficients;
+    this.weights_ = weights;
   }
 
   private String uid_ = Identifiable$.MODULE$.randomUID("myJavaLogReg");
@@ -208,7 +208,7 @@ class MyJavaLogisticRegressionModel
    * modifier.
    */
   public Vector predictRaw(Vector features) {
-    double margin = BLAS.dot(features, coefficients_);
+    double margin = BLAS.dot(features, weights_);
     // There are 2 classes (binary classification), so we return a length-2 vector,
     // where index i corresponds to class i (i = 0, 1).
     return Vectors.dense(-margin, margin);
@@ -218,11 +218,6 @@ class MyJavaLogisticRegressionModel
    * Number of classes the label can take.  2 indicates binary classification.
    */
   public int numClasses() { return 2; }
-
-  /**
-   * Number of features the model was trained on.
-   */
-  public int numFeatures() { return coefficients_.size(); }
 
   /**
    * Create a copy of the model.
@@ -235,7 +230,7 @@ class MyJavaLogisticRegressionModel
    */
   @Override
   public MyJavaLogisticRegressionModel copy(ParamMap extra) {
-    return copyValues(new MyJavaLogisticRegressionModel(uid(), coefficients_), extra)
+    return copyValues(new MyJavaLogisticRegressionModel(uid(), weights_), extra)
       .setParent(parent());
   }
 }

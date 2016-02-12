@@ -19,7 +19,7 @@
 package org.apache.spark.deploy.worker
 
 import org.apache.spark.{SparkConf, SparkFunSuite}
-import org.apache.spark.util.SparkConfWithEnv
+
 
 class WorkerArgumentsTest extends SparkFunSuite {
 
@@ -34,7 +34,18 @@ class WorkerArgumentsTest extends SparkFunSuite {
 
   test("Memory can't be set to 0 when SPARK_WORKER_MEMORY env property leaves off M or G") {
     val args = Array("spark://localhost:0000  ")
-    val conf = new SparkConfWithEnv(Map("SPARK_WORKER_MEMORY" -> "50000"))
+
+    class MySparkConf extends SparkConf(false) {
+      override def getenv(name: String): String = {
+        if (name == "SPARK_WORKER_MEMORY") "50000"
+        else super.getenv(name)
+      }
+
+      override def clone: SparkConf = {
+        new MySparkConf().setAll(getAll)
+      }
+    }
+    val conf = new MySparkConf()
     intercept[IllegalStateException] {
       new WorkerArguments(args, conf)
     }
@@ -42,7 +53,18 @@ class WorkerArgumentsTest extends SparkFunSuite {
 
   test("Memory correctly set when SPARK_WORKER_MEMORY env property appends G") {
     val args = Array("spark://localhost:0000  ")
-    val conf = new SparkConfWithEnv(Map("SPARK_WORKER_MEMORY" -> "5G"))
+
+    class MySparkConf extends SparkConf(false) {
+      override def getenv(name: String): String = {
+        if (name == "SPARK_WORKER_MEMORY") "5G"
+        else super.getenv(name)
+      }
+
+      override def clone: SparkConf = {
+        new MySparkConf().setAll(getAll)
+      }
+    }
+    val conf = new MySparkConf()
     val workerArgs = new WorkerArguments(args, conf)
     assert(workerArgs.memory === 5120)
   }

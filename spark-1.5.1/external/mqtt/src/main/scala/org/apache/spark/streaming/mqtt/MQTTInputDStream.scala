@@ -38,11 +38,11 @@ import org.apache.spark.streaming.receiver.Receiver
 
 private[streaming]
 class MQTTInputDStream(
-    _ssc: StreamingContext,
+    @transient ssc_ : StreamingContext,
     brokerUrl: String,
     topic: String,
     storageLevel: StorageLevel
-  ) extends ReceiverInputDStream[String](_ssc) {
+  ) extends ReceiverInputDStream[String](ssc_) {
 
   private[streaming] override def name: String = s"MQTT stream [$id]"
 

@@ -22,7 +22,7 @@ import java.util.regex.{MatchResult, Pattern}
 import org.apache.commons.lang3.StringEscapeUtils
 
 import org.apache.spark.sql.catalyst.expressions.codegen._
-import org.apache.spark.sql.catalyst.util.{GenericArrayData, StringUtils}
+import org.apache.spark.sql.catalyst.util.StringUtils
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -59,8 +59,6 @@ trait StringRegexExpression extends ImplicitCastInputTypes {
       matches(regex, input1.asInstanceOf[UTF8String].toString)
     }
   }
-
-  override def sql: String = s"${left.sql} ${prettyName.toUpperCase} ${right.sql}"
 }
 
 
@@ -68,7 +66,7 @@ trait StringRegexExpression extends ImplicitCastInputTypes {
  * Simple RegEx pattern matching function
  */
 case class Like(left: Expression, right: Expression)
-  extends BinaryExpression with StringRegexExpression {
+  extends BinaryExpression with StringRegexExpression with CodegenFallback {
 
   override def escape(v: String): String = StringUtils.escapeLikeRegex(v)
 
@@ -76,7 +74,7 @@ case class Like(left: Expression, right: Expression)
 
   override def toString: String = s"$left LIKE $right"
 
-  override protected def genCode(ctx: CodegenContext, ev: ExprCode): String = {
+  override protected def genCode(ctx: CodeGenContext, ev: GeneratedExpressionCode): String = {
     val patternClass = classOf[Pattern].getName
     val escapeFunc = StringUtils.getClass.getName.stripSuffix("$") + ".escapeLikeRegex"
     val pattern = ctx.freshName("pattern")
@@ -94,15 +92,15 @@ case class Like(left: Expression, right: Expression)
         s"""
           ${eval.code}
           boolean ${ev.isNull} = ${eval.isNull};
-          ${ctx.javaType(dataType)} ${ev.value} = ${ctx.defaultValue(dataType)};
+          ${ctx.javaType(dataType)} ${ev.primitive} = ${ctx.defaultValue(dataType)};
           if (!${ev.isNull}) {
-            ${ev.value} = $pattern.matcher(${eval.value}.toString()).matches();
+            ${ev.primitive} = $pattern.matcher(${eval.primitive}.toString()).matches();
           }
         """
       } else {
         s"""
           boolean ${ev.isNull} = true;
-          ${ctx.javaType(dataType)} ${ev.value} = ${ctx.defaultValue(dataType)};
+          ${ctx.javaType(dataType)} ${ev.primitive} = ${ctx.defaultValue(dataType)};
         """
       }
     } else {
@@ -110,7 +108,7 @@ case class Like(left: Expression, right: Expression)
         s"""
           String rightStr = ${eval2}.toString();
           ${patternClass} $pattern = ${patternClass}.compile($escapeFunc(rightStr));
-          ${ev.value} = $pattern.matcher(${eval1}.toString()).matches();
+          ${ev.primitive} = $pattern.matcher(${eval1}.toString()).matches();
         """
       })
     }
@@ -119,13 +117,13 @@ case class Like(left: Expression, right: Expression)
 
 
 case class RLike(left: Expression, right: Expression)
-  extends BinaryExpression with StringRegexExpression {
+  extends BinaryExpression with StringRegexExpression with CodegenFallback {
 
   override def escape(v: String): String = v
   override def matches(regex: Pattern, str: String): Boolean = regex.matcher(str).find(0)
   override def toString: String = s"$left RLIKE $right"
 
-  override protected def genCode(ctx: CodegenContext, ev: ExprCode): String = {
+  override protected def genCode(ctx: CodeGenContext, ev: GeneratedExpressionCode): String = {
     val patternClass = classOf[Pattern].getName
     val pattern = ctx.freshName("pattern")
 
@@ -142,15 +140,15 @@ case class RLike(left: Expression, right: Expression)
         s"""
           ${eval.code}
           boolean ${ev.isNull} = ${eval.isNull};
-          ${ctx.javaType(dataType)} ${ev.value} = ${ctx.defaultValue(dataType)};
+          ${ctx.javaType(dataType)} ${ev.primitive} = ${ctx.defaultValue(dataType)};
           if (!${ev.isNull}) {
-            ${ev.value} = $pattern.matcher(${eval.value}.toString()).find(0);
+            ${ev.primitive} = $pattern.matcher(${eval.primitive}.toString()).find(0);
           }
         """
       } else {
         s"""
           boolean ${ev.isNull} = true;
-          ${ctx.javaType(dataType)} ${ev.value} = ${ctx.defaultValue(dataType)};
+          ${ctx.javaType(dataType)} ${ev.primitive} = ${ctx.defaultValue(dataType)};
         """
       }
     } else {
@@ -158,7 +156,7 @@ case class RLike(left: Expression, right: Expression)
         s"""
           String rightStr = ${eval2}.toString();
           ${patternClass} $pattern = ${patternClass}.compile(rightStr);
-          ${ev.value} = $pattern.matcher(${eval1}.toString()).find(0);
+          ${ev.primitive} = $pattern.matcher(${eval1}.toString()).find(0);
         """
       })
     }
@@ -182,11 +180,11 @@ case class StringSplit(str: Expression, pattern: Expression)
     new GenericArrayData(strings.asInstanceOf[Array[Any]])
   }
 
-  override def genCode(ctx: CodegenContext, ev: ExprCode): String = {
+  override def genCode(ctx: CodeGenContext, ev: GeneratedExpressionCode): String = {
     val arrayClass = classOf[GenericArrayData].getName
     nullSafeCodeGen(ctx, ev, (str, pattern) =>
       // Array in java is covariant, so we don't need to cast UTF8String[] to Object[].
-      s"""${ev.value} = new $arrayClass($str.split($pattern, -1));""")
+      s"""${ev.primitive} = new $arrayClass($str.split($pattern, -1));""")
   }
 
   override def prettyName: String = "split"
@@ -238,7 +236,7 @@ case class RegExpReplace(subject: Expression, regexp: Expression, rep: Expressio
   override def children: Seq[Expression] = subject :: regexp :: rep :: Nil
   override def prettyName: String = "regexp_replace"
 
-  override protected def genCode(ctx: CodegenContext, ev: ExprCode): String = {
+  override protected def genCode(ctx: CodeGenContext, ev: GeneratedExpressionCode): String = {
     val termLastRegex = ctx.freshName("lastRegex")
     val termPattern = ctx.freshName("pattern")
 
@@ -277,7 +275,7 @@ case class RegExpReplace(subject: Expression, regexp: Expression, rep: Expressio
         m.appendReplacement(${termResult}, ${termLastReplacement});
       }
       m.appendTail(${termResult});
-      ${ev.value} = UTF8String.fromString(${termResult}.toString());
+      ${ev.primitive} = UTF8String.fromString(${termResult}.toString());
       ${ev.isNull} = false;
     """
     })
@@ -318,7 +316,7 @@ case class RegExpExtract(subject: Expression, regexp: Expression, idx: Expressio
   override def children: Seq[Expression] = subject :: regexp :: idx :: Nil
   override def prettyName: String = "regexp_extract"
 
-  override protected def genCode(ctx: CodegenContext, ev: ExprCode): String = {
+  override protected def genCode(ctx: CodeGenContext, ev: GeneratedExpressionCode): String = {
     val termLastRegex = ctx.freshName("lastRegex")
     val termPattern = ctx.freshName("pattern")
     val classNamePattern = classOf[Pattern].getCanonicalName
@@ -337,10 +335,10 @@ case class RegExpExtract(subject: Expression, regexp: Expression, idx: Expressio
         ${termPattern}.matcher($subject.toString());
       if (m.find()) {
         java.util.regex.MatchResult mr = m.toMatchResult();
-        ${ev.value} = UTF8String.fromString(mr.group($idx));
+        ${ev.primitive} = UTF8String.fromString(mr.group($idx));
         ${ev.isNull} = false;
       } else {
-        ${ev.value} = UTF8String.EMPTY_UTF8;
+        ${ev.primitive} = UTF8String.EMPTY_UTF8;
         ${ev.isNull} = false;
       }"""
     })

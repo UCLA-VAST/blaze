@@ -17,21 +17,23 @@
 
 package org.apache.spark.util
 
+import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkEnv, SparkConf}
 import org.apache.spark.rpc.{RpcAddress, RpcEndpointRef, RpcEnv, RpcTimeout}
 
-private[spark] object RpcUtils {
+object RpcUtils {
 
   /**
    * Retrieve a [[RpcEndpointRef]] which is located in the driver via its name.
    */
   def makeDriverRef(name: String, conf: SparkConf, rpcEnv: RpcEnv): RpcEndpointRef = {
+    val driverActorSystemName = SparkEnv.driverActorSystemName
     val driverHost: String = conf.get("spark.driver.host", "localhost")
     val driverPort: Int = conf.getInt("spark.driver.port", 7077)
     Utils.checkHost(driverHost, "Expected hostname")
-    rpcEnv.setupEndpointRef(RpcAddress(driverHost, driverPort), name)
+    rpcEnv.setupEndpointRef(driverActorSystemName, RpcAddress(driverHost, driverPort), name)
   }
 
   /** Returns the configured number of times to retry connecting */
@@ -45,24 +47,22 @@ private[spark] object RpcUtils {
   }
 
   /** Returns the default Spark timeout to use for RPC ask operations. */
-  def askRpcTimeout(conf: SparkConf): RpcTimeout = {
+  private[spark] def askRpcTimeout(conf: SparkConf): RpcTimeout = {
     RpcTimeout(conf, Seq("spark.rpc.askTimeout", "spark.network.timeout"), "120s")
   }
 
+  @deprecated("use askRpcTimeout instead, this method was not intended to be public", "1.5.0")
+  def askTimeout(conf: SparkConf): FiniteDuration = {
+    askRpcTimeout(conf).duration
+  }
+
   /** Returns the default Spark timeout to use for RPC remote endpoint lookup. */
-  def lookupRpcTimeout(conf: SparkConf): RpcTimeout = {
+  private[spark] def lookupRpcTimeout(conf: SparkConf): RpcTimeout = {
     RpcTimeout(conf, Seq("spark.rpc.lookupTimeout", "spark.network.timeout"), "120s")
   }
 
-  private val MAX_MESSAGE_SIZE_IN_MB = Int.MaxValue / 1024 / 1024
-
-  /** Returns the configured max message size for messages in bytes. */
-  def maxMessageSizeBytes(conf: SparkConf): Int = {
-    val maxSizeInMB = conf.getInt("spark.rpc.message.maxSize", 128)
-    if (maxSizeInMB > MAX_MESSAGE_SIZE_IN_MB) {
-      throw new IllegalArgumentException(
-        s"spark.rpc.message.maxSize should not be greater than $MAX_MESSAGE_SIZE_IN_MB MB")
-    }
-    maxSizeInMB * 1024 * 1024
+  @deprecated("use lookupRpcTimeout instead, this method was not intended to be public", "1.5.0")
+  def lookupTimeout(conf: SparkConf): FiniteDuration = {
+    lookupRpcTimeout(conf).duration
   }
 }

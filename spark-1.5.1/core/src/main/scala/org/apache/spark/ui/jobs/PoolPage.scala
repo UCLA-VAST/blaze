@@ -22,7 +22,7 @@ import javax.servlet.http.HttpServletRequest
 import scala.xml.Node
 
 import org.apache.spark.scheduler.StageInfo
-import org.apache.spark.ui.{UIUtils, WebUIPage}
+import org.apache.spark.ui.{WebUIPage, UIUtils}
 
 /** Page showing specific pool details */
 private[ui] class PoolPage(parent: StagesTab) extends WebUIPage("pool") {
@@ -31,11 +31,8 @@ private[ui] class PoolPage(parent: StagesTab) extends WebUIPage("pool") {
 
   def render(request: HttpServletRequest): Seq[Node] = {
     listener.synchronized {
-      val poolName = Option(request.getParameter("poolname")).map { poolname =>
-        UIUtils.decodeURLParameter(poolname)
-      }.getOrElse {
-        throw new IllegalArgumentException(s"Missing poolname parameter")
-      }
+      val poolName = request.getParameter("poolname")
+      require(poolName != null && poolName.nonEmpty, "Missing poolname parameter")
 
       val poolToActiveStages = listener.poolToActiveStages
       val activeStages = poolToActiveStages.get(poolName) match {
@@ -47,9 +44,7 @@ private[ui] class PoolPage(parent: StagesTab) extends WebUIPage("pool") {
         killEnabled = parent.killEnabled)
 
       // For now, pool information is only accessible in live UIs
-      val pools = sc.map(_.getPoolForName(poolName).getOrElse {
-        throw new IllegalArgumentException(s"Unknown poolname: $poolName")
-      }).toSeq
+      val pools = sc.map(_.getPoolForName(poolName).get).toSeq
       val poolTable = new PoolTable(pools, parent)
 
       val content =

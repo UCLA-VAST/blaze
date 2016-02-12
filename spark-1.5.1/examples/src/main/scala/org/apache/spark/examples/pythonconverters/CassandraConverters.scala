@@ -17,13 +17,11 @@
 
 package org.apache.spark.examples.pythonconverters
 
-import java.nio.ByteBuffer
-
-import scala.collection.JavaConverters._
-
-import org.apache.cassandra.utils.ByteBufferUtil
-
 import org.apache.spark.api.python.Converter
+import java.nio.ByteBuffer
+import org.apache.cassandra.utils.ByteBufferUtil
+import collection.JavaConversions._
+
 
 /**
  * Implementation of [[org.apache.spark.api.python.Converter]] that converts Cassandra
@@ -32,7 +30,7 @@ import org.apache.spark.api.python.Converter
 class CassandraCQLKeyConverter extends Converter[Any, java.util.Map[String, Int]] {
   override def convert(obj: Any): java.util.Map[String, Int] = {
     val result = obj.asInstanceOf[java.util.Map[String, ByteBuffer]]
-    result.asScala.mapValues(ByteBufferUtil.toInt).asJava
+    mapAsJavaMap(result.mapValues(bb => ByteBufferUtil.toInt(bb)))
   }
 }
 
@@ -43,7 +41,7 @@ class CassandraCQLKeyConverter extends Converter[Any, java.util.Map[String, Int]
 class CassandraCQLValueConverter extends Converter[Any, java.util.Map[String, String]] {
   override def convert(obj: Any): java.util.Map[String, String] = {
     val result = obj.asInstanceOf[java.util.Map[String, ByteBuffer]]
-    result.asScala.mapValues(ByteBufferUtil.string).asJava
+    mapAsJavaMap(result.mapValues(bb => ByteBufferUtil.string(bb)))
   }
 }
 
@@ -54,7 +52,7 @@ class CassandraCQLValueConverter extends Converter[Any, java.util.Map[String, St
 class ToCassandraCQLKeyConverter extends Converter[Any, java.util.Map[String, ByteBuffer]] {
   override def convert(obj: Any): java.util.Map[String, ByteBuffer] = {
     val input = obj.asInstanceOf[java.util.Map[String, Int]]
-    input.asScala.mapValues(ByteBufferUtil.bytes).asJava
+    mapAsJavaMap(input.mapValues(i => ByteBufferUtil.bytes(i)))
   }
 }
 
@@ -65,6 +63,6 @@ class ToCassandraCQLKeyConverter extends Converter[Any, java.util.Map[String, By
 class ToCassandraCQLValueConverter extends Converter[Any, java.util.List[ByteBuffer]] {
   override def convert(obj: Any): java.util.List[ByteBuffer] = {
     val input = obj.asInstanceOf[java.util.List[String]]
-    input.asScala.map(ByteBufferUtil.bytes).asJava
+    seqAsJavaList(input.map(s => ByteBufferUtil.bytes(s)))
   }
 }

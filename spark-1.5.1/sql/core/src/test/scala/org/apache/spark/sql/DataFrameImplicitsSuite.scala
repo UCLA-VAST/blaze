@@ -24,7 +24,7 @@ class DataFrameImplicitsSuite extends QueryTest with SharedSQLContext {
 
   test("RDD of tuples") {
     checkAnswer(
-      sparkContext.parallelize(1 to 10).map(i => (i, i.toString)).toDF("intCol", "strCol"),
+      ctx.sparkContext.parallelize(1 to 10).map(i => (i, i.toString)).toDF("intCol", "strCol"),
       (1 to 10).map(i => Row(i, i.toString)))
   }
 
@@ -36,19 +36,19 @@ class DataFrameImplicitsSuite extends QueryTest with SharedSQLContext {
 
   test("RDD[Int]") {
     checkAnswer(
-      sparkContext.parallelize(1 to 10).toDF("intCol"),
+      ctx.sparkContext.parallelize(1 to 10).toDF("intCol"),
       (1 to 10).map(i => Row(i)))
   }
 
   test("RDD[Long]") {
     checkAnswer(
-      sparkContext.parallelize(1L to 10L).toDF("longCol"),
+      ctx.sparkContext.parallelize(1L to 10L).toDF("longCol"),
       (1L to 10L).map(i => Row(i)))
   }
 
   test("RDD[String]") {
     checkAnswer(
-      sparkContext.parallelize(1 to 10).map(_.toString).toDF("stringCol"),
+      ctx.sparkContext.parallelize(1 to 10).map(_.toString).toDF("stringCol"),
       (1 to 10).map(i => Row(i.toString)))
   }
 }

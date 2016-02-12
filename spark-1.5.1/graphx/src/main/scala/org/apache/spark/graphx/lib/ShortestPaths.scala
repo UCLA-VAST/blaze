@@ -17,9 +17,8 @@
 
 package org.apache.spark.graphx.lib
 
-import scala.reflect.ClassTag
-
 import org.apache.spark.graphx._
+import scala.reflect.ClassTag
 
 /**
  * Computes shortest paths to the given set of landmark vertices, returning a graph where each

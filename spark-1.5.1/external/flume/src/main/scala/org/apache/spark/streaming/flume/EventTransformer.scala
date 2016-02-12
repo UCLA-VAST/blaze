@@ -17,12 +17,12 @@
 
 package org.apache.spark.streaming.flume
 
-import java.io.{ObjectInput, ObjectOutput}
+import java.io.{ObjectOutput, ObjectInput}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
-import org.apache.spark.Logging
 import org.apache.spark.util.Utils
+import org.apache.spark.Logging
 
 /**
  * A simple object that provides the implementation of readExternal and writeExternal for both
@@ -60,7 +60,7 @@ private[streaming] object EventTransformer extends Logging {
     out.write(body)
     val numHeaders = headers.size()
     out.writeInt(numHeaders)
-    for ((k, v) <- headers.asScala) {
+    for ((k, v) <- headers) {
       val keyBuff = Utils.serialize(k.toString)
       out.writeInt(keyBuff.length)
       out.write(keyBuff)

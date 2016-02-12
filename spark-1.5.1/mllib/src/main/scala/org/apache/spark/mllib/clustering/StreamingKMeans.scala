@@ -20,16 +20,18 @@ package org.apache.spark.mllib.clustering
 import scala.reflect.ClassTag
 
 import org.apache.spark.Logging
-import org.apache.spark.annotation.Since
+import org.apache.spark.annotation.{Experimental, Since}
 import org.apache.spark.api.java.JavaSparkContext._
 import org.apache.spark.mllib.linalg.{BLAS, Vector, Vectors}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.streaming.api.java.{JavaDStream, JavaPairDStream}
+import org.apache.spark.streaming.api.java.{JavaPairDStream, JavaDStream}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.util.Utils
 import org.apache.spark.util.random.XORShiftRandom
 
 /**
+ * :: Experimental ::
+ *
  * StreamingKMeansModel extends MLlib's KMeansModel for streaming
  * algorithms, so it can keep track of a continuously updated weight
  * associated with each cluster, and also update the model by
@@ -63,6 +65,7 @@ import org.apache.spark.util.random.XORShiftRandom
  * as batches or points.
  */
 @Since("1.2.0")
+@Experimental
 class StreamingKMeansModel @Since("1.2.0") (
     @Since("1.2.0") override val clusterCenters: Array[Vector],
     @Since("1.2.0") val clusterWeights: Array[Double])
@@ -146,6 +149,8 @@ class StreamingKMeansModel @Since("1.2.0") (
 }
 
 /**
+ * :: Experimental ::
+ *
  * StreamingKMeans provides methods for configuring a
  * streaming k-means analysis, training the model on streaming,
  * and using the model to make predictions on streaming data.
@@ -163,6 +168,7 @@ class StreamingKMeansModel @Since("1.2.0") (
  * }}}
  */
 @Since("1.2.0")
+@Experimental
 class StreamingKMeans @Since("1.2.0") (
     @Since("1.2.0") var k: Int,
     @Since("1.2.0") var decayFactor: Double,
@@ -183,7 +189,7 @@ class StreamingKMeans @Since("1.2.0") (
   }
 
   /**
-   * Set the forgetfulness of the previous centroids.
+   * Set the decay factor directly (for forgetful algorithms).
    */
   @Since("1.2.0")
   def setDecayFactor(a: Double): this.type = {
@@ -192,9 +198,7 @@ class StreamingKMeans @Since("1.2.0") (
   }
 
   /**
-   * Set the half life and time unit ("batches" or "points"). If points, then the decay factor
-   * is raised to the power of number of new points and if batches, then decay factor will be
-   * used as is.
+   * Set the half life and time unit ("batches" or "points") for forgetful algorithms.
    */
   @Since("1.2.0")
   def setHalfLife(halfLife: Double, timeUnit: String): this.type = {

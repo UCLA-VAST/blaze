@@ -22,20 +22,19 @@ import java.nio._
 import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.{Await, Promise}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Promise}
 import scala.util.{Failure, Success, Try}
 
 import com.google.common.io.CharStreams
+import org.apache.spark.network.buffer.{ManagedBuffer, NioManagedBuffer}
+import org.apache.spark.network.shuffle.BlockFetchingListener
+import org.apache.spark.network.{BlockDataManager, BlockTransferService}
+import org.apache.spark.storage.{BlockId, ShuffleBlockId}
+import org.apache.spark.{SecurityManager, SparkConf, SparkFunSuite}
 import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.ShouldMatchers
-
-import org.apache.spark.{SecurityManager, SparkConf, SparkFunSuite}
-import org.apache.spark.network.{BlockDataManager, BlockTransferService}
-import org.apache.spark.network.buffer.{ManagedBuffer, NioManagedBuffer}
-import org.apache.spark.network.shuffle.BlockFetchingListener
-import org.apache.spark.storage.{BlockId, ShuffleBlockId}
 
 class NettyBlockTransferSecuritySuite extends SparkFunSuite with MockitoSugar with ShouldMatchers {
   test("security default off") {
@@ -149,7 +148,7 @@ class NettyBlockTransferSecuritySuite extends SparkFunSuite with MockitoSugar wi
         }
       })
 
-    Await.ready(promise.future, FiniteDuration(10, TimeUnit.SECONDS))
+    Await.ready(promise.future, FiniteDuration(1000, TimeUnit.MILLISECONDS))
     promise.future.value.get
   }
 }

@@ -17,11 +17,12 @@
 
 package org.apache.spark.sql.hive.execution
 
-import scala.collection.JavaConverters._
-
 import org.scalatest.BeforeAndAfter
 
 import org.apache.spark.sql.hive.test.TestHive
+
+/* Implicit conversions */
+import scala.collection.JavaConversions._
 
 /**
  * A set of test cases that validate partition and column pruning.
@@ -144,7 +145,7 @@ class PruningSuite extends HiveComparisonTest with BeforeAndAfter {
       expectedScannedColumns: Seq[String],
       expectedPartValues: Seq[Seq[String]]): Unit = {
     test(s"$testCaseName - pruning test") {
-      val plan = new TestHive.QueryExecution(sql).sparkPlan
+      val plan = new TestHive.QueryExecution(sql).executedPlan
       val actualOutputColumns = plan.output.map(_.name)
       val (actualScannedColumns, actualPartValues) = plan.collect {
         case p @ HiveTableScan(columns, relation, _) =>
@@ -160,7 +161,7 @@ class PruningSuite extends HiveComparisonTest with BeforeAndAfter {
       assert(actualOutputColumns === expectedOutputColumns, "Output columns mismatch")
       assert(actualScannedColumns === expectedScannedColumns, "Scanned columns mismatch")
 
-      val actualPartitions = actualPartValues.map(_.asScala.mkString(",")).sorted
+      val actualPartitions = actualPartValues.map(_.toSeq.mkString(",")).sorted
       val expectedPartitions = expectedPartValues.map(_.mkString(",")).sorted
 
       assert(actualPartitions === expectedPartitions, "Partitions selected do not match")

@@ -95,6 +95,9 @@ class TaskInfo(
     }
   }
 
+  @deprecated("Use attemptNumber", "1.6.0")
+  def attempt: Int = attemptNumber
+
   def id: String = s"$index.$attemptNumber"
 
   def duration: Long = {

@@ -20,7 +20,7 @@ package org.apache.spark.examples
 
 import java.util.Random
 
-import breeze.linalg.{DenseVector, Vector}
+import breeze.linalg.{Vector, DenseVector}
 
 /**
  * Logistic regression based classification.

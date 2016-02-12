@@ -22,11 +22,11 @@ import java.util.jar.JarFile
 import java.util.logging.Level
 import java.util.zip.{ZipEntry, ZipOutputStream}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 import com.google.common.io.{ByteStreams, Files}
 
-import org.apache.spark.{Logging, SparkException}
+import org.apache.spark.{SparkException, Logging}
 import org.apache.spark.api.r.RUtils
 import org.apache.spark.util.{RedirectThread, Utils}
 
@@ -100,29 +100,20 @@ private[deploy] object RPackageUtils extends Logging {
    * Runs the standard R package installation code to build the R package from source.
    * Multiple runs don't cause problems.
    */
-  private def rPackageBuilder(
-      dir: File,
-      printStream: PrintStream,
-      verbose: Boolean,
-      libDir: String): Boolean = {
+  private def rPackageBuilder(dir: File, printStream: PrintStream, verbose: Boolean): Boolean = {
     // this code should be always running on the driver.
+    val pathToSparkR = RUtils.localSparkRPackagePath.getOrElse(
+      throw new SparkException("SPARK_HOME not set. Can't locate SparkR package."))
     val pathToPkg = Seq(dir, "R", "pkg").mkString(File.separator)
-    val installCmd = baseInstallCmd ++ Seq(libDir, pathToPkg)
+    val installCmd = baseInstallCmd ++ Seq(pathToSparkR, pathToPkg)
     if (verbose) {
       print(s"Building R package with the command: $installCmd", printStream)
     }
     try {
-      val builder = new ProcessBuilder(installCmd.asJava)
+      val builder = new ProcessBuilder(installCmd)
       builder.redirectErrorStream(true)
-
-      // Put the SparkR package directory into R library search paths in case this R package
-      // may depend on SparkR.
       val env = builder.environment()
-      val rPackageDir = RUtils.sparkRPackagePath(isDriver = true)
-      env.put("SPARKR_PACKAGE_DIR", rPackageDir.mkString(","))
-      env.put("R_PROFILE_USER",
-        Seq(rPackageDir(0), "SparkR", "profile", "general.R").mkString(File.separator))
-
+      env.clear()
       val process = builder.start()
       new RedirectThread(process.getInputStream, printStream, "redirect R packaging").start()
       process.waitFor() == 0
@@ -179,18 +170,13 @@ private[deploy] object RPackageUtils extends Logging {
         if (checkManifestForR(jar)) {
           print(s"$file contains R source code. Now installing package.", printStream, Level.INFO)
           val rSource = extractRFolder(jar, printStream, verbose)
-          if (RUtils.rPackages.isEmpty) {
-            RUtils.rPackages = Some(Utils.createTempDir().getAbsolutePath)
-          }
           try {
-            if (!rPackageBuilder(rSource, printStream, verbose, RUtils.rPackages.get)) {
+            if (!rPackageBuilder(rSource, printStream, verbose)) {
               print(s"ERROR: Failed to build R package in $file.", printStream)
               print(RJarDoc, printStream)
             }
-          } finally { // clean up
-            if (!rSource.delete()) {
-              logWarning(s"Error deleting ${rSource.getPath()}")
-            }
+          } finally {
+            rSource.delete() // clean up
           }
         } else {
           if (verbose) {
@@ -220,14 +206,12 @@ private[deploy] object RPackageUtils extends Logging {
     }
   }
 
-  /** Zips all the R libraries built for distribution to the cluster. */
+  /** Zips all the libraries found with SparkR in the R/lib directory for distribution with Yarn. */
   private[deploy] def zipRLibraries(dir: File, name: String): File = {
     val filesToBundle = listFilesRecursively(dir, Seq(".zip"))
     // create a zip file from scratch, do not append to existing file.
     val zipFile = new File(dir, name)
-    if (!zipFile.delete()) {
-      logWarning(s"Error deleting ${zipFile.getPath()}")
-    }
+    zipFile.delete()
     val zipOutputStream = new ZipOutputStream(new FileOutputStream(zipFile, false))
     try {
       filesToBundle.foreach { file =>

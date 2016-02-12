@@ -17,18 +17,19 @@
 
 package org.apache.spark.streaming.dstream
 
-import java.io.EOFException
-import java.net.InetSocketAddress
-import java.nio.ByteBuffer
-import java.nio.channels.{ReadableByteChannel, SocketChannel}
-import java.util.concurrent.ArrayBlockingQueue
-
-import scala.reflect.ClassTag
-
 import org.apache.spark.{Logging, SparkEnv}
 import org.apache.spark.storage.{StorageLevel, StreamBlockId}
 import org.apache.spark.streaming.StreamingContext
+
+import scala.reflect.ClassTag
+
+import java.net.InetSocketAddress
+import java.nio.ByteBuffer
+import java.nio.channels.{ReadableByteChannel, SocketChannel}
+import java.io.EOFException
+import java.util.concurrent.ArrayBlockingQueue
 import org.apache.spark.streaming.receiver.Receiver
+
 
 /**
  * An input stream that reads blocks of serialized objects from a given network address.
@@ -38,11 +39,11 @@ import org.apache.spark.streaming.receiver.Receiver
  */
 private[streaming]
 class RawInputDStream[T: ClassTag](
-    _ssc: StreamingContext,
+    @transient ssc_ : StreamingContext,
     host: String,
     port: Int,
     storageLevel: StorageLevel
-  ) extends ReceiverInputDStream[T](_ssc) with Logging {
+  ) extends ReceiverInputDStream[T](ssc_ ) with Logging {
 
   def getReceiver(): Receiver[T] = {
     new RawNetworkReceiver(host, port, storageLevel).asInstanceOf[Receiver[T]]

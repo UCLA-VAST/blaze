@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.hive.execution
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 import org.apache.hadoop.hive.conf.HiveConf
 import org.apache.hadoop.hive.ql.metadata.{Partition => HivePartition}
@@ -32,7 +32,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.hive._
 import org.apache.spark.sql.types.{BooleanType, DataType}
-import org.apache.spark.util.Utils
 
 /**
  * The Hive table scan operator.  Column and partition pruning are both handled.
@@ -51,9 +50,6 @@ case class HiveTableScan(
 
   require(partitionPruningPred.isEmpty || relation.hiveQlTable.isPartitioned,
     "Partition pruning predicates only supported for partitioned tables.")
-
-  override def producedAttributes: AttributeSet = outputSet ++
-    AttributeSet(partitionPruningPred.flatMap(_.references))
 
   // Retrieve the original attributes based on expression ID so that capitalization matches.
   val attributes = requestedAttributes.map(relation.attributeMap)
@@ -102,7 +98,7 @@ case class HiveTableScan(
       .asInstanceOf[StructObjectInspector]
 
     val columnTypeNames = structOI
-      .getAllStructFieldRefs.asScala
+      .getAllStructFieldRefs
       .map(_.getFieldObjectInspector)
       .map(TypeInfoUtils.getTypeInfoFromObjectInspector(_).getTypeName)
       .mkString(",")
@@ -122,8 +118,9 @@ case class HiveTableScan(
       case None => partitions
       case Some(shouldKeep) => partitions.filter { part =>
         val dataTypes = relation.partitionKeys.map(_.dataType)
-        val castedValues = part.getValues.asScala.zip(dataTypes)
-          .map { case (value, dataType) => castFromString(value, dataType) }
+        val castedValues = for ((value, dataType) <- part.getValues.zip(dataTypes)) yield {
+          castFromString(value, dataType)
+        }
 
         // Only partitioned values are needed here, since the predicate has already been bound to
         // partition key attribute references.
@@ -133,23 +130,11 @@ case class HiveTableScan(
     }
   }
 
-  protected override def doExecute(): RDD[InternalRow] = {
-    // Using dummyCallSite, as getCallSite can turn out to be expensive with
-    // with multiple partitions.
-    val rdd = if (!relation.hiveQlTable.isPartitioned) {
-      Utils.withDummyCallSite(sqlContext.sparkContext) {
-        hadoopReader.makeRDDForTable(relation.hiveQlTable)
-      }
-    } else {
-      Utils.withDummyCallSite(sqlContext.sparkContext) {
-        hadoopReader.makeRDDForPartitionedTable(
-          prunePartitions(relation.getHiveQlPartitions(partitionPruningPred)))
-      }
-    }
-    rdd.mapPartitionsInternal { iter =>
-      val proj = UnsafeProjection.create(schema)
-      iter.map(proj)
-    }
+  protected override def doExecute(): RDD[InternalRow] = if (!relation.hiveQlTable.isPartitioned) {
+    hadoopReader.makeRDDForTable(relation.hiveQlTable)
+  } else {
+    hadoopReader.makeRDDForPartitionedTable(
+      prunePartitions(relation.getHiveQlPartitions(partitionPruningPred)))
   }
 
   override def output: Seq[Attribute] = attributes

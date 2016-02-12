@@ -19,11 +19,12 @@ package org.apache.spark.streaming.zeromq
 
 import scala.reflect.ClassTag
 
+import akka.actor.Actor
 import akka.util.ByteString
 import akka.zeromq._
 
 import org.apache.spark.Logging
-import org.apache.spark.streaming.akka.ActorReceiver
+import org.apache.spark.streaming.receiver.ActorHelper
 
 /**
  * A receiver to subscribe to ZeroMQ stream.
@@ -32,7 +33,7 @@ private[streaming] class ZeroMQReceiver[T: ClassTag](
     publisherUrl: String,
     subscribe: Subscribe,
     bytesToObjects: Seq[ByteString] => Iterator[T])
-  extends ActorReceiver with Logging {
+  extends Actor with ActorHelper with Logging {
 
   override def preStart(): Unit = {
     ZeroMQExtension(context.system)

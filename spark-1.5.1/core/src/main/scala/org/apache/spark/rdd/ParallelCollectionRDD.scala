@@ -83,8 +83,8 @@ private[spark] class ParallelCollectionPartition[T: ClassTag](
 }
 
 private[spark] class ParallelCollectionRDD[T: ClassTag](
-    sc: SparkContext,
-    @transient private val data: Seq[T],
+    @transient sc: SparkContext,
+    @transient data: Seq[T],
     numSlices: Int,
     locationPrefs: Map[Int, Seq[String]])
     extends RDD[T](sc, Nil) {

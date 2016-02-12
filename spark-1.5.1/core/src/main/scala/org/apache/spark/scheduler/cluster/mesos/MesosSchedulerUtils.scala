@@ -20,17 +20,17 @@ package org.apache.spark.scheduler.cluster.mesos
 import java.util.{List => JList}
 import java.util.concurrent.CountDownLatch
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
 import com.google.common.base.Splitter
-import org.apache.mesos.{MesosSchedulerDriver, Protos, Scheduler, SchedulerDriver}
+import org.apache.mesos.{MesosSchedulerDriver, SchedulerDriver, Scheduler, Protos}
 import org.apache.mesos.Protos._
 import org.apache.mesos.protobuf.{ByteString, GeneratedMessage}
-
-import org.apache.spark.{Logging, SparkConf, SparkContext, SparkException}
+import org.apache.spark.{SparkException, SparkConf, Logging, SparkContext}
 import org.apache.spark.util.Utils
+
 
 /**
  * Shared trait for implementing a Mesos Scheduler. This holds common state and helper
@@ -106,37 +106,28 @@ private[mesos] trait MesosSchedulerUtils extends Logging {
         registerLatch.await()
         return
       }
-      @volatile
-      var error: Option[Exception] = None
 
-      // We create a new thread that will block inside `mesosDriver.run`
-      // until the scheduler exists
       new Thread(Utils.getFormattedClassName(this) + "-mesos-driver") {
         setDaemon(true)
+
         override def run() {
+          mesosDriver = newDriver
           try {
-            mesosDriver = newDriver
             val ret = mesosDriver.run()
             logInfo("driver.run() returned with code " + ret)
             if (ret != null && ret.equals(Status.DRIVER_ABORTED)) {
-              error = Some(new SparkException("Error starting driver, DRIVER_ABORTED"))
-              markErr()
+              System.exit(1)
             }
           } catch {
             case e: Exception => {
               logError("driver.run() failed", e)
-              error = Some(e)
-              markErr()
+              System.exit(1)
             }
           }
         }
       }.start()
 
       registerLatch.await()
-
-      // propagate any error to the calling thread. This ensures that SparkContext creation fails
-      // without leaving a broken context that won't be able to schedule any tasks
-      error.foreach(throw _)
     }
   }
 
@@ -146,14 +137,10 @@ private[mesos] trait MesosSchedulerUtils extends Logging {
   protected def getResource(res: JList[Resource], name: String): Double = {
     // A resource can have multiple values in the offer since it can either be from
     // a specific role or wildcard.
-    res.asScala.filter(_.getName == name).map(_.getScalar.getValue).sum
+    res.filter(_.getName == name).map(_.getScalar.getValue).sum
   }
 
   protected def markRegistered(): Unit = {
-    registerLatch.countDown()
-  }
-
-  protected def markErr(): Unit = {
     registerLatch.countDown()
   }
 
@@ -182,7 +169,7 @@ private[mesos] trait MesosSchedulerUtils extends Logging {
       amountToUse: Double): (List[Resource], List[Resource]) = {
     var remain = amountToUse
     var requestedResources = new ArrayBuffer[Resource]
-    val remainingResources = resources.asScala.map {
+    val remainingResources = resources.map {
       case r => {
         if (remain > 0 &&
           r.getType == Value.Type.SCALAR &&
@@ -227,7 +214,7 @@ private[mesos] trait MesosSchedulerUtils extends Logging {
    * @return
    */
   protected def toAttributeMap(offerAttributes: JList[Attribute]): Map[String, GeneratedMessage] = {
-    offerAttributes.asScala.map(attr => {
+    offerAttributes.map(attr => {
       val attrValue = attr.getType match {
         case Value.Type.SCALAR => attr.getScalar
         case Value.Type.RANGES => attr.getRanges
@@ -266,7 +253,7 @@ private[mesos] trait MesosSchedulerUtils extends Logging {
             requiredValues.map(_.toLong).exists(offerRange.contains(_))
           case Some(offeredValue: Value.Set) =>
             // check if the specified required values is a subset of offered set
-            requiredValues.subsetOf(offeredValue.getItemList.asScala.toSet)
+            requiredValues.subsetOf(offeredValue.getItemList.toSet)
           case Some(textValue: Value.Text) =>
             // check if the specified value is equal, if multiple values are specified
             // we succeed if any of them match.
@@ -312,13 +299,14 @@ private[mesos] trait MesosSchedulerUtils extends Logging {
       Map()
     } else {
       try {
-        splitter.split(constraintsVal).asScala.toMap.mapValues(v =>
-          if (v == null || v.isEmpty) {
-            Set[String]()
-          } else {
-            v.split(',').toSet
-          }
-        )
+        Map() ++ mapAsScalaMap(splitter.split(constraintsVal)).map {
+          case (k, v) =>
+            if (v == null || v.isEmpty) {
+              (k, Set[String]())
+            } else {
+              (k, v.split(',').toSet)
+            }
+        }
       } catch {
         case NonFatal(e) =>
           throw new IllegalArgumentException(s"Bad constraint string: $constraintsVal", e)
@@ -347,10 +335,6 @@ private[mesos] trait MesosSchedulerUtils extends Logging {
     uris.split(",").foreach { uri =>
       builder.addUris(CommandInfo.URI.newBuilder().setValue(uri.trim()))
     }
-  }
-
-  protected def getRejectOfferDurationForUnmetConstraints(sc: SparkContext): Long = {
-    sc.conf.getTimeAsSeconds("spark.mesos.rejectOfferDurationForUnmetConstraints", "120s")
   }
 
 }

@@ -95,7 +95,7 @@ private[orc] object OrcFileOperator extends Logging {
     val fs = origPath.getFileSystem(conf)
     val path = origPath.makeQualified(fs.getUri, fs.getWorkingDirectory)
     val paths = SparkHadoopUtil.get.listLeafStatuses(fs, origPath)
-      .filterNot(_.isDirectory)
+      .filterNot(_.isDir)
       .map(_.getPath)
       .filterNot(_.getName.startsWith("_"))
       .filterNot(_.getName.startsWith("."))

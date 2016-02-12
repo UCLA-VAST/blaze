@@ -17,12 +17,12 @@
 
 package org.apache.spark.sql.catalyst.optimizer
 
-import org.apache.spark.sql.catalyst.dsl.expressions._
-import org.apache.spark.sql.catalyst.dsl.plans._
 import org.apache.spark.sql.catalyst.expressions.Explode
 import org.apache.spark.sql.catalyst.plans.PlanTest
-import org.apache.spark.sql.catalyst.plans.logical.{LocalRelation, LogicalPlan}
+import org.apache.spark.sql.catalyst.plans.logical.{Project, LocalRelation, Generate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.RuleExecutor
+import org.apache.spark.sql.catalyst.dsl.expressions._
+import org.apache.spark.sql.catalyst.dsl.plans._
 import org.apache.spark.sql.types.StringType
 
 class ColumnPruningSuite extends PlanTest {
@@ -35,11 +35,12 @@ class ColumnPruningSuite extends PlanTest {
   test("Column pruning for Generate when Generate.join = false") {
     val input = LocalRelation('a.int, 'b.array(StringType))
 
-    val query = input.generate(Explode('b), join = false).analyze
-
+    val query = Generate(Explode('b), false, false, None, 's.string :: Nil, input).analyze
     val optimized = Optimize.execute(query)
 
-    val correctAnswer = input.select('b).generate(Explode('b), join = false).analyze
+    val correctAnswer =
+      Generate(Explode('b), false, false, None, 's.string :: Nil,
+        Project('b.attr :: Nil, input)).analyze
 
     comparePlans(optimized, correctAnswer)
   }
@@ -48,19 +49,16 @@ class ColumnPruningSuite extends PlanTest {
     val input = LocalRelation('a.int, 'b.int, 'c.array(StringType))
 
     val query =
-      input
-        .generate(Explode('c), join = true, outputNames = "explode" :: Nil)
-        .select('a, 'explode)
-        .analyze
-
+      Project(Seq('a, 's),
+        Generate(Explode('c), true, false, None, 's.string :: Nil,
+          input)).analyze
     val optimized = Optimize.execute(query)
 
     val correctAnswer =
-      input
-        .select('a, 'c)
-        .generate(Explode('c), join = true, outputNames = "explode" :: Nil)
-        .select('a, 'explode)
-        .analyze
+      Project(Seq('a, 's),
+        Generate(Explode('c), true, false, None, 's.string :: Nil,
+          Project(Seq('a, 'c),
+            input))).analyze
 
     comparePlans(optimized, correctAnswer)
   }
@@ -69,29 +67,15 @@ class ColumnPruningSuite extends PlanTest {
     val input = LocalRelation('b.array(StringType))
 
     val query =
-      input
-        .generate(Explode('b), join = true, outputNames = "explode" :: Nil)
-        .select(('explode + 1).as("result"))
-        .analyze
-
+      Project(('s + 1).as("s+1") :: Nil,
+        Generate(Explode('b), true, false, None, 's.string :: Nil,
+          input)).analyze
     val optimized = Optimize.execute(query)
 
     val correctAnswer =
-      input
-        .generate(Explode('b), join = false, outputNames = "explode" :: Nil)
-        .select(('explode + 1).as("result"))
-        .analyze
-
-    comparePlans(optimized, correctAnswer)
-  }
-
-  test("Column pruning for Project on Sort") {
-    val input = LocalRelation('a.int, 'b.string, 'c.double)
-
-    val query = input.orderBy('b.asc).select('a).analyze
-    val optimized = Optimize.execute(query)
-
-    val correctAnswer = input.select('a, 'b).orderBy('b.asc).select('a).analyze
+      Project(('s + 1).as("s+1") :: Nil,
+        Generate(Explode('b), false, false, None, 's.string :: Nil,
+          input)).analyze
 
     comparePlans(optimized, correctAnswer)
   }

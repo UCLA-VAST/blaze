@@ -17,7 +17,6 @@
 
 package org.apache.spark.deploy.yarn
 
-import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest
 import org.scalatest.{BeforeAndAfterEach, Matchers}
 
 import org.apache.spark.SparkFunSuite
@@ -26,9 +25,6 @@ class ContainerPlacementStrategySuite extends SparkFunSuite with Matchers with B
 
   private val yarnAllocatorSuite = new YarnAllocatorSuite
   import yarnAllocatorSuite._
-
-  def createContainerRequest(nodes: Array[String]): ContainerRequest =
-    new ContainerRequest(containerResource, nodes, null, YarnSparkHadoopUtil.RM_REQUEST_PRIORITY)
 
   override def beforeEach() {
     yarnAllocatorSuite.beforeEach()
@@ -48,8 +44,7 @@ class ContainerPlacementStrategySuite extends SparkFunSuite with Matchers with B
     handler.handleAllocatedContainers(Array(createContainer("host1"), createContainer("host2")))
 
     val localities = handler.containerPlacementStrategy.localityOfRequestedContainers(
-      3, 15, Map("host3" -> 15, "host4" -> 15, "host5" -> 10),
-        handler.allocatedHostToContainersMap, Seq.empty)
+      3, 15, Map("host3" -> 15, "host4" -> 15, "host5" -> 10), handler.allocatedHostToContainersMap)
 
     assert(localities.map(_.nodes) === Array(
       Array("host3", "host4", "host5"),
@@ -71,8 +66,7 @@ class ContainerPlacementStrategySuite extends SparkFunSuite with Matchers with B
     ))
 
     val localities = handler.containerPlacementStrategy.localityOfRequestedContainers(
-      3, 15, Map("host1" -> 15, "host2" -> 15, "host3" -> 10),
-        handler.allocatedHostToContainersMap, Seq.empty)
+      3, 15, Map("host1" -> 15, "host2" -> 15, "host3" -> 10), handler.allocatedHostToContainersMap)
 
     assert(localities.map(_.nodes) ===
       Array(null, Array("host2", "host3"), Array("host2", "host3")))
@@ -92,8 +86,7 @@ class ContainerPlacementStrategySuite extends SparkFunSuite with Matchers with B
     ))
 
     val localities = handler.containerPlacementStrategy.localityOfRequestedContainers(
-      1, 15, Map("host1" -> 15, "host2" -> 15, "host3" -> 10),
-        handler.allocatedHostToContainersMap, Seq.empty)
+      1, 15, Map("host1" -> 15, "host2" -> 15, "host3" -> 10), handler.allocatedHostToContainersMap)
 
     assert(localities.map(_.nodes) === Array(Array("host2", "host3")))
   }
@@ -112,8 +105,7 @@ class ContainerPlacementStrategySuite extends SparkFunSuite with Matchers with B
     ))
 
     val localities = handler.containerPlacementStrategy.localityOfRequestedContainers(
-      3, 15, Map("host1" -> 15, "host2" -> 15, "host3" -> 10),
-        handler.allocatedHostToContainersMap, Seq.empty)
+      3, 15, Map("host1" -> 15, "host2" -> 15, "host3" -> 10), handler.allocatedHostToContainersMap)
 
     assert(localities.map(_.nodes) === Array(null, null, null))
   }
@@ -126,28 +118,8 @@ class ContainerPlacementStrategySuite extends SparkFunSuite with Matchers with B
     handler.handleAllocatedContainers(Array(createContainer("host1"), createContainer("host2")))
 
     val localities = handler.containerPlacementStrategy.localityOfRequestedContainers(
-      1, 0, Map.empty, handler.allocatedHostToContainersMap, Seq.empty)
+      1, 0, Map.empty, handler.allocatedHostToContainersMap)
 
     assert(localities.map(_.nodes) === Array(null))
-  }
-
-  test("allocate locality preferred containers by considering the localities of pending requests") {
-    val handler = createAllocator(3)
-    handler.updateResourceRequests()
-    handler.handleAllocatedContainers(Array(
-      createContainer("host1"),
-      createContainer("host1"),
-      createContainer("host2")
-    ))
-
-    val pendingAllocationRequests = Seq(
-      createContainerRequest(Array("host2", "host3")),
-      createContainerRequest(Array("host1", "host4")))
-
-    val localities = handler.containerPlacementStrategy.localityOfRequestedContainers(
-      1, 15, Map("host1" -> 15, "host2" -> 15, "host3" -> 10),
-        handler.allocatedHostToContainersMap, pendingAllocationRequests)
-
-    assert(localities.map(_.nodes) === Array(Array("host3")))
   }
 }

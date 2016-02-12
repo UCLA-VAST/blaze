@@ -19,10 +19,10 @@ package org.apache.spark.storage
 
 import scala.concurrent.{ExecutionContext, Future}
 
+import org.apache.spark.rpc.{RpcEnv, RpcCallContext, RpcEndpoint}
+import org.apache.spark.util.ThreadUtils
 import org.apache.spark.{Logging, MapOutputTracker, SparkEnv}
-import org.apache.spark.rpc.{RpcCallContext, RpcEnv, ThreadSafeRpcEndpoint}
 import org.apache.spark.storage.BlockManagerMessages._
-import org.apache.spark.util.{ThreadUtils, Utils}
 
 /**
  * An RpcEndpoint to take commands from the master to execute options. For example,
@@ -33,7 +33,7 @@ class BlockManagerSlaveEndpoint(
     override val rpcEnv: RpcEnv,
     blockManager: BlockManager,
     mapOutputTracker: MapOutputTracker)
-  extends ThreadSafeRpcEndpoint with Logging {
+  extends RpcEndpoint with Logging {
 
   private val asyncThreadPool =
     ThreadUtils.newDaemonCachedThreadPool("block-manager-slave-async-thread-pool")
@@ -70,9 +70,6 @@ class BlockManagerSlaveEndpoint(
 
     case GetMatchingBlockIds(filter, _) =>
       context.reply(blockManager.getMatchingBlockIds(filter))
-
-    case TriggerThreadDump =>
-      context.reply(Utils.getThreadDump())
   }
 
   private def doAsync[T](actionMessage: String, context: RpcCallContext)(body: => T) {
@@ -83,7 +80,7 @@ class BlockManagerSlaveEndpoint(
     future.onSuccess { case response =>
       logDebug("Done " + actionMessage + ", response is " + response)
       context.reply(response)
-      logDebug("Sent response: " + response + " to " + context.senderAddress)
+      logDebug("Sent response: " + response + " to " + context.sender)
     }
     future.onFailure { case t: Throwable =>
       logError("Error in " + actionMessage, t)

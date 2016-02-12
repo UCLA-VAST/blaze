@@ -23,25 +23,25 @@ import com.fasterxml.jackson.core.JsonFactory
 import com.google.common.base.Objects
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.hadoop.io.{LongWritable, NullWritable, Text}
-import org.apache.hadoop.io.SequenceFile.CompressionType
 import org.apache.hadoop.mapred.{JobConf, TextInputFormat}
-import org.apache.hadoop.mapreduce.{Job, RecordWriter, TaskAttemptContext}
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
+import org.apache.hadoop.mapreduce.{Job, RecordWriter, TaskAttemptContext}
 
 import org.apache.spark.Logging
 import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.deploy.SparkHadoopUtil
+import org.apache.spark.mapred.SparkHadoopMapRedUtil
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{AnalysisException, Row, SQLContext}
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
-import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.datasources.PartitionSpec
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{AnalysisException, Row, SQLContext}
 import org.apache.spark.util.SerializableConfiguration
 
 
-class DefaultSource extends BucketedHadoopFsRelationProvider with DataSourceRegister {
+class DefaultSource extends HadoopFsRelationProvider with DataSourceRegister {
 
   override def shortName(): String = "json"
 
@@ -50,32 +50,21 @@ class DefaultSource extends BucketedHadoopFsRelationProvider with DataSourceRegi
       paths: Array[String],
       dataSchema: Option[StructType],
       partitionColumns: Option[StructType],
-      bucketSpec: Option[BucketSpec],
       parameters: Map[String, String]): HadoopFsRelation = {
+    val samplingRatio = parameters.get("samplingRatio").map(_.toDouble).getOrElse(1.0)
 
-    new JSONRelation(
-      inputRDD = None,
-      maybeDataSchema = dataSchema,
-      maybePartitionSpec = None,
-      userDefinedPartitionColumns = partitionColumns,
-      maybeBucketSpec = bucketSpec,
-      paths = paths,
-      parameters = parameters)(sqlContext)
+    new JSONRelation(None, samplingRatio, dataSchema, None, partitionColumns, paths)(sqlContext)
   }
 }
 
 private[sql] class JSONRelation(
     val inputRDD: Option[RDD[String]],
+    val samplingRatio: Double,
     val maybeDataSchema: Option[StructType],
     val maybePartitionSpec: Option[PartitionSpec],
     override val userDefinedPartitionColumns: Option[StructType],
-    override val maybeBucketSpec: Option[BucketSpec] = None,
-    override val paths: Array[String] = Array.empty[String],
-    parameters: Map[String, String] = Map.empty[String, String])
-    (@transient val sqlContext: SQLContext)
-  extends HadoopFsRelation(maybePartitionSpec, parameters) {
-
-  val options: JSONOptions = new JSONOptions(parameters)
+    override val paths: Array[String] = Array.empty[String])(@transient val sqlContext: SQLContext)
+  extends HadoopFsRelation(maybePartitionSpec) {
 
   /** Constraints to be imposed on schema to be stored. */
   private def checkConstraints(schema: StructType): Unit = {
@@ -91,7 +80,7 @@ private[sql] class JSONRelation(
   override val needConversion: Boolean = false
 
   private def createBaseRdd(inputPaths: Array[FileStatus]): RDD[String] = {
-    val job = Job.getInstance(sqlContext.sparkContext.hadoopConfiguration)
+    val job = new Job(sqlContext.sparkContext.hadoopConfiguration)
     val conf = job.getConfiguration
 
     val paths = inputPaths.map(_.getPath)
@@ -107,38 +96,30 @@ private[sql] class JSONRelation(
       classOf[Text]).map(_._2.toString) // get the text line
   }
 
-  override lazy val dataSchema: StructType = {
+  override lazy val dataSchema = {
     val jsonSchema = maybeDataSchema.getOrElse {
       val files = cachedLeafStatuses().filterNot { status =>
         val name = status.getPath.getName
         name.startsWith("_") || name.startsWith(".")
       }.toArray
-      InferSchema.infer(
+      InferSchema(
         inputRDD.getOrElse(createBaseRdd(files)),
-        sqlContext.conf.columnNameOfCorruptRecord,
-        options)
+        samplingRatio,
+        sqlContext.conf.columnNameOfCorruptRecord)
     }
     checkConstraints(jsonSchema)
 
     jsonSchema
   }
 
-  override private[sql] def buildInternalScan(
+  override def buildScan(
       requiredColumns: Array[String],
       filters: Array[Filter],
-      inputPaths: Array[FileStatus],
-      broadcastedConf: Broadcast[SerializableConfiguration]): RDD[InternalRow] = {
-    val requiredDataSchema = StructType(requiredColumns.map(dataSchema(_)))
-    val rows = JacksonParser.parse(
+      inputPaths: Array[FileStatus]): RDD[Row] = {
+    JacksonParser(
       inputRDD.getOrElse(createBaseRdd(inputPaths)),
-      requiredDataSchema,
-      sqlContext.conf.columnNameOfCorruptRecord,
-      options)
-
-    rows.mapPartitions { iterator =>
-      val unsafeProjection = UnsafeProjection.create(requiredDataSchema)
-      iterator.map(unsafeProjection)
-    }
+      StructType(requiredColumns.map(dataSchema(_))),
+      sqlContext.conf.columnNameOfCorruptRecord).asInstanceOf[RDD[Row]]
   }
 
   override def equals(other: Any): Boolean = other match {
@@ -162,23 +143,13 @@ private[sql] class JSONRelation(
       partitionColumns)
   }
 
-  override def prepareJobForWrite(job: Job): BucketedOutputWriterFactory = {
-    val conf = job.getConfiguration
-    options.compressionCodec.foreach { codec =>
-      conf.set("mapreduce.output.fileoutputformat.compress", "true")
-      conf.set("mapreduce.output.fileoutputformat.compress.type", CompressionType.BLOCK.toString)
-      conf.set("mapreduce.output.fileoutputformat.compress.codec", codec)
-      conf.set("mapreduce.map.output.compress", "true")
-      conf.set("mapreduce.map.output.compress.codec", codec)
-    }
-
-    new BucketedOutputWriterFactory {
+  override def prepareJobForWrite(job: Job): OutputWriterFactory = {
+    new OutputWriterFactory {
       override def newInstance(
           path: String,
-          bucketId: Option[Int],
           dataSchema: StructType,
           context: TaskAttemptContext): OutputWriter = {
-        new JsonOutputWriter(path, bucketId, dataSchema, context)
+        new JsonOutputWriter(path, dataSchema, context)
       }
     }
   }
@@ -186,25 +157,24 @@ private[sql] class JSONRelation(
 
 private[json] class JsonOutputWriter(
     path: String,
-    bucketId: Option[Int],
     dataSchema: StructType,
     context: TaskAttemptContext)
-  extends OutputWriter with Logging {
+  extends OutputWriter with SparkHadoopMapRedUtil with Logging {
 
-  private[this] val writer = new CharArrayWriter()
+  val writer = new CharArrayWriter()
   // create the Generator without separator inserted between 2 records
-  private[this] val gen = new JsonFactory().createGenerator(writer).setRootValueSeparator(null)
-  private[this] val result = new Text()
+  val gen = new JsonFactory().createGenerator(writer).setRootValueSeparator(null)
+
+  val result = new Text()
 
   private val recordWriter: RecordWriter[NullWritable, Text] = {
     new TextOutputFormat[NullWritable, Text]() {
       override def getDefaultWorkFile(context: TaskAttemptContext, extension: String): Path = {
-        val configuration = context.getConfiguration
+        val configuration = SparkHadoopUtil.get.getConfigurationFromJobContext(context)
         val uniqueWriteJobId = configuration.get("spark.sql.sources.writeJobUUID")
-        val taskAttemptId = context.getTaskAttemptID
+        val taskAttemptId = SparkHadoopUtil.get.getTaskAttemptIDFromTaskAttemptContext(context)
         val split = taskAttemptId.getTaskID.getId
-        val bucketString = bucketId.map(BucketingUtils.bucketIdToString).getOrElse("")
-        new Path(path, f"part-r-$split%05d-$uniqueWriteJobId$bucketString$extension")
+        new Path(path, f"part-r-$split%05d-$uniqueWriteJobId$extension")
       }
     }.getRecordWriter(context)
   }
@@ -212,7 +182,7 @@ private[json] class JsonOutputWriter(
   override def write(row: Row): Unit = throw new UnsupportedOperationException("call writeInternal")
 
   override protected[sql] def writeInternal(row: InternalRow): Unit = {
-    JacksonGenerator(dataSchema, gen)(row)
+    JacksonGenerator(dataSchema, gen, row)
     gen.flush()
 
     result.set(writer.toString)

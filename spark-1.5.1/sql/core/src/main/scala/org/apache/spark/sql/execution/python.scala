@@ -20,23 +20,23 @@ package org.apache.spark.sql.execution
 import java.io.OutputStream
 import java.util.{List => JList, Map => JMap}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 import net.razorvine.pickle._
 
-import org.apache.spark.{Accumulator, Logging => SparkLogging, TaskContext}
-import org.apache.spark.api.python.{PythonBroadcast, PythonRDD, PythonRunner, SerDeUtil}
+import org.apache.spark.annotation.DeveloperApi
+import org.apache.spark.api.python.{PythonRunner, PythonBroadcast, PythonRDD, SerDeUtil}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, GenericArrayData, MapData}
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
+import org.apache.spark.{Logging => SparkLogging, TaskContext, Accumulator}
 
 /**
  * A serialized version of a Python lambda function.  Suitable for use in a [[PythonRDD]].
@@ -121,13 +121,13 @@ object EvaluatePython {
 
   def takeAndServe(df: DataFrame, n: Int): Int = {
     registerPicklers()
-    df.withNewExecutionId {
-      val iter = new SerDeUtil.AutoBatchedPickler(
-        df.queryExecution.executedPlan.executeTake(n).iterator.map { row =>
-          EvaluatePython.toJava(row, df.schema)
-        })
-      PythonRDD.serveIterator(iter, s"serve-DataFrame")
-    }
+    // This is an annoying hack - we should refactor the code so executeCollect and executeTake
+    // returns InternalRow rather than Row.
+    val converter = CatalystTypeConverters.createToCatalystConverter(df.schema)
+    val iter = new SerDeUtil.AutoBatchedPickler(df.take(n).iterator.map { row =>
+      EvaluatePython.toJava(converter(row).asInstanceOf[InternalRow], df.schema)
+    })
+    PythonRDD.serveIterator(iter, s"serve-DataFrame")
   }
 
   /**
@@ -143,7 +143,7 @@ object EvaluatePython {
         values(i) = toJava(row.get(i, struct.fields(i).dataType), struct.fields(i).dataType)
         i += 1
       }
-      new GenericRowWithSchema(values, struct)
+      new GenericInternalRowWithSchema(values, struct)
 
     case (a: ArrayData, array: ArrayType) =>
       val values = new java.util.ArrayList[Any](a.numElements())
@@ -199,32 +199,27 @@ object EvaluatePython {
 
     case (c: Long, TimestampType) => c
 
-    case (c, StringType) => UTF8String.fromString(c.toString)
+    case (c: String, StringType) => UTF8String.fromString(c)
+    case (c, StringType) =>
+      // If we get here, c is not a string. Call toString on it.
+      UTF8String.fromString(c.toString)
 
     case (c: String, BinaryType) => c.getBytes("utf-8")
     case (c, BinaryType) if c.getClass.isArray && c.getClass.getComponentType.getName == "byte" => c
 
     case (c: java.util.List[_], ArrayType(elementType, _)) =>
-      new GenericArrayData(c.asScala.map { e => fromJava(e, elementType)}.toArray)
+      new GenericArrayData(c.map { e => fromJava(e, elementType)}.toArray)
 
     case (c, ArrayType(elementType, _)) if c.getClass.isArray =>
       new GenericArrayData(c.asInstanceOf[Array[_]].map(e => fromJava(e, elementType)))
 
     case (c: java.util.Map[_, _], MapType(keyType, valueType, _)) =>
-      val keyValues = c.asScala.toSeq
-      val keys = keyValues.map(kv => fromJava(kv._1, keyType)).toArray
-      val values = keyValues.map(kv => fromJava(kv._2, valueType)).toArray
+      val keys = c.keysIterator.map(fromJava(_, keyType)).toArray
+      val values = c.valuesIterator.map(fromJava(_, valueType)).toArray
       ArrayBasedMapData(keys, values)
 
     case (c, StructType(fields)) if c.getClass.isArray =>
-      val array = c.asInstanceOf[Array[_]]
-      if (array.length != fields.length) {
-        throw new IllegalStateException(
-          s"Input row doesn't have expected number of values required by the schema. " +
-          s"${fields.length} fields are required while ${array.length} values are provided."
-        )
-      }
-      new GenericInternalRow(array.zip(fields).map {
+      new GenericInternalRow(c.asInstanceOf[Array[_]].zip(fields).map {
         case (e, f) => fromJava(e, f.dataType)
       })
 
@@ -260,11 +255,11 @@ object EvaluatePython {
   }
 
   /**
-   * Pickler for external row.
+   * Pickler for InternalRow
    */
   private class RowPickler extends IObjectPickler {
 
-    private val cls = classOf[GenericRowWithSchema]
+    private val cls = classOf[GenericInternalRowWithSchema]
 
     // register this to Pickler and Unpickler
     def register(): Unit = {
@@ -279,7 +274,7 @@ object EvaluatePython {
       } else {
         // it will be memorized by Pickler to save some bytes
         pickler.save(this)
-        val row = obj.asInstanceOf[GenericRowWithSchema]
+        val row = obj.asInstanceOf[GenericInternalRowWithSchema]
         // schema should always be same object for memoization
         pickler.save(row.schema)
         out.write(Opcodes.TUPLE1)
@@ -326,8 +321,10 @@ object EvaluatePython {
 }
 
 /**
+ * :: DeveloperApi ::
  * Evaluates a [[PythonUDF]], appending the result to the end of the input tuple.
  */
+@DeveloperApi
 case class EvaluatePython(
     udf: PythonUDF,
     child: LogicalPlan,
@@ -341,6 +338,7 @@ case class EvaluatePython(
 }
 
 /**
+ * :: DeveloperApi ::
  * Uses PythonRDD to evaluate a [[PythonUDF]], one partition of tuples at a time.
  *
  * Python evaluation works by sending the necessary (projected) input data via a socket to an
@@ -350,6 +348,7 @@ case class EvaluatePython(
  * we drain the queue to find the original input row. Note that if the Python process is way too
  * slow, this could lead to the queue growing unbounded and eventually run out of memory.
  */
+@DeveloperApi
 case class BatchPythonEvaluation(udf: PythonUDF, output: Seq[Attribute], child: SparkPlan)
   extends SparkPlan {
 
@@ -400,14 +399,13 @@ case class BatchPythonEvaluation(udf: PythonUDF, output: Seq[Attribute], child: 
       val unpickle = new Unpickler
       val row = new GenericMutableRow(1)
       val joined = new JoinedRow
-      val resultProj = UnsafeProjection.create(output, output)
 
       outputIterator.flatMap { pickedResult =>
         val unpickledBatch = unpickle.loads(pickedResult)
-        unpickledBatch.asInstanceOf[java.util.ArrayList[Any]].asScala
+        unpickledBatch.asInstanceOf[java.util.ArrayList[Any]]
       }.map { result =>
         row(0) = EvaluatePython.fromJava(result, udf.dataType)
-        resultProj(joined(queue.poll(), row))
+        joined(queue.poll(), row)
       }
     }
   }

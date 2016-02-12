@@ -18,7 +18,6 @@
 package org.apache.spark
 
 import org.scalatest.Assertions
-
 import org.apache.spark.storage.StorageLevel
 
 class SparkContextInfoSuite extends SparkFunSuite with LocalSparkContext {

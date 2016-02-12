@@ -21,7 +21,6 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenFallback
-import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.types._
 
 /**
@@ -53,7 +52,7 @@ trait Generator extends Expression {
    * The output element data types in structure of Seq[(DataType, Nullable)]
    * TODO we probably need to add more information like metadata etc.
    */
-  def elementTypes: Seq[(DataType, Boolean, String)]
+  def elementTypes: Seq[(DataType, Boolean)]
 
   /** Should be implemented by child classes to perform specific Generators. */
   override def eval(input: InternalRow): TraversableOnce[InternalRow]
@@ -69,7 +68,7 @@ trait Generator extends Expression {
  * A generator that produces its output using the provided lambda function.
  */
 case class UserDefinedGenerator(
-    elementTypes: Seq[(DataType, Boolean, String)],
+    elementTypes: Seq[(DataType, Boolean)],
     function: Row => TraversableOnce[InternalRow],
     children: Seq[Expression])
   extends Generator with CodegenFallback {
@@ -112,11 +111,9 @@ case class Explode(child: Expression) extends UnaryExpression with Generator wit
     }
   }
 
-  // hive-compatible default alias for explode function ("col" for array, "key", "value" for map)
-  override def elementTypes: Seq[(DataType, Boolean, String)] = child.dataType match {
-    case ArrayType(et, containsNull) => (et, containsNull, "col") :: Nil
-    case MapType(kt, vt, valueContainsNull) =>
-      (kt, false, "key") :: (vt, valueContainsNull, "value") :: Nil
+  override def elementTypes: Seq[(DataType, Boolean)] = child.dataType match {
+    case ArrayType(et, containsNull) => (et, containsNull) :: Nil
+    case MapType(kt, vt, valueContainsNull) => (kt, false) :: (vt, valueContainsNull) :: Nil
   }
 
   override def eval(input: InternalRow): TraversableOnce[InternalRow] = {

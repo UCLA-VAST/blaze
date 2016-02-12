@@ -36,7 +36,7 @@ import org.apache.spark.util.Utils
  * This creates an iterator of (BlockID, InputStream) tuples so the caller can handle blocks
  * in a pipelined fashion as they are received.
  *
- * The implementation throttles the remote fetches so they don't exceed maxBytesInFlight to avoid
+ * The implementation throttles the remote fetches to they don't exceed maxBytesInFlight to avoid
  * using too much memory.
  *
  * @param context [[TaskContext]], used for metrics update
@@ -101,7 +101,7 @@ final class ShuffleBlockFetcherIterator(
   /** Current bytes in flight from our requests */
   private[this] var bytesInFlight = 0L
 
-  private[this] val shuffleMetrics = context.taskMetrics().registerTempShuffleReadMetrics()
+  private[this] val shuffleMetrics = context.taskMetrics().createShuffleReadMetricsForDependency()
 
   /**
    * Whether the iterator is still active. If isZombie is true, the callback interface will no
@@ -260,7 +260,10 @@ final class ShuffleBlockFetcherIterator(
     fetchRequests ++= Utils.randomize(remoteRequests)
 
     // Send out initial requests for blocks, up to our maxBytesInFlight
-    fetchUpToMaxBytes()
+    while (fetchRequests.nonEmpty &&
+      (bytesInFlight == 0 || bytesInFlight + fetchRequests.front.size <= maxBytesInFlight)) {
+      sendRequest(fetchRequests.dequeue())
+    }
 
     val numFetches = remoteRequests.size - fetchRequests.size
     logInfo("Started " + numFetches + " remote fetches in" + Utils.getUsedTimeMs(startTime))
@@ -293,7 +296,10 @@ final class ShuffleBlockFetcherIterator(
       case _ =>
     }
     // Send fetch requests up to maxBytesInFlight
-    fetchUpToMaxBytes()
+    while (fetchRequests.nonEmpty &&
+      (bytesInFlight == 0 || bytesInFlight + fetchRequests.front.size <= maxBytesInFlight)) {
+      sendRequest(fetchRequests.dequeue())
+    }
 
     result match {
       case FailureFetchResult(blockId, address, e) =>
@@ -309,14 +315,6 @@ final class ShuffleBlockFetcherIterator(
     }
   }
 
-  private def fetchUpToMaxBytes(): Unit = {
-    // Send fetch requests up to maxBytesInFlight
-    while (fetchRequests.nonEmpty &&
-      (bytesInFlight == 0 || bytesInFlight + fetchRequests.front.size <= maxBytesInFlight)) {
-      sendRequest(fetchRequests.dequeue())
-    }
-  }
-
   private def throwFetchFailedException(blockId: BlockId, address: BlockManagerId, e: Throwable) = {
     blockId match {
       case ShuffleBlockId(shufId, mapId, reduceId) =>
@@ -329,7 +327,7 @@ final class ShuffleBlockFetcherIterator(
 }
 
 /**
- * Helper class that ensures a ManagedBuffer is released upon InputStream.close()
+ * Helper class that ensures a ManagedBuffer is release upon InputStream.close()
  */
 private class BufferReleasingInputStream(
     private val delegate: InputStream,
