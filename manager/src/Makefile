@@ -4,9 +4,6 @@ include ../../Makefile.config
 ifeq ($(BOOST_DIR),)
 $(error BOOST_DIR not set properly in Makefile.config)
 endif
-ifeq ($(HADOOP_DIR),)
-$(error HADOOP_DIR not set properly in Makefile.config)
-endif
 ifeq ($(PROTOBUF_DIR),)
 $(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
@@ -18,7 +15,14 @@ PP=g++
 CC=gcc
 AR=ar
 
-CFLAGS= -c -fPIC -std=c++0x -g
+CFLAGS := -c -fPIC -std=c++0x
+
+ifeq ($(DEBUG),)
+CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+else
+CFLAGS := $(CFLAGS) -g
+endif
+
 COMPILE= $(CFLAGS) \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
@@ -27,22 +31,26 @@ COMPILE= $(CFLAGS) \
 
 LINK= -L../lib -lblaze \
 			-L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
+			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex \
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \
 			-L$(GLOG_DIR)/lib -lglog \
 			-L$(HADOOP_DIR)/lib/native -lhdfs \
 			-L$(JAVA_HOME)/jre/lib/amd64/server -ljvm \
-			-lpthread -lm -ldl
+			-lpthread -lm \
+			-Wl,--no-as-needed -ldl
 
-DEPS= CommManager.o \
+DEPS= Common.o \
+			Block.o \
+			Task.o \
+			Client.o \
+			CommManager.o \
 			AppCommManager.o \
 			GAMCommManager.o \
+			Platform.o \
 			PlatformManager.o \
-			Block.o \
 			BlockManager.o \
-			QueueManager.o \
-			Task.o \
 			TaskManager.o \
+			QueueManager.o \
 			task.pb.o \
 			acc_conf.pb.o \
 			msgGamNam.pb.o
@@ -69,4 +77,5 @@ msgGamNam.pb.o: proto/msgGamNam.pb.cc
 
 clean:
 	rm -rf *.o
+	rm -rf ../lib/libblaze.so
 	rm -rf ../bin/acc_manager

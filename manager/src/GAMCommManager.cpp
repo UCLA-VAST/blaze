@@ -12,10 +12,12 @@
 #include <stdexcept>
 #include <cstdint>
 
+#define LOG_HEADER "GAMCommManager"
 #include <glog/logging.h>
 
 #include "proto/msgGamNam.pb.h"
 #include "CommManager.h"
+#include "PlatformManager.h"
 
 namespace blaze {
 

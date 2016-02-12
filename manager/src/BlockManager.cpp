@@ -1,38 +1,13 @@
 #include <climits>
+
+#define LOG_HEADER "BlockManager"
 #include <glog/logging.h>
 
+#include "Block.h"
 #include "BlockManager.h"
+#include "Platform.h"
 
 namespace blaze {
-
-// create a block, if no space left then return NULL
-DataBlock_ptr BlockManager::create(
-    int num_items, 
-    int item_length,
-    int item_size,
-    int align_size) 
-{
-  int block_size;
-  if (align_size > 0 && item_size % align_size != 0) {
-    block_size = num_items*((item_size+align_size-1)/align_size)*align_size;
-  }
-  else {
-    block_size = num_items*item_size;
-  }
-  // do not create new block if there is no space left 
-  // in either cache or scratch, for safety
-  if (block_size + cacheSize > maxCacheSize &&
-      block_size + scratchSize > maxScratchSize)
-  {
-    return NULL_DATA_BLOCK;
-  }
-  else {
-    DataBlock_ptr block = platform->createBlock(
-        num_items, item_length, item_size, align_size);
-
-    return block;
-  }
-}
 
 // create a block if it does not exist in the manager
 // return true if a new block is created
@@ -50,11 +25,15 @@ bool BlockManager::getAlloc(
   if (!contains(tag)) {
 
     // create block never throw exception
-    block = platform->createBlock(
-        num_items, 
-        item_length, 
-        item_size, 
-        align_size);
+    if (tag < 0) {
+      block = platform->createBlock(
+          num_items, item_length, item_size, align_size, 
+          BLAZE_SHARED_BLOCK);
+    } else {
+      block = platform->createBlock(
+          num_items, item_length, item_size, align_size, 
+          BLAZE_INPUT_BLOCK);
+    }
 
     try {
       do_add(tag, block);
@@ -62,7 +41,8 @@ bool BlockManager::getAlloc(
       return true;
     }
     catch (std::runtime_error &e) {
-      LOG(ERROR) << "Cannot to add block " << tag;
+      LOG(ERROR) << "Cannot add block " << tag <<
+        ": " << e.what();
       return false;
     }
   }
@@ -108,21 +88,6 @@ DataBlock_ptr BlockManager::get(int64_t tag) {
   }
 }
 
-void BlockManager::add(
-    int64_t tag, 
-    DataBlock_ptr block)
-{
-  // guarantee exclusive access
-  boost::lock_guard<BlockManager> guard(*this);
-  try {
-    do_add(tag, block);
-  }
-  catch (std::runtime_error &e) {
-    // do not throw exceptions, simply log info and return 
-    LOG(ERROR) << "Cannot to add block " << tag;
-  }
-}
-
 void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
 
   // check if block already exists
@@ -161,7 +126,9 @@ void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
     }
 
     // add the index to cacheTable
-    cacheTable.insert(std::make_pair(tag, std::make_pair(0, block)));
+    time_t timeNow;
+    time(&timeNow);
+    cacheTable.insert(std::make_pair(tag, std::make_pair(timeNow, block)));
 
     // increase the current cacheSize
     cacheSize += block->getSize();
@@ -199,20 +166,19 @@ void BlockManager::evict() {
   }
    
   // find the block that has the least access count
-  int min_val = INT_MAX;
-  std::map<int64_t, std::pair<int, DataBlock_ptr> >::iterator min_idx; 
-  std::map<int64_t, std::pair<int, DataBlock_ptr> >::iterator iter; 
+  time_t min_ts;
+  time(&min_ts);
+
+  std::map<int64_t, std::pair<time_t, DataBlock_ptr> >::iterator 
+    min_idx = cacheTable.begin();
+
+  std::map<int64_t, std::pair<time_t, DataBlock_ptr> >::iterator iter; 
   for (iter = cacheTable.begin(); 
        iter != cacheTable.end(); 
        iter ++)
   {
-    if (iter->second.first == 0) {
-      // early jump out
-      min_idx = iter; 
-      break;
-    }
-    if (min_val > iter->second.first) {
-      min_val = iter->second.first;
+    if (difftime(min_ts, iter->second.first) > 0) {
+      min_ts  = iter->second.first;
       min_idx = iter;
     }
   }
@@ -234,10 +200,13 @@ void BlockManager::evict() {
 // and then update cacheTable for new indexes
 void BlockManager::update(int64_t tag) {
 
+  time_t ts;
+  time(&ts);
+
   // log info
   VLOG(2) << "Update block " << tag;
 
-  cacheTable[tag].first += 1;
+  cacheTable[tag].first = ts;
 }
 
 }

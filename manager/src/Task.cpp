@@ -1,6 +1,28 @@
+#include <stdio.h>
+#include <glog/logging.h>
+#include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
+
+#include "Block.h"
+#include "TaskEnv.h"
 #include "Task.h"
 
 namespace blaze {
+
+TaskEnv* Task::getEnv() { 
+  return env.get();
+}
+
+bool Task::isInputReady(int64_t block_id) {
+  if (input_table.find(block_id) != input_table.end() &&
+      input_table[block_id]->isReady()) 
+  {
+    return true;
+  } else {
+    return false;
+  }
+}
 
 std::string Task::getConfig(int idx, std::string key) 
 {
@@ -26,8 +48,8 @@ char* Task::getOutput(
   }
   else {
     // if output does not exist, create one
-    DataBlock_ptr block = platform->createBlock(num_items, 
-        item_length, item_length*data_width);
+    DataBlock_ptr block = env->createBlock(num_items, 
+        item_length, item_length*data_width, 0, BLAZE_OUTPUT_BLOCK);
 
     output_blocks.push_back(block);
 
@@ -119,16 +141,28 @@ void Task::inputBlockReady(int64_t partition_id, DataBlock_ptr block) {
       status = READY;
     }
   }
+  else {
+    // overlay this method to set input block to a new block 
+    if (!block || !block->isReady()) {
+      throw std::runtime_error("Task::inputBlockReady(): block not ready");
+    }
+
+    input_table[partition_id] = block;
+  }
 }
 
-DataBlock_ptr Task::getInputBlock(int64_t block_id) {
-  if (input_table.find(block_id) != input_table.end()) {
-    return input_table[block_id];
+/*
+DataBlock_ptr Task::getInputBlock(int idx) {
+  if (idx >= input_blocks.size() || 
+      input_table.find(input_blocks[idx]) == input_table.end()) 
+  {
+    return NULL_DATA_BLOCK; 
   }
   else {
-    return NULL_DATA_BLOCK;
+    return input_table[input_blocks[idx]];
   }
 }
+*/
 
 // push one output block to consumer
 // return true if there are more blocks to output
@@ -182,5 +216,6 @@ bool Task::isReady() {
     }
   }
 }
+
 
 } // namespace

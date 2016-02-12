@@ -11,18 +11,11 @@
 #include "hdfs.h"
 #endif
 
-#include <boost/lexical_cast.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/iostreams/device/mapped_file.hpp>
-
-#include "Block.h"
-#include "Platform.h"
+#include "Common.h"
 
 namespace blaze {
 
 // forward declaration of 
-class TaskManager;
-class AppCommManager;
 template <typename U, typename T> class BlazeTest;
 
 /**
@@ -32,7 +25,9 @@ template <typename U, typename T> class BlazeTest;
 class Task {
 
 friend class TaskManager;
+friend class QueueManager;
 friend class AppCommManager;
+
 template <typename U, typename T> 
 friend class BlazeTest;
 
@@ -66,6 +61,8 @@ public:
   // or config for output block
   std::string getConfig(int idx, std::string key);
 
+  bool isInputReady(int64_t block_id);
+
 protected:
 
   // read one line from file and write to an array
@@ -80,7 +77,7 @@ protected:
     return NULL;
   }
 
-  TaskEnv* getEnv() { return platform->getEnv();  }
+  TaskEnv* getEnv();
 
   char* getOutput(int idx, int item_length, int num_items, int data_width);
   
@@ -93,18 +90,14 @@ protected:
 
 private:
 
-  // used by CommManager
+  // used by AppCommManager
   void addInputBlock(int64_t partition_id, DataBlock_ptr block);
   void inputBlockReady(int64_t partition_id, DataBlock_ptr block);
-
-  DataBlock_ptr getInputBlock(int64_t block_id);
 
   // push one output block to consumer
   // return true if there are more blocks to output
   bool getOutputBlock(DataBlock_ptr &block);
    
-  void setPlatform(Platform *_platform) { platform = _platform;  }
-
   bool isReady();
 
   enum {
@@ -120,8 +113,8 @@ private:
 
   int estimated_time;
 
-  // pointer to the platform
-  Platform *platform;
+  // pointer to the TaskEnv
+  TaskEnv_ptr env;
 
   // number of total input blocks
   int num_input;
@@ -141,7 +134,5 @@ private:
   // a table that maps block index to configurations
   std::map<int, std::map<std::string, std::string> > config_table;
 };
-
-typedef boost::shared_ptr<Task> Task_ptr;
 }
 #endif

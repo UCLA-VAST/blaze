@@ -9,10 +9,19 @@
 #include <stdexcept>
 #include <cstdint>
 
+#include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
 #include <glog/logging.h>
 
 #include "proto/task.pb.h"
+#include "Block.h"
+#include "Task.h"
+#include "Platform.h"
 #include "CommManager.h"
+#include "BlockManager.h"
+#include "PlatformManager.h"
+#include "TaskManager.h"
 
 namespace blaze {
 
@@ -25,8 +34,6 @@ void AppCommManager::process(socket_ptr sock) {
   socket_base::receive_buffer_size option(4*1024*1024);
   sock->set_option(option); 
   
-  srand(time(NULL));
-
   try {
     // 1. Handle ACCREQUEST
     TaskMsg task_msg;
@@ -38,6 +45,11 @@ void AppCommManager::process(socket_ptr sock) {
     // a table containing information of each input block
     // - partition_id: cached, sampled
     std::map<int64_t, std::pair<bool, bool> > block_table;
+
+    // TODO: better naming
+    // a table containing cache information of each input block
+    // - partition_id: enable cache
+    std::map<int64_t, bool> cache_table;
 
     try {
       recv(task_msg, sock);
@@ -64,18 +76,26 @@ void AppCommManager::process(socket_ptr sock) {
        * task's input table, in order to get the correct order
        */
 
-      // 1.1 query the queue manager to find matching acc
-      TaskManager_ptr task_manager = 
+      // 1.1 query the PlatformManager to find matching acc
+      TaskManager* task_manager = 
         platform_manager->getTaskManager(task_msg.acc_id());
 
-      if (task_manager == NULL_TASK_MANAGER) { 
+      // 1.2 get correponding block manager based on platform of queried Task
+      Platform* platform = platform_manager->getPlatform(task_msg.acc_id());
+
+      if (!task_manager || !platform) {
         // if there is no matching acc
         throw AccReject("No matching accelerator"); 
       }
 
-      // 1.2 get correponding block manager based on platform of queried Task
-      BlockManager* block_manager = platform_manager->
-        getBlockManager(task_msg.acc_id());
+      // NOTE: ommit pointer check since it is 
+      // already performed in getTaskManager
+
+      BlockManager* block_manager = platform->getBlockManager();
+
+      if (!block_manager) {
+        throw AccReject("Cannot find block manager");
+      }
 
       // create a new task, and make scheduling decision
       Task_ptr task = task_manager->create();
@@ -101,6 +121,8 @@ void AppCommManager::process(socket_ptr sock) {
            * used to differentiate the blocks in a single task
            */
           task->addInputBlock(i, block);
+
+          DLOG(INFO) << "Received an scalar value";
         }
         // 1.3.2 if this is not a scalar, then its an array
         else {
@@ -164,37 +186,58 @@ void AppCommManager::process(socket_ptr sock) {
           }
           // 1.3.2.2 if the input is a normal input block
           else {
-            if (block_manager->contains(blockId)) {
+            // if the input block is non-cachable
+            if (recv_block.has_cached() && !recv_block.cached()) {
 
-              if (recv_block.has_sampled() && recv_block.sampled()) {
-
-                // wait for mask in ACCDATA 
-                wait_accdata = true; 
-
-                reply_block->set_sampled(true);
-              }
-              else {
-                block = block_manager->get(blockId);
-                reply_block->set_sampled(false);
-              }
-              reply_block->set_cached(true); 
-            }
-            // 1.3.2.2.2 if the input block is not cached
-            else {
-
-              // do not add block to task input table if data is sampled
-              block = NULL_DATA_BLOCK;
-              
-              if (recv_block.has_sampled() && recv_block.sampled()) {
-
-                reply_block->set_sampled(true);
-
-              }
-              else {
-                reply_block->set_sampled(false);
-              }
-              reply_block->set_cached(false); 
               wait_accdata = true;
+
+              // NOTE: do not support sampling at this point
+              reply_block->set_cached(false); 
+              reply_block->set_sampled(false);
+
+              block = NULL_DATA_BLOCK;
+
+              DLOG(INFO) << "Add a non-cachable block to task, id=" << blockId;
+
+              // mark the block to skip cache
+              cache_table.insert(std::make_pair(blockId, false));
+            }
+            else {
+              DLOG(INFO) << "Add a cachable block to task, id=" << blockId;
+
+              if (block_manager->contains(blockId)) {
+
+                if (recv_block.has_sampled() && recv_block.sampled()) {
+
+                  // wait for mask in ACCDATA 
+                  wait_accdata = true; 
+
+                  reply_block->set_sampled(true);
+                }
+                else {
+                  block = block_manager->get(blockId);
+                  reply_block->set_sampled(false);
+                }
+                reply_block->set_cached(true); 
+              }
+              // 1.3.2.2.2 if the input block is not cached
+              else {
+
+                // do not add block to task input table if data is sampled
+                block = NULL_DATA_BLOCK;
+
+                if (recv_block.has_sampled() && recv_block.sampled()) {
+
+                  reply_block->set_sampled(true);
+
+                }
+                else {
+                  reply_block->set_sampled(false);
+                }
+                reply_block->set_cached(false); 
+                wait_accdata = true;
+              }
+              cache_table.insert(std::make_pair(blockId, true));
             }
           }
           // add block to task
@@ -216,7 +259,7 @@ void AppCommManager::process(socket_ptr sock) {
         // <bestcase wait time, worstcase wait time>
         std::pair<int,int> wait_time = task_manager->getWaitTime(task.get());
 
-        LOG(INFO) << "Wait time = (" << wait_time.first 
+        VLOG(1) << "Wait time = (" << wait_time.first 
           << ", " << wait_time.second << ") us, task estimated time = "
           << task_time << " us";
 
@@ -249,6 +292,7 @@ void AppCommManager::process(socket_ptr sock) {
               std::string("Error in receiving ACCDATA ")+
               std::string(e.what()));
         }
+        DLOG(INFO) << "Received ACCDATA";
 
         // Acquire data from Spark
         if (data_msg.type() != ACCDATA) {
@@ -269,9 +313,7 @@ void AppCommManager::process(socket_ptr sock) {
           int64_t blockId = recv_block.partition_id();
           std::string path = recv_block.file_path();
 
-          if (task->getInputBlock(blockId) &&
-              task->getInputBlock(blockId)->isReady()) 
-          {
+          if (task->isInputReady(blockId)) {
             LOG(WARNING) << "Skipping ready block " << blockId;
             break;
           }
@@ -443,11 +485,23 @@ void AppCommManager::process(socket_ptr sock) {
                   align_width = stoi(task->getConfig(i, "align_width"));
                 }
 
-                // the block needs to be created and add to cache
-                block_manager->getAlloc(
-                    blockId, block,
-                    num_elements, element_length, element_size, 
-                    align_width);
+                if ( cache_table.find(blockId) != cache_table.end() &&
+                    !cache_table[blockId]) 
+                {
+                  DLOG(INFO) << "Skip cache for block " << blockId;
+
+                  // the block should skip cache
+                  block = platform->createBlock(
+                      num_elements, element_length, element_size,
+                      align_width);
+                }
+                else {
+                  // the block needs to be created and add to cache
+                  block_manager->getAlloc(
+                      blockId, block,
+                      num_elements, element_length, element_size, 
+                      align_width);
+                }
               }
               else { 
                 // if the block is a broadcast then it already resides in scratch
@@ -458,10 +512,11 @@ void AppCommManager::process(socket_ptr sock) {
                 block->readFromMem(path);
               }
               catch (std::exception &e) {
-                throw AccFailure(std::string("readFromMem error: ")+
-                    e.what());
+                LOG(ERROR) << "readFromMem error: " << e.what();
+                throw AccFailure(std::string("readFromMem error"));
               }
 
+              // NOTE: only remove normal input file
               try {
                 // delete memory map file after read
                 boost::filesystem::wpath file(path);
@@ -536,7 +591,7 @@ void AppCommManager::process(socket_ptr sock) {
           task->status != Task::FAILED) 
       {
         boost::this_thread::sleep_for(
-            boost::chrono::microseconds(1000)); 
+            boost::chrono::microseconds(100)); 
       }
 
       // 3. Handle ACCFINISH message and output data
@@ -556,11 +611,16 @@ void AppCommManager::process(socket_ptr sock) {
           block_left = task->getOutputBlock(block);
 
           // use thread id to create unique output file path
-          std::string path = 
-            "/tmp/" + 
-            boost::lexical_cast<std::string>(boost::this_thread::get_id())+
-            std::to_string((long long)outId);
+          std::stringstream path_stream;
+          std::string output_dir = "/tmp";
 
+          path_stream << output_dir << "/"
+                      << "nam-output-"
+                      << getTid() 
+                      << std::setw(12) << std::setfill('0') << rand() 
+                      << outId
+                      << ".dat";
+          std::string path = path_stream.str();
           try {
             // write the block to output shared memory
             block->writeToMem(path);

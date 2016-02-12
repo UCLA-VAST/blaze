@@ -1,11 +1,21 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/atomic.hpp>
-
 #include <glog/logging.h>
 
+#define LOG_HEADER "TaskManager"
+
+#include "TaskEnv.h"
+#include "Task.h"
+#include "Block.h"
+#include "TaskQueue.h"
 #include "TaskManager.h"
+#include "Platform.h"
 
 namespace blaze {
+
+int TaskManager::getExeQueueLength() {
+  return exeQueueLength.load();
+}
 
 int TaskManager::estimateTime(Task* task) {
 
@@ -45,8 +55,8 @@ Task_ptr TaskManager::create() {
   // create a new task by the constructor loaded form user implementation
   Task_ptr task(createTask(), destroyTask);
 
-  // link the task platform 
-  task->setPlatform(platform);
+  // link the TaskEnv
+  task->env = platform->getEnv(acc_id);
 
   // give task an unique ID
   task->task_id = nextTaskId.fetch_add(1);
@@ -62,25 +72,30 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
   
   // TODO: when do we remove the queue?
   // create a new app queue if it does not exist
+
+  TaskQueue_ptr queue;
+  // TODO: remove this lock
+  this->lock();
   if (app_queues.find(app_id) == app_queues.end()) {
-    TaskQueue_ptr queue(new TaskQueue());
-    app_queues.insert(std::make_pair(app_id, queue));
+    TaskQueue_ptr new_queue(new TaskQueue());
+    app_queues.insert(std::make_pair(app_id, new_queue));
+    queue = new_queue;
+  } 
+  else {
+    queue = app_queues[app_id];
   }
+  this->unlock();
+
   // once called, the task estimation time will stored
   int delay_time = estimateTime(task);
 
   // push task to queue
-  TaskQueue_ptr queue = app_queues[app_id];
-  if (!queue) {
-    throw std::runtime_error("Unexpected empty queue");
-  }
-
   bool enqueued = queue->push(task);
   while (!enqueued) {
     boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
     enqueued = queue->push(task);
   }
-
+  
   // update lobby wait time
   lobbyWaitTime.fetch_add(delay_time);
 
@@ -95,6 +110,7 @@ void TaskManager::schedule() {
   std::map<std::string, TaskQueue_ptr>::iterator iter;
 
   while (ready_queues.empty()) {
+    this->lock();
     for (iter = app_queues.begin();
         iter != app_queues.end();
         iter ++)
@@ -103,6 +119,7 @@ void TaskManager::schedule() {
         ready_queues.push_back(iter->first);
       }
     }
+    this->unlock();
     if (ready_queues.empty()) {
       boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
     }
@@ -119,9 +136,22 @@ void TaskManager::schedule() {
   }
   app_queues[ready_queues[idx_next]]->pop(next_task);
 
-  VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
-
   execution_queue.push(next_task);
+
+  // atomically increase the length of the task queue
+  exeQueueLength.fetch_add(1);
+
+  VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
+}
+
+bool TaskManager::popReady(Task* &task) {
+  if (execution_queue.empty()) {
+    return false;
+  }
+  else {
+    execution_queue.pop(task);
+    return true;
+  }
 }
 
 void TaskManager::execute() {
@@ -137,15 +167,15 @@ void TaskManager::execute() {
 
   int delay_estimate = estimateTime(task);
 
-  LOG(INFO) << "Started a new task";
+  VLOG(1) << "Started a new task";
 
   try {
     // record task execution time
-    uint64_t start_time = logger->getUs();
+    uint64_t start_time = getUs();
 
     // start execution
     task->execute();
-    uint64_t delay_time = logger->getUs() - start_time;
+    uint64_t delay_time = getUs() - start_time;
 
     VLOG(1) << "Task finishes in " << delay_time << " us";
 
@@ -156,6 +186,9 @@ void TaskManager::execute() {
 
     // decrease the waittime, use the recorded estimation 
     lobbyWaitTime.fetch_sub(delay_estimate);
+
+    // decrease the length of the execution queue
+    exeQueueLength.fetch_sub(1);
   } 
   catch (std::runtime_error &e) {
     LOG(ERROR) << "Task error " << e.what();
@@ -184,7 +217,7 @@ std::string TaskManager::getConfig(int idx, std::string key) {
 
 void TaskManager::do_execute() {
 
-  LOG(INFO) << "Started an executor";
+  VLOG(1) << "Started an executor";
 
   // continuously execute tasks from the task queue
   while (1) { 
@@ -194,7 +227,7 @@ void TaskManager::do_execute() {
 
 void TaskManager::do_schedule() {
   
-  LOG(INFO) << "Started an scheduler";
+  VLOG(1) << "Started an scheduler";
 
   while (1) {
     schedule();

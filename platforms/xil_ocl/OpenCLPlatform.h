@@ -8,7 +8,8 @@
 
 #include <CL/opencl.h>
 
-#include "blaze.h"
+#include "OpenCLCommon.h"
+#include "Platform.h"
 #include "OpenCLBlock.h"
 #include "OpenCLEnv.h"
 
@@ -18,76 +19,48 @@ class OpenCLPlatform : public Platform {
 
 public:
 
-  OpenCLPlatform();
+  OpenCLPlatform(std::map<std::string, std::string> &conf_table);
 
-  virtual void setupAcc(AccWorker &conf);
+  ~OpenCLPlatform();
 
-  ~OpenCLPlatform() {
-    delete env;  
-    for (std::map<std::string, cl_program>::iterator 
-             iter = programs.begin(); 
-           iter != programs.end(); 
-           iter ++) 
-      {
-        clReleaseProgram(iter->second);
-      }
-
-      for (std::map<std::string, cl_kernel>::iterator 
-             iter = kernels.begin(); 
-           iter != kernels.end(); 
-           iter ++) 
-      {
-        clReleaseKernel(iter->second);
-      }
-      
-
-    clReleaseCommandQueue(cmd_queue);
-    clReleaseContext(context);
-
-  }
-
-  /*
-  virtual DataBlock_ptr createBlock() {
-    DataBlock_ptr block(
-        new OpenCLBlock((OpenCLEnv*)env));  
-    return block;
-  }
-  */
+  virtual TaskEnv_ptr getEnv(std::string id);
 
   virtual DataBlock_ptr createBlock(
       int num_items, 
       int item_length,
       int item_size, 
-      int align_width = 0) 
-  {
-    DataBlock_ptr block(
-        new OpenCLBlock((OpenCLEnv*)env,
-          num_items, item_length, item_size, align_width)
-        );  
-    return block;
-  }
+      int align_width = 0,
+      int flag = BLAZE_INPUT_BLOCK);
+
+  virtual void createBlockManager(size_t cache_limit, size_t scratch_limit);
+  virtual BlockManager* getBlockManager();
+
+  virtual void setupAcc(AccWorker &conf);
+  void changeProgram(std::string acc_id);
+
+  cl_kernel& getKernel();
 
 private:
 
   int load_file(const char* filename, char** result);
   
+  OpenCLEnv*  env;
+  TaskEnv_ptr env_ptr;
+
   std::string curr_acc_id;
+  cl_program  curr_program;
+  cl_kernel   curr_kernel;
 
-  cl_device_id     device_id;
-  cl_context       context;
-  cl_command_queue cmd_queue;
-
-  std::map<std::string, cl_program> programs;
-  std::map<std::string, cl_kernel>  kernels;
+  std::map<std::string, std::pair<int, unsigned char*> > bitstreams;
+  std::map<std::string, std::string> kernel_list;
+  //std::map<std::string, cl_kernel>  kernels;
 };
 
-extern "C" Platform* create() {
-  return new OpenCLPlatform();
-}
+extern "C" Platform* create(
+    std::map<std::string, std::string> &config_table);
 
-extern "C" void destroy(Platform* p) {
-  delete p;
-}
+extern "C" void destroy(Platform* p);
+
 } // namespace blaze
 
 #endif

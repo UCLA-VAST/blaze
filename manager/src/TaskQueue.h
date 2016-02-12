@@ -3,7 +3,7 @@
 
 #include <boost/lockfree/queue.hpp>
 
-#include "Task.h"
+#include "Common.h"
 
 namespace blaze {
 

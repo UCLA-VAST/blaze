@@ -5,8 +5,12 @@
 #include <dlfcn.h>
 
 #include <boost/thread/thread.hpp>
-#include "gtest/gtest.h"
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
+#include "Common.h"
+#include "Block.h"
+#include "Platform.h"
 #include "BlockManager.h"
 #include "PlatformManager.h"
 
@@ -17,22 +21,21 @@ class BlockTests : public ::testing::Test {
 
     BlockTests() {
 
-      logger = new Logger("./info.log", "./err.log", 3);
-
       char path[100] = "platform.so";
 
       if (access(path, F_OK) == -1) { 
-        Platform_ptr new_platform(new Platform());
+        std::map<std::string, std::string> table;
+        Platform_ptr new_platform(new Platform(table));
         platform = new_platform;
       }
       else {
-        logger->logInfo(std::string("Opening platform implementation: ")+
-            std::string(path));
+        LOG(INFO) << "Opening platform implementation: "
+                  << path;
 
         void* handle = dlopen(path, RTLD_LAZY|RTLD_GLOBAL);
 
         if (handle == NULL) {
-          logger->logErr(dlerror());
+          LOG(ERROR) << dlerror();
           throw std::runtime_error(dlerror());
         }
 
@@ -49,17 +52,13 @@ class BlockTests : public ::testing::Test {
 
         const char* error = dlerror();
         if (error) {
-          logger->logErr(error);
+          LOG(ERROR) << error;
           throw std::runtime_error(error);
         }
 
         Platform_ptr new_platform(create_func(), destroy_func);
         platform = new_platform;
       }
-    }
-
-    virtual ~BlockTests() {
-      delete logger;
     }
 
     virtual void SetUp() {
@@ -69,8 +68,9 @@ class BlockTests : public ::testing::Test {
 
       // create a new manager for each test to ensure clean start
       bman = new BlockManager(
-          platform.get(), logger, 
+          platform.get(),
           maxCacheSize, maxScratchSize);
+      FLAGS_v = 0;
     }
 
     virtual void TearDown() {
@@ -78,7 +78,6 @@ class BlockTests : public ::testing::Test {
     }
 
     Platform_ptr  platform;
-    Logger*       logger;
     BlockManager* bman;
 };
 
@@ -89,7 +88,7 @@ TEST_F(BlockTests, CheckBasicBlock) {
   int item_size   = item_length*sizeof(int);
 
   // create a new block
-  DataBlock_ptr block = bman->create(num_items, item_length, item_size);
+  DataBlock_ptr block = platform->createBlock(num_items, item_length, item_size);
 
   // check status right after construction
   ASSERT_EQ(num_items, block->getNumItems());
@@ -133,7 +132,7 @@ TEST_F(BlockTests, CheckAlignedAlloc) {
   
   int align_item_size = (item_size+align_width-1)/align_width*align_width;
 
-  DataBlock_ptr block = bman->create(
+  DataBlock_ptr block = platform->createBlock(
       num_items, item_length, item_size, align_width);
   
   ASSERT_NE(NULL_DATA_BLOCK, block);
@@ -171,11 +170,11 @@ TEST_F(BlockTests, CheckSampling) {
 TEST_F(BlockTests, CheckBasicCache) {
 
   // create a new block
-  DataBlock_ptr block = bman->create(42, 1000, 1000);
+  DataBlock_ptr block;
 
   // add this block to cache
   int64_t tag = 1;
-  bman->add(tag, block);
+  bman->getAlloc(tag, block, 42, 1000, 1000);
   
   // check BlockManager::add(), contains()
   ASSERT_EQ(true, bman->contains(tag));
@@ -195,20 +194,27 @@ TEST_F(BlockTests, CheckBasicCache) {
 
 TEST_F(BlockTests, CheckEviction) {
 
-  // should not allocate block larger than cache/scratch
-  DataBlock_ptr block = bman->create(16, 1024*1024, 1024*1024);
-  ASSERT_EQ(NULL_DATA_BLOCK, block);
+  DataBlock_ptr block;
   ASSERT_EQ(false, bman->getAlloc(1, block, 16, 1024*1024, 1024*1024));
   ASSERT_EQ(false, bman->contains(1));
 
   // add four blocks, 1MB each
   EXPECT_EQ(true, bman->getAlloc(1, block, 1024, 1024, 1024));
+  boost::this_thread::sleep_for(boost::chrono::seconds(1)); 
+
   EXPECT_EQ(true, bman->getAlloc(2, block, 1024, 1024, 1024));
+  boost::this_thread::sleep_for(boost::chrono::seconds(1)); 
+
   EXPECT_EQ(true, bman->getAlloc(3, block, 1024, 1024, 1024));
+  boost::this_thread::sleep_for(boost::chrono::seconds(1)); 
+
   EXPECT_EQ(true, bman->getAlloc(4, block, 1024, 1024, 1024));
+  boost::this_thread::sleep_for(boost::chrono::seconds(1)); 
 
   // add fifth block should evict one
   EXPECT_EQ(true, bman->getAlloc(5, block, 1024, 1024, 1024));
+  boost::this_thread::sleep_for(boost::chrono::seconds(1)); 
+
   int count = 0;
   int64_t evicted_tag = 0;
   for (int64_t tag=1; tag<=4; tag++) {
@@ -223,8 +229,8 @@ TEST_F(BlockTests, CheckEviction) {
   ASSERT_EQ(false, bman->contains(evicted_tag));
 
   // add another one should evict the fifth one
-  // since all the other three have been referenced once
-  bman->add(6, block);
+  // since all the other three have been referenced once more
+  bman->getAlloc(6, block, 42, 1000, 1000);
   for (int64_t tag=1; tag<=6; tag++) {
     if (tag == evicted_tag || tag == 5) {
       ASSERT_EQ(false, bman->contains(tag));

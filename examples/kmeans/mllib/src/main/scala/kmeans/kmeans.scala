@@ -13,7 +13,7 @@ object Kmeans {
     var conf = new SparkConf().setAppName("LogisticRegression")
     val sc = new SparkContext(conf)
 
-    if (args.length < 2) {
+    if (args.length < 3) {
       System.err.println("Usage: LogisticRegression <train_file> <k> <part_num>")
       System.exit(1)
     }
@@ -21,15 +21,14 @@ object Kmeans {
     val k = args(1).toInt
     val reps = args(2).toInt
 
-    val train = sc.textFile(args(0)).map( line => {
-        var parts = line.split(',') 
-        Vectors.dense(parts(1).split(' ').map(_.toDouble))
-        }).repartition(reps).cache()
+    var data = MLUtils.loadLibSVMFile(sc, args(0))
+    val splits = data.randomSplit(Array(0.8, 0.2), seed = 42L)
+    val train = splits(0).map(e => e.features).repartition(reps).cache()
 
     val model = new KMeans()
       .setInitializationMode(KMeans.RANDOM)
       .setK(k)
-      .setMaxIterations(20)
+      .setMaxIterations(50)
       .run(train)
 
     println("train finished.")

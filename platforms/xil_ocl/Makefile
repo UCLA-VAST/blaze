@@ -15,24 +15,34 @@ PP=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/g++
 CC=$(XILINX_OPENCL_DIR)/lnx64/tools/gcc/bin/gcc
 
 ifeq ("$(wildcard $(PP))","")
-	$(error XILINK_OPENCL_DIR not set properly)
+$(error XILINX_OPENCL_DIR not set properly)
 endif
 
 MANAGER_DIR=../../manager
 
-CFLAGS= -c -fPIC -std=c++0x -g
+CFLAGS := -c -fPIC -std=c++0x
+ifeq ($(DEBUG),)
+CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+else
+CFLAGS := $(CFLAGS) -g
+endif
+
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/include \
+				 -I$(MANAGER_DIR)/src \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
+				 -I$(GLOG_DIR)/include \
 				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
 				 
 LINK= -L$(MANAGER_DIR)/lib -lblaze \
-			-L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lxilinxopencl \
+			-L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL \
 			-lpthread -lm -ldl
 
-DEPS= OpenCLPlatform.o \
-			OpenCLBlock.o 
+DEPS= OpenCLEnv.o \
+			OpenCLPlatform.o \
+			OpenCLBlock.o \
+			OpenCLQueueManager.o
 
 all: xil_ocl.so
 
