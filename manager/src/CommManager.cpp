@@ -83,6 +83,21 @@ void CommManager::listen() {
 
     ip::tcp::acceptor acceptor(ios, endpoint);
 
+    // start io service processing loop
+    io_service::work work(ios);
+
+    // create a thread pool
+    boost::thread_group threadPool;
+
+    for (int t=0; t<max_threads; t++) 
+    {
+      threadPool.create_thread(
+          boost::bind(&io_service::run, &ios));
+    }
+
+    VLOG(2) << "Listening for new connections at "
+      << ip_address << ":" << srv_port;
+
     while(1) {
 
       //boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
@@ -93,9 +108,11 @@ void CommManager::listen() {
       // accept incoming connection
       acceptor.accept(*sock);
 
-      //acceptor.accept(*socket_stream.rdbuf());
-      boost::thread t(boost::bind(&CommManager::process, this, sock));
+      //boost::thread t(boost::bind(&CommManager::process, this, sock));
+      // post a job to a worker thread
+      ios.post(boost::bind(&CommManager::process, this, sock));
     }
+    ios.stop();
   }
   catch (std::exception &e) {
     // do not throw exception, just end current thread

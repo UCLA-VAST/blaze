@@ -5,6 +5,7 @@
 #include <vector>
 #include <iostream>
 #include <cstdint>
+#include <time.h>
 
 #include <boost/smart_ptr.hpp>
 #include <boost/thread/thread.hpp>
@@ -79,7 +80,7 @@ private:
   std::map<int64_t, DataBlock_ptr> scratchTable;
 
   // index (tag) to cached block and its access count
-  std::map<int64_t, std::pair<int, DataBlock_ptr> > cacheTable;
+  std::map<int64_t, std::pair<time_t, DataBlock_ptr> > cacheTable;
 
   size_t maxCacheSize;
   size_t maxScratchSize;

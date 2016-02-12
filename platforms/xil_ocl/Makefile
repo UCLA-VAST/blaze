@@ -20,7 +20,13 @@ endif
 
 MANAGER_DIR=../../manager
 
-CFLAGS= -c -fPIC -std=c++0x -g #-DNDEBUG
+CFLAGS := -c -fPIC -std=c++0x
+ifeq ($(DEBUG),)
+CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+else
+CFLAGS := $(CFLAGS) -g
+endif
+
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/include \
 				 -I$(MANAGER_DIR)/src \

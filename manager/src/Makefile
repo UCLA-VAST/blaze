@@ -26,8 +26,13 @@ XTRACFLAG = -DFLEX_INET6 -DRELEASE_VERSION -D__BITS64 -pipe \
 						-DLINUX64 -DAMD64 -DREDHAT -DREL -DRHLINUX64 \
 						-DPLATFORM_AMD64_RHLINUX 
 
-CFLAGS = -c -fPIC -std=c++0x -O1 -DNDEBUG
-#$(XTRACFLAG) -DNO_ACTIVATION_SUPPORT
+CFLAGS := -c -fPIC -std=c++0x
+
+ifeq ($(DEBUG),)
+CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+else
+CFLAGS := $(CFLAGS) -g
+endif
 
 INCLUDES = -I$(BOOST_DIR)/include \
 				   -I$(PROTOBUF_DIR)/include \
@@ -40,7 +45,7 @@ COMPILE = $(CFLAGS) \
 
 LINK= -L../lib -lblaze \
 			-L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex\
+			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex \
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \
 			-L$(GLOG_DIR)/lib -lglog \
 			-L$(FLMDIR) $(FLMLIB) \

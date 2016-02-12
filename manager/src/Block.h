@@ -1,6 +1,7 @@
 #ifndef BLOCK_H
 #define BLOCK_H
 
+#include <stdio.h>
 #include <string>
 
 #include <boost/thread/lockable_adapter.hpp>
@@ -31,12 +32,7 @@ public:
     
   DataBlock(const DataBlock &block);
 
-  ~DataBlock() {
-    if (allocated && !data && !copied) 
-    {
-      delete data; 
-    }
-  }
+  ~DataBlock();
 
   // allocate data aligned to a given width
   void alloc(int _align_width);

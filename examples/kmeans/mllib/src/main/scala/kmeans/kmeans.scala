@@ -16,17 +16,16 @@ object Kmeans {
     val sc = new SparkContext(conf)
 
     if (args.length < 3) {
-      System.err.println("Usage: LogisticRegression <train_file> <test_file> <k> <part_num>")
+      System.err.println("Usage: LogisticRegression <train_file> <k> <part_num>")
       System.exit(1)
     }
 
     val k = args(1).toInt
     val reps = args(2).toInt
 
-    val train = sc.textFile(args(0)).map( line => {
-        var parts = line.split(',') 
-        Vectors.dense(parts(1).split(' ').map(_.toDouble))
-        }).repartition(reps).cache()
+    var data = MLUtils.loadLibSVMFile(sc, args(0))
+    val splits = data.randomSplit(Array(0.8, 0.2), seed = 42L)
+    val train = splits(0).map(e => e.features).repartition(reps).cache()
 
     /*
     val test = sc.textFile(args(1)).map( line => {
@@ -41,7 +40,7 @@ object Kmeans {
     val model = new KMeans()
       .setInitializationMode(KMeans.RANDOM)
       .setK(k)
-      .setMaxIterations(30)
+      .setMaxIterations(50)
       .run(train)
 
     val elapseTime = System.nanoTime - startTime

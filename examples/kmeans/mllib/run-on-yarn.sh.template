@@ -1,0 +1,11 @@
+#!/bin/bash
+
+SPARK_HOME=/curr/diwu/prog/blaze/spark-1.4.0
+$SPARK_HOME/bin/spark-submit --class Kmeans \
+	--driver-memory 8G \
+	--executor-memory 4G \
+	--executor-cores 8 \
+  --executor-label KMeansContrib \
+	--num-executors 2 \
+	--master yarn-cluster \
+	target/kmeans-1.0.jar $@ 

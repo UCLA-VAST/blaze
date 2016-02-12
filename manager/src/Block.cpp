@@ -74,6 +74,14 @@ DataBlock::DataBlock(const DataBlock &block) {
   data = block.data;
 }
 
+DataBlock::~DataBlock() {
+
+  if (data && !copied) 
+  {
+    delete data; 
+  }
+}
+
 void DataBlock::alloc() {
   if (!allocated) {
     data = new char[size];

@@ -11,8 +11,12 @@
 
 namespace blaze {
 
-OpenCLQueueManager::OpenCLQueueManager(Platform* _platform):
-  QueueManager(_platform) 
+OpenCLQueueManager::OpenCLQueueManager(
+    Platform* _platform,
+    int _reconfig_timer
+    ):
+  QueueManager(_platform),
+  reconfig_timer(_reconfig_timer)
 {
   ocl_platform = dynamic_cast<OpenCLPlatform*>(platform);
 
@@ -20,6 +24,8 @@ OpenCLQueueManager::OpenCLQueueManager(Platform* _platform):
     LOG(ERROR) << "Platform pointer type is not OpenCLPlatform";
     throw std::runtime_error("Cannot create OpenCLQueueManager");
   }
+
+  DLOG(INFO) << "Set FPGA reconfigure counter = " << _reconfig_timer;
 }
 
 void OpenCLQueueManager::startAll() {
@@ -80,6 +86,8 @@ void OpenCLQueueManager::do_start() {
     }
 
     std::list<std::string> ready_queues;
+
+    int retry_counter = 0;
     while (1) {
 
       // here a round-robin policy is enforced
@@ -110,12 +118,25 @@ void OpenCLQueueManager::do_start() {
         }
         catch (std::runtime_error &e) {
 
-          // if setup program failed, remove accelerator from queue_table 
-          LOG(ERROR) << "Failed to setup bitstream for " << queue_name
-            << ": " << e.what()
-            << ". Remove it from QueueManager.";
-          queue_table.erase(queue_table.find(queue_name));
+          retry_counter++;
 
+          if (retry_counter < 10) {
+            LOG(WARNING) << "Programing bitstream failed " 
+              << retry_counter << " times";
+          }
+          else {
+            // if setup program keeps failing, remove accelerator from queue_table 
+            LOG(ERROR) << "Failed to setup bitstream for " << queue_name
+              << ": " << e.what()
+              << ". Remove it from QueueManager.";
+
+            queue_table.erase(queue_table.find(queue_name));
+
+            // remove queue_name from ready queue since it's already removed
+            ready_queues.pop_front();
+
+            retry_counter = 0;
+          }
           continue;
         }
 
@@ -123,12 +144,12 @@ void OpenCLQueueManager::do_start() {
 
         // timer to wait for the queue to fill up again
         int counter = 0;
-        while (counter < MAX_WAIT_TIME) {
+        while (counter < reconfig_timer) {
           if (queue->getExeQueueLength() > 0) {
 
             counter = 0;
             
-            DLOG(INFO) << "Execute one task from " << queue_name;
+            VLOG(1) << "Execute one task from " << queue_name;
 
             // execute one task
             queue->execute();

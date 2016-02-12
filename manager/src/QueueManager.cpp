@@ -23,7 +23,7 @@ void QueueManager::add(
     std::string id, 
     std::string lib_path)
 {
-  void* handle = dlopen(lib_path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
+  void* handle = dlopen(lib_path.c_str(), RTLD_LAZY|RTLD_LOCAL);
 
   if (handle == NULL) {
     throw std::runtime_error(dlerror());
@@ -50,7 +50,7 @@ void QueueManager::add(
 
   queue_table.insert(std::make_pair(id, taskManager));
 
-  LOG(INFO) << "added a new task queue: " << id;
+  LOG(INFO) << "Added a new task queue: " << id;
 }
 
 TaskManager_ptr QueueManager::get(std::string id) {

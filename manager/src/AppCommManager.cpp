@@ -30,8 +30,6 @@ void AppCommManager::process(socket_ptr sock) {
   socket_base::receive_buffer_size option(4*1024*1024);
   sock->set_option(option); 
   
-  srand(time(NULL));
-
   try {
     // 1. Handle ACCREQUEST
     TaskMsg task_msg;
@@ -369,8 +367,8 @@ void AppCommManager::process(socket_ptr sock) {
                 block->readFromMem(path);
               }
               catch (std::exception &e) {
-                throw AccFailure(std::string("readFromMem error: ")+
-                    e.what());
+                LOG(ERROR) << "readFromMem error: " << e.what();
+                throw AccFailure(std::string("readFromMem error"));
               }
 
               // NOTE: only remove normal input file
@@ -468,11 +466,16 @@ void AppCommManager::process(socket_ptr sock) {
           block_left = task->getOutputBlock(block);
 
           // use thread id to create unique output file path
-          std::string path = 
-            "/tmp/" + 
-            boost::lexical_cast<std::string>(boost::this_thread::get_id())+
-            std::to_string((long long)outId);
+          std::stringstream path_stream;
+          std::string output_dir = "/tmp";
 
+          path_stream << output_dir << "/"
+                      << "nam-output-"
+                      << getTid() 
+                      << std::setw(12) << std::setfill('0') << rand() 
+                      << outId
+                      << ".dat";
+          std::string path = path_stream.str();
           try {
             // write the block to output shared memory
             block->writeToMem(path);

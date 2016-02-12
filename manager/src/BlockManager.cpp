@@ -123,7 +123,9 @@ void BlockManager::do_add(int64_t tag, DataBlock_ptr block) {
     }
 
     // add the index to cacheTable
-    cacheTable.insert(std::make_pair(tag, std::make_pair(0, block)));
+    time_t timeNow;
+    time(&timeNow);
+    cacheTable.insert(std::make_pair(tag, std::make_pair(timeNow, block)));
 
     // increase the current cacheSize
     cacheSize += block->getSize();
@@ -161,20 +163,19 @@ void BlockManager::evict() {
   }
    
   // find the block that has the least access count
-  int min_val = INT_MAX;
-  std::map<int64_t, std::pair<int, DataBlock_ptr> >::iterator min_idx; 
-  std::map<int64_t, std::pair<int, DataBlock_ptr> >::iterator iter; 
+  time_t min_ts;
+  time(&min_ts);
+
+  std::map<int64_t, std::pair<time_t, DataBlock_ptr> >::iterator 
+    min_idx = cacheTable.begin();
+
+  std::map<int64_t, std::pair<time_t, DataBlock_ptr> >::iterator iter; 
   for (iter = cacheTable.begin(); 
        iter != cacheTable.end(); 
        iter ++)
   {
-    if (iter->second.first == 0) {
-      // early jump out
-      min_idx = iter; 
-      break;
-    }
-    if (min_val > iter->second.first) {
-      min_val = iter->second.first;
+    if (difftime(min_ts, iter->second.first) > 0) {
+      min_ts  = iter->second.first;
       min_idx = iter;
     }
   }
@@ -196,10 +197,13 @@ void BlockManager::evict() {
 // and then update cacheTable for new indexes
 void BlockManager::update(int64_t tag) {
 
+  time_t ts;
+  time(&ts);
+
   // log info
   VLOG(2) << "Update block " << tag;
 
-  cacheTable[tag].first += 1;
+  cacheTable[tag].first = ts;
 }
 
 }

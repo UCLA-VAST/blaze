@@ -15,18 +15,23 @@ CC=gcc
 
 MANAGER_DIR=../../manager
 
-CFLAGS= -c -fPIC -std=c++0x
+CFLAGS := -c -fPIC -std=c++0x
+ifeq ($(DEBUG),)
+CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+else
+CFLAGS := $(CFLAGS) -g
+endif
+
 COMPILE= $(CFLAGS) \
 				 -I$(MANAGER_DIR)/src \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
 				 -I$(GLOG_DIR)/include \
-				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
+				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2 \
 				 
 LINK= -L$(MANAGER_DIR)/lib -lblaze \
 			-L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL \
 			-lpthread -lm -ldl
-#-L$(CUDA_DIR)/lib64 -lOpenCL \
 
 DEPS= OpenCLPlatform.o \
 			OpenCLTaskEnv.o \

@@ -39,17 +39,21 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
   
   // TODO: when do we remove the queue?
   // create a new app queue if it does not exist
+
+  TaskQueue_ptr queue;
+  // TODO: remove this lock
+  this->lock();
   if (app_queues.find(app_id) == app_queues.end()) {
-    TaskQueue_ptr queue(new TaskQueue());
-    app_queues.insert(std::make_pair(app_id, queue));
+    TaskQueue_ptr new_queue(new TaskQueue());
+    app_queues.insert(std::make_pair(app_id, new_queue));
+    queue = new_queue;
+  } 
+  else {
+    queue = app_queues[app_id];
   }
+  this->unlock();
 
   // push task to queue
-  TaskQueue_ptr queue = app_queues[app_id];
-  if (!queue) {
-    throw std::runtime_error("Application queue not found, unexpected");
-  }
-
   bool enqueued = queue->push(task);
   while (!enqueued) {
     boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
@@ -64,6 +68,7 @@ void TaskManager::schedule() {
   std::map<std::string, TaskQueue_ptr>::iterator iter;
 
   while (ready_queues.empty()) {
+    this->lock();
     for (iter = app_queues.begin();
         iter != app_queues.end();
         iter ++)
@@ -72,6 +77,7 @@ void TaskManager::schedule() {
         ready_queues.push_back(iter->first);
       }
     }
+    this->unlock();
     if (ready_queues.empty()) {
       boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
     }
@@ -149,7 +155,7 @@ std::string TaskManager::getConfig(int idx, std::string key) {
 
 void TaskManager::do_execute() {
 
-  LOG(INFO) << "Started an executor";
+  VLOG(1) << "Started an executor";
 
   // continuously execute tasks from the task queue
   while (1) { 
@@ -159,7 +165,7 @@ void TaskManager::do_execute() {
 
 void TaskManager::do_schedule() {
   
-  LOG(INFO) << "Started an scheduler";
+  VLOG(1) << "Started an scheduler";
 
   while (1) {
     schedule();

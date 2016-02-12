@@ -4,14 +4,14 @@
 #include "OpenCLCommon.h"
 #include "QueueManager.h"
 
-#define MAX_WAIT_TIME 500
-
 namespace blaze {
 
 class OpenCLQueueManager : public QueueManager {
 public:
 
-  OpenCLQueueManager(Platform* _platform);
+  OpenCLQueueManager(
+      Platform* _platform,
+      int _reconfig_timer = 500);
 
   void startAll();
 
@@ -20,6 +20,8 @@ private:
 
   // thread body of executing tasks from children TaskManagers
   void do_start();
+
+  int reconfig_timer;
 };
 } // namespace blaze
 

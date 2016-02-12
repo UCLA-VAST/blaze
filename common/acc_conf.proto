@@ -18,7 +18,8 @@ message AccPlatform {
   optional string cache_loc = 3 [default = "cpu"];
   optional int32 cache_limit = 4 [default = 16];
   optional int32 scratch_limit = 5 [default = 4]; 
-  repeated AccWorker acc = 6;
+  repeated KeyValue param = 6;
+  repeated AccWorker acc = 7;
 }
 
 message AccWorker {

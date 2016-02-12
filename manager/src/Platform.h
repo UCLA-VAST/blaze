@@ -14,7 +14,7 @@ namespace blaze {
 class Platform {
   
 public:
-  Platform();
+  Platform(std::map<std::string, std::string> &conf_table);
 
   // store an accelerator setup on the platform
   virtual void setupAcc(AccWorker &conf);

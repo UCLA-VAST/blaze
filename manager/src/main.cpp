@@ -13,6 +13,7 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #define LOG_HEADER "main"
+
 #include <glog/logging.h>
 
 // use flexlm
@@ -58,6 +59,8 @@ int main(int argc, char** argv) {
   // check license
   licence_check_out();
   
+  srand(time(NULL));
+
   if (argc < 2) {
     printf("USAGE: %s <conf_path>\n", argv[0]);
     return -1;
