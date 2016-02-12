@@ -68,7 +68,7 @@ void AppCommManager::process(socket_ptr sock) {
       app_id = task_msg.app_id();
 
       LOG(INFO) << "Received an ACCREQUEST for " << acc_id
-        << "from app " << app_id;
+        << " from app " << app_id;
 
       /* Receive acc_id to identify the corresponding TaskManager, 
        * with which create a new Task. 

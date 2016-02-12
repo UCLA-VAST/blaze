@@ -19,9 +19,10 @@ package org.apache.spark.streaming.util
 import java.io._
 import java.nio.ByteBuffer
 
-import org.apache.hadoop.conf.Configuration
+import scala.util.Try
 
-import org.apache.spark.util.Utils
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.FSDataOutputStream
 
 /**
  * A writer for writing byte-buffers to a write ahead log file.
@@ -31,6 +32,11 @@ private[streaming] class FileBasedWriteAheadLogWriter(path: String, hadoopConf: 
 
   private lazy val stream = HdfsUtils.getOutputStream(path, hadoopConf)
 
+  private lazy val hadoopFlushMethod = {
+    // Use reflection to get the right flush operation
+    val cls = classOf[FSDataOutputStream]
+    Try(cls.getMethod("hflush")).orElse(Try(cls.getMethod("sync"))).toOption
+  }
 
   private var nextOffset = stream.getPos()
   private var closed = false
@@ -42,7 +48,17 @@ private[streaming] class FileBasedWriteAheadLogWriter(path: String, hadoopConf: 
     val lengthToWrite = data.remaining()
     val segment = new FileBasedWriteAheadLogSegment(path, nextOffset, lengthToWrite)
     stream.writeInt(lengthToWrite)
-    Utils.writeByteBuffer(data, stream: OutputStream)
+    if (data.hasArray) {
+      stream.write(data.array())
+    } else {
+      // If the buffer is not backed by an array, we transfer using temp array
+      // Note that despite the extra array copy, this should be faster than byte-by-byte copy
+      while (data.hasRemaining) {
+        val array = new Array[Byte](data.remaining)
+        data.get(array)
+        stream.write(array)
+      }
+    }
     flush()
     nextOffset = stream.getPos()
     segment
@@ -54,7 +70,7 @@ private[streaming] class FileBasedWriteAheadLogWriter(path: String, hadoopConf: 
   }
 
   private def flush() {
-    stream.hflush()
+    hadoopFlushMethod.foreach { _.invoke(stream) }
     // Useful for local file system where hflush/sync does not work (HADOOP-7844)
     stream.getWrappedStream.flush()
   }

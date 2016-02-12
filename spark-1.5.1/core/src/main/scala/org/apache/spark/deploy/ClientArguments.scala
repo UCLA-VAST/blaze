@@ -22,7 +22,6 @@ import java.net.{URI, URISyntaxException}
 import scala.collection.mutable.ListBuffer
 
 import org.apache.log4j.Level
-
 import org.apache.spark.util.{IntParam, MemoryParam, Utils}
 
 /**

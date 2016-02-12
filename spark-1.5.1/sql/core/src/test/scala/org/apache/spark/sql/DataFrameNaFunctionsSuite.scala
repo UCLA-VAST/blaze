@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 import org.apache.spark.sql.test.SharedSQLContext
 
@@ -141,26 +141,24 @@ class DataFrameNaFunctionsSuite extends QueryTest with SharedSQLContext {
   }
 
   test("fill with map") {
-    val df = Seq[(String, String, java.lang.Long, java.lang.Double, java.lang.Boolean)](
-      (null, null, null, null, null)).toDF("a", "b", "c", "d", "e")
+    val df = Seq[(String, String, java.lang.Long, java.lang.Double)](
+      (null, null, null, null)).toDF("a", "b", "c", "d")
     checkAnswer(
       df.na.fill(Map(
         "a" -> "test",
         "c" -> 1,
-        "d" -> 2.2,
-        "e" -> false
+        "d" -> 2.2
       )),
-      Row("test", null, 1, 2.2, false))
+      Row("test", null, 1, 2.2))
 
     // Test Java version
     checkAnswer(
-      df.na.fill(Map(
+      df.na.fill(mapAsJavaMap(Map(
         "a" -> "test",
         "c" -> 1,
-        "d" -> 2.2,
-        "e" -> false
-      ).asJava),
-      Row("test", null, 1, 2.2, false))
+        "d" -> 2.2
+      ))),
+      Row("test", null, 1, 2.2))
   }
 
   test("replace") {

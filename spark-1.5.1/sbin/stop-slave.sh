@@ -21,24 +21,23 @@
 #
 # Environment variables
 #
-#   SPARK_WORKER_INSTANCES The number of worker instances that should be
+#   SPARK_WORKER_INSTANCES The number of worker instances that should be 
 #                          running on this slave.  Default is 1.
 
 # Usage: stop-slave.sh
 #   Stops all slaves on this worker machine
 
-if [ -z "${SPARK_HOME}" ]; then
-  export SPARK_HOME="$(cd "`dirname "$0"`"/..; pwd)"
-fi
+sbin="`dirname "$0"`"
+sbin="`cd "$sbin"; pwd`"
 
-. "${SPARK_HOME}/sbin/spark-config.sh"
+. "$sbin/spark-config.sh"
 
-. "${SPARK_HOME}/bin/load-spark-env.sh"
+. "$SPARK_PREFIX/bin/load-spark-env.sh"
 
 if [ "$SPARK_WORKER_INSTANCES" = "" ]; then
-  "${SPARK_HOME}/sbin"/spark-daemon.sh stop org.apache.spark.deploy.worker.Worker 1
+  "$sbin"/spark-daemon.sh stop org.apache.spark.deploy.worker.Worker 1
 else
   for ((i=0; i<$SPARK_WORKER_INSTANCES; i++)); do
-    "${SPARK_HOME}/sbin"/spark-daemon.sh stop org.apache.spark.deploy.worker.Worker $(( $i + 1 ))
+    "$sbin"/spark-daemon.sh stop org.apache.spark.deploy.worker.Worker $(( $i + 1 ))
   done
 fi

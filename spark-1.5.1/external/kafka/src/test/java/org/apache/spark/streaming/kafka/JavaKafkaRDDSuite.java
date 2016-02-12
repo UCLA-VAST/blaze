@@ -19,7 +19,6 @@ package org.apache.spark.streaming.kafka;
 
 import java.io.Serializable;
 import java.util.HashMap;
-import java.util.Map;
 
 import scala.Tuple2;
 
@@ -67,10 +66,10 @@ public class JavaKafkaRDDSuite implements Serializable {
     String topic1 = "topic1";
     String topic2 = "topic2";
 
-    createTopicAndSendData(topic1);
-    createTopicAndSendData(topic2);
+    String[] topic1data = createTopicAndSendData(topic1);
+    String[] topic2data = createTopicAndSendData(topic2);
 
-    Map<String, String> kafkaParams = new HashMap<>();
+    HashMap<String, String> kafkaParams = new HashMap<String, String>();
     kafkaParams.put("metadata.broker.list", kafkaTestUtils.brokerAddress());
 
     OffsetRange[] offsetRanges = {
@@ -78,8 +77,8 @@ public class JavaKafkaRDDSuite implements Serializable {
       OffsetRange.create(topic2, 0, 0, 1)
     };
 
-    Map<TopicAndPartition, Broker> emptyLeaders = new HashMap<>();
-    Map<TopicAndPartition, Broker> leaders = new HashMap<>();
+    HashMap<TopicAndPartition, Broker> emptyLeaders = new HashMap<TopicAndPartition, Broker>();
+    HashMap<TopicAndPartition, Broker> leaders = new HashMap<TopicAndPartition, Broker>();
     String[] hostAndPort = kafkaTestUtils.brokerAddress().split(":");
     Broker broker = Broker.create(hostAndPort[0], Integer.parseInt(hostAndPort[1]));
     leaders.put(new TopicAndPartition(topic1, 0), broker);
@@ -96,7 +95,7 @@ public class JavaKafkaRDDSuite implements Serializable {
     ).map(
         new Function<Tuple2<String, String>, String>() {
           @Override
-          public String call(Tuple2<String, String> kv) {
+          public String call(Tuple2<String, String> kv) throws Exception {
             return kv._2();
           }
         }
@@ -114,7 +113,7 @@ public class JavaKafkaRDDSuite implements Serializable {
         emptyLeaders,
         new Function<MessageAndMetadata<String, String>, String>() {
           @Override
-          public String call(MessageAndMetadata<String, String> msgAndMd) {
+          public String call(MessageAndMetadata<String, String> msgAndMd) throws Exception {
             return msgAndMd.message();
           }
         }
@@ -132,7 +131,7 @@ public class JavaKafkaRDDSuite implements Serializable {
         leaders,
         new Function<MessageAndMetadata<String, String>, String>() {
           @Override
-          public String call(MessageAndMetadata<String, String> msgAndMd) {
+          public String call(MessageAndMetadata<String, String> msgAndMd) throws Exception {
             return msgAndMd.message();
           }
         }

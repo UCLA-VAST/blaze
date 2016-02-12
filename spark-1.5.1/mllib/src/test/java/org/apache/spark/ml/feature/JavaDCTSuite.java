@@ -17,8 +17,7 @@
 
 package org.apache.spark.ml.feature;
 
-import java.util.Arrays;
-
+import com.google.common.collect.Lists;
 import edu.emory.mathcs.jtransforms.dct.DoubleDCT_1D;
 import org.junit.After;
 import org.junit.Assert;
@@ -57,11 +56,12 @@ public class JavaDCTSuite {
   @Test
   public void javaCompatibilityTest() {
     double[] input = new double[] {1D, 2D, 3D, 4D};
-    DataFrame dataset = jsql.createDataFrame(
-      Arrays.asList(RowFactory.create(Vectors.dense(input))),
-      new StructType(new StructField[]{
-        new StructField("vec", (new VectorUDT()), false, Metadata.empty())
-      }));
+    JavaRDD<Row> data = jsc.parallelize(Lists.newArrayList(
+      RowFactory.create(Vectors.dense(input))
+    ));
+    DataFrame dataset = jsql.createDataFrame(data, new StructType(new StructField[]{
+      new StructField("vec", (new VectorUDT()), false, Metadata.empty())
+    }));
 
     double[] expectedResult = input.clone();
     (new DoubleDCT_1D(input.length)).forward(expectedResult, true);

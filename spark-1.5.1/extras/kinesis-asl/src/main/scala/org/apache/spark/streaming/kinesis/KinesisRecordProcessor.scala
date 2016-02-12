@@ -27,23 +27,26 @@ import com.amazonaws.services.kinesis.clientlibrary.types.ShutdownReason
 import com.amazonaws.services.kinesis.model.Record
 
 import org.apache.spark.Logging
-import org.apache.spark.streaming.Duration
 
 /**
  * Kinesis-specific implementation of the Kinesis Client Library (KCL) IRecordProcessor.
  * This implementation operates on the Array[Byte] from the KinesisReceiver.
  * The Kinesis Worker creates an instance of this KinesisRecordProcessor for each
- * shard in the Kinesis stream upon startup.  This is normally done in separate threads,
- * but the KCLs within the KinesisReceivers will balance themselves out if you create
- * multiple Receivers.
+ *   shard in the Kinesis stream upon startup.  This is normally done in separate threads,
+ *   but the KCLs within the KinesisReceivers will balance themselves out if you create
+ *   multiple Receivers.
  *
  * @param receiver Kinesis receiver
  * @param workerId for logging purposes
+ * @param checkpointState represents the checkpoint state including the next checkpoint time.
+ *   It's injected here for mocking purposes.
  */
-private[kinesis] class KinesisRecordProcessor[T](receiver: KinesisReceiver[T], workerId: String)
-  extends IRecordProcessor with Logging {
+private[kinesis] class KinesisRecordProcessor(
+    receiver: KinesisReceiver,
+    workerId: String,
+    checkpointState: KinesisCheckpointState) extends IRecordProcessor with Logging {
 
-  // shardId populated during initialize()
+  // shardId to be populated during initialize()
   @volatile
   private var shardId: String = _
 
@@ -71,7 +74,34 @@ private[kinesis] class KinesisRecordProcessor[T](receiver: KinesisReceiver[T], w
       try {
         receiver.addRecords(shardId, batch)
         logDebug(s"Stored: Worker $workerId stored ${batch.size} records for shardId $shardId")
-        receiver.setCheckpointer(shardId, checkpointer)
+
+        /*
+         *
+         * Checkpoint the sequence number of the last record successfully stored.
+         * Note that in this current implementation, the checkpointing occurs only when after
+         * checkpointIntervalMillis from the last checkpoint, AND when there is new record
+         * to process. This leads to the checkpointing lagging behind what records have been
+         * stored by the receiver. Ofcourse, this can lead records processed more than once,
+         * under failures and restarts.
+         *
+         * TODO: Instead of checkpointing here, run a separate timer task to perform
+         * checkpointing so that it checkpoints in a timely manner independent of whether
+         * new records are available or not.
+         */
+        if (checkpointState.shouldCheckpoint()) {
+          receiver.getLatestSeqNumToCheckpoint(shardId).foreach { latestSeqNum =>
+            /* Perform the checkpoint */
+            KinesisRecordProcessor.retryRandom(checkpointer.checkpoint(latestSeqNum), 4, 100)
+
+            /* Update the next checkpoint time */
+            checkpointState.advanceCheckpoint()
+
+            logDebug(s"Checkpoint:  WorkerId $workerId completed checkpoint of ${batch.size}" +
+              s" records for shardId $shardId")
+            logDebug(s"Checkpoint:  Next checkpoint is at " +
+              s" ${checkpointState.checkpointClock.getTimeMillis()} for shardId $shardId")
+          }
+        }
       } catch {
         case NonFatal(e) => {
           /*
@@ -80,7 +110,7 @@ private[kinesis] class KinesisRecordProcessor[T](receiver: KinesisReceiver[T], w
            *     more than once.
            */
           logError(s"Exception:  WorkerId $workerId encountered and exception while storing " +
-              s" or checkpointing a batch for workerId $workerId and shardId $shardId.", e)
+              " or checkpointing a batch for workerId $workerId and shardId $shardId.", e)
 
           /* Rethrow the exception to the Kinesis Worker that is managing this RecordProcessor. */
           throw e
@@ -112,18 +142,23 @@ private[kinesis] class KinesisRecordProcessor[T](receiver: KinesisReceiver[T], w
        * It's now OK to read from the new shards that resulted from a resharding event.
        */
       case ShutdownReason.TERMINATE =>
-        receiver.removeCheckpointer(shardId, checkpointer)
+        val latestSeqNumToCheckpointOption = receiver.getLatestSeqNumToCheckpoint(shardId)
+        if (latestSeqNumToCheckpointOption.nonEmpty) {
+          KinesisRecordProcessor.retryRandom(
+            checkpointer.checkpoint(latestSeqNumToCheckpointOption.get), 4, 100)
+        }
 
       /*
-       * ZOMBIE Use Case or Unknown reason.  NoOp.
+       * ZOMBIE Use Case.  NoOp.
        * No checkpoint because other workers may have taken over and already started processing
        *    the same records.
        * This may lead to records being processed more than once.
        */
-      case _ =>
-        receiver.removeCheckpointer(shardId, null) // return null so that we don't checkpoint
-    }
+      case ShutdownReason.ZOMBIE =>
 
+      /* Unknown reason.  NoOp */
+      case _ =>
+    }
   }
 }
 

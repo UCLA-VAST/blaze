@@ -17,15 +17,15 @@
 
 package org.apache.spark.ml.feature;
 
-import java.util.Arrays;
+import java.util.List;
 
+import com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.mllib.linalg.Vectors;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 
@@ -48,12 +48,13 @@ public class JavaNormalizerSuite {
   @Test
   public void normalizer() {
     // The tests are to check Java compatibility.
-    JavaRDD<VectorIndexerSuite.FeatureData> points = jsc.parallelize(Arrays.asList(
+    List<VectorIndexerSuite.FeatureData> points = Lists.newArrayList(
       new VectorIndexerSuite.FeatureData(Vectors.dense(0.0, -2.0)),
       new VectorIndexerSuite.FeatureData(Vectors.dense(1.0, 3.0)),
       new VectorIndexerSuite.FeatureData(Vectors.dense(1.0, 4.0))
-    ));
-    DataFrame dataFrame = jsql.createDataFrame(points, VectorIndexerSuite.FeatureData.class);
+    );
+    DataFrame dataFrame = jsql.createDataFrame(jsc.parallelize(points, 2),
+      VectorIndexerSuite.FeatureData.class);
     Normalizer normalizer = new Normalizer()
       .setInputCol("features")
       .setOutputCol("normFeatures");

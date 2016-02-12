@@ -20,16 +20,14 @@ package org.apache.spark.sql.catalyst
 /**
  * Identifies a `table` in `database`.  If `database` is not defined, the current database is used.
  */
-private[sql] case class TableIdentifier(table: String, database: Option[String]) {
-  def this(table: String) = this(table, None)
+private[sql] case class TableIdentifier(table: String, database: Option[String] = None) {
+  def withDatabase(database: String): TableIdentifier = this.copy(database = Some(database))
+
+  def toSeq: Seq[String] = database.toSeq :+ table
 
   override def toString: String = quotedString
 
-  def quotedString: String = database.map(db => s"`$db`.`$table`").getOrElse(s"`$table`")
+  def quotedString: String = toSeq.map("`" + _ + "`").mkString(".")
 
-  def unquotedString: String = database.map(db => s"$db.$table").getOrElse(table)
-}
-
-private[sql] object TableIdentifier {
-  def apply(tableName: String): TableIdentifier = new TableIdentifier(tableName)
+  def unquotedString: String = toSeq.mkString(".")
 }

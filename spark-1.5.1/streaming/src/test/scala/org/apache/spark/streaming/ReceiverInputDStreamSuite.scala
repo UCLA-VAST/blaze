@@ -21,7 +21,6 @@ import scala.util.Random
 
 import org.scalatest.BeforeAndAfterAll
 
-import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.rdd.BlockRDD
 import org.apache.spark.storage.{StorageLevel, StreamBlockId}
 import org.apache.spark.streaming.dstream.ReceiverInputDStream
@@ -29,15 +28,12 @@ import org.apache.spark.streaming.rdd.WriteAheadLogBackedBlockRDD
 import org.apache.spark.streaming.receiver.{BlockManagerBasedStoreResult, Receiver, WriteAheadLogBasedStoreResult}
 import org.apache.spark.streaming.scheduler.ReceivedBlockInfo
 import org.apache.spark.streaming.util.{WriteAheadLogRecordHandle, WriteAheadLogUtils}
+import org.apache.spark.{SparkConf, SparkEnv}
 
 class ReceiverInputDStreamSuite extends TestSuiteBase with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
-    try {
-      StreamingContext.getActive().map { _.stop() }
-    } finally {
-      super.afterAll()
-    }
+    StreamingContext.getActive().map { _.stop() }
   }
 
   testWithoutWAL("createBlockRDD creates empty BlockRDD when no block info") { receiverStream =>

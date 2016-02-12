@@ -18,6 +18,7 @@
 package org.apache.spark
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage._
@@ -43,13 +44,14 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
     blockManager.get(key) match {
       case Some(blockResult) =>
         // Partition is already materialized, so just return its values
-        val existingMetrics = context.taskMetrics().registerInputMetrics(blockResult.readMethod)
-        existingMetrics.incBytesReadInternal(blockResult.bytes)
+        val existingMetrics = context.taskMetrics
+          .getInputMetricsForReadMethod(blockResult.readMethod)
+        existingMetrics.incBytesRead(blockResult.bytes)
 
         val iter = blockResult.data.asInstanceOf[Iterator[T]]
         new InterruptibleIterator[T](context, iter) {
           override def next(): T = {
-            existingMetrics.incRecordsReadInternal(1)
+            existingMetrics.incRecordsRead(1)
             delegate.next()
           }
         }
@@ -65,8 +67,20 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
         try {
           logInfo(s"Partition $key not found, computing it")
           val computedValues = rdd.computeOrReadCheckpoint(partition, context)
-          val cachedValues = putInBlockManager(key, computedValues, storageLevel)
+
+          // If the task is running locally, do not persist the result
+          if (context.isRunningLocally) {
+            return computedValues
+          }
+
+          // Otherwise, cache the values and keep track of any updates in block statuses
+          val updatedBlocks = new ArrayBuffer[(BlockId, BlockStatus)]
+          val cachedValues = putInBlockManager(key, computedValues, storageLevel, updatedBlocks)
+          val metrics = context.taskMetrics
+          val lastUpdatedBlocks = metrics.updatedBlocks.getOrElse(Seq[(BlockId, BlockStatus)]())
+          metrics.updatedBlocks = Some(lastUpdatedBlocks ++ updatedBlocks.toSeq)
           new InterruptibleIterator(context, cachedValues)
+
         } finally {
           loading.synchronized {
             loading.remove(key)
@@ -126,6 +140,7 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
       key: BlockId,
       values: Iterator[T],
       level: StorageLevel,
+      updatedBlocks: ArrayBuffer[(BlockId, BlockStatus)],
       effectiveStorageLevel: Option[StorageLevel] = None): Iterator[T] = {
 
     val putLevel = effectiveStorageLevel.getOrElse(level)
@@ -134,7 +149,8 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
        * This RDD is not to be cached in memory, so we can just pass the computed values as an
        * iterator directly to the BlockManager rather than first fully unrolling it in memory.
        */
-      blockManager.putIterator(key, values, level, tellMaster = true, effectiveStorageLevel)
+      updatedBlocks ++=
+        blockManager.putIterator(key, values, level, tellMaster = true, effectiveStorageLevel)
       blockManager.get(key) match {
         case Some(v) => v.data.asInstanceOf[Iterator[T]]
         case None =>
@@ -152,10 +168,11 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
        * single partition. Instead, we unroll the values cautiously, potentially aborting and
        * dropping the partition to disk if applicable.
        */
-      blockManager.memoryStore.unrollSafely(key, values) match {
+      blockManager.memoryStore.unrollSafely(key, values, updatedBlocks) match {
         case Left(arr) =>
           // We have successfully unrolled the entire partition, so cache it in memory
-          blockManager.putArray(key, arr, level, tellMaster = true, effectiveStorageLevel)
+          updatedBlocks ++=
+            blockManager.putArray(key, arr, level, tellMaster = true, effectiveStorageLevel)
           arr.iterator.asInstanceOf[Iterator[T]]
         case Right(it) =>
           // There is not enough space to cache this partition in memory
@@ -164,7 +181,7 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
             logWarning(s"Persisting partition $key to disk instead.")
             val diskOnlyLevel = StorageLevel(useDisk = true, useMemory = false,
               useOffHeap = false, deserialized = false, putLevel.replication)
-            putInBlockManager[T](key, returnValues, level, Some(diskOnlyLevel))
+            putInBlockManager[T](key, returnValues, level, updatedBlocks, Some(diskOnlyLevel))
           } else {
             returnValues
           }

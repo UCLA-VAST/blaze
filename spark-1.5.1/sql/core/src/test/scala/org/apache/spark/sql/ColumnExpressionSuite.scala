@@ -17,10 +17,10 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.scalatest.Matchers._
 
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
-import org.apache.spark.sql.execution.Project
+import org.apache.spark.sql.execution.{Project, TungstenProject}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.test.SharedSQLContext
 import org.apache.spark.sql.types._
@@ -29,7 +29,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSQLContext {
   import testImplicits._
 
   private lazy val booleanData = {
-    sqlContext.createDataFrame(sparkContext.parallelize(
+    ctx.createDataFrame(ctx.sparkContext.parallelize(
       Row(false, false) ::
       Row(false, true) ::
       Row(true, false) ::
@@ -286,7 +286,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSQLContext {
   }
 
   test("isNaN") {
-    val testData = sqlContext.createDataFrame(sparkContext.parallelize(
+    val testData = ctx.createDataFrame(ctx.sparkContext.parallelize(
       Row(Double.NaN, Float.NaN) ::
       Row(math.log(-1), math.log(-3).toFloat) ::
       Row(null, null) ::
@@ -298,7 +298,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSQLContext {
       Row(true, true) :: Row(true, true) :: Row(false, false) :: Row(false, false) :: Nil)
 
     checkAnswer(
-      testData.select(isnan($"a"), isnan($"b")),
+      testData.select(isNaN($"a"), isNaN($"b")),
       Row(true, true) :: Row(true, true) :: Row(false, false) :: Row(false, false) :: Nil)
 
     checkAnswer(
@@ -307,7 +307,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSQLContext {
   }
 
   test("nanvl") {
-    val testData = sqlContext.createDataFrame(sparkContext.parallelize(
+    val testData = ctx.createDataFrame(ctx.sparkContext.parallelize(
       Row(null, 3.0, Double.NaN, Double.PositiveInfinity, 1.0f, 4) :: Nil),
       StructType(Seq(StructField("a", DoubleType), StructField("b", DoubleType),
         StructField("c", DoubleType), StructField("d", DoubleType),
@@ -350,7 +350,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSQLContext {
   }
 
   test("!==") {
-    val nullData = sqlContext.createDataFrame(sparkContext.parallelize(
+    val nullData = ctx.createDataFrame(ctx.sparkContext.parallelize(
       Row(1, 1) ::
       Row(1, 2) ::
       Row(1, null) ::
@@ -368,17 +368,6 @@ class ColumnExpressionSuite extends QueryTest with SharedSQLContext {
     checkAnswer(
       nullData.filter($"a" <=> $"b"),
       Row(1, 1) :: Row(null, null) :: Nil)
-
-    val nullData2 = sqlContext.createDataFrame(sparkContext.parallelize(
-        Row("abc") ::
-        Row(null)  ::
-        Row("xyz") :: Nil),
-        StructType(Seq(StructField("a", StringType, true))))
-
-    checkAnswer(
-      nullData2.filter($"a" <=> null),
-      Row(null) :: Nil)
-
   }
 
   test(">") {
@@ -422,7 +411,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSQLContext {
   }
 
   test("between") {
-    val testData = sparkContext.parallelize(
+    val testData = ctx.sparkContext.parallelize(
       (0, 1, 2) ::
       (1, 2, 3) ::
       (2, 1, 0) ::
@@ -567,40 +556,42 @@ class ColumnExpressionSuite extends QueryTest with SharedSQLContext {
 
   test("monotonicallyIncreasingId") {
     // Make sure we have 2 partitions, each with 2 records.
-    val df = sparkContext.parallelize(Seq[Int](), 2).mapPartitions { _ =>
+    val df = ctx.sparkContext.parallelize(Seq[Int](), 2).mapPartitions { _ =>
       Iterator(Tuple1(1), Tuple1(2))
     }.toDF("a")
     checkAnswer(
       df.select(monotonicallyIncreasingId()),
       Row(0L) :: Row(1L) :: Row((1L << 33) + 0L) :: Row((1L << 33) + 1L) :: Nil
     )
-    checkAnswer(
-      df.select(expr("monotonically_increasing_id()")),
-      Row(0L) :: Row(1L) :: Row((1L << 33) + 0L) :: Row((1L << 33) + 1L) :: Nil
-    )
   }
 
-  test("spark_partition_id") {
+  test("sparkPartitionId") {
     // Make sure we have 2 partitions, each with 2 records.
-    val df = sparkContext.parallelize(Seq[Int](), 2).mapPartitions { _ =>
+    val df = ctx.sparkContext.parallelize(Seq[Int](), 2).mapPartitions { _ =>
       Iterator(Tuple1(1), Tuple1(2))
     }.toDF("a")
     checkAnswer(
-      df.select(spark_partition_id()),
+      df.select(sparkPartitionId()),
       Row(0) :: Row(0) :: Row(1) :: Row(1) :: Nil
     )
   }
 
-  test("input_file_name") {
+  test("InputFileName") {
     withTempPath { dir =>
-      val data = sparkContext.parallelize(0 to 10).toDF("id")
+      val data = sqlContext.sparkContext.parallelize(0 to 10).toDF("id")
       data.write.parquet(dir.getCanonicalPath)
-      val answer = sqlContext.read.parquet(dir.getCanonicalPath).select(input_file_name())
+      val answer = sqlContext.read.parquet(dir.getCanonicalPath).select(inputFileName())
         .head.getString(0)
       assert(answer.contains(dir.getCanonicalPath))
 
-      checkAnswer(data.select(input_file_name()).limit(1), Row(""))
+      checkAnswer(data.select(inputFileName()).limit(1), Row(""))
     }
+  }
+
+  test("lift alias out of cast") {
+    compareExpressions(
+      col("1234").as("name").cast("int").expr,
+      col("1234").cast("int").as("name").expr)
   }
 
   test("columns can be compared") {
@@ -629,8 +620,9 @@ class ColumnExpressionSuite extends QueryTest with SharedSQLContext {
     }
 
     def checkNumProjects(df: DataFrame, expectedNumProjects: Int): Unit = {
-      val projects = df.queryExecution.sparkPlan.collect {
-        case tungstenProject: Project => tungstenProject
+      val projects = df.queryExecution.executedPlan.collect {
+        case project: Project => project
+        case tungstenProject: TungstenProject => tungstenProject
       }
       assert(projects.size === expectedNumProjects)
     }

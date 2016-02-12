@@ -36,11 +36,13 @@ setMethod("initialize", "Column", function(.Object, jc) {
   .Object
 })
 
-setMethod("column",
-          signature(x = "jobj"),
-          function(x) {
-            new("Column", x)
-          })
+column <- function(jc) {
+  new("Column", jc)
+}
+
+col <- function(x) {
+  column(callJStatic("org.apache.spark.sql.functions", "col", x))
+}
 
 #' @rdname show
 #' @name show
@@ -56,7 +58,7 @@ operators <- list(
   "&" = "and", "|" = "or", #, "!" = "unary_$bang"
   "^" = "pow"
 )
-column_functions1 <- c("asc", "desc", "isNaN", "isNull", "isNotNull")
+column_functions1 <- c("asc", "desc", "isNull", "isNotNull")
 column_functions2 <- c("like", "rlike", "startsWith", "endsWith", "getField", "getItem", "contains")
 
 createOperator <- function(op) {
@@ -209,13 +211,14 @@ setMethod("cast",
 setMethod("%in%",
           signature(x = "Column"),
           function(x, table) {
-            jc <- callJMethod(x@jc, "isin", as.list(table))
+            table <- listToSeq(as.list(table))
+            jc <- callJMethod(x@jc, "in", table)
             return(column(jc))
           })
 
 #' otherwise
 #'
-#' If values in the specified column are null, returns the value.
+#' If values in the specified column are null, returns the value. 
 #' Can be used in conjunction with `when` to specify a default value for expressions.
 #'
 #' @rdname otherwise
@@ -225,7 +228,7 @@ setMethod("%in%",
 setMethod("otherwise",
           signature(x = "Column", value = "ANY"),
           function(x, value) {
-            value <- if (class(value) == "Column") { value@jc } else { value }
+            value <- ifelse(class(value) == "Column", value@jc, value)
             jc <- callJMethod(x@jc, "otherwise", value)
             column(jc)
           })

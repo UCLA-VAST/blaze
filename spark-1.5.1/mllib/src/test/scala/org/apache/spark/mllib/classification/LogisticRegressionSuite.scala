@@ -17,7 +17,7 @@
 
 package org.apache.spark.mllib.classification
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.util.Random
 import scala.util.control.Breaks._
 
@@ -25,7 +25,6 @@ import org.scalatest.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
-import org.apache.spark.mllib.optimization._
 import org.apache.spark.mllib.regression._
 import org.apache.spark.mllib.util.{LocalClusterSparkContext, MLlibTestSparkContext}
 import org.apache.spark.mllib.util.TestingUtils._
@@ -39,7 +38,7 @@ object LogisticRegressionSuite {
     scale: Double,
     nPoints: Int,
     seed: Int): java.util.List[LabeledPoint] = {
-    generateLogisticInput(offset, scale, nPoints, seed).asJava
+    seqAsJavaList(generateLogisticInput(offset, scale, nPoints, seed))
   }
 
   // Generate input of the form Y = logistic(offset + scale*X)
@@ -216,11 +215,6 @@ class LogisticRegressionSuite extends SparkFunSuite with MLlibTestSparkContext w
 
   // Test if we can correctly learn A, B where Y = logistic(A + B*X)
   test("logistic regression with LBFGS") {
-    val updaters: List[Updater] = List(new SquaredL2Updater(), new L1Updater())
-    updaters.foreach(testLBFGS)
-  }
-
-  private def testLBFGS(myUpdater: Updater): Unit = {
     val nPoints = 10000
     val A = 2.0
     val B = -1.5
@@ -229,15 +223,7 @@ class LogisticRegressionSuite extends SparkFunSuite with MLlibTestSparkContext w
 
     val testRDD = sc.parallelize(testData, 2)
     testRDD.cache()
-
-    // Override the updater
-    class LogisticRegressionWithLBFGSCustomUpdater
-        extends LogisticRegressionWithLBFGS {
-      override val optimizer =
-        new LBFGS(new LogisticGradient, myUpdater)
-    }
-
-    val lr = new LogisticRegressionWithLBFGSCustomUpdater().setIntercept(true)
+    val lr = new LogisticRegressionWithLBFGS().setIntercept(true)
 
     val model = lr.run(testRDD)
 
@@ -410,11 +396,10 @@ class LogisticRegressionSuite extends SparkFunSuite with MLlibTestSparkContext w
     assert(modelA1.weights(0) ~== modelA3.weights(0) * 1.0E6 absTol 0.01)
 
     // Training data with different scales without feature standardization
-    // should still converge quickly since the model still uses standardization but
-    // simply modifies the regularization function. See regParamL1Fun and related
-    // inside of LogisticRegression
-    assert(modelB1.weights(0) ~== modelB2.weights(0) * 1.0E3 absTol 0.1)
-    assert(modelB1.weights(0) ~== modelB3.weights(0) * 1.0E6 absTol 0.1)
+    // will not yield the same result in the scaled space due to poor
+    // convergence rate.
+    assert(modelB1.weights(0) !~== modelB2.weights(0) * 1.0E3 absTol 0.1)
+    assert(modelB1.weights(0) !~== modelB3.weights(0) * 1.0E6 absTol 0.1)
   }
 
   test("multinomial logistic regression with LBFGS") {

@@ -20,16 +20,15 @@ package org.apache.spark.sql.test
 import java.io.File
 import java.util.UUID
 
-import scala.language.implicitConversions
 import scala.util.Try
+import scala.language.implicitConversions
 
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.BeforeAndAfterAll
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql._
+import org.apache.spark.sql.{DataFrame, SQLContext, SQLImplicits}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.util.Utils
 
 /**
@@ -47,13 +46,13 @@ private[sql] trait SQLTestUtils
   with BeforeAndAfterAll
   with SQLTestData { self =>
 
-  protected def sparkContext = sqlContext.sparkContext
+  protected def _sqlContext: SQLContext
 
   // Whether to materialize all test data before the first test is run
   private var loadTestDataBeforeTests = false
 
   // Shorthand for running a query using our SQLContext
-  protected lazy val sql = sqlContext.sql _
+  protected lazy val sql = _sqlContext.sql _
 
   /**
    * A helper object for importing SQL implicits.
@@ -63,14 +62,7 @@ private[sql] trait SQLTestUtils
    * but the implicits import is needed in the constructor.
    */
   protected object testImplicits extends SQLImplicits {
-    protected override def _sqlContext: SQLContext = self.sqlContext
-
-    // This must live here to preserve binary compatibility with Spark < 1.5.
-    implicit class StringToColumn(val sc: StringContext) {
-      def $(args: Any*): ColumnName = {
-        new ColumnName(sc.s(args: _*))
-      }
-    }
+    protected override def _sqlContext: SQLContext = self._sqlContext
   }
 
   /**
@@ -91,8 +83,8 @@ private[sql] trait SQLTestUtils
   /**
    * The Hadoop configuration used by the active [[SQLContext]].
    */
-  protected def hadoopConfiguration: Configuration = {
-    sparkContext.hadoopConfiguration
+  protected def configuration: Configuration = {
+    _sqlContext.sparkContext.hadoopConfiguration
   }
 
   /**
@@ -103,12 +95,12 @@ private[sql] trait SQLTestUtils
    */
   protected def withSQLConf(pairs: (String, String)*)(f: => Unit): Unit = {
     val (keys, values) = pairs.unzip
-    val currentValues = keys.map(key => Try(sqlContext.conf.getConfString(key)).toOption)
-    (keys, values).zipped.foreach(sqlContext.conf.setConfString)
+    val currentValues = keys.map(key => Try(_sqlContext.conf.getConfString(key)).toOption)
+    (keys, values).zipped.foreach(_sqlContext.conf.setConfString)
     try f finally {
       keys.zip(currentValues).foreach {
-        case (key, Some(value)) => sqlContext.conf.setConfString(key, value)
-        case (key, None) => sqlContext.conf.unsetConf(key)
+        case (key, Some(value)) => _sqlContext.conf.setConfString(key, value)
+        case (key, None) => _sqlContext.conf.unsetConf(key)
       }
     }
   }
@@ -140,7 +132,7 @@ private[sql] trait SQLTestUtils
    * Drops temporary table `tableName` after calling `f`.
    */
   protected def withTempTable(tableNames: String*)(f: => Unit): Unit = {
-    try f finally tableNames.foreach(sqlContext.dropTempTable)
+    try f finally tableNames.foreach(_sqlContext.dropTempTable)
   }
 
   /**
@@ -149,18 +141,7 @@ private[sql] trait SQLTestUtils
   protected def withTable(tableNames: String*)(f: => Unit): Unit = {
     try f finally {
       tableNames.foreach { name =>
-        sqlContext.sql(s"DROP TABLE IF EXISTS $name")
-      }
-    }
-  }
-
-  /**
-   * Drops view `viewName` after calling `f`.
-   */
-  protected def withView(viewNames: String*)(f: => Unit): Unit = {
-    try f finally {
-      viewNames.foreach { name =>
-        sqlContext.sql(s"DROP VIEW IF EXISTS $name")
+        _sqlContext.sql(s"DROP TABLE IF EXISTS $name")
       }
     }
   }
@@ -168,19 +149,17 @@ private[sql] trait SQLTestUtils
   /**
    * Creates a temporary database and switches current database to it before executing `f`.  This
    * database is dropped after `f` returns.
-   *
-   * Note that this method doesn't switch current database before executing `f`.
    */
   protected def withTempDatabase(f: String => Unit): Unit = {
     val dbName = s"db_${UUID.randomUUID().toString.replace('-', '_')}"
 
     try {
-      sqlContext.sql(s"CREATE DATABASE $dbName")
+      _sqlContext.sql(s"CREATE DATABASE $dbName")
     } catch { case cause: Throwable =>
       fail("Failed to create temporary database", cause)
     }
 
-    try f(dbName) finally sqlContext.sql(s"DROP DATABASE $dbName CASCADE")
+    try f(dbName) finally _sqlContext.sql(s"DROP DATABASE $dbName CASCADE")
   }
 
   /**
@@ -188,23 +167,8 @@ private[sql] trait SQLTestUtils
    * `f` returns.
    */
   protected def activateDatabase(db: String)(f: => Unit): Unit = {
-    sqlContext.sql(s"USE $db")
-    try f finally sqlContext.sql(s"USE default")
-  }
-
-  /**
-   * Strip Spark-side filtering in order to check if a datasource filters rows correctly.
-   */
-  protected def stripSparkFilter(df: DataFrame): DataFrame = {
-    val schema = df.schema
-    val childRDD = df
-      .queryExecution
-      .sparkPlan.asInstanceOf[org.apache.spark.sql.execution.Filter]
-      .child
-      .execute()
-      .map(row => Row.fromSeq(row.copy().toSeq(schema)))
-
-    sqlContext.createDataFrame(childRDD, schema)
+    _sqlContext.sql(s"USE $db")
+    try f finally _sqlContext.sql(s"USE default")
   }
 
   /**
@@ -212,49 +176,6 @@ private[sql] trait SQLTestUtils
    * way to construct [[DataFrame]] directly out of local data without relying on implicits.
    */
   protected implicit def logicalPlanToSparkQuery(plan: LogicalPlan): DataFrame = {
-    DataFrame(sqlContext, plan)
-  }
-}
-
-private[sql] object SQLTestUtils {
-
-  def compareAnswers(
-      sparkAnswer: Seq[Row],
-      expectedAnswer: Seq[Row],
-      sort: Boolean): Option[String] = {
-    def prepareAnswer(answer: Seq[Row]): Seq[Row] = {
-      // Converts data to types that we can do equality comparison using Scala collections.
-      // For BigDecimal type, the Scala type has a better definition of equality test (similar to
-      // Java's java.math.BigDecimal.compareTo).
-      // For binary arrays, we convert it to Seq to avoid of calling java.util.Arrays.equals for
-      // equality test.
-      // This function is copied from Catalyst's QueryTest
-      val converted: Seq[Row] = answer.map { s =>
-        Row.fromSeq(s.toSeq.map {
-          case d: java.math.BigDecimal => BigDecimal(d)
-          case b: Array[Byte] => b.toSeq
-          case o => o
-        })
-      }
-      if (sort) {
-        converted.sortBy(_.toString())
-      } else {
-        converted
-      }
-    }
-    if (prepareAnswer(expectedAnswer) != prepareAnswer(sparkAnswer)) {
-      val errorMessage =
-        s"""
-           | == Results ==
-           | ${sideBySide(
-          s"== Expected Answer - ${expectedAnswer.size} ==" +:
-            prepareAnswer(expectedAnswer).map(_.toString()),
-          s"== Actual Answer - ${sparkAnswer.size} ==" +:
-            prepareAnswer(sparkAnswer).map(_.toString())).mkString("\n")}
-      """.stripMargin
-      Some(errorMessage)
-    } else {
-      None
-    }
+    DataFrame(_sqlContext, plan)
   }
 }

@@ -17,18 +17,16 @@
 
 package org.apache.spark
 
-import java.util.concurrent.{Executors, TimeUnit}
+import java.util.concurrent.{TimeUnit, Executors}
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Random, Try}
-
-import com.esotericsoftware.kryo.Kryo
+import scala.util.{Try, Random}
 
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.serializer.{KryoRegistrator, KryoSerializer}
-import org.apache.spark.util.{ResetSystemProperties, RpcUtils}
+import org.apache.spark.util.{RpcUtils, ResetSystemProperties}
+import com.esotericsoftware.kryo.Kryo
 
 class SparkConfSuite extends SparkFunSuite with LocalSparkContext with ResetSystemProperties {
   test("Test byteString conversion") {
@@ -150,6 +148,7 @@ class SparkConfSuite extends SparkFunSuite with LocalSparkContext with ResetSyst
   }
 
   test("Thread safeness - SPARK-5425") {
+    import scala.collection.JavaConversions._
     val executor = Executors.newSingleThreadScheduledExecutor()
     val sf = executor.scheduleAtFixedRate(new Runnable {
       override def run(): Unit =
@@ -164,9 +163,8 @@ class SparkConfSuite extends SparkFunSuite with LocalSparkContext with ResetSyst
       }
     } finally {
       executor.shutdownNow()
-      val sysProps = System.getProperties
-      for (key <- sysProps.stringPropertyNames().asScala if key.startsWith("spark.5425."))
-        sysProps.remove(key)
+      for (key <- System.getProperties.stringPropertyNames() if key.startsWith("spark.5425."))
+        System.getProperties.remove(key)
     }
   }
 

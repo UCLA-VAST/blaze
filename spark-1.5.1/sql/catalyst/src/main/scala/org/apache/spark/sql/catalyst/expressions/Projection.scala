@@ -19,7 +19,8 @@ package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.{GenerateSafeProjection, GenerateUnsafeProjection}
-import org.apache.spark.sql.types.{DataType, StructType}
+import org.apache.spark.sql.types.{DataType, Decimal, StructType, _}
+import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
 /**
  * A [[Projection]] that is calculated by calling the `eval` of each of the specified expressions.
@@ -61,8 +62,6 @@ case class InterpretedMutableProjection(expressions: Seq[Expression]) extends Mu
   def this(expressions: Seq[Expression], inputSchema: Seq[Attribute]) =
     this(expressions.map(BindReferences.bindReference(_, inputSchema)))
 
-  private[this] val buffer = new Array[Any](expressions.size)
-
   expressions.foreach(_.foreach {
     case n: Nondeterministic => n.setInitialValues()
     case _ =>
@@ -80,13 +79,7 @@ case class InterpretedMutableProjection(expressions: Seq[Expression]) extends Mu
   override def apply(input: InternalRow): InternalRow = {
     var i = 0
     while (i < exprArray.length) {
-      // Store the result into buffer first, to make the projection atomic (needed by aggregation)
-      buffer(i) = exprArray(i).eval(input)
-      i += 1
-    }
-    i = 0
-    while (i < exprArray.length) {
-      mutableRow(i) = buffer(i)
+      mutableRow(i) = exprArray(i).eval(input)
       i += 1
     }
     mutableRow
@@ -101,6 +94,16 @@ abstract class UnsafeProjection extends Projection {
 }
 
 object UnsafeProjection {
+
+  /*
+   * Returns whether UnsafeProjection can support given StructType, Array[DataType] or
+   * Seq[Expression].
+   */
+  def canSupport(schema: StructType): Boolean = canSupport(schema.fields.map(_.dataType))
+  def canSupport(exprs: Seq[Expression]): Boolean = canSupport(exprs.map(_.dataType).toArray)
+  private def canSupport(types: Array[DataType]): Boolean = {
+    types.forall(GenerateUnsafeProjection.canSupport)
+  }
 
   /**
    * Returns an UnsafeProjection for given StructType.
@@ -118,11 +121,7 @@ object UnsafeProjection {
    * Returns an UnsafeProjection for given sequence of Expressions (bounded).
    */
   def create(exprs: Seq[Expression]): UnsafeProjection = {
-    val unsafeExprs = exprs.map(_ transform {
-      case CreateStruct(children) => CreateStructUnsafe(children)
-      case CreateNamedStruct(children) => CreateNamedStructUnsafe(children)
-    })
-    GenerateUnsafeProjection.generate(unsafeExprs)
+    GenerateUnsafeProjection.generate(exprs)
   }
 
   def create(expr: Expression): UnsafeProjection = create(Seq(expr))
@@ -133,22 +132,6 @@ object UnsafeProjection {
    */
   def create(exprs: Seq[Expression], inputSchema: Seq[Attribute]): UnsafeProjection = {
     create(exprs.map(BindReferences.bindReference(_, inputSchema)))
-  }
-
-  /**
-    * Same as other create()'s but allowing enabling/disabling subexpression elimination.
-    * TODO: refactor the plumbing and clean this up.
-    */
-  def create(
-      exprs: Seq[Expression],
-      inputSchema: Seq[Attribute],
-      subexpressionEliminationEnabled: Boolean): UnsafeProjection = {
-    val e = exprs.map(BindReferences.bindReference(_, inputSchema))
-      .map(_ transform {
-        case CreateStruct(children) => CreateStructUnsafe(children)
-        case CreateNamedStruct(children) => CreateNamedStructUnsafe(children)
-    })
-    GenerateUnsafeProjection.generate(e, subexpressionEliminationEnabled)
   }
 }
 

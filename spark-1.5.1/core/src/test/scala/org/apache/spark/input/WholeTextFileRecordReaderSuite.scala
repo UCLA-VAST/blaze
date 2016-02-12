@@ -23,12 +23,13 @@ import java.io.FileOutputStream
 
 import scala.collection.immutable.IndexedSeq
 
-import org.apache.hadoop.io.Text
-import org.apache.hadoop.io.compress.{CompressionCodecFactory, DefaultCodec, GzipCodec}
 import org.scalatest.BeforeAndAfterAll
+
+import org.apache.hadoop.io.Text
 
 import org.apache.spark.{Logging, SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.util.Utils
+import org.apache.hadoop.io.compress.{DefaultCodec, CompressionCodecFactory, GzipCodec}
 
 /**
  * Tests the correctness of
@@ -46,7 +47,6 @@ class WholeTextFileRecordReaderSuite extends SparkFunSuite with BeforeAndAfterAl
     // hard-to-reproduce test failures, since any suites that were run after this one would inherit
     // the new value of "fs.local.block.size" (see SPARK-5227 and SPARK-5679). To work around this,
     // we disable FileSystem caching in this suite.
-    super.beforeAll()
     val conf = new SparkConf().set("spark.hadoop.fs.file.impl.disable.cache", "true")
 
     sc = new SparkContext("local", "test", conf)
@@ -59,11 +59,7 @@ class WholeTextFileRecordReaderSuite extends SparkFunSuite with BeforeAndAfterAl
   }
 
   override def afterAll() {
-    try {
-      sc.stop()
-    } finally {
-      super.afterAll()
-    }
+    sc.stop()
   }
 
   private def createNativeFile(inputDir: File, fileName: String, contents: Array[Byte],

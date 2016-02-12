@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.hive.client
 
-import java.util.Collections
+import scala.collection.JavaConversions._
 
 import org.apache.hadoop.hive.metastore.api.FieldSchema
 import org.apache.hadoop.hive.serde.serdeConstants
@@ -38,7 +38,7 @@ class FiltersSuite extends SparkFunSuite with Logging {
   private val varCharCol = new FieldSchema()
   varCharCol.setName("varchar")
   varCharCol.setType(serdeConstants.VARCHAR_TYPE_NAME)
-  testTable.setPartCols(Collections.singletonList(varCharCol))
+  testTable.setPartCols(varCharCol :: Nil)
 
   filterTest("string filter",
     (a("stringcol", StringType) > Literal("test")) :: Nil,

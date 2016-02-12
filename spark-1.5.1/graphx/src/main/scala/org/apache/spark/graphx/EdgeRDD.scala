@@ -24,11 +24,12 @@ import org.apache.spark.Dependency
 import org.apache.spark.Partition
 import org.apache.spark.SparkContext
 import org.apache.spark.TaskContext
+import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
+
 import org.apache.spark.graphx.impl.EdgePartition
 import org.apache.spark.graphx.impl.EdgePartitionBuilder
 import org.apache.spark.graphx.impl.EdgeRDDImpl
-import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
 
 /**
  * `EdgeRDD[ED, VD]` extends `RDD[Edge[ED]]` by storing the edges in columnar format on each
@@ -37,8 +38,8 @@ import org.apache.spark.storage.StorageLevel
  * `impl.ReplicatedVertexView`.
  */
 abstract class EdgeRDD[ED](
-    sc: SparkContext,
-    deps: Seq[Dependency[_]]) extends RDD[Edge[ED]](sc, deps) {
+    @transient sc: SparkContext,
+    @transient deps: Seq[Dependency[_]]) extends RDD[Edge[ED]](sc, deps) {
 
   // scalastyle:off structural.type
   private[graphx] def partitionsRDD: RDD[(PartitionID, EdgePartition[ED, VD])] forSome { type VD }

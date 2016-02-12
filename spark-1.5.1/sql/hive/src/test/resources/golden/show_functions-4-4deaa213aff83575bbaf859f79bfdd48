@@ -1,6 +1,4 @@
-current_date
 date_add
-date_format
 date_sub
 datediff
 to_date

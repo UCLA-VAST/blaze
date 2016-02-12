@@ -20,7 +20,7 @@ package org.apache.spark.sql.catalyst.util
 import org.json4s.jackson.JsonMethods.parse
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.types.{Metadata, MetadataBuilder}
+import org.apache.spark.sql.types.{MetadataBuilder, Metadata}
 
 class MetadataSuite extends SparkFunSuite {
 

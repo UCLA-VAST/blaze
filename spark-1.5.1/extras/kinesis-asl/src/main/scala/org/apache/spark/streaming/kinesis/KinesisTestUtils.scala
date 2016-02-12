@@ -20,7 +20,6 @@ package org.apache.spark.streaming.kinesis
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Random, Success, Try}
@@ -35,9 +34,7 @@ import com.amazonaws.services.kinesis.model._
 import org.apache.spark.Logging
 
 /**
- * Shared utility methods for performing Kinesis tests that actually transfer data.
- *
- * PLEASE KEEP THIS FILE UNDER src/main AS PYTHON TESTS NEED ACCESS TO THIS FILE!
+ * Shared utility methods for performing Kinesis tests that actually transfer data
  */
 private[kinesis] class KinesisTestUtils extends Logging {
 
@@ -54,7 +51,7 @@ private[kinesis] class KinesisTestUtils extends Logging {
   @volatile
   private var _streamName: String = _
 
-  protected lazy val kinesisClient = {
+  private lazy val kinesisClient = {
     val client = new AmazonKinesisClient(KinesisTestUtils.getAWSCredentials())
     client.setEndpoint(endpointUrl)
     client
@@ -64,14 +61,6 @@ private[kinesis] class KinesisTestUtils extends Logging {
     val dynamoDBClient = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain())
     dynamoDBClient.setRegion(RegionUtils.getRegion(regionName))
     new DynamoDB(dynamoDBClient)
-  }
-
-  protected def getProducer(aggregate: Boolean): KinesisDataGenerator = {
-    if (!aggregate) {
-      new SimpleDataGenerator(kinesisClient)
-    } else {
-      throw new UnsupportedOperationException("Aggregation is not supported through this code path")
-    }
   }
 
   def streamName: String = {
@@ -100,10 +89,24 @@ private[kinesis] class KinesisTestUtils extends Logging {
    * Push data to Kinesis stream and return a map of
    * shardId -> seq of (data, seq number) pushed to corresponding shard
    */
-  def pushData(testData: Seq[Int], aggregate: Boolean): Map[String, Seq[(Int, String)]] = {
+  def pushData(testData: Seq[Int]): Map[String, Seq[(Int, String)]] = {
     require(streamCreated, "Stream not yet created, call createStream() to create one")
-    val producer = getProducer(aggregate)
-    val shardIdToSeqNumbers = producer.sendData(streamName, testData)
+    val shardIdToSeqNumbers = new mutable.HashMap[String, ArrayBuffer[(Int, String)]]()
+
+    testData.foreach { num =>
+      val str = num.toString
+      val putRecordRequest = new PutRecordRequest().withStreamName(streamName)
+        .withData(ByteBuffer.wrap(str.getBytes()))
+        .withPartitionKey(str)
+
+      val putRecordResult = kinesisClient.putRecord(putRecordRequest)
+      val shardId = putRecordResult.getShardId
+      val seqNumber = putRecordResult.getSequenceNumber()
+      val sentSeqNumbers = shardIdToSeqNumbers.getOrElseUpdate(shardId,
+        new ArrayBuffer[(Int, String)]())
+      sentSeqNumbers += ((num, seqNumber))
+    }
+
     logInfo(s"Pushed $testData:\n\t ${shardIdToSeqNumbers.mkString("\n\t")}")
     shardIdToSeqNumbers.toMap
   }
@@ -112,7 +115,7 @@ private[kinesis] class KinesisTestUtils extends Logging {
    * Expose a Python friendly API.
    */
   def pushData(testData: java.util.List[Int]): Unit = {
-    pushData(testData.asScala, aggregate = false)
+    pushData(scala.collection.JavaConversions.asScalaBuffer(testData))
   }
 
   def deleteStream(): Unit = {
@@ -227,34 +230,5 @@ private[kinesis] object KinesisTestUtils {
              |can find the credentials.
            """.stripMargin)
     }
-  }
-}
-
-/** A wrapper interface that will allow us to consolidate the code for synthetic data generation. */
-private[kinesis] trait KinesisDataGenerator {
-  /** Sends the data to Kinesis and returns the metadata for everything that has been sent. */
-  def sendData(streamName: String, data: Seq[Int]): Map[String, Seq[(Int, String)]]
-}
-
-private[kinesis] class SimpleDataGenerator(
-    client: AmazonKinesisClient) extends KinesisDataGenerator {
-  override def sendData(streamName: String, data: Seq[Int]): Map[String, Seq[(Int, String)]] = {
-    val shardIdToSeqNumbers = new mutable.HashMap[String, ArrayBuffer[(Int, String)]]()
-    data.foreach { num =>
-      val str = num.toString
-      val data = ByteBuffer.wrap(str.getBytes())
-      val putRecordRequest = new PutRecordRequest().withStreamName(streamName)
-        .withData(data)
-        .withPartitionKey(str)
-
-      val putRecordResult = client.putRecord(putRecordRequest)
-      val shardId = putRecordResult.getShardId
-      val seqNumber = putRecordResult.getSequenceNumber()
-      val sentSeqNumbers = shardIdToSeqNumbers.getOrElseUpdate(shardId,
-        new ArrayBuffer[(Int, String)]())
-      sentSeqNumbers += ((num, seqNumber))
-    }
-
-    shardIdToSeqNumbers.toMap
   }
 }

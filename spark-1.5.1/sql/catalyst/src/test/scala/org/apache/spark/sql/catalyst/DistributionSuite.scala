@@ -18,9 +18,10 @@
 package org.apache.spark.sql.catalyst
 
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.catalyst.plans.physical._
+
 /* Implicit conversions */
 import org.apache.spark.sql.catalyst.dsl.expressions._
-import org.apache.spark.sql.catalyst.plans.physical._
 
 class DistributionSuite extends SparkFunSuite {
 

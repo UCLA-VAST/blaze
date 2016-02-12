@@ -19,7 +19,7 @@ package org.apache.spark.executor
 
 import java.util.concurrent.ThreadPoolExecutor
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import org.apache.hadoop.fs.FileSystem
@@ -30,7 +30,7 @@ private[spark]
 class ExecutorSource(threadPool: ThreadPoolExecutor, executorId: String) extends Source {
 
   private def fileStats(scheme: String) : Option[FileSystem.Statistics] =
-    FileSystem.getAllStatistics.asScala.find(s => s.getScheme.equals(scheme))
+    FileSystem.getAllStatistics().find(s => s.getScheme.equals(scheme))
 
   private def registerFileSystemStat[T](
         scheme: String, name: String, f: FileSystem.Statistics => T, defaultValue: T) = {

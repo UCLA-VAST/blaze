@@ -20,12 +20,11 @@ package org.apache.spark
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
 import scala.collection.mutable
-import scala.concurrent.Future
 
 import org.apache.spark.executor.TaskMetrics
-import org.apache.spark.rpc.{RpcCallContext, RpcEnv, ThreadSafeRpcEndpoint}
-import org.apache.spark.scheduler._
+import org.apache.spark.rpc.{ThreadSafeRpcEndpoint, RpcEnv, RpcCallContext}
 import org.apache.spark.storage.BlockManagerId
+import org.apache.spark.scheduler._
 import org.apache.spark.util.{Clock, SystemClock, ThreadUtils, Utils}
 
 /**
@@ -35,7 +34,7 @@ import org.apache.spark.util.{Clock, SystemClock, ThreadUtils, Utils}
  */
 private[spark] case class Heartbeat(
     executorId: String,
-    accumUpdates: Array[(Long, Seq[AccumulableInfo])], // taskId -> accum updates
+    taskMetrics: Array[(Long, TaskMetrics)], // taskId -> TaskMetrics
     blockManagerId: BlockManagerId)
 
 /**
@@ -119,14 +118,14 @@ private[spark] class HeartbeatReceiver(sc: SparkContext, clock: Clock)
       context.reply(true)
 
     // Messages received from executors
-    case heartbeat @ Heartbeat(executorId, accumUpdates, blockManagerId) =>
+    case heartbeat @ Heartbeat(executorId, taskMetrics, blockManagerId) =>
       if (scheduler != null) {
         if (executorLastSeen.contains(executorId)) {
           executorLastSeen(executorId) = clock.getTimeMillis()
           eventLoopThread.submit(new Runnable {
             override def run(): Unit = Utils.tryLogNonFatalError {
               val unknownExecutor = !scheduler.executorHeartbeatReceived(
-                executorId, accumUpdates, blockManagerId)
+                executorId, taskMetrics, blockManagerId)
               val response = HeartbeatResponse(reregisterBlockManager = unknownExecutor)
               context.reply(response)
             }
@@ -149,30 +148,10 @@ private[spark] class HeartbeatReceiver(sc: SparkContext, clock: Clock)
   }
 
   /**
-   * Send ExecutorRegistered to the event loop to add a new executor. Only for test.
-   *
-   * @return if HeartbeatReceiver is stopped, return None. Otherwise, return a Some(Future) that
-   *         indicate if this operation is successful.
-   */
-  def addExecutor(executorId: String): Option[Future[Boolean]] = {
-    Option(self).map(_.ask[Boolean](ExecutorRegistered(executorId)))
-  }
-
-  /**
    * If the heartbeat receiver is not stopped, notify it of executor registrations.
    */
   override def onExecutorAdded(executorAdded: SparkListenerExecutorAdded): Unit = {
-    addExecutor(executorAdded.executorId)
-  }
-
-  /**
-   * Send ExecutorRemoved to the event loop to remove a executor. Only for test.
-   *
-   * @return if HeartbeatReceiver is stopped, return None. Otherwise, return a Some(Future) that
-   *         indicate if this operation is successful.
-   */
-  def removeExecutor(executorId: String): Option[Future[Boolean]] = {
-    Option(self).map(_.ask[Boolean](ExecutorRemoved(executorId)))
+    Option(self).foreach(_.ask[Boolean](ExecutorRegistered(executorAdded.executorId)))
   }
 
   /**
@@ -186,7 +165,7 @@ private[spark] class HeartbeatReceiver(sc: SparkContext, clock: Clock)
    * and expire it with loud error messages.
    */
   override def onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit = {
-    removeExecutor(executorRemoved.executorId)
+    Option(self).foreach(_.ask[Boolean](ExecutorRemoved(executorRemoved.executorId)))
   }
 
   private def expireDeadHosts(): Unit = {

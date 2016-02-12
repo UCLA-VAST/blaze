@@ -19,8 +19,8 @@ package org.apache.spark.streaming.scheduler
 
 import scala.collection.mutable.Queue
 
-import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.util.Distribution
+import org.apache.spark.annotation.DeveloperApi
 
 /**
  * :: DeveloperApi ::
@@ -37,14 +37,6 @@ case class StreamingListenerBatchCompleted(batchInfo: BatchInfo) extends Streami
 
 @DeveloperApi
 case class StreamingListenerBatchStarted(batchInfo: BatchInfo) extends StreamingListenerEvent
-
-@DeveloperApi
-case class StreamingListenerOutputOperationStarted(outputOperationInfo: OutputOperationInfo)
-  extends StreamingListenerEvent
-
-@DeveloperApi
-case class StreamingListenerOutputOperationCompleted(outputOperationInfo: OutputOperationInfo)
-  extends StreamingListenerEvent
 
 @DeveloperApi
 case class StreamingListenerReceiverStarted(receiverInfo: ReceiverInfo)
@@ -83,14 +75,6 @@ trait StreamingListener {
 
   /** Called when processing of a batch of jobs has completed. */
   def onBatchCompleted(batchCompleted: StreamingListenerBatchCompleted) { }
-
-  /** Called when processing of a job of a batch has started. */
-  def onOutputOperationStarted(
-      outputOperationStarted: StreamingListenerOutputOperationStarted) { }
-
-  /** Called when processing of a job of a batch has completed. */
-  def onOutputOperationCompleted(
-      outputOperationCompleted: StreamingListenerOutputOperationCompleted) { }
 }
 
 

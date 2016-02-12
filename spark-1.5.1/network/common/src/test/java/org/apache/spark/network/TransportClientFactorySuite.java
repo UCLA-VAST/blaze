@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -38,7 +37,6 @@ import org.apache.spark.network.client.TransportClientFactory;
 import org.apache.spark.network.server.NoOpRpcHandler;
 import org.apache.spark.network.server.RpcHandler;
 import org.apache.spark.network.server.TransportServer;
-import org.apache.spark.network.util.ConfigProvider;
 import org.apache.spark.network.util.SystemPropertyConfigProvider;
 import org.apache.spark.network.util.JavaUtils;
 import org.apache.spark.network.util.MapConfigProvider;
@@ -52,7 +50,7 @@ public class TransportClientFactorySuite {
 
   @Before
   public void setUp() {
-    conf = new TransportConf("shuffle", new SystemPropertyConfigProvider());
+    conf = new TransportConf(new SystemPropertyConfigProvider());
     RpcHandler rpcHandler = new NoOpRpcHandler();
     context = new TransportContext(conf, rpcHandler);
     server1 = context.createServer();
@@ -76,7 +74,7 @@ public class TransportClientFactorySuite {
 
     Map<String, String> configMap = Maps.newHashMap();
     configMap.put("spark.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
-    TransportConf conf = new TransportConf("shuffle", new MapConfigProvider(configMap));
+    TransportConf conf = new TransportConf(new MapConfigProvider(configMap));
 
     RpcHandler rpcHandler = new NoOpRpcHandler();
     TransportContext context = new TransportContext(conf, rpcHandler);
@@ -178,37 +176,5 @@ public class TransportClientFactorySuite {
     factory.close();
     assertFalse(c1.isActive());
     assertFalse(c2.isActive());
-  }
-
-  @Test
-  public void closeIdleConnectionForRequestTimeOut() throws IOException, InterruptedException {
-    TransportConf conf = new TransportConf("shuffle", new ConfigProvider() {
-
-      @Override
-      public String get(String name) {
-        if ("spark.shuffle.io.connectionTimeout".equals(name)) {
-          // We should make sure there is enough time for us to observe the channel is active
-          return "1s";
-        }
-        String value = System.getProperty(name);
-        if (value == null) {
-          throw new NoSuchElementException(name);
-        }
-        return value;
-      }
-    });
-    TransportContext context = new TransportContext(conf, new NoOpRpcHandler(), true);
-    TransportClientFactory factory = context.createClientFactory();
-    try {
-      TransportClient c1 = factory.createClient(TestUtils.getLocalHost(), server1.getPort());
-      assertTrue(c1.isActive());
-      long expiredTime = System.currentTimeMillis() + 10000; // 10 seconds
-      while (c1.isActive() && System.currentTimeMillis() < expiredTime) {
-        Thread.sleep(10);
-      }
-      assertFalse(c1.isActive());
-    } finally {
-      factory.close();
-    }
   }
 }

@@ -156,7 +156,7 @@ class GBTRegressorSuite extends SparkFunSuite with MLlibTestSparkContext {
   */
 }
 
-private object GBTRegressorSuite extends SparkFunSuite {
+private object GBTRegressorSuite {
 
   /**
    * Train 2 models on the given dataset, one using the old API and one using the new API.
@@ -167,7 +167,6 @@ private object GBTRegressorSuite extends SparkFunSuite {
       validationData: Option[RDD[LabeledPoint]],
       gbt: GBTRegressor,
       categoricalFeatures: Map[Int, Int]): Unit = {
-    val numFeatures = data.first().features.size
     val oldBoostingStrategy = gbt.getOldBoostingStrategy(categoricalFeatures, OldAlgo.Regression)
     val oldGBT = new OldGBT(oldBoostingStrategy)
     val oldModel = oldGBT.run(data)
@@ -175,9 +174,7 @@ private object GBTRegressorSuite extends SparkFunSuite {
     val newModel = gbt.fit(newData)
     // Use parent from newTree since this is not checked anyways.
     val oldModelAsNew = GBTRegressionModel.fromOld(
-      oldModel, newModel.parent.asInstanceOf[GBTRegressor], categoricalFeatures, numFeatures)
+      oldModel, newModel.parent.asInstanceOf[GBTRegressor], categoricalFeatures)
     TreeTests.checkEqual(oldModelAsNew, newModel)
-    assert(newModel.numFeatures === numFeatures)
-    assert(oldModelAsNew.numFeatures === numFeatures)
   }
 }

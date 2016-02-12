@@ -19,12 +19,16 @@ package org.apache.spark.sql.hive
 
 import java.io.File
 
+import org.scalatest.BeforeAndAfterAll
+
 import org.apache.spark.sql._
-import org.apache.spark.sql.execution.{ExecutedCommand, PhysicalRDD}
 import org.apache.spark.sql.execution.datasources.{InsertIntoDataSource, InsertIntoHadoopFsRelation, LogicalRelation}
-import org.apache.spark.sql.execution.datasources.parquet.ParquetRelation
+import org.apache.spark.sql.execution.{ExecutedCommand, PhysicalRDD}
 import org.apache.spark.sql.hive.execution.HiveTableScan
-import org.apache.spark.sql.hive.test.TestHiveSingleton
+import org.apache.spark.sql.hive.test.TestHive
+import org.apache.spark.sql.hive.test.TestHive._
+import org.apache.spark.sql.hive.test.TestHive.implicits._
+import org.apache.spark.sql.execution.datasources.parquet.ParquetRelation
 import org.apache.spark.sql.test.SQLTestUtils
 import org.apache.spark.sql.types._
 import org.apache.spark.util.Utils
@@ -54,8 +58,6 @@ case class ParquetDataWithKeyAndComplexTypes(
  * built in parquet support.
  */
 class ParquetMetastoreSuite extends ParquetPartitioningTest {
-  import hiveContext._
-
   override def beforeAll(): Unit = {
     super.beforeAll()
     dropTables("partitioned_parquet",
@@ -190,11 +192,11 @@ class ParquetMetastoreSuite extends ParquetPartitioningTest {
 
   test(s"conversion is working") {
     assert(
-      sql("SELECT * FROM normal_parquet").queryExecution.sparkPlan.collect {
+      sql("SELECT * FROM normal_parquet").queryExecution.executedPlan.collect {
         case _: HiveTableScan => true
       }.isEmpty)
     assert(
-      sql("SELECT * FROM normal_parquet").queryExecution.sparkPlan.collect {
+      sql("SELECT * FROM normal_parquet").queryExecution.executedPlan.collect {
         case _: PhysicalRDD => true
       }.nonEmpty)
   }
@@ -282,7 +284,7 @@ class ParquetMetastoreSuite extends ParquetPartitioningTest {
       )
 
       table("test_parquet_ctas").queryExecution.optimizedPlan match {
-        case LogicalRelation(_: ParquetRelation, _, _) => // OK
+        case LogicalRelation(_: ParquetRelation) => // OK
         case _ => fail(
           "test_parquet_ctas should be converted to " +
               s"${classOf[ParquetRelation].getCanonicalName }")
@@ -305,7 +307,7 @@ class ParquetMetastoreSuite extends ParquetPartitioningTest {
         """.stripMargin)
 
       val df = sql("INSERT INTO TABLE test_insert_parquet SELECT a FROM jt")
-      df.queryExecution.sparkPlan match {
+      df.queryExecution.executedPlan match {
         case ExecutedCommand(InsertIntoHadoopFsRelation(_: ParquetRelation, _, _)) => // OK
         case o => fail("test_insert_parquet should be converted to a " +
           s"${classOf[ParquetRelation].getCanonicalName} and " +
@@ -335,7 +337,7 @@ class ParquetMetastoreSuite extends ParquetPartitioningTest {
         """.stripMargin)
 
       val df = sql("INSERT INTO TABLE test_insert_parquet SELECT a FROM jt_array")
-      df.queryExecution.sparkPlan match {
+      df.queryExecution.executedPlan match {
         case ExecutedCommand(InsertIntoHadoopFsRelation(r: ParquetRelation, _, _)) => // OK
         case o => fail("test_insert_parquet should be converted to a " +
           s"${classOf[ParquetRelation].getCanonicalName} and " +
@@ -369,7 +371,7 @@ class ParquetMetastoreSuite extends ParquetPartitioningTest {
 
       assertResult(2) {
         analyzed.collect {
-          case r @ LogicalRelation(_: ParquetRelation, _, _) => r
+          case r@LogicalRelation(_: ParquetRelation) => r
         }.size
       }
     }
@@ -378,7 +380,7 @@ class ParquetMetastoreSuite extends ParquetPartitioningTest {
   def collectParquetRelation(df: DataFrame): ParquetRelation = {
     val plan = df.queryExecution.analyzed
     plan.collectFirst {
-      case LogicalRelation(r: ParquetRelation, _, _) => r
+      case LogicalRelation(r: ParquetRelation) => r
     }.getOrElse {
       fail(s"Expecting a ParquetRelation2, but got:\n$plan")
     }
@@ -428,7 +430,7 @@ class ParquetMetastoreSuite extends ParquetPartitioningTest {
       // Converted test_parquet should be cached.
       catalog.cachedDataSourceTables.getIfPresent(tableIdentifier) match {
         case null => fail("Converted test_parquet should be cached in the cache.")
-        case logical @ LogicalRelation(parquetRelation: ParquetRelation, _, _) => // OK
+        case logical @ LogicalRelation(parquetRelation: ParquetRelation) => // OK
         case other =>
           fail(
             "The cached test_parquet should be a Parquet Relation. " +
@@ -534,9 +536,6 @@ class ParquetMetastoreSuite extends ParquetPartitioningTest {
  * A suite of tests for the Parquet support through the data sources API.
  */
 class ParquetSourceSuite extends ParquetPartitioningTest {
-  import testImplicits._
-  import hiveContext._
-
   override def beforeAll(): Unit = {
     super.beforeAll()
     dropTables("partitioned_parquet",
@@ -620,7 +619,7 @@ class ParquetSourceSuite extends ParquetPartitioningTest {
         val conf = Seq(
           HiveContext.CONVERT_METASTORE_PARQUET.key -> "false",
           SQLConf.PARQUET_BINARY_AS_STRING.key -> "true",
-          SQLConf.PARQUET_WRITE_LEGACY_FORMAT.key -> "false")
+          SQLConf.PARQUET_FOLLOW_PARQUET_FORMAT_SPEC.key -> "true")
 
         withSQLConf(conf: _*) {
           sql(
@@ -685,8 +684,9 @@ class ParquetSourceSuite extends ParquetPartitioningTest {
 /**
  * A collection of tests for parquet data with various forms of partitioning.
  */
-abstract class ParquetPartitioningTest extends QueryTest with SQLTestUtils with TestHiveSingleton {
-  import testImplicits._
+abstract class ParquetPartitioningTest extends QueryTest with SQLTestUtils with BeforeAndAfterAll {
+  override def _sqlContext: SQLContext = TestHive
+  protected val sqlContext = _sqlContext
 
   var partitionedTableDir: File = null
   var normalTableDir: File = null
@@ -869,7 +869,8 @@ abstract class ParquetPartitioningTest extends QueryTest with SQLTestUtils with 
         (1 to 10).map(i => Row(1, i, f"${i}_string")))
     }
 
-    test(s"SPARK-5775 read array from $table") {
+    // Re-enable this after SPARK-5508 is fixed
+    ignore(s"SPARK-5775 read array from $table") {
       checkAnswer(
         sql(s"SELECT arrayField, p FROM $table WHERE p = 1"),
         (1 to 10).map(i => Row(1 to i, 1)))

@@ -17,7 +17,7 @@
 
 package org.apache.spark.ml.tree
 
-import org.apache.spark.mllib.linalg.{Vector, Vectors}
+import org.apache.spark.mllib.linalg.{Vectors, Vector}
 
 /**
  * Abstraction for Decision Tree models.

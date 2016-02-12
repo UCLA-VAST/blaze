@@ -31,9 +31,7 @@ private[spark] sealed trait TaskLocation {
  */
 private [spark]
 case class ExecutorCacheTaskLocation(override val host: String, executorId: String)
-  extends TaskLocation {
-  override def toString: String = s"${TaskLocation.executorLocationTag}${host}_$executorId"
-}
+  extends TaskLocation
 
 /**
  * A location on a host.
@@ -55,9 +53,6 @@ private[spark] object TaskLocation {
   // confusion.  See  RFC 952 and RFC 1123 for information about the format of hostnames.
   val inMemoryLocationTag = "hdfs_cache_"
 
-  // Identify locations of executors with this prefix.
-  val executorLocationTag = "executor_"
-
   def apply(host: String, executorId: String): TaskLocation = {
     new ExecutorCacheTaskLocation(host, executorId)
   }
@@ -70,17 +65,9 @@ private[spark] object TaskLocation {
   def apply(str: String): TaskLocation = {
     val hstr = str.stripPrefix(inMemoryLocationTag)
     if (hstr.equals(str)) {
-      if (str.startsWith(executorLocationTag)) {
-        val splits = str.split("_")
-        if (splits.length != 3) {
-          throw new IllegalArgumentException("Illegal executor location format: " + str)
-        }
-        new ExecutorCacheTaskLocation(splits(1), splits(2))
-      } else {
-        new HostTaskLocation(str)
-      }
+      new HostTaskLocation(str)
     } else {
-      new HDFSCacheTaskLocation(hstr)
+      new HostTaskLocation(hstr)
     }
   }
 }

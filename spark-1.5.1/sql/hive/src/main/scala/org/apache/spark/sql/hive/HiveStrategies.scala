@@ -22,13 +22,14 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.planning._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.execution.{DescribeCommand => RunnableDescribeCommand, _}
 import org.apache.spark.sql.execution.datasources.{CreateTableUsing, CreateTableUsingAsSelect, DescribeCommand}
+import org.apache.spark.sql.execution.{DescribeCommand => RunnableDescribeCommand, _}
 import org.apache.spark.sql.hive.execution._
+
 
 private[hive] trait HiveStrategies {
   // Possibly being too clever with types here... or not clever enough.
-  self: SparkPlanner =>
+  self: SQLContext#SparkPlanner =>
 
   val hiveContext: HiveContext
 
@@ -88,9 +89,10 @@ private[hive] trait HiveStrategies {
             tableIdent, userSpecifiedSchema, provider, opts, allowExisting, managedIfNoPath)
         ExecutedCommand(cmd) :: Nil
 
-      case c: CreateTableUsingAsSelect =>
-        val cmd = CreateMetastoreDataSourceAsSelect(c.tableIdent, c.provider, c.partitionColumns,
-          c.bucketSpec, c.mode, c.options, c.child)
+      case CreateTableUsingAsSelect(
+        tableIdent, provider, false, partitionCols, mode, opts, query) =>
+        val cmd =
+          CreateMetastoreDataSourceAsSelect(tableIdent, provider, partitionCols, mode, opts, query)
         ExecutedCommand(cmd) :: Nil
 
       case _ => Nil

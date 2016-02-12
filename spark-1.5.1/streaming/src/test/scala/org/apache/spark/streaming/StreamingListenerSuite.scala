@@ -17,21 +17,19 @@
 
 package org.apache.spark.streaming
 
-import scala.collection.mutable.{ArrayBuffer, HashMap, SynchronizedBuffer, SynchronizedMap}
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.collection.mutable.{ArrayBuffer, SynchronizedBuffer}
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
-import org.mockito.Mockito.{mock, reset, verifyNoMoreInteractions}
-import org.scalatest.Matchers
-import org.scalatest.concurrent.Eventually._
-import org.scalatest.time.SpanSugar._
-
-import org.apache.spark.Logging
-import org.apache.spark.SparkException
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.receiver.Receiver
 import org.apache.spark.streaming.scheduler._
+
+import org.scalatest.Matchers
+import org.scalatest.concurrent.Eventually._
+import org.scalatest.time.SpanSugar._
+import org.apache.spark.Logging
 
 class StreamingListenerSuite extends TestSuiteBase with Matchers {
 
@@ -142,35 +140,6 @@ class StreamingListenerSuite extends TestSuiteBase with Matchers {
     }
   }
 
-  test("output operation reporting") {
-    ssc = new StreamingContext("local[2]", "test", Milliseconds(1000))
-    val inputStream = ssc.receiverStream(new StreamingListenerSuiteReceiver)
-    inputStream.foreachRDD(_.count())
-    inputStream.foreachRDD(_.collect())
-    inputStream.foreachRDD(_.count())
-
-    val collector = new OutputOperationInfoCollector
-    ssc.addStreamingListener(collector)
-
-    ssc.start()
-    try {
-      eventually(timeout(30 seconds), interval(20 millis)) {
-        collector.startedOutputOperationIds.take(3) should be (Seq(0, 1, 2))
-        collector.completedOutputOperationIds.take(3) should be (Seq(0, 1, 2))
-      }
-    } finally {
-      ssc.stop()
-    }
-  }
-
-  test("don't call ssc.stop in listener") {
-    ssc = new StreamingContext("local[2]", "ssc", Milliseconds(1000))
-    val inputStream = ssc.receiverStream(new StreamingListenerSuiteReceiver)
-    inputStream.foreachRDD(_.count)
-
-    startStreamingContextAndCallStop(ssc)
-  }
-
   test("onBatchCompleted with successful batch") {
     ssc = new StreamingContext("local[2]", "test", Milliseconds(1000))
     val inputStream = ssc.receiverStream(new StreamingListenerSuiteReceiver)
@@ -217,42 +186,6 @@ class StreamingListenerSuite extends TestSuiteBase with Matchers {
     assert(failureReasons(1).contains("This is another failed job"))
   }
 
-  test("StreamingListener receives no events after stopping StreamingListenerBus") {
-    val streamingListener = mock(classOf[StreamingListener])
-
-    ssc = new StreamingContext("local[2]", "test", Milliseconds(1000))
-    ssc.addStreamingListener(streamingListener)
-    val inputStream = ssc.receiverStream(new StreamingListenerSuiteReceiver)
-    inputStream.foreachRDD(_.count)
-    ssc.start()
-    ssc.stop()
-
-    // Because "streamingListener" has already received some events, let's clear that.
-    reset(streamingListener)
-
-    // Post a Streaming event after stopping StreamingContext
-    val receiverInfoStopped = ReceiverInfo(0, "test", false, "localhost", "0")
-    ssc.scheduler.listenerBus.post(StreamingListenerReceiverStopped(receiverInfoStopped))
-    ssc.sparkContext.listenerBus.waitUntilEmpty(1000)
-    // The StreamingListener should not receive any event
-    verifyNoMoreInteractions(streamingListener)
-  }
-
-  private def startStreamingContextAndCallStop(_ssc: StreamingContext): Unit = {
-    val contextStoppingCollector = new StreamingContextStoppingCollector(_ssc)
-    _ssc.addStreamingListener(contextStoppingCollector)
-    val batchCounter = new BatchCounter(_ssc)
-    _ssc.start()
-    // Make sure running at least one batch
-    if (!batchCounter.waitUntilBatchesCompleted(expectedNumCompletedBatches = 1, timeout = 10000)) {
-      fail("The first batch cannot complete in 10 seconds")
-    }
-    // When reaching here, we can make sure `StreamingContextStoppingCollector` won't call
-    // `ssc.stop()`, so it's safe to call `_ssc.stop()` now.
-    _ssc.stop()
-    assert(contextStoppingCollector.sparkExSeen)
-  }
-
   private def startStreamingContextAndCollectFailureReasons(
       _ssc: StreamingContext, isFailed: Boolean = false): Map[Int, String] = {
     val failureReasonsCollector = new FailureReasonsCollector()
@@ -267,7 +200,7 @@ class StreamingListenerSuite extends TestSuiteBase with Matchers {
       }
     }
     _ssc.stop()
-    failureReasonsCollector.failureReasons.toMap
+    failureReasonsCollector.failureReasons
   }
 
   /** Check if a sequence of numbers is in increasing order */
@@ -321,22 +254,6 @@ class ReceiverInfoCollector extends StreamingListener {
   }
 }
 
-/** Listener that collects information on processed output operations */
-class OutputOperationInfoCollector extends StreamingListener {
-  val startedOutputOperationIds = new ArrayBuffer[Int] with SynchronizedBuffer[Int]
-  val completedOutputOperationIds = new ArrayBuffer[Int] with SynchronizedBuffer[Int]
-
-  override def onOutputOperationStarted(
-      outputOperationStarted: StreamingListenerOutputOperationStarted): Unit = {
-    startedOutputOperationIds += outputOperationStarted.outputOperationInfo.id
-  }
-
-  override def onOutputOperationCompleted(
-      outputOperationCompleted: StreamingListenerOutputOperationCompleted): Unit = {
-    completedOutputOperationIds += outputOperationCompleted.outputOperationInfo.id
-  }
-}
-
 class StreamingListenerSuiteReceiver extends Receiver[Any](StorageLevel.MEMORY_ONLY) with Logging {
   def onStart() {
     Future {
@@ -353,39 +270,14 @@ class StreamingListenerSuiteReceiver extends Receiver[Any](StorageLevel.MEMORY_O
 }
 
 /**
- * A StreamingListener that saves all latest `failureReasons` in a batch.
+ * A StreamingListener that saves the latest `failureReasons` in `BatchInfo` to the `failureReasons`
+ * field.
  */
 class FailureReasonsCollector extends StreamingListener {
 
-  val failureReasons = new HashMap[Int, String] with SynchronizedMap[Int, String]
+  @volatile var failureReasons: Map[Int, String] = null
 
-  override def onOutputOperationCompleted(
-      outputOperationCompleted: StreamingListenerOutputOperationCompleted): Unit = {
-    outputOperationCompleted.outputOperationInfo.failureReason.foreach { f =>
-      failureReasons(outputOperationCompleted.outputOperationInfo.id) = f
-    }
-  }
-}
-/**
- * A StreamingListener that calls StreamingContext.stop().
- */
-class StreamingContextStoppingCollector(val ssc: StreamingContext) extends StreamingListener {
-  @volatile var sparkExSeen = false
-
-  private var isFirstBatch = true
-
-  override def onBatchCompleted(batchCompleted: StreamingListenerBatchCompleted) {
-    if (isFirstBatch) {
-      // We should only call `ssc.stop()` in the first batch. Otherwise, it's possible that the main
-      // thread is calling `ssc.stop()`, while StreamingContextStoppingCollector is also calling
-      // `ssc.stop()` in the listener thread, which becomes a dead-lock.
-      isFirstBatch = false
-      try {
-        ssc.stop()
-      } catch {
-        case se: SparkException =>
-          sparkExSeen = true
-      }
-    }
+  override def onBatchCompleted(batchCompleted: StreamingListenerBatchCompleted): Unit = {
+    failureReasons = batchCompleted.batchInfo.failureReasons
   }
 }

@@ -18,7 +18,8 @@
 package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.types.{Decimal, DecimalType, LongType}
+import org.apache.spark.sql.types.{LongType, DecimalType, Decimal}
+
 
 class DecimalExpressionSuite extends SparkFunSuite with ExpressionEvalHelper {
 

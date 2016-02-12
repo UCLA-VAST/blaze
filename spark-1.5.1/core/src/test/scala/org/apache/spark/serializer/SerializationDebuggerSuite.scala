@@ -29,7 +29,6 @@ class SerializationDebuggerSuite extends SparkFunSuite with BeforeAndAfterEach {
   import SerializationDebugger.find
 
   override def beforeEach(): Unit = {
-    super.beforeEach()
     SerializationDebugger.enableDebugging = true
   }
 

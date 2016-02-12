@@ -18,8 +18,7 @@
 package org.apache.spark.deploy.history
 
 import java.io.{BufferedInputStream, FileNotFoundException, InputStream, IOException, OutputStream}
-import java.util.UUID
-import java.util.concurrent.{Executors, ExecutorService, TimeUnit}
+import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import scala.collection.mutable
@@ -27,9 +26,7 @@ import scala.collection.mutable
 import com.google.common.io.ByteStreams
 import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
-import org.apache.hadoop.hdfs.DistributedFileSystem
-import org.apache.hadoop.hdfs.protocol.HdfsConstants
-import org.apache.hadoop.security.AccessControlException
+import org.apache.hadoop.fs.permission.AccessControlException
 
 import org.apache.spark.{Logging, SecurityManager, SparkConf, SparkException}
 import org.apache.spark.deploy.SparkHadoopUtil
@@ -54,10 +51,6 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
 
   private val NOT_STARTED = "<Not Started>"
 
-  // Interval between safemode checks.
-  private val SAFEMODE_CHECK_INTERVAL_S = conf.getTimeAsSeconds(
-    "spark.history.fs.safemodeCheck.interval", "5s")
-
   // Interval between each check for event log updates
   private val UPDATE_INTERVAL_S = conf.getTimeAsSeconds("spark.history.fs.update.interval", "10s")
 
@@ -80,7 +73,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   // The modification time of the newest log detected during the last scan. This is used
   // to ignore logs that are older during subsequent scans, to avoid processing data that
   // is already known.
-  private var lastScanTime = -1L
+  private var lastModifiedTime = -1L
 
   // Mapping of application IDs to their metadata, in descending end time order. Apps are inserted
   // into the map in order, so the LinkedHashMap maintains the correct ordering.
@@ -113,52 +106,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     }
   }
 
-  // Conf option used for testing the initialization code.
-  val initThread = initialize()
+  initialize()
 
-  private[history] def initialize(): Thread = {
-    if (!isFsInSafeMode()) {
-      startPolling()
-      null
-    } else {
-      startSafeModeCheckThread(None)
-    }
-  }
-
-  private[history] def startSafeModeCheckThread(
-      errorHandler: Option[Thread.UncaughtExceptionHandler]): Thread = {
-    // Cannot probe anything while the FS is in safe mode, so spawn a new thread that will wait
-    // for the FS to leave safe mode before enabling polling. This allows the main history server
-    // UI to be shown (so that the user can see the HDFS status).
-    val initThread = new Thread(new Runnable() {
-      override def run(): Unit = {
-        try {
-          while (isFsInSafeMode()) {
-            logInfo("HDFS is still in safe mode. Waiting...")
-            val deadline = clock.getTimeMillis() +
-              TimeUnit.SECONDS.toMillis(SAFEMODE_CHECK_INTERVAL_S)
-            clock.waitTillTime(deadline)
-          }
-          startPolling()
-        } catch {
-          case _: InterruptedException =>
-        }
-      }
-    })
-    initThread.setDaemon(true)
-    initThread.setName(s"${getClass().getSimpleName()}-init")
-    initThread.setUncaughtExceptionHandler(errorHandler.getOrElse(
-      new Thread.UncaughtExceptionHandler() {
-        override def uncaughtException(t: Thread, e: Throwable): Unit = {
-          logError("Error initializing FsHistoryProvider.", e)
-          System.exit(1)
-        }
-      }))
-    initThread.start()
-    initThread
-  }
-
-  private def startPolling(): Unit = {
+  private def initialize(): Unit = {
     // Validate the log directory.
     val path = new Path(logDir)
     if (!fs.exists(path)) {
@@ -168,7 +118,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       }
       throw new IllegalArgumentException(msg)
     }
-    if (!fs.getFileStatus(path).isDirectory) {
+    if (!fs.getFileStatus(path).isDir) {
       throw new IllegalArgumentException(
         "Logging directory specified is not a directory: %s".format(logDir))
     }
@@ -195,15 +145,16 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
           val ui = {
             val conf = this.conf.clone()
             val appSecManager = new SecurityManager(conf)
-            SparkUI.createHistoryUI(conf, replayBus, appSecManager, appInfo.name,
+            SparkUI.createHistoryUI(conf, replayBus, appSecManager, appId,
               HistoryServer.getAttemptURI(appId, attempt.attemptId), attempt.startTime)
             // Do not call ui.bind() to avoid creating a new server for each application
           }
           val appListener = new ApplicationEventListener()
           replayBus.addListener(appListener)
-          val appAttemptInfo = replay(fs.getFileStatus(new Path(logDir, attempt.logPath)),
-            replayBus)
-          appAttemptInfo.map { info =>
+          val appInfo = replay(fs.getFileStatus(new Path(logDir, attempt.logPath)), replayBus)
+          appInfo.map { info =>
+            ui.setAppName(s"${info.name} ($appId)")
+
             val uiAclsEnabled = conf.getBoolean("spark.history.ui.acls.enable", false)
             ui.getSecurityManager.setAcls(uiAclsEnabled)
             // make sure to set admin acls before view acls so they are properly picked up
@@ -219,21 +170,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     }
   }
 
-  override def getConfig(): Map[String, String] = {
-    val safeMode = if (isFsInSafeMode()) {
-      Map("HDFS State" -> "In safe mode, application logs not available.")
-    } else {
-      Map()
-    }
-    Map("Event log directory" -> logDir.toString) ++ safeMode
-  }
-
-  override def stop(): Unit = {
-    if (initThread != null && initThread.isAlive()) {
-      initThread.interrupt()
-      initThread.join()
-    }
-  }
+  override def getConfig(): Map[String, String] = Map("Event log directory" -> logDir.toString)
 
   /**
    * Builds the application list based on the current contents of the log directory.
@@ -242,13 +179,16 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
    */
   private[history] def checkForLogs(): Unit = {
     try {
-      val newLastScanTime = getNewLastScanTime()
       val statusList = Option(fs.listStatus(new Path(logDir))).map(_.toSeq)
         .getOrElse(Seq[FileStatus]())
+      var newLastModifiedTime = lastModifiedTime
       val logInfos: Seq[FileStatus] = statusList
         .filter { entry =>
           try {
-            !entry.isDirectory() && (entry.getModificationTime() >= lastScanTime)
+            getModificationTime(entry).map { time =>
+              newLastModifiedTime = math.max(newLastModifiedTime, time)
+              time >= lastModifiedTime
+            }.getOrElse(false)
           } catch {
             case e: AccessControlException =>
               // Do not use "logInfo" since these messages can get pretty noisy if printed on
@@ -259,7 +199,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         }
         .flatMap { entry => Some(entry) }
         .sortWith { case (entry1, entry2) =>
-          entry1.getModificationTime() >= entry2.getModificationTime()
+          val mod1 = getModificationTime(entry1).getOrElse(-1L)
+          val mod2 = getModificationTime(entry2).getOrElse(-1L)
+          mod1 >= mod2
       }
 
       logInfos.grouped(20)
@@ -282,28 +224,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
           }
         }
 
-      lastScanTime = newLastScanTime
+      lastModifiedTime = newLastModifiedTime
     } catch {
       case e: Exception => logError("Exception in checking for event log updates", e)
-    }
-  }
-
-  private def getNewLastScanTime(): Long = {
-    val fileName = "." + UUID.randomUUID().toString
-    val path = new Path(logDir, fileName)
-    val fos = fs.create(path)
-
-    try {
-      fos.close()
-      fs.getFileStatus(path).getModificationTime
-    } catch {
-      case e: Exception =>
-        logError("Exception encountered when attempting to update last scan time", e)
-        lastScanTime
-    } finally {
-      if (!fs.delete(path, true)) {
-        logWarning(s"Error deleting ${path}")
-      }
     }
   }
 
@@ -337,7 +260,19 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
             attempt.attemptId.isEmpty || attemptId.isEmpty || attempt.attemptId.get == attemptId.get
           }.foreach { attempt =>
             val logPath = new Path(logDir, attempt.logPath)
-            zipFileToStream(new Path(logDir, attempt.logPath), attempt.logPath, zipStream)
+            // If this is a legacy directory, then add the directory to the zipStream and add
+            // each file to that directory.
+            if (isLegacyLogDirectory(fs.getFileStatus(logPath))) {
+              val files = fs.listStatus(logPath)
+              zipStream.putNextEntry(new ZipEntry(attempt.logPath + "/"))
+              zipStream.closeEntry()
+              files.foreach { file =>
+                val path = file.getPath
+                zipFileToStream(path, attempt.logPath + Path.SEPARATOR + path.getName, zipStream)
+              }
+            } else {
+              zipFileToStream(new Path(logDir, attempt.logPath), attempt.logPath, zipStream)
+            }
           }
         } finally {
           zipStream.close()
@@ -454,9 +389,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         try {
           val path = new Path(logDir, attempt.logPath)
           if (fs.exists(path)) {
-            if (!fs.delete(path, true)) {
-              logWarning(s"Error deleting ${path}")
-            }
+            fs.delete(path, true)
           }
         } catch {
           case e: AccessControlException =>
@@ -511,7 +444,12 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       bus: ReplayListenerBus): Option[FsApplicationAttemptInfo] = {
     val logPath = eventLog.getPath()
     logInfo(s"Replaying log path: $logPath")
-    val logInput = EventLoggingListener.openEventLog(logPath, fs)
+    val logInput =
+      if (isLegacyLogDirectory(eventLog)) {
+        openLegacyEventLog(logPath)
+      } else {
+        EventLoggingListener.openEventLog(logPath, fs)
+      }
     try {
       val appListener = new ApplicationEventListener
       val appCompleted = isApplicationCompleted(eventLog)
@@ -519,8 +457,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       bus.replay(logInput, logPath.toString, !appCompleted)
 
       // Without an app ID, new logs will render incorrectly in the listing page, so do not list or
-      // try to show their UI.
-      if (appListener.appId.isDefined) {
+      // try to show their UI. Some old versions of Spark generate logs without an app ID, so let
+      // logs generated by those versions go through.
+      if (appListener.appId.isDefined || !sparkVersionHasAppId(eventLog)) {
         Some(new FsApplicationAttemptInfo(
           logPath.getName(),
           appListener.appName.getOrElse(NOT_STARTED),
@@ -528,7 +467,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
           appListener.appAttemptId,
           appListener.startTime.getOrElse(-1L),
           appListener.endTime.getOrElse(-1L),
-          eventLog.getModificationTime(),
+          getModificationTime(eventLog).get,
           appListener.sparkUser.getOrElse(NOT_STARTED),
           appCompleted))
       } else {
@@ -540,34 +479,102 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   }
 
   /**
-   * Return true when the application has completed.
+   * Loads a legacy log directory. This assumes that the log directory contains a single event
+   * log file (along with other metadata files), which is the case for directories generated by
+   * the code in previous releases.
+   *
+   * @return input stream that holds one JSON record per line.
    */
-  private def isApplicationCompleted(entry: FileStatus): Boolean = {
-    !entry.getPath().getName().endsWith(EventLoggingListener.IN_PROGRESS)
+  private[history] def openLegacyEventLog(dir: Path): InputStream = {
+    val children = fs.listStatus(dir)
+    var eventLogPath: Path = null
+    var codecName: Option[String] = None
+
+    children.foreach { child =>
+      child.getPath().getName() match {
+        case name if name.startsWith(LOG_PREFIX) =>
+          eventLogPath = child.getPath()
+        case codec if codec.startsWith(COMPRESSION_CODEC_PREFIX) =>
+          codecName = Some(codec.substring(COMPRESSION_CODEC_PREFIX.length()))
+        case _ =>
+      }
+    }
+
+    if (eventLogPath == null) {
+      throw new IllegalArgumentException(s"$dir is not a Spark application log directory.")
+    }
+
+    val codec = try {
+        codecName.map { c => CompressionCodec.createCodec(conf, c) }
+      } catch {
+        case e: Exception =>
+          throw new IllegalArgumentException(s"Unknown compression codec $codecName.")
+      }
+
+    val in = new BufferedInputStream(fs.open(eventLogPath))
+    codec.map(_.compressedInputStream(in)).getOrElse(in)
   }
 
   /**
-   * Checks whether HDFS is in safe mode.
-   *
-   * Note that DistributedFileSystem is a `@LimitedPrivate` class, which for all practical reasons
-   * makes it more public than not.
+   * Return whether the specified event log path contains a old directory-based event log.
+   * Previously, the event log of an application comprises of multiple files in a directory.
+   * As of Spark 1.3, these files are consolidated into a single one that replaces the directory.
+   * See SPARK-2261 for more detail.
    */
-  private[history] def isFsInSafeMode(): Boolean = fs match {
-    case dfs: DistributedFileSystem =>
-      isFsInSafeMode(dfs)
-    case _ =>
-      false
+  private def isLegacyLogDirectory(entry: FileStatus): Boolean = entry.isDir()
+
+  /**
+   * Returns the modification time of the given event log. If the status points at an empty
+   * directory, `None` is returned, indicating that there isn't an event log at that location.
+   */
+  private def getModificationTime(fsEntry: FileStatus): Option[Long] = {
+    if (isLegacyLogDirectory(fsEntry)) {
+      val statusList = fs.listStatus(fsEntry.getPath)
+      if (!statusList.isEmpty) Some(statusList.map(_.getModificationTime()).max) else None
+    } else {
+      Some(fsEntry.getModificationTime())
+    }
   }
 
-  // For testing.
-  private[history] def isFsInSafeMode(dfs: DistributedFileSystem): Boolean = {
-    dfs.setSafeMode(HdfsConstants.SafeModeAction.SAFEMODE_GET)
+  /**
+   * Return true when the application has completed.
+   */
+  private def isApplicationCompleted(entry: FileStatus): Boolean = {
+    if (isLegacyLogDirectory(entry)) {
+      fs.exists(new Path(entry.getPath(), APPLICATION_COMPLETE))
+    } else {
+      !entry.getPath().getName().endsWith(EventLoggingListener.IN_PROGRESS)
+    }
+  }
+
+  /**
+   * Returns whether the version of Spark that generated logs records app IDs. App IDs were added
+   * in Spark 1.1.
+   */
+  private def sparkVersionHasAppId(entry: FileStatus): Boolean = {
+    if (isLegacyLogDirectory(entry)) {
+      fs.listStatus(entry.getPath())
+        .find { status => status.getPath().getName().startsWith(SPARK_VERSION_PREFIX) }
+        .map { status =>
+          val version = status.getPath().getName().substring(SPARK_VERSION_PREFIX.length())
+          version != "1.0" && version != "1.1"
+        }
+        .getOrElse(true)
+    } else {
+      true
+    }
   }
 
 }
 
 private[history] object FsHistoryProvider {
   val DEFAULT_LOG_DIR = "file:/tmp/spark-events"
+
+  // Constants used to parse Spark 1.0.0 log directories.
+  val LOG_PREFIX = "EVENT_LOG_"
+  val SPARK_VERSION_PREFIX = EventLoggingListener.SPARK_VERSION_KEY + "_"
+  val COMPRESSION_CODEC_PREFIX = EventLoggingListener.COMPRESSION_CODEC_KEY + "_"
+  val APPLICATION_COMPLETE = "APPLICATION_COMPLETE"
 }
 
 private class FsApplicationAttemptInfo(

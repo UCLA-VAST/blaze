@@ -36,11 +36,10 @@ if [ $# -le 0 ]; then
   exit 1
 fi
 
-if [ -z "${SPARK_HOME}" ]; then
-  export SPARK_HOME="$(cd "`dirname "$0"`"/..; pwd)"
-fi
+sbin="`dirname "$0"`"
+sbin="`cd "$sbin"; pwd`"
 
-. "${SPARK_HOME}/sbin/spark-config.sh"
+. "$sbin/spark-config.sh"
 
 # If the slaves file is specified in the command line,
 # then it takes precedence over the definition in
@@ -66,7 +65,7 @@ then
   shift
 fi
 
-. "${SPARK_HOME}/bin/load-spark-env.sh"
+. "$SPARK_PREFIX/bin/load-spark-env.sh"
 
 if [ "$HOSTLIST" = "" ]; then
   if [ "$SPARK_SLAVES" = "" ]; then

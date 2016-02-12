@@ -32,7 +32,7 @@ private[spark] class PartitionPruningRDDPartition(idx: Int, val parentSplit: Par
  * Represents a dependency between the PartitionPruningRDD and its parent. In this
  * case, the child RDD contains a subset of partitions of the parents'.
  */
-private[spark] class PruneDependency[T](rdd: RDD[T], partitionFilterFunc: Int => Boolean)
+private[spark] class PruneDependency[T](rdd: RDD[T], @transient partitionFilterFunc: Int => Boolean)
   extends NarrowDependency[T](rdd) {
 
   @transient
@@ -55,8 +55,8 @@ private[spark] class PruneDependency[T](rdd: RDD[T], partitionFilterFunc: Int =>
  */
 @DeveloperApi
 class PartitionPruningRDD[T: ClassTag](
-    prev: RDD[T],
-    partitionFilterFunc: Int => Boolean)
+    @transient prev: RDD[T],
+    @transient partitionFilterFunc: Int => Boolean)
   extends RDD[T](prev.context, List(new PruneDependency(prev, partitionFilterFunc))) {
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
@@ -65,7 +65,7 @@ class PartitionPruningRDD[T: ClassTag](
   }
 
   override protected def getPartitions: Array[Partition] =
-    dependencies.head.asInstanceOf[PruneDependency[T]].partitions
+    getDependencies.head.asInstanceOf[PruneDependency[T]].partitions
 }
 
 

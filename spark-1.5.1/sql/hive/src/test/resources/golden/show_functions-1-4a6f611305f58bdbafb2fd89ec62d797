@@ -1,5 +1,4 @@
 case
-cbrt
 ceil
 ceiling
 coalesce
@@ -18,6 +17,3 @@ covar_samp
 create_union
 cume_dist
 current_database
-current_date
-current_timestamp
-current_user

@@ -17,9 +17,10 @@
 
 package org.apache.spark.sql.catalyst.expressions.codegen
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{UnsafeRow, Attribute}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.Platform
+
 
 abstract class UnsafeRowJoiner {
   def join(row1: UnsafeRow, row2: UnsafeRow): UnsafeRow
@@ -60,9 +61,9 @@ object GenerateUnsafeRowJoiner extends CodeGenerator[(StructType, StructType), U
     val outputBitsetWords = (schema1.size + schema2.size + 63) / 64
     val bitset1Remainder = schema1.size % 64
 
-    // The number of bytes we can reduce when we concat two rows together.
+    // The number of words we can reduce when we concat two rows together.
     // The only reduction comes from merging the bitset portion of the two rows, saving 1 word.
-    val sizeReduction = (bitset1Words + bitset2Words - outputBitsetWords) * 8
+    val sizeReduction = bitset1Words + bitset2Words - outputBitsetWords
 
     // --------------------- copy bitset from row 1 and row 2 --------------------------- //
     val copyBitset = Seq.tabulate(outputBitsetWords) { i =>
@@ -158,26 +159,26 @@ object GenerateUnsafeRowJoiner extends CodeGenerator[(StructType, StructType), U
 
     // ------------------------ Finally, put everything together  --------------------------- //
     val code = s"""
-       |public java.lang.Object generate(Object[] references) {
+       |public Object generate($exprType[] exprs) {
        |  return new SpecificUnsafeRowJoiner();
        |}
        |
        |class SpecificUnsafeRowJoiner extends ${classOf[UnsafeRowJoiner].getName} {
        |  private byte[] buf = new byte[64];
-       |  private UnsafeRow out = new UnsafeRow(${schema1.size + schema2.size});
+       |  private UnsafeRow out = new UnsafeRow();
        |
        |  public UnsafeRow join(UnsafeRow row1, UnsafeRow row2) {
        |    // row1: ${schema1.size} fields, $bitset1Words words in bitset
        |    // row2: ${schema2.size}, $bitset2Words words in bitset
        |    // output: ${schema1.size + schema2.size} fields, $outputBitsetWords words in bitset
-       |    final int sizeInBytes = row1.getSizeInBytes() + row2.getSizeInBytes() - $sizeReduction;
+       |    final int sizeInBytes = row1.getSizeInBytes() + row2.getSizeInBytes();
        |    if (sizeInBytes > buf.length) {
        |      buf = new byte[sizeInBytes];
        |    }
        |
-       |    final java.lang.Object obj1 = row1.getBaseObject();
+       |    final Object obj1 = row1.getBaseObject();
        |    final long offset1 = row1.getBaseOffset();
-       |    final java.lang.Object obj2 = row2.getBaseObject();
+       |    final Object obj2 = row2.getBaseObject();
        |    final long offset2 = row2.getBaseOffset();
        |
        |    $copyBitset
@@ -187,7 +188,7 @@ object GenerateUnsafeRowJoiner extends CodeGenerator[(StructType, StructType), U
        |    $copyVariableLengthRow2
        |    $updateOffset
        |
-       |    out.pointTo(buf, sizeInBytes);
+       |    out.pointTo(buf, ${schema1.size + schema2.size}, sizeInBytes - $sizeReduction);
        |
        |    return out;
        |  }
@@ -196,7 +197,7 @@ object GenerateUnsafeRowJoiner extends CodeGenerator[(StructType, StructType), U
 
     logDebug(s"SpecificUnsafeRowJoiner($schema1, $schema2):\n${CodeFormatter.format(code)}")
 
-    val c = CodeGenerator.compile(code)
+    val c = compile(code)
     c.generate(Array.empty).asInstanceOf[UnsafeRowJoiner]
   }
 }

@@ -70,13 +70,6 @@ class LBFGS(private var gradient: Gradient, private var updater: Updater)
     this
   }
 
-  /*
-   * Get the convergence tolerance of iterations.
-   */
-  private[mllib] def getConvergenceTol(): Double = {
-    this.convergenceTol
-  }
-
   /**
    * Set the maximal number of iterations for L-BFGS. Default 100.
    * @deprecated use [[LBFGS#setNumIterations]] instead
@@ -95,25 +88,11 @@ class LBFGS(private var gradient: Gradient, private var updater: Updater)
   }
 
   /**
-   * Get the maximum number of iterations for L-BFGS. Defaults to 100.
-   */
-  private[mllib] def getNumIterations(): Int = {
-    this.maxNumIterations
-  }
-
-  /**
    * Set the regularization parameter. Default 0.0.
    */
   def setRegParam(regParam: Double): this.type = {
     this.regParam = regParam
     this
-  }
-
-  /**
-   * Get the regularization parameter.
-   */
-  private[mllib] def getRegParam(): Double = {
-    this.regParam
   }
 
   /**
@@ -133,13 +112,6 @@ class LBFGS(private var gradient: Gradient, private var updater: Updater)
   def setUpdater(updater: Updater): this.type = {
     this.updater = updater
     this
-  }
-
-  /**
-   * Returns the updater, limited to internal use.
-   */
-  private[mllib] def getUpdater(): Updater = {
-    updater
   }
 
   override def optimize(data: RDD[(Double, Vector)], initialWeights: Vector): Vector = {
@@ -242,7 +214,6 @@ object LBFGS extends Logging {
       lossHistoryArray.takeRight(10).mkString(", ")))
 
     blaze.stop()
-
     (weights, lossHistoryArray)
   }
 
@@ -275,7 +246,7 @@ object LBFGS extends Logging {
       var label = input(0)
       var features = Vectors.dense(input.slice(1, input.length))
       var loss = localGradient.compute(
-        features, label, Vectors.dense(weights.value), grad)
+        features, label, Vectors.dense(weights.data), grad)
       grad.toArray :+ loss
     }
 
@@ -290,7 +261,7 @@ object LBFGS extends Logging {
           var label = array(0)
           var features = Vectors.dense(array.slice(1, array.length))
           val l = localGradient.compute(
-            features, label, Vectors.dense(weights.value), grad)
+            features, label, Vectors.dense(weights.data), grad)
           loss = loss + l
         }
         def hasNext = (idx < 1)
@@ -329,12 +300,11 @@ object LBFGS extends Logging {
           new LogisticGradientWithACC(n, localGradient, blaze_weight)
         ).map(
           a => (Vectors.dense(a.slice(0, a.length-1)), a(a.length-1))
-        ).reduce( (a, b) => (a, b) match {
+        ).reduce( (a, b) => (a , b) match {
           case ((grad1, loss1), (grad2, loss2)) =>
             axpy(1.0, grad2, grad1)
             (grad1, loss1 + loss2)
         })
-
 
       /**
        * regVal is sum of weight squares if it's L2 updater;

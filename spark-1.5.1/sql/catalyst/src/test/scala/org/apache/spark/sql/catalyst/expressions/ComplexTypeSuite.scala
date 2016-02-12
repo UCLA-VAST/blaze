@@ -18,6 +18,7 @@
 package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.UnresolvedExtractValue
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.types._
@@ -78,8 +79,8 @@ class ComplexTypeSuite extends SparkFunSuite with ExpressionEvalHelper {
     def getStructField(expr: Expression, fieldName: String): GetStructField = {
       expr.dataType match {
         case StructType(fields) =>
-          val index = fields.indexWhere(_.name == fieldName)
-          GetStructField(expr, index)
+          val field = fields.find(_.name == fieldName).get
+          GetStructField(expr, field, fields.indexOf(field))
       }
     }
 
@@ -164,7 +165,7 @@ class ComplexTypeSuite extends SparkFunSuite with ExpressionEvalHelper {
       "b", create_row(Map("a" -> "b")))
     checkEvaluation(quickResolve('c.array(StringType).at(0).getItem(1)),
       "b", create_row(Seq("a", "b")))
-    checkEvaluation(quickResolve('c.struct('a.int).at(0).getField("a")),
+    checkEvaluation(quickResolve('c.struct(StructField("a", IntegerType)).at(0).getField("a")),
       1, create_row(create_row(1)))
   }
 

@@ -16,9 +16,14 @@
  */
 
 .navbar {
+  height: 50px;
   font-size: 15px;
   margin-bottom: 15px;
-  min-width: 600px;
+  min-width: 1200px
+}
+
+.navbar .navbar-inner {
+  height: 50px;
 }
 
 .navbar .brand {
@@ -41,7 +46,6 @@
 .navbar-text {
   height: 50px;
   line-height: 3.3;
-  white-space: nowrap;
 }
 
 table.sortable thead {
@@ -221,17 +225,10 @@ a.expandbutton {
   cursor: pointer;
 }
 
-.threaddump-td-mouseover {
-  background-color: #49535a !important;
-  color: white;
-  cursor:pointer;
+.executor-thread {
+  background: #E6E6E6;
 }
 
-.table-head-clickable th a, .table-head-clickable th a:hover {
-  /* Make the entire header clickable, not just the text label */
-  display: block;
-  width: 100%;
-  /* Suppress the default link styling */
-  color: #333;
-  text-decoration: none;
+.non-executor-thread {
+  background: #FAFAFA;
 }

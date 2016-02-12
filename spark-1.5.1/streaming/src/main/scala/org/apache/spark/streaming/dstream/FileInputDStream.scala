@@ -42,7 +42,6 @@ import org.apache.spark.util.{SerializableConfiguration, TimeStampedHashMap, Uti
  * class remembers the information about the files selected in past batches for
  * a certain duration (say, "remember window") as shown in the figure below.
  *
- * {{{
  *                      |<----- remember window ----->|
  * ignore threshold --->|                             |<--- current batch time
  *                      |____.____.____.____.____.____|
@@ -50,7 +49,6 @@ import org.apache.spark.util.{SerializableConfiguration, TimeStampedHashMap, Uti
  * ---------------------|----|----|----|----|----|----|-----------------------> Time
  *                      |____|____|____|____|____|____|
  *                             remembered batches
- * }}}
  *
  * The trailing end of the window is the "ignore threshold" and all files whose mod times
  * are less than this threshold are assumed to have already been selected and are therefore
@@ -61,25 +59,24 @@ import org.apache.spark.util.{SerializableConfiguration, TimeStampedHashMap, Uti
  * `isNewFile` for more details.
  *
  * This makes some assumptions from the underlying file system that the system is monitoring.
- *
- *  - The clock of the file system is assumed to synchronized with the clock of the machine running
- *    the streaming app.
- *  - If a file is to be visible in the directory listings, it must be visible within a certain
- *    duration of the mod time of the file. This duration is the "remember window", which is set to
- *    1 minute (see `FileInputDStream.minRememberDuration`). Otherwise, the file will never be
- *    selected as the mod time will be less than the ignore threshold when it becomes visible.
- *  - Once a file is visible, the mod time cannot change. If it does due to appends, then the
- *    processing semantics are undefined.
+ * - The clock of the file system is assumed to synchronized with the clock of the machine running
+ *   the streaming app.
+ * - If a file is to be visible in the directory listings, it must be visible within a certain
+ *   duration of the mod time of the file. This duration is the "remember window", which is set to
+ *   1 minute (see `FileInputDStream.minRememberDuration`). Otherwise, the file will never be
+ *   selected as the mod time will be less than the ignore threshold when it becomes visible.
+ * - Once a file is visible, the mod time cannot change. If it does due to appends, then the
+ *   processing semantics are undefined.
  */
 private[streaming]
 class FileInputDStream[K, V, F <: NewInputFormat[K, V]](
-    _ssc: StreamingContext,
+    @transient ssc_ : StreamingContext,
     directory: String,
     filter: Path => Boolean = FileInputDStream.defaultFilter,
     newFilesOnly: Boolean = true,
     conf: Option[Configuration] = None)
     (implicit km: ClassTag[K], vm: ClassTag[V], fm: ClassTag[F])
-  extends InputDStream[(K, V)](_ssc) {
+  extends InputDStream[(K, V)](ssc_) {
 
   private val serializableConfOpt = conf.map(new SerializableConfiguration(_))
 
@@ -128,8 +125,8 @@ class FileInputDStream[K, V, F <: NewInputFormat[K, V]](
   // Timestamp of the last round of finding files
   @transient private var lastNewFileFindingTime = 0L
 
-  @transient private var _path: Path = null
-  @transient private var _fs: FileSystem = null
+  @transient private var path_ : Path = null
+  @transient private var fs_ : FileSystem = null
 
   override def start() { }
 
@@ -289,17 +286,17 @@ class FileInputDStream[K, V, F <: NewInputFormat[K, V]](
   }
 
   private def directoryPath: Path = {
-    if (_path == null) _path = new Path(directory)
-    _path
+    if (path_ == null) path_ = new Path(directory)
+    path_
   }
 
   private def fs: FileSystem = {
-    if (_fs == null) _fs = directoryPath.getFileSystem(ssc.sparkContext.hadoopConfiguration)
-    _fs
+    if (fs_ == null) fs_ = directoryPath.getFileSystem(ssc.sparkContext.hadoopConfiguration)
+    fs_
   }
 
   private def reset()  {
-    _fs = null
+    fs_ = null
   }
 
   @throws(classOf[IOException])

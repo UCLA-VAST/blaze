@@ -23,24 +23,23 @@ import java.net.URL
 import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.util.control.NonFatal
 
 import org.apache.spark._
 import org.apache.spark.deploy.SparkHadoopUtil
-import org.apache.spark.memory.TaskMemoryManager
-import org.apache.spark.rpc.RpcTimeout
-import org.apache.spark.scheduler.{AccumulableInfo, DirectTaskResult, IndirectTaskResult, Task}
+import org.apache.spark.scheduler.{DirectTaskResult, IndirectTaskResult, Task}
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.storage.{StorageLevel, TaskResultBlockId}
+import org.apache.spark.unsafe.memory.TaskMemoryManager
 import org.apache.spark.util._
 
 /**
  * Spark executor, backed by a threadpool to run tasks.
  *
  * This can be used with Mesos, YARN, and the standalone scheduler.
- * An internal RPC interface is used for communication with the driver,
+ * An internal RPC interface (at the moment Akka) is used for communication with the driver,
  * except in the case of Mesos fine-grained mode.
  */
 private[spark] class Executor(
@@ -86,6 +85,10 @@ private[spark] class Executor(
     env.blockManager.initialize(conf.getAppId)
   }
 
+  // Create an RpcEndpoint for receiving RPCs from the driver
+  private val executorEndpoint = env.rpcEnv.setupEndpoint(
+    ExecutorEndpoint.EXECUTOR_ENDPOINT_NAME, new ExecutorEndpoint(env.rpcEnv, executorId))
+
   // Whether to load classes in user jars before those in Spark jars
   private val userClassPathFirst = conf.getBoolean("spark.executor.userClassPathFirst", false)
 
@@ -97,9 +100,9 @@ private[spark] class Executor(
   // Set the classloader for serializer
   env.serializer.setDefaultClassLoader(replClassLoader)
 
-  // Max RPC message size. If task result is bigger than this, we use the block manager
+  // Akka's message frame size. If task result is bigger than this, we use the block manager
   // to send the result back.
-  private val maxRpcMessageSize = RpcUtils.maxMessageSizeBytes(conf)
+  private val akkaFrameSize = AkkaUtils.maxFrameSizeBytes(conf)
 
   // Limit of bytes for total size of results (default is 1GB)
   private val maxResultSize = Utils.getMaxResultSize(conf)
@@ -109,10 +112,6 @@ private[spark] class Executor(
 
   // Executor for the heartbeat task.
   private val heartbeater = ThreadUtils.newDaemonSingleThreadScheduledExecutor("driver-heartbeater")
-
-  // must be initialized before running startDriverHeartbeat()
-  private val heartbeatReceiverRef =
-    RpcUtils.makeDriverRef(HeartbeatReceiver.ENDPOINT_NAME, conf, env.rpcEnv)
 
   startDriverHeartbeater()
 
@@ -137,6 +136,7 @@ private[spark] class Executor(
 
   def stop(): Unit = {
     env.metricsSystem.report()
+    env.rpcEnv.stop(executorEndpoint)
     heartbeater.shutdown()
     heartbeater.awaitTermination(10, TimeUnit.SECONDS)
     threadPool.shutdown()
@@ -147,7 +147,7 @@ private[spark] class Executor(
 
   /** Returns the total amount of time this JVM process has spent in garbage collection. */
   private def computeTotalGcTime(): Long = {
-    ManagementFactory.getGarbageCollectorMXBeans.asScala.map(_.getCollectionTime).sum
+    ManagementFactory.getGarbageCollectorMXBeans.map(_.getCollectionTime).sum
   }
 
   class TaskRunner(
@@ -179,7 +179,7 @@ private[spark] class Executor(
     }
 
     override def run(): Unit = {
-      val taskMemoryManager = new TaskMemoryManager(env.memoryManager, taskId)
+      val taskMemoryManager = new TaskMemoryManager(env.executorMemoryManager)
       val deserializeStartTime = System.currentTimeMillis()
       Thread.currentThread.setContextClassLoader(replClassLoader)
       val ser = env.closureSerializer.newInstance()
@@ -210,7 +210,7 @@ private[spark] class Executor(
         // Run the actual task and measure its runtime.
         taskStart = System.currentTimeMillis()
         var threwException = true
-        val value = try {
+        val (value, accumUpdates) = try {
           val res = task.run(
             taskAttemptId = taskId,
             attemptNumber = attemptNumber,
@@ -249,11 +249,10 @@ private[spark] class Executor(
           m.setExecutorRunTime((taskFinish - taskStart) - task.executorDeserializeTime)
           m.setJvmGCTime(computeTotalGcTime() - startGCTime)
           m.setResultSerializationTime(afterSerialization - beforeSerialization)
+          m.updateAccumulators()
         }
 
-        // Note: accumulator updates must be collected after TaskMetrics is updated
-        val accumUpdates = task.collectAccumulatorUpdates()
-        val directResult = new DirectTaskResult(valueBytes, accumUpdates)
+        val directResult = new DirectTaskResult(valueBytes, accumUpdates, task.metrics.orNull)
         val serializedDirectResult = ser.serialize(directResult)
         val resultSize = serializedDirectResult.limit
 
@@ -264,7 +263,7 @@ private[spark] class Executor(
               s"(${Utils.bytesToString(resultSize)} > ${Utils.bytesToString(maxResultSize)}), " +
               s"dropping it.")
             ser.serialize(new IndirectTaskResult[Any](TaskResultBlockId(taskId), resultSize))
-          } else if (resultSize >= maxRpcMessageSize) {
+          } else if (resultSize >= akkaFrameSize - AkkaUtils.reservedSizeBytes) {
             val blockId = TaskResultBlockId(taskId)
             env.blockManager.putBytes(
               blockId, serializedDirectResult, StorageLevel.MEMORY_AND_DISK_SER)
@@ -298,25 +297,21 @@ private[spark] class Executor(
           // the default uncaught exception handler, which will terminate the Executor.
           logError(s"Exception in $taskName (TID $taskId)", t)
 
-          // Collect latest accumulator values to report back to the driver
-          val accumulatorUpdates: Seq[AccumulableInfo] =
-          if (task != null) {
-            task.metrics.foreach { m =>
+          val metrics: Option[TaskMetrics] = Option(task).flatMap { task =>
+            task.metrics.map { m =>
               m.setExecutorRunTime(System.currentTimeMillis() - taskStart)
               m.setJvmGCTime(computeTotalGcTime() - startGCTime)
+              m.updateAccumulators()
+              m
             }
-            task.collectAccumulatorUpdates(taskFailed = true)
-          } else {
-            Seq.empty[AccumulableInfo]
           }
-
           val serializedTaskEndReason = {
             try {
-              ser.serialize(new ExceptionFailure(t, accumulatorUpdates))
+              ser.serialize(new ExceptionFailure(t, metrics))
             } catch {
               case _: NotSerializableException =>
                 // t is not serializable so just send the stacktrace
-                ser.serialize(new ExceptionFailure(t, accumulatorUpdates, preserveCause = false))
+                ser.serialize(new ExceptionFailure(t, metrics, false))
             }
           }
           execBackend.statusUpdate(taskId, TaskState.FAILED, serializedTaskEndReason)
@@ -370,9 +365,9 @@ private[spark] class Executor(
         val _userClassPathFirst: java.lang.Boolean = userClassPathFirst
         val klass = Utils.classForName("org.apache.spark.repl.ExecutorClassLoader")
           .asInstanceOf[Class[_ <: ClassLoader]]
-        val constructor = klass.getConstructor(classOf[SparkConf], classOf[SparkEnv],
-          classOf[String], classOf[ClassLoader], classOf[Boolean])
-        constructor.newInstance(conf, env, classUri, parent, _userClassPathFirst)
+        val constructor = klass.getConstructor(classOf[SparkConf], classOf[String],
+          classOf[ClassLoader], classOf[Boolean])
+        constructor.newInstance(conf, classUri, parent, _userClassPathFirst)
       } catch {
         case _: ClassNotFoundException =>
           logError("Could not find org.apache.spark.repl.ExecutorClassLoader on classpath!")
@@ -421,26 +416,40 @@ private[spark] class Executor(
     }
   }
 
+  private val heartbeatReceiverRef =
+    RpcUtils.makeDriverRef(HeartbeatReceiver.ENDPOINT_NAME, conf, env.rpcEnv)
+
   /** Reports heartbeat and metrics for active tasks to the driver. */
   private def reportHeartBeat(): Unit = {
-    // list of (task id, accumUpdates) to send back to the driver
-    val accumUpdates = new ArrayBuffer[(Long, Seq[AccumulableInfo])]()
+    // list of (task id, metrics) to send back to the driver
+    val tasksMetrics = new ArrayBuffer[(Long, TaskMetrics)]()
     val curGCTime = computeTotalGcTime()
 
-    for (taskRunner <- runningTasks.values().asScala) {
+    for (taskRunner <- runningTasks.values()) {
       if (taskRunner.task != null) {
         taskRunner.task.metrics.foreach { metrics =>
-          metrics.mergeShuffleReadMetrics()
+          metrics.updateShuffleReadMetrics()
+          metrics.updateInputMetrics()
           metrics.setJvmGCTime(curGCTime - taskRunner.startGCTime)
-          accumUpdates += ((taskRunner.taskId, metrics.accumulatorUpdates()))
+          metrics.updateAccumulators()
+
+          if (isLocal) {
+            // JobProgressListener will hold an reference of it during
+            // onExecutorMetricsUpdate(), then JobProgressListener can not see
+            // the changes of metrics any more, so make a deep copy of it
+            val copiedMetrics = Utils.deserialize[TaskMetrics](Utils.serialize(metrics))
+            tasksMetrics += ((taskRunner.taskId, copiedMetrics))
+          } else {
+            // It will be copied by serialization
+            tasksMetrics += ((taskRunner.taskId, metrics))
+          }
         }
       }
     }
 
-    val message = Heartbeat(executorId, accumUpdates.toArray, env.blockManager.blockManagerId)
+    val message = Heartbeat(executorId, tasksMetrics.toArray, env.blockManager.blockManagerId)
     try {
-      val response = heartbeatReceiverRef.askWithRetry[HeartbeatResponse](
-          message, RpcTimeout(conf, "spark.executor.heartbeatInterval", "10s"))
+      val response = heartbeatReceiverRef.askWithRetry[HeartbeatResponse](message)
       if (response.reregisterBlockManager) {
         logInfo("Told to re-register on heartbeat")
         env.blockManager.reregister()

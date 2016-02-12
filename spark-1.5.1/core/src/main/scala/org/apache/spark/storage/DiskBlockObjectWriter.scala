@@ -17,12 +17,12 @@
 
 package org.apache.spark.storage
 
-import java.io.{BufferedOutputStream, File, FileOutputStream, OutputStream}
+import java.io.{BufferedOutputStream, FileOutputStream, File, OutputStream}
 import java.nio.channels.FileChannel
 
 import org.apache.spark.Logging
+import org.apache.spark.serializer.{SerializerInstance, SerializationStream}
 import org.apache.spark.executor.ShuffleWriteMetrics
-import org.apache.spark.serializer.{SerializationStream, SerializerInstance}
 import org.apache.spark.util.Utils
 
 /**
@@ -34,15 +34,15 @@ import org.apache.spark.util.Utils
  * reopened again.
  */
 private[spark] class DiskBlockObjectWriter(
-    val file: File,
+    val blockId: BlockId,
+    file: File,
     serializerInstance: SerializerInstance,
     bufferSize: Int,
     compressStream: OutputStream => OutputStream,
     syncWrites: Boolean,
     // These write metrics concurrently shared with other active DiskBlockObjectWriters who
     // are themselves performing writes. All updates must be relative.
-    writeMetrics: ShuffleWriteMetrics,
-    val blockId: BlockId = null)
+    writeMetrics: ShuffleWriteMetrics)
   extends OutputStream
   with Logging {
 
@@ -102,7 +102,7 @@ private[spark] class DiskBlockObjectWriter(
           objOut.flush()
           val start = System.nanoTime()
           fos.getFD.sync()
-          writeMetrics.incWriteTime(System.nanoTime() - start)
+          writeMetrics.incShuffleWriteTime(System.nanoTime() - start)
         }
       } {
         objOut.close()
@@ -132,7 +132,7 @@ private[spark] class DiskBlockObjectWriter(
       close()
       finalPosition = file.length()
       // In certain compression codecs, more bytes are written after close() is called
-      writeMetrics.incBytesWritten(finalPosition - reportedPosition)
+      writeMetrics.incShuffleBytesWritten(finalPosition - reportedPosition)
     } else {
       finalPosition = file.length()
     }
@@ -144,16 +144,14 @@ private[spark] class DiskBlockObjectWriter(
    * Reverts writes that haven't been flushed yet. Callers should invoke this function
    * when there are runtime exceptions. This method will not throw, though it may be
    * unsuccessful in truncating written data.
-   *
-   * @return the file that this DiskBlockObjectWriter wrote to.
    */
-  def revertPartialWritesAndClose(): File = {
+  def revertPartialWritesAndClose() {
     // Discard current writes. We do this by flushing the outstanding writes and then
     // truncating the file to its initial position.
     try {
       if (initialized) {
-        writeMetrics.decBytesWritten(reportedPosition - initialPosition)
-        writeMetrics.decRecordsWritten(numRecordsWritten)
+        writeMetrics.decShuffleBytesWritten(reportedPosition - initialPosition)
+        writeMetrics.decShuffleRecordsWritten(numRecordsWritten)
         objOut.flush()
         bs.flush()
         close()
@@ -162,14 +160,12 @@ private[spark] class DiskBlockObjectWriter(
       val truncateStream = new FileOutputStream(file, true)
       try {
         truncateStream.getChannel.truncate(initialPosition)
-        file
       } finally {
         truncateStream.close()
       }
     } catch {
       case e: Exception =>
         logError("Uncaught exception while reverting partial writes to file " + file, e)
-        file
     }
   }
 
@@ -201,7 +197,7 @@ private[spark] class DiskBlockObjectWriter(
    */
   def recordWritten(): Unit = {
     numRecordsWritten += 1
-    writeMetrics.incRecordsWritten(1)
+    writeMetrics.incShuffleRecordsWritten(1)
 
     if (numRecordsWritten % 32 == 0) {
       updateBytesWritten()
@@ -226,7 +222,7 @@ private[spark] class DiskBlockObjectWriter(
    */
   private def updateBytesWritten() {
     val pos = channel.position()
-    writeMetrics.incBytesWritten(pos - reportedPosition)
+    writeMetrics.incShuffleBytesWritten(pos - reportedPosition)
     reportedPosition = pos
   }
 

@@ -17,10 +17,11 @@
 
 package org.apache.spark.serializer
 
-import java.io.{EOFException, InputStream, OutputStream}
+import java.io.{EOFException, OutputStream, InputStream}
 import java.nio.ByteBuffer
 
 import scala.reflect.ClassTag
+
 
 /**
  * A serializer implementation that always returns two elements in a deserialization stream.
