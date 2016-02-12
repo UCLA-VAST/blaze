@@ -131,6 +131,11 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>blaze_${scala.binary.version}</artifactId>
+      <version>1.0</version>
+    </dependency>
   </dependencies>
   <profiles>
     <profile>
