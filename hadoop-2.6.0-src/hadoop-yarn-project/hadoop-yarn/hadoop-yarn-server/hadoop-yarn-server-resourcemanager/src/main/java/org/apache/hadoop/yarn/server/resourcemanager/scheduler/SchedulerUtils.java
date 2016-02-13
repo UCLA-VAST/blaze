@@ -301,7 +301,6 @@ public class SchedulerUtils {
     }
 
     if (labelExpression != null) {
-      //for (String str : labelExpression.split("\\+")) {
       for (String str : labelExpression.split("&&")) {
         if (!str.trim().isEmpty()
             && (nodeLabels == null || !nodeLabels.contains(str.trim()))) {
@@ -321,7 +320,6 @@ public class SchedulerUtils {
     if (labelExpression == null) {
       return true;
     }
-    //for (String str : labelExpression.split("\\+")) {
     for (String str : labelExpression.split("&&")) {
       if (!str.trim().isEmpty()
           && (queueLabels == null || !queueLabels.contains(str.trim()))) {
