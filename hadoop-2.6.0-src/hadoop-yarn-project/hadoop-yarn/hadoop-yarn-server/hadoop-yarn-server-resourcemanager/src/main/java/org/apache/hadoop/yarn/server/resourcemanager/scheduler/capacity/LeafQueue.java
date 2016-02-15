@@ -710,7 +710,7 @@ public class LeafQueue extends AbstractCSQueue {
     if (null == labelExpression) {
       return labels;
     }
-    for (String l : labelExpression.split("\\+")) {
+    for (String l : labelExpression.split("&&")) {
       if (l.trim().isEmpty()) {
         continue;
       }
