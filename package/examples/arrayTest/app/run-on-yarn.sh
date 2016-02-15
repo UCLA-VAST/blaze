@@ -9,11 +9,12 @@ if [ ! -f "$FCS_RT_ROOT/nam/bin/nam_daemon" ]; then
 fi
 SPARK_HOME=$FCS_RT_ROOT/spark-1.5.1-bin-fcs
 $SPARK_HOME/bin/spark-submit --class TestApp \
-	--driver-memory 2G \
-	--executor-memory 1G \
-	--executor-cores 2 \
-	--executor-label ArrayTest \
-	--num-executors 1 \
-	--master yarn-cluster \
-	target/arraytest-1.0.jar $@
-
+  --driver-memory 2G \
+  --executor-memory 1G \
+  --executor-cores 2 \
+  --conf spark.yarn.am.nodeLabelExpression="ArrayTest" \
+  --conf spark.yarn.executor.nodeLabelExpression="ArrayTest" \
+  --executor-label ArrayTest \
+  --num-executors 1 \
+  --master yarn-cluster \
+  target/arraytest-1.0.jar $@
