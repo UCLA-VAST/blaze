@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FCS_RT_ROOT=[FCSROOT]
+FCS_RT_ROOT=/curr/diwu/prog/sandbox/fcs_runtime
 
 if [ ! -e $FCS_RT_ROOT/nam/bin ]; then
   echo "FCS_RT_ROOT is not set properly"

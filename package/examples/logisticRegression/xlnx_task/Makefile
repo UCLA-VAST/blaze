@@ -17,6 +17,7 @@ COMPILE= $(CFLAGS) \
 				 -I$(FCS_RT_ROOT)/include \
 				 -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
 				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
+LINK= -L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL
 
 ACC = LogisticGradientWithLoss
 
@@ -25,7 +26,7 @@ OBJS= $(addsuffix .so, $(ACC))
 all: $(OBJS)
 
 %.so: %.cpp Makefile
-	$(PP) $(COMPILE) $< -o $@
+	$(PP) $(COMPILE) $(LINK) $< -o $@
 
 clean:
 	rm -rf $(OBJS)

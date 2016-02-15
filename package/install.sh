@@ -1,18 +1,25 @@
 #!/bin/bash
 
+HADOOP_VERSION=2.6.0
+SPARK_VERSION=1.5.1
+
 echo "Setting up Falcon Computing Solutions (FCS) Runtime System..."
 
 echo "#1 Unpacking Hadoop..."
-if tar zxf hadoop-2.6.0-bin-fcs.tar.gz; then 
-  rm -rf hadoop-2.6.0-bin-fcs.tar.gz
+HADOOP_DIR=hadoop-${HADOOP_VERSION}-bin-fcs
+mkdir $HADOOP_DIR
+if tar zxf ${HADOOP_DIR}.tar.gz -C $HADOOP_DIR --strip-components 1; then 
+  rm -rf ${HADOOP_DIR}.tar.gz
 else
   echo "Failed to unpack hadoop-2.6.0-bin-fcs.tar.gz"
   exit -1
 fi 
 
 echo "#2 Unpacking Spark..."
-if tar zxf spark-1.4.0-bin-fcs.tar.gz; then 
-  rm -rf spark-1.4.0-bin-fcs.tar.gz
+SPARK_DIR=spark-${SPARK_VERSION}-bin-fcs
+mkdir $SPARK_DIR
+if tar zxf ${SPARK_DIR}.tar.gz -C $SPARK_DIR --strip-components 1; then 
+  rm -rf ${SPARK_DIR}.tar.gz
 else
   echo "Failed to unpack spark-1.4.0-bin-fcs.tar.gz"
   exit -1

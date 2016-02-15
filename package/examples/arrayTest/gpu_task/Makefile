@@ -15,6 +15,7 @@ COMPILE= $(CFLAGS) \
 				 -I$(FCS_RT_ROOT)/include \
 				 -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
 				 -I$(CUDA_DIR)/include
+LINK=-L$(CUDA_DIR)/lib64 -lOpenCL
 
 ACC = ArrayTest
 

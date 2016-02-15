@@ -25,7 +25,7 @@
     <scala.version>2.10.4</scala.version>
     <scala.binary.version>2.10</scala.binary.version>
 		<scala.tools.version>2.10</scala.tools.version>
-    <spark.version>1.4.0</spark.version>
+    <spark.version>1.5.1</spark.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
@@ -56,7 +56,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>blaze</artifactId>
+      <artifactId>blaze_${scala.binary.version}</artifactId>
       <version>1.0</version>
     </dependency>
   </dependencies>
