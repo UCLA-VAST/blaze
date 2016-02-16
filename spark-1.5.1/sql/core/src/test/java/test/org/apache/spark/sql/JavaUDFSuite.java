@@ -20,7 +20,6 @@ package test.org.apache.spark.sql;
 import java.io.Serializable;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -62,13 +61,13 @@ public class JavaUDFSuite implements Serializable {
 
     sqlContext.udf().register("stringLengthTest", new UDF1<String, Integer>() {
       @Override
-      public Integer call(String str) {
+      public Integer call(String str) throws Exception {
         return str.length();
       }
     }, DataTypes.IntegerType);
 
     Row result = sqlContext.sql("SELECT stringLengthTest('test')").head();
-    Assert.assertEquals(4, result.getInt(0));
+    assert(result.getInt(0) == 4);
   }
 
   @SuppressWarnings("unchecked")
@@ -82,12 +81,12 @@ public class JavaUDFSuite implements Serializable {
 
     sqlContext.udf().register("stringLengthTest", new UDF2<String, String, Integer>() {
       @Override
-      public Integer call(String str1, String str2) {
+      public Integer call(String str1, String str2) throws Exception {
         return str1.length() + str2.length();
       }
     }, DataTypes.IntegerType);
 
     Row result = sqlContext.sql("SELECT stringLengthTest('test', 'test2')").head();
-    Assert.assertEquals(9, result.getInt(0));
+    assert(result.getInt(0) == 9);
   }
 }

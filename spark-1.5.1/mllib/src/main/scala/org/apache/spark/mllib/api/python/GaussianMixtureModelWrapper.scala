@@ -17,11 +17,14 @@
 
 package org.apache.spark.mllib.api.python
 
-import scala.collection.JavaConverters
+import java.util.{List => JList}
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.SparkContext
+import org.apache.spark.mllib.linalg.{Vector, Vectors, Matrix}
 import org.apache.spark.mllib.clustering.GaussianMixtureModel
-import org.apache.spark.mllib.linalg.{Vector, Vectors}
 
 /**
   * Wrapper around GaussianMixtureModel to provide helper methods in Python
@@ -33,15 +36,17 @@ private[python] class GaussianMixtureModelWrapper(model: GaussianMixtureModel) {
   /**
     * Returns gaussians as a List of Vectors and Matrices corresponding each MultivariateGaussian
     */
-  val gaussians: Array[Byte] = {
-    val modelGaussians = model.gaussians.map { gaussian =>
-      Array[Any](gaussian.mu, gaussian.sigma)
+  val gaussians: JList[Object] = {
+    val modelGaussians = model.gaussians
+    var i = 0
+    var mu = ArrayBuffer.empty[Vector]
+    var sigma = ArrayBuffer.empty[Matrix]
+    while (i < k) {
+      mu += modelGaussians(i).mu
+      sigma += modelGaussians(i).sigma
+      i += 1
     }
-    SerDe.dumps(JavaConverters.seqAsJavaListConverter(modelGaussians).asJava)
-  }
-
-  def predictSoft(point: Vector): Vector = {
-    Vectors.dense(model.predictSoft(point))
+    List(mu.toArray, sigma.toArray).map(_.asInstanceOf[Object]).asJava
   }
 
   def save(sc: SparkContext, path: String): Unit = model.save(sc, path)

@@ -17,17 +17,18 @@
 
 package org.apache.spark.api.java
 
-import java.{util => ju}
 import java.util.Map.Entry
 
+import com.google.common.base.Optional
+
+import java.{util => ju}
 import scala.collection.mutable
 
 private[spark] object JavaUtils {
   def optionToOptional[T](option: Option[T]): Optional[T] =
-    if (option.isDefined) {
-      Optional.of(option.get)
-    } else {
-      Optional.empty[T]
+    option match {
+      case Some(value) => Optional.of(value)
+      case None => Optional.absent()
     }
 
   // Workaround for SPARK-3926 / SI-8911

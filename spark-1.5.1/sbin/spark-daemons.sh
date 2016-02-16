@@ -27,10 +27,9 @@ if [ $# -le 1 ]; then
   exit 1
 fi
 
-if [ -z "${SPARK_HOME}" ]; then
-  export SPARK_HOME="$(cd "`dirname "$0"`"/..; pwd)"
-fi
+sbin=`dirname "$0"`
+sbin=`cd "$sbin"; pwd`
 
-. "${SPARK_HOME}/sbin/spark-config.sh"
+. "$sbin/spark-config.sh"
 
-exec "${SPARK_HOME}/sbin/slaves.sh" cd "${SPARK_HOME}" \; "${SPARK_HOME}/sbin/spark-daemon.sh" "$@"
+exec "$sbin/slaves.sh" cd "$SPARK_HOME" \; "$sbin/spark-daemon.sh" "$@"

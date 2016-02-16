@@ -17,7 +17,7 @@
 
 package org.apache.spark.api.java
 
-import org.apache.spark.{SparkContext, SparkJobInfo, SparkStageInfo}
+import org.apache.spark.{SparkStageInfo, SparkJobInfo, SparkContext}
 
 /**
  * Low-level status reporting APIs for monitoring job and stage progress.

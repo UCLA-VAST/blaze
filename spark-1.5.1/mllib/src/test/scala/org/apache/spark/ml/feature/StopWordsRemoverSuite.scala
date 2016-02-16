@@ -18,7 +18,6 @@
 package org.apache.spark.ml.feature
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.ml.util.DefaultReadWriteTest
 import org.apache.spark.mllib.util.MLlibTestSparkContext
 import org.apache.spark.sql.{DataFrame, Row}
 
@@ -33,9 +32,7 @@ object StopWordsRemoverSuite extends SparkFunSuite {
   }
 }
 
-class StopWordsRemoverSuite
-  extends SparkFunSuite with MLlibTestSparkContext with DefaultReadWriteTest {
-
+class StopWordsRemoverSuite extends SparkFunSuite with MLlibTestSparkContext {
   import StopWordsRemoverSuite._
 
   test("StopWordsRemover default") {
@@ -68,7 +65,7 @@ class StopWordsRemoverSuite
   }
 
   test("StopWordsRemover with additional words") {
-    val stopWords = StopWords.English ++ Array("python", "scala")
+    val stopWords = StopWords.EnglishStopWords ++ Array("python", "scala")
     val remover = new StopWordsRemover()
       .setInputCol("raw")
       .setOutputCol("filtered")
@@ -79,29 +76,5 @@ class StopWordsRemoverSuite
     )).toDF("raw", "expected")
 
     testStopWordsRemover(remover, dataSet)
-  }
-
-  test("read/write") {
-    val t = new StopWordsRemover()
-      .setInputCol("myInputCol")
-      .setOutputCol("myOutputCol")
-      .setStopWords(Array("the", "a"))
-      .setCaseSensitive(true)
-    testDefaultReadWrite(t)
-  }
-
-  test("StopWordsRemover output column already exists") {
-    val outputCol = "expected"
-    val remover = new StopWordsRemover()
-      .setInputCol("raw")
-      .setOutputCol(outputCol)
-    val dataSet = sqlContext.createDataFrame(Seq(
-      (Seq("The", "the", "swift"), Seq("swift"))
-    )).toDF("raw", outputCol)
-
-    val thrown = intercept[IllegalArgumentException] {
-      testStopWordsRemover(remover, dataSet)
-    }
-    assert(thrown.getMessage == s"requirement failed: Column $outputCol already exists.")
   }
 }

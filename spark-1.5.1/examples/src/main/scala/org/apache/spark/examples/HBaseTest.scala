@@ -18,11 +18,12 @@
 // scalastyle:off println
 package org.apache.spark.examples
 
-import org.apache.hadoop.hbase.{HBaseConfiguration, HTableDescriptor, TableName}
 import org.apache.hadoop.hbase.client.HBaseAdmin
+import org.apache.hadoop.hbase.{HBaseConfiguration, HTableDescriptor, TableName}
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat
 
 import org.apache.spark._
+
 
 object HBaseTest {
   def main(args: Array[String]) {

@@ -23,8 +23,9 @@ import scala.xml.Node
 
 import org.apache.spark.deploy.Command
 import org.apache.spark.deploy.mesos.MesosDriverDescription
-import org.apache.spark.scheduler.cluster.mesos.{MesosClusterRetryState, MesosClusterSubmissionState}
+import org.apache.spark.scheduler.cluster.mesos.{MesosClusterSubmissionState, MesosClusterRetryState}
 import org.apache.spark.ui.{UIUtils, WebUIPage}
+
 
 private[ui] class DriverPage(parent: MesosClusterUI) extends WebUIPage("driver") {
 
@@ -45,7 +46,7 @@ private[ui] class DriverPage(parent: MesosClusterUI) extends WebUIPage("driver")
     val schedulerHeaders = Seq("Scheduler property", "Value")
     val commandEnvHeaders = Seq("Command environment variable", "Value")
     val launchedHeaders = Seq("Launched property", "Value")
-    val commandHeaders = Seq("Command property", "Value")
+    val commandHeaders = Seq("Comamnd property", "Value")
     val retryHeaders = Seq("Last failed status", "Next retry time", "Retry count")
     val driverDescription = Iterable.apply(driverState.description)
     val submissionState = Iterable.apply(driverState.submissionState)

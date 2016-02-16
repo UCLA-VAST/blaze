@@ -18,7 +18,6 @@
 package test.org.apache.spark.sql;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.Arrays;
@@ -53,12 +52,12 @@ public class JavaRowSuite {
     shortValue = (short)32767;
     intValue = 2147483647;
     longValue = 9223372036854775807L;
-    floatValue = 3.4028235E38f;
+    floatValue = (float)3.4028235E38;
     doubleValue = 1.7976931348623157E308;
     decimalValue = new BigDecimal("1.7976931348623157E328");
     booleanValue = true;
     stringValue = "this is a string";
-    binaryValue = stringValue.getBytes(StandardCharsets.UTF_8);
+    binaryValue = stringValue.getBytes();
     dateValue = Date.valueOf("2014-06-30");
     timestampValue = Timestamp.valueOf("2014-06-30 09:20:00.0");
   }
@@ -124,8 +123,8 @@ public class JavaRowSuite {
     Assert.assertEquals(binaryValue, simpleRow.get(16));
     Assert.assertEquals(dateValue, simpleRow.get(17));
     Assert.assertEquals(timestampValue, simpleRow.get(18));
-    Assert.assertTrue(simpleRow.isNullAt(19));
-    Assert.assertNull(simpleRow.get(19));
+    Assert.assertEquals(true, simpleRow.isNullAt(19));
+    Assert.assertEquals(null, simpleRow.get(19));
   }
 
   @Test
@@ -135,7 +134,7 @@ public class JavaRowSuite {
       stringValue + " (1)", stringValue + " (2)", stringValue + "(3)");
 
     // Simple map
-    Map<String, Long> simpleMap = new HashMap<>();
+    Map<String, Long> simpleMap = new HashMap<String, Long>();
     simpleMap.put(stringValue + " (1)", longValue);
     simpleMap.put(stringValue + " (2)", longValue - 1);
     simpleMap.put(stringValue + " (3)", longValue - 2);
@@ -150,7 +149,7 @@ public class JavaRowSuite {
     List<Row> arrayOfRows = Arrays.asList(simpleStruct);
 
     // Complex map
-    Map<List<Row>, Row> complexMap = new HashMap<>();
+    Map<List<Row>, Row> complexMap = new HashMap<List<Row>, Row>();
     complexMap.put(arrayOfRows, simpleStruct);
 
     // Complex struct
@@ -168,7 +167,7 @@ public class JavaRowSuite {
     Assert.assertEquals(arrayOfMaps, complexStruct.get(3));
     Assert.assertEquals(arrayOfRows, complexStruct.get(4));
     Assert.assertEquals(complexMap, complexStruct.get(5));
-    Assert.assertNull(complexStruct.get(6));
+    Assert.assertEquals(null, complexStruct.get(6));
 
     // A very complex row
     Row complexRow = RowFactory.create(arrayOfMaps, arrayOfRows, complexMap, complexStruct);

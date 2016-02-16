@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.joins
 
 import scala.collection.mutable.ArrayBuffer
 
+import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -27,12 +28,13 @@ import org.apache.spark.sql.execution.{BinaryNode, RowIterator, SparkPlan}
 import org.apache.spark.sql.execution.metric.{LongSQLMetric, SQLMetrics}
 
 /**
+ * :: DeveloperApi ::
  * Performs an sort merge join of two child relations.
  */
+@DeveloperApi
 case class SortMergeJoin(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
-    condition: Option[Expression],
     left: SparkPlan,
     right: SparkPlan) extends BinaryNode {
 
@@ -54,6 +56,17 @@ case class SortMergeJoin(
   override def requiredChildOrdering: Seq[Seq[SortOrder]] =
     requiredOrders(leftKeys) :: requiredOrders(rightKeys) :: Nil
 
+  protected[this] def isUnsafeMode: Boolean = {
+    (codegenEnabled && unsafeEnabled
+      && UnsafeProjection.canSupport(leftKeys)
+      && UnsafeProjection.canSupport(rightKeys)
+      && UnsafeProjection.canSupport(schema))
+  }
+
+  override def outputsUnsafeRows: Boolean = isUnsafeMode
+  override def canProcessUnsafeRows: Boolean = isUnsafeMode
+  override def canProcessSafeRows: Boolean = !isUnsafeMode
+
   private def requiredOrders(keys: Seq[Expression]): Seq[SortOrder] = {
     // This must be ascending in order to agree with the `keyOrdering` defined in `doExecute()`.
     keys.map(SortOrder(_, Ascending))
@@ -65,19 +78,28 @@ case class SortMergeJoin(
     val numOutputRows = longMetric("numOutputRows")
 
     left.execute().zipPartitions(right.execute()) { (leftIter, rightIter) =>
-      val boundCondition: (InternalRow) => Boolean = {
-        condition.map { cond =>
-          newPredicate(cond, left.output ++ right.output)
-        }.getOrElse {
-          (r: InternalRow) => true
-        }
-      }
       new RowIterator {
         // The projection used to extract keys from input rows of the left child.
-        private[this] val leftKeyGenerator = UnsafeProjection.create(leftKeys, left.output)
+        private[this] val leftKeyGenerator = {
+          if (isUnsafeMode) {
+            // It is very important to use UnsafeProjection if input rows are UnsafeRows.
+            // Otherwise, GenerateProjection will cause wrong results.
+            UnsafeProjection.create(leftKeys, left.output)
+          } else {
+            newProjection(leftKeys, left.output)
+          }
+        }
 
         // The projection used to extract keys from input rows of the right child.
-        private[this] val rightKeyGenerator = UnsafeProjection.create(rightKeys, right.output)
+        private[this] val rightKeyGenerator = {
+          if (isUnsafeMode) {
+            // It is very important to use UnsafeProjection if input rows are UnsafeRows.
+            // Otherwise, GenerateProjection will cause wrong results.
+            UnsafeProjection.create(rightKeys, right.output)
+          } else {
+            newProjection(rightKeys, right.output)
+          }
+        }
 
         // An ordering that can be used to compare keys from both sides.
         private[this] val keyOrdering = newNaturalAscendingOrdering(leftKeys.map(_.dataType))
@@ -94,37 +116,34 @@ case class SortMergeJoin(
           numRightRows
         )
         private[this] val joinRow = new JoinedRow
-        private[this] val resultProjection: (InternalRow) => InternalRow =
-          UnsafeProjection.create(schema)
-
-        if (smjScanner.findNextInnerJoinRows()) {
-          currentRightMatches = smjScanner.getBufferedMatches
-          currentLeftRow = smjScanner.getStreamedRow
-          currentMatchIdx = 0
+        private[this] val resultProjection: (InternalRow) => InternalRow = {
+          if (isUnsafeMode) {
+            UnsafeProjection.create(schema)
+          } else {
+            identity[InternalRow]
+          }
         }
 
         override def advanceNext(): Boolean = {
-          while (currentMatchIdx >= 0) {
-            if (currentMatchIdx == currentRightMatches.length) {
-              if (smjScanner.findNextInnerJoinRows()) {
-                currentRightMatches = smjScanner.getBufferedMatches
-                currentLeftRow = smjScanner.getStreamedRow
-                currentMatchIdx = 0
-              } else {
-                currentRightMatches = null
-                currentLeftRow = null
-                currentMatchIdx = -1
-                return false
-              }
-            }
-            joinRow(currentLeftRow, currentRightMatches(currentMatchIdx))
-            currentMatchIdx += 1
-            if (boundCondition(joinRow)) {
-              numOutputRows += 1
-              return true
+          if (currentMatchIdx == -1 || currentMatchIdx == currentRightMatches.length) {
+            if (smjScanner.findNextInnerJoinRows()) {
+              currentRightMatches = smjScanner.getBufferedMatches
+              currentLeftRow = smjScanner.getStreamedRow
+              currentMatchIdx = 0
+            } else {
+              currentRightMatches = null
+              currentLeftRow = null
+              currentMatchIdx = -1
             }
           }
-          false
+          if (currentLeftRow != null) {
+            joinRow(currentLeftRow, currentRightMatches(currentMatchIdx))
+            currentMatchIdx += 1
+            numOutputRows += 1
+            true
+          } else {
+            false
+          }
         }
 
         override def getRow: InternalRow = resultProjection(joinRow)
@@ -238,7 +257,7 @@ private[joins] class SortMergeJoinScanner(
    * Advances the streamed input iterator and buffers all rows from the buffered input that
    * have matching keys.
    * @return true if the streamed iterator returned a row, false otherwise. If this returns true,
-   *         then [[getStreamedRow]] and [[getBufferedMatches]] can be called to produce the outer
+   *         then [getStreamedRow and [[getBufferedMatches]] can be called to produce the outer
    *         join results.
    */
   final def findNextOuterJoinRows(): Boolean = {

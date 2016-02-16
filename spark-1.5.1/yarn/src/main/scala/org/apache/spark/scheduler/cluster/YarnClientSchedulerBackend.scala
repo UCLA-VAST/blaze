@@ -19,11 +19,10 @@ package org.apache.spark.scheduler.cluster
 
 import scala.collection.mutable.ArrayBuffer
 
-import org.apache.hadoop.yarn.api.records.YarnApplicationState
+import org.apache.hadoop.yarn.api.records.{ApplicationId, YarnApplicationState}
 
-import org.apache.spark.{Logging, SparkContext, SparkException}
+import org.apache.spark.{SparkException, Logging, SparkContext}
 import org.apache.spark.deploy.yarn.{Client, ClientArguments, YarnSparkHadoopUtil}
-import org.apache.spark.launcher.SparkAppHandle
 import org.apache.spark.scheduler.TaskSchedulerImpl
 
 private[spark] class YarnClientSchedulerBackend(
@@ -33,6 +32,7 @@ private[spark] class YarnClientSchedulerBackend(
   with Logging {
 
   private var client: Client = null
+  private var appId: ApplicationId = null
   private var monitorThread: MonitorThread = null
 
   /**
@@ -53,12 +53,13 @@ private[spark] class YarnClientSchedulerBackend(
     val args = new ClientArguments(argsArrayBuf.toArray, conf)
     totalExpectedExecutors = args.numExecutors
     client = new Client(args, conf)
-    bindToYarn(client.submitApplication(), None)
+    appId = client.submitApplication()
 
     // SPARK-8687: Ensure all necessary properties have already been set before
     // we initialize our driver scheduler backend, which serves these properties
     // to the executors
     super.start()
+
     waitForApplication()
 
     // SPARK-8851: In yarn-client mode, the AM still does the credentials refresh. The driver
@@ -114,8 +115,8 @@ private[spark] class YarnClientSchedulerBackend(
    * This assumes both `client` and `appId` have already been set.
    */
   private def waitForApplication(): Unit = {
-    assert(client != null && appId.isDefined, "Application has not been submitted yet!")
-    val (state, _) = client.monitorApplication(appId.get, returnOnRunning = true) // blocking
+    assert(client != null && appId != null, "Application has not been submitted yet!")
+    val (state, _) = client.monitorApplication(appId, returnOnRunning = true) // blocking
     if (state == YarnApplicationState.FINISHED ||
       state == YarnApplicationState.FAILED ||
       state == YarnApplicationState.KILLED) {
@@ -123,7 +124,7 @@ private[spark] class YarnClientSchedulerBackend(
         "It might have been killed or unable to launch application master.")
     }
     if (state == YarnApplicationState.RUNNING) {
-      logInfo(s"Application ${appId.get} has started running.")
+      logInfo(s"Application $appId has started running.")
     }
   }
 
@@ -139,7 +140,7 @@ private[spark] class YarnClientSchedulerBackend(
 
     override def run() {
       try {
-        val (state, _) = client.monitorApplication(appId.get, logApplicationReport = false)
+        val (state, _) = client.monitorApplication(appId, logApplicationReport = false)
         logError(s"Yarn application has already exited with state $state!")
         allowInterrupt = false
         sc.stop()
@@ -161,7 +162,7 @@ private[spark] class YarnClientSchedulerBackend(
    * This assumes both `client` and `appId` have already been set.
    */
   private def asyncMonitorApplication(): MonitorThread = {
-    assert(client != null && appId.isDefined, "Application has not been submitted yet!")
+    assert(client != null && appId != null, "Application has not been submitted yet!")
     val t = new MonitorThread
     t.setName("Yarn application state monitor")
     t.setDaemon(true)
@@ -176,19 +177,16 @@ private[spark] class YarnClientSchedulerBackend(
     if (monitorThread != null) {
       monitorThread.stopMonitor()
     }
-
-    // Report a final state to the launcher if one is connected. This is needed since in client
-    // mode this backend doesn't let the app monitor loop run to completion, so it does not report
-    // the final state itself.
-    //
-    // Note: there's not enough information at this point to provide a better final state,
-    // so assume the application was successful.
-    client.reportLauncherState(SparkAppHandle.State.FINISHED)
-
     super.stop()
-    YarnSparkHadoopUtil.get.stopExecutorDelegationTokenRenewer()
     client.stop()
+    YarnSparkHadoopUtil.get.stopExecutorDelegationTokenRenewer()
     logInfo("Stopped")
   }
 
+  override def applicationId(): String = {
+    Option(appId).map(_.toString).getOrElse {
+      logWarning("Application ID is not initialized yet.")
+      super.applicationId
+    }
+  }
 }

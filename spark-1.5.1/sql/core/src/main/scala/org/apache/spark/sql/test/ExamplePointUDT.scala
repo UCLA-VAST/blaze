@@ -17,7 +17,9 @@
 
 package org.apache.spark.sql.test
 
-import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData}
+import java.util
+
+import scala.collection.JavaConverters._
 import org.apache.spark.sql.types._
 
 /**

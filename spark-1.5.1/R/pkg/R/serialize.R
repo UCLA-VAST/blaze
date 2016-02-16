@@ -17,7 +17,6 @@
 
 # Utility functions to serialize R objects so they can be read in Java.
 
-# nolint start
 # Type mapping from R to Java
 #
 # NULL -> Void
@@ -32,22 +31,6 @@
 # list[T] -> Array[T], where T is one of above mentioned types
 # environment -> Map[String, T], where T is a native type
 # jobj -> Object, where jobj is an object created in the backend
-# nolint end
-
-getSerdeType <- function(object) {
-  type <- class(object)[[1]]
-  if (type != "list") {
-    type
-  } else {
-    # Check if all elements are of same type
-    elemType <- unique(sapply(object, function(elem) { getSerdeType(elem) }))
-    if (length(elemType) <= 1) {
-      "array"
-    } else {
-      "list"
-    }
-  }
-}
 
 writeObject <- function(con, object, writeType = TRUE) {
   # NOTE: In R vectors have same type as objects. So we don't support
@@ -62,12 +45,10 @@ writeObject <- function(con, object, writeType = TRUE) {
       type <- "NULL"
     }
   }
-
-  serdeType <- getSerdeType(object)
   if (writeType) {
-    writeType(con, serdeType)
+    writeType(con, type)
   }
-  switch(serdeType,
+  switch(type,
          NULL = writeVoid(con),
          integer = writeInt(con, object),
          character = writeString(con, object),
@@ -75,9 +56,7 @@ writeObject <- function(con, object, writeType = TRUE) {
          double = writeDouble(con, object),
          numeric = writeDouble(con, object),
          raw = writeRaw(con, object),
-         array = writeArray(con, object),
          list = writeList(con, object),
-         struct = writeList(con, object),
          jobj = writeJobj(con, object),
          environment = writeEnv(con, object),
          Date = writeDate(con, object),
@@ -100,7 +79,7 @@ writeJobj <- function(con, value) {
 writeString <- function(con, value) {
   utfVal <- enc2utf8(value)
   writeInt(con, as.integer(nchar(utfVal, type = "bytes") + 1))
-  writeBin(utfVal, con, endian = "big", useBytes=TRUE)
+  writeBin(utfVal, con, endian = "big")
 }
 
 writeInt <- function(con, value) {
@@ -131,8 +110,16 @@ writeRowSerialize <- function(outputCon, rows) {
 serializeRow <- function(row) {
   rawObj <- rawConnection(raw(0), "wb")
   on.exit(close(rawObj))
-  writeList(rawObj, row)
+  writeRow(rawObj, row)
   rawConnectionValue(rawObj)
+}
+
+writeRow <- function(con, row) {
+  numCols <- length(row)
+  writeInt(con, numCols)
+  for (i in 1:numCols) {
+    writeObject(con, row[[i]])
+  }
 }
 
 writeRaw <- function(con, batch) {
@@ -149,9 +136,7 @@ writeType <- function(con, class) {
                  double = "d",
                  numeric = "d",
                  raw = "r",
-                 array = "a",
                  list = "l",
-                 struct = "s",
                  jobj = "j",
                  environment = "e",
                  Date = "D",
@@ -162,13 +147,15 @@ writeType <- function(con, class) {
 }
 
 # Used to pass arrays where all the elements are of the same type
-writeArray <- function(con, arr) {
+writeList <- function(con, arr) {
+  # All elements should be of same type
+  elemType <- unique(sapply(arr, function(elem) { class(elem) }))
+  stopifnot(length(elemType) <= 1)
+
   # TODO: Empty lists are given type "character" right now.
   # This may not work if the Java side expects array of any other type.
-  if (length(arr) == 0) {
+  if (length(elemType) == 0) {
     elemType <- class("somestring")
-  } else {
-    elemType <- getSerdeType(arr[[1]])
   }
 
   writeType(con, elemType)
@@ -182,7 +169,7 @@ writeArray <- function(con, arr) {
 }
 
 # Used to pass arrays where the elements can be of different types
-writeList <- function(con, list) {
+writeGenericList <- function(con, list) {
   writeInt(con, length(list))
   for (elem in list) {
     writeObject(con, elem)
@@ -195,9 +182,9 @@ writeEnv <- function(con, env) {
 
   writeInt(con, len)
   if (len > 0) {
-    writeArray(con, as.list(ls(env)))
+    writeList(con, as.list(ls(env)))
     vals <- lapply(ls(env), function(x) { env[[x]] })
-    writeList(con, as.list(vals))
+    writeGenericList(con, as.list(vals))
   }
 }
 

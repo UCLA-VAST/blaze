@@ -25,7 +25,7 @@ import org.apache.spark.sql.types.StructField
 
 
 /**
- * Helper utilities for algorithms using ML metadata
+ * Helper utilities for tree-based algorithms
  */
 private[spark] object MetadataUtils {
 

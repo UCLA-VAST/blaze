@@ -17,17 +17,23 @@
 
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.test.SharedSQLContext
 
 class ParquetProtobufCompatibilitySuite extends ParquetCompatibilityTest with SharedSQLContext {
+
+  private def readParquetProtobufFile(name: String): DataFrame = {
+    val url = Thread.currentThread().getContextClassLoader.getResource(name)
+    sqlContext.read.parquet(url.toString)
+  }
+
   test("unannotated array of primitive type") {
-    checkAnswer(readResourceParquetFile("old-repeated-int.parquet"), Row(Seq(1, 2, 3)))
+    checkAnswer(readParquetProtobufFile("old-repeated-int.parquet"), Row(Seq(1, 2, 3)))
   }
 
   test("unannotated array of struct") {
     checkAnswer(
-      readResourceParquetFile("old-repeated-message.parquet"),
+      readParquetProtobufFile("old-repeated-message.parquet"),
       Row(
         Seq(
           Row("First inner", null, null),
@@ -35,14 +41,14 @@ class ParquetProtobufCompatibilitySuite extends ParquetCompatibilityTest with Sh
           Row(null, null, "Third inner"))))
 
     checkAnswer(
-      readResourceParquetFile("proto-repeated-struct.parquet"),
+      readParquetProtobufFile("proto-repeated-struct.parquet"),
       Row(
         Seq(
           Row("0 - 1", "0 - 2", "0 - 3"),
           Row("1 - 1", "1 - 2", "1 - 3"))))
 
     checkAnswer(
-      readResourceParquetFile("proto-struct-with-array-many.parquet"),
+      readParquetProtobufFile("proto-struct-with-array-many.parquet"),
       Seq(
         Row(
           Seq(
@@ -60,13 +66,13 @@ class ParquetProtobufCompatibilitySuite extends ParquetCompatibilityTest with Sh
 
   test("struct with unannotated array") {
     checkAnswer(
-      readResourceParquetFile("proto-struct-with-array.parquet"),
+      readParquetProtobufFile("proto-struct-with-array.parquet"),
       Row(10, 9, Seq.empty, null, Row(9), Seq(Row(9), Row(10))))
   }
 
   test("unannotated array of struct with unannotated array") {
     checkAnswer(
-      readResourceParquetFile("nested-array-struct.parquet"),
+      readParquetProtobufFile("nested-array-struct.parquet"),
       Seq(
         Row(2, Seq(Row(1, Seq(Row(3))))),
         Row(5, Seq(Row(4, Seq(Row(6))))),
@@ -75,7 +81,7 @@ class ParquetProtobufCompatibilitySuite extends ParquetCompatibilityTest with Sh
 
   test("unannotated array of string") {
     checkAnswer(
-      readResourceParquetFile("proto-repeated-string.parquet"),
+      readParquetProtobufFile("proto-repeated-string.parquet"),
       Seq(
         Row(Seq("hello", "world")),
         Row(Seq("good", "bye")),

@@ -20,12 +20,13 @@ package org.apache.spark.mllib.tree.configuration
 import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
 
-import org.apache.spark.annotation.Since
+import org.apache.spark.annotation.{Experimental, Since}
+import org.apache.spark.mllib.tree.impurity.{Variance, Entropy, Gini, Impurity}
 import org.apache.spark.mllib.tree.configuration.Algo._
 import org.apache.spark.mllib.tree.configuration.QuantileStrategy._
-import org.apache.spark.mllib.tree.impurity.{Entropy, Gini, Impurity, Variance}
 
 /**
+ * :: Experimental ::
  * Stores all the configuration options for tree construction
  * @param algo  Learning goal.  Supported:
  *              [[org.apache.spark.mllib.tree.configuration.Algo.Classification]],
@@ -67,6 +68,7 @@ import org.apache.spark.mllib.tree.impurity.{Entropy, Gini, Impurity, Variance}
  *                           [[org.apache.spark.SparkContext]], this setting is ignored.
  */
 @Since("1.0.0")
+@Experimental
 class Strategy @Since("1.3.0") (
     @Since("1.0.0") @BeanProperty var algo: Algo,
     @Since("1.0.0") @BeanProperty var impurity: Impurity,
@@ -177,6 +179,7 @@ class Strategy @Since("1.3.0") (
 }
 
 @Since("1.2.0")
+@Experimental
 object Strategy {
 
   /**

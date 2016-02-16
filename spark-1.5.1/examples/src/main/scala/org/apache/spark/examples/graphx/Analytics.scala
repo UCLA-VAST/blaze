@@ -19,12 +19,11 @@
 package org.apache.spark.examples.graphx
 
 import scala.collection.mutable
-
 import org.apache.spark._
-import org.apache.spark.graphx._
-import org.apache.spark.graphx.PartitionStrategy._
-import org.apache.spark.graphx.lib._
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.graphx._
+import org.apache.spark.graphx.lib._
+import org.apache.spark.graphx.PartitionStrategy._
 
 /**
  * Driver program for running graph algorithms.

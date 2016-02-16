@@ -17,7 +17,7 @@
 
 package org.apache.spark.scheduler.cluster
 
-import org.apache.spark.rpc.{RpcAddress, RpcEndpointRef}
+import org.apache.spark.rpc.{RpcEndpointRef, RpcAddress}
 
 /**
  * Grouping of data for an executor used by CoarseGrainedSchedulerBackend.

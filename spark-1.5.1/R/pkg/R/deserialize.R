@@ -17,7 +17,6 @@
 
 # Utility functions to deserialize objects from Java.
 
-# nolint start
 # Type mapping from Java to R
 #
 # void -> NULL
@@ -33,8 +32,6 @@
 #
 # Array[T] -> list()
 # Object -> jobj
-#
-# nolint end
 
 readObject <- function(con) {
   # Read type first
@@ -51,10 +48,7 @@ readTypedObject <- function(con, type) {
     "r" = readRaw(con),
     "D" = readDate(con),
     "t" = readTime(con),
-    "a" = readArray(con),
     "l" = readList(con),
-    "e" = readEnv(con),
-    "s" = readStruct(con),
     "n" = NULL,
     "j" = getJobj(readString(con)),
     stop(paste("Unsupported type for deserialization", type)))
@@ -62,10 +56,8 @@ readTypedObject <- function(con, type) {
 
 readString <- function(con) {
   stringLen <- readInt(con)
-  raw <- readBin(con, raw(), stringLen, endian = "big")
-  string <- rawToChar(raw)
-  Encoding(string) <- "UTF-8"
-  string
+  string <- readBin(con, raw(), stringLen, endian = "big")
+  rawToChar(string)
 }
 
 readInt <- function(con) {
@@ -93,7 +85,8 @@ readTime <- function(con) {
   as.POSIXct(t, origin = "1970-01-01")
 }
 
-readArray <- function(con) {
+# We only support lists where all elements are of same type
+readList <- function(con) {
   type <- readType(con)
   len <- readInt(con)
   if (len > 0) {
@@ -105,47 +98,6 @@ readArray <- function(con) {
   } else {
     list()
   }
-}
-
-# Read a list. Types of each element may be different.
-# Null objects are read as NA.
-readList <- function(con) {
-  len <- readInt(con)
-  if (len > 0) {
-    l <- vector("list", len)
-    for (i in 1:len) {
-      elem <- readObject(con)
-      if (is.null(elem)) {
-        elem <- NA
-      }
-      l[[i]] <- elem
-    }
-    l
-  } else {
-    list()
-  }
-}
-
-readEnv <- function(con) {
-  env <- new.env()
-  len <- readInt(con)
-  if (len > 0) {
-    for (i in 1:len) {
-      key <- readString(con)
-      value <- readObject(con)
-      env[[key]] <- value
-    }
-  }
-  env
-}
-
-# Read a field of StructType from DataFrame
-# into a named list in R whose class is "struct"
-readStruct <- function(con) {
-  names <- readObject(con)
-  fields <- readObject(con)
-  names(fields) <- names
-  listToStruct(fields)
 }
 
 readRaw <- function(con) {
@@ -180,19 +132,18 @@ readDeserialize <- function(con) {
   }
 }
 
-readMultipleObjects <- function(inputCon) {
-  # readMultipleObjects will read multiple continuous objects from
-  # a DataOutputStream. There is no preceding field telling the count
-  # of the objects, so the number of objects varies, we try to read
-  # all objects in a loop until the end of the stream.
+readDeserializeRows <- function(inputCon) {
+  # readDeserializeRows will deserialize a DataOutputStream composed of
+  # a list of lists. Since the DOS is one continuous stream and
+  # the number of rows varies, we put the readRow function in a while loop
+  # that termintates when the next row is empty.
   data <- list()
   while(TRUE) {
-    # If reaching the end of the stream, type returned should be "".
-    type <- readType(inputCon)
-    if (type == "") {
+    row <- readRow(inputCon)
+    if (length(row) == 0) {
       break
     }
-    data[[length(data) + 1L]] <- readTypedObject(inputCon, type)
+    data[[length(data) + 1L]] <- row
   }
   data # this is a list of named lists now
 }
@@ -204,5 +155,35 @@ readRowList <- function(obj) {
   # deserialize the row.
   rawObj <- rawConnection(obj, "r+")
   on.exit(close(rawObj))
-  readObject(rawObj)
+  readRow(rawObj)
+}
+
+readRow <- function(inputCon) {
+  numCols <- readInt(inputCon)
+  if (length(numCols) > 0 && numCols > 0) {
+    lapply(1:numCols, function(x) {
+      obj <- readObject(inputCon)
+      if (is.null(obj)) {
+        NA
+      } else {
+        obj
+      }
+    }) # each row is a list now
+  } else {
+    list()
+  }
+}
+
+# Take a single column as Array[Byte] and deserialize it into an atomic vector
+readCol <- function(inputCon, numRows) {
+  if (numRows > 0) {
+    # sapply can not work with POSIXlt
+    do.call(c, lapply(1:numRows, function(x) {
+      value <- readObject(inputCon)
+      # Replace NULL with NA so we can coerce to vectors
+      if (is.null(value)) NA else value
+    }))
+  } else {
+    vector()
+  }
 }

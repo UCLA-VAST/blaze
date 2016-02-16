@@ -17,10 +17,11 @@
 
 package org.apache.spark.mllib.feature
 
-import org.apache.spark.annotation.Since
+import org.apache.spark.annotation.{Experimental, Since}
 import org.apache.spark.mllib.linalg.{DenseVector, SparseVector, Vector, Vectors}
 
 /**
+ * :: Experimental ::
  * Normalizes samples individually to unit L^p^ norm
  *
  * For any 1 &lt;= p &lt; Double.PositiveInfinity, normalizes samples using
@@ -31,6 +32,7 @@ import org.apache.spark.mllib.linalg.{DenseVector, SparseVector, Vector, Vectors
  * @param p Normalization in L^p^ space, p = 2 by default.
  */
 @Since("1.1.0")
+@Experimental
 class Normalizer @Since("1.1.0") (p: Double) extends VectorTransformer {
 
   @Since("1.1.0")

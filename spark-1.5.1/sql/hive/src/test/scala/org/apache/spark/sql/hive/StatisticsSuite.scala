@@ -17,23 +17,28 @@
 
 package org.apache.spark.sql.hive
 
+import org.scalatest.BeforeAndAfterAll
+
 import scala.reflect.ClassTag
 
-import org.apache.spark.sql.{QueryTest, Row, SQLConf}
-import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.parser.SimpleParserConf
+import org.apache.spark.sql.{Row, SQLConf, QueryTest}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.hive.execution._
-import org.apache.spark.sql.hive.test.TestHiveSingleton
 
-class StatisticsSuite extends QueryTest with TestHiveSingleton {
-  import hiveContext.sql
+class StatisticsSuite extends QueryTest with BeforeAndAfterAll {
 
-  val parser = new HiveQl(SimpleParserConf())
+  private lazy val ctx: HiveContext = {
+    val ctx = org.apache.spark.sql.hive.test.TestHive
+    ctx.reset()
+    ctx.cacheTables = false
+    ctx
+  }
+
+  import ctx.sql
 
   test("parse analyze commands") {
     def assertAnalyzeCommand(analyzeCommand: String, c: Class[_]) {
-      val parsed = parser.parsePlan(analyzeCommand)
+      val parsed = HiveQl.parseSql(analyzeCommand)
       val operators = parsed.collect {
         case a: AnalyzeTable => a
         case o => o
@@ -48,6 +53,9 @@ class StatisticsSuite extends QueryTest with TestHiveSingleton {
            """.stripMargin)
       }
     }
+
+    // Ensure session state is initialized.
+    ctx.parseSql("use default")
 
     assertAnalyzeCommand(
       "ANALYZE TABLE Table1 COMPUTE STATISTICS",
@@ -72,7 +80,7 @@ class StatisticsSuite extends QueryTest with TestHiveSingleton {
 
   test("analyze MetastoreRelations") {
     def queryTotalSize(tableName: String): BigInt =
-      hiveContext.catalog.lookupRelation(TableIdentifier(tableName)).statistics.sizeInBytes
+      ctx.catalog.lookupRelation(Seq(tableName)).statistics.sizeInBytes
 
     // Non-partitioned table
     sql("CREATE TABLE analyzeTable (key STRING, value STRING)").collect()
@@ -106,7 +114,7 @@ class StatisticsSuite extends QueryTest with TestHiveSingleton {
         |SELECT * FROM src
       """.stripMargin).collect()
 
-    assert(queryTotalSize("analyzeTable_part") === hiveContext.conf.defaultSizeInBytes)
+    assert(queryTotalSize("analyzeTable_part") === ctx.conf.defaultSizeInBytes)
 
     sql("ANALYZE TABLE analyzeTable_part COMPUTE STATISTICS noscan")
 
@@ -117,9 +125,9 @@ class StatisticsSuite extends QueryTest with TestHiveSingleton {
     // Try to analyze a temp table
     sql("""SELECT * FROM src""").registerTempTable("tempTable")
     intercept[UnsupportedOperationException] {
-      hiveContext.analyze("tempTable")
+      ctx.analyze("tempTable")
     }
-    hiveContext.catalog.unregisterTable(TableIdentifier("tempTable"))
+    ctx.catalog.unregisterTable(Seq("tempTable"))
   }
 
   test("estimates the size of a test MetastoreRelation") {
@@ -147,8 +155,8 @@ class StatisticsSuite extends QueryTest with TestHiveSingleton {
       val sizes = df.queryExecution.analyzed.collect {
         case r if ct.runtimeClass.isAssignableFrom(r.getClass) => r.statistics.sizeInBytes
       }
-      assert(sizes.size === 2 && sizes(0) <= hiveContext.conf.autoBroadcastJoinThreshold
-        && sizes(1) <= hiveContext.conf.autoBroadcastJoinThreshold,
+      assert(sizes.size === 2 && sizes(0) <= ctx.conf.autoBroadcastJoinThreshold
+        && sizes(1) <= ctx.conf.autoBroadcastJoinThreshold,
         s"query should contain two relations, each of which has size smaller than autoConvertSize")
 
       // Using `sparkPlan` because for relevant patterns in HashJoin to be
@@ -159,8 +167,8 @@ class StatisticsSuite extends QueryTest with TestHiveSingleton {
 
       checkAnswer(df, expectedAnswer) // check correctness of output
 
-      hiveContext.conf.settings.synchronized {
-        val tmp = hiveContext.conf.autoBroadcastJoinThreshold
+      ctx.conf.settings.synchronized {
+        val tmp = ctx.conf.autoBroadcastJoinThreshold
 
         sql(s"""SET ${SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key}=-1""")
         df = sql(query)
@@ -169,7 +177,7 @@ class StatisticsSuite extends QueryTest with TestHiveSingleton {
 
         val shj = df.queryExecution.sparkPlan.collect { case j: SortMergeJoin => j }
         assert(shj.size === 1,
-          "SortMergeJoin should be planned when BroadcastHashJoin is turned off")
+          "ShuffledHashJoin should be planned when BroadcastHashJoin is turned off")
 
         sql(s"""SET ${SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key}=$tmp""")
       }
@@ -203,8 +211,8 @@ class StatisticsSuite extends QueryTest with TestHiveSingleton {
         .isAssignableFrom(r.getClass) =>
         r.statistics.sizeInBytes
     }
-    assert(sizes.size === 2 && sizes(1) <= hiveContext.conf.autoBroadcastJoinThreshold
-      && sizes(0) <= hiveContext.conf.autoBroadcastJoinThreshold,
+    assert(sizes.size === 2 && sizes(1) <= ctx.conf.autoBroadcastJoinThreshold
+      && sizes(0) <= ctx.conf.autoBroadcastJoinThreshold,
       s"query should contain two relations, each of which has size smaller than autoConvertSize")
 
     // Using `sparkPlan` because for relevant patterns in HashJoin to be
@@ -217,8 +225,8 @@ class StatisticsSuite extends QueryTest with TestHiveSingleton {
 
     checkAnswer(df, answer) // check correctness of output
 
-    hiveContext.conf.settings.synchronized {
-      val tmp = hiveContext.conf.autoBroadcastJoinThreshold
+    ctx.conf.settings.synchronized {
+      val tmp = ctx.conf.autoBroadcastJoinThreshold
 
       sql(s"SET ${SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key}=-1")
       df = sql(leftSemiJoinQuery)

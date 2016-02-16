@@ -22,11 +22,14 @@ import java.io.{File, IOException}
 import org.scalatest.BeforeAndAfter
 
 import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.execution.datasources.DDLException
 import org.apache.spark.sql.test.SharedSQLContext
 import org.apache.spark.util.Utils
 
+
 class CreateTableAsSelectSuite extends DataSourceTest with SharedSQLContext with BeforeAndAfter {
   protected override lazy val sql = caseInsensitiveContext.sql _
+  private lazy val sparkContext = caseInsensitiveContext.sparkContext
   private var path: File = null
 
   override def beforeAll(): Unit = {
@@ -104,7 +107,7 @@ class CreateTableAsSelectSuite extends DataSourceTest with SharedSQLContext with
       sql("SELECT a, b FROM jsonTable"),
       sql("SELECT a, b FROM jt").collect())
 
-    val message = intercept[AnalysisException]{
+    val message = intercept[DDLException]{
       sql(
         s"""
         |CREATE TEMPORARY TABLE IF NOT EXISTS jsonTable
@@ -155,7 +158,7 @@ class CreateTableAsSelectSuite extends DataSourceTest with SharedSQLContext with
   }
 
   test("CREATE TEMPORARY TABLE AS SELECT with IF NOT EXISTS is not allowed") {
-    val message = intercept[AnalysisException]{
+    val message = intercept[DDLException]{
       sql(
         s"""
         |CREATE TEMPORARY TABLE IF NOT EXISTS jsonTable
@@ -172,7 +175,7 @@ class CreateTableAsSelectSuite extends DataSourceTest with SharedSQLContext with
   }
 
   test("a CTAS statement with column definitions is not allowed") {
-    intercept[AnalysisException]{
+    intercept[DDLException]{
       sql(
         s"""
         |CREATE TEMPORARY TABLE jsonTable (a int, b string)

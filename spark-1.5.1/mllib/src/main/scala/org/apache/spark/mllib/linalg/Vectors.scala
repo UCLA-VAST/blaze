@@ -17,23 +17,19 @@
 
 package org.apache.spark.mllib.linalg
 
-import java.lang.{Double => JavaDouble, Integer => JavaInteger, Iterable => JavaIterable}
 import java.util
+import java.lang.{Double => JavaDouble, Integer => JavaInteger, Iterable => JavaIterable}
 
 import scala.annotation.varargs
 import scala.collection.JavaConverters._
 
 import breeze.linalg.{DenseVector => BDV, SparseVector => BSV, Vector => BV}
-import org.json4s.DefaultFormats
-import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods.{compact, parse => parseJson, render}
 
 import org.apache.spark.SparkException
 import org.apache.spark.annotation.{AlphaComponent, Since}
 import org.apache.spark.mllib.util.NumericParser
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.GenericMutableRow
-import org.apache.spark.sql.catalyst.util.GenericArrayData
 import org.apache.spark.sql.types._
 
 /**
@@ -75,22 +71,20 @@ sealed trait Vector extends Serializable {
   }
 
   /**
-   * Returns a hash code value for the vector. The hash code is based on its size and its first 128
-   * nonzero entries, using a hash algorithm similar to [[java.util.Arrays.hashCode]].
+   * Returns a hash code value for the vector. The hash code is based on its size and its nonzeros
+   * in the first 16 entries, using a hash algorithm similar to [[java.util.Arrays.hashCode]].
    */
   override def hashCode(): Int = {
     // This is a reference implementation. It calls return in foreachActive, which is slow.
     // Subclasses should override it with optimized implementation.
     var result: Int = 31 + size
-    var nnz = 0
     this.foreachActive { (index, value) =>
-      if (nnz < Vectors.MAX_HASH_NNZ) {
+      if (index < 16) {
         // ignore explicit 0 for comparison between sparse and dense
         if (value != 0) {
           result = 31 * result + index
           val bits = java.lang.Double.doubleToLongBits(value)
           result = 31 * result + (bits ^ (bits >>> 32)).toInt
-          nnz += 1
         }
       } else {
         return result
@@ -126,8 +120,7 @@ sealed trait Vector extends Serializable {
    *          the vector with type `Int`, and the second parameter is the corresponding value
    *          with type `Double`.
    */
-  @Since("1.6.0")
-  def foreachActive(f: (Int, Double) => Unit): Unit
+  private[spark] def foreachActive(f: (Int, Double) => Unit)
 
   /**
    * Number of active entries.  An "active entry" is an element which is explicitly stored,
@@ -174,12 +167,6 @@ sealed trait Vector extends Serializable {
    */
   @Since("1.5.0")
   def argmax: Int
-
-  /**
-   * Converts the vector to a JSON string.
-   */
-  @Since("1.6.0")
-  def toJson: String
 }
 
 /**
@@ -346,27 +333,6 @@ object Vectors {
   @Since("1.1.0")
   def parse(s: String): Vector = {
     parseNumeric(NumericParser.parse(s))
-  }
-
-  /**
-   * Parses the JSON representation of a vector into a [[Vector]].
-   */
-  @Since("1.6.0")
-  def fromJson(json: String): Vector = {
-    implicit val formats = DefaultFormats
-    val jValue = parseJson(json)
-    (jValue \ "type").extract[Int] match {
-      case 0 => // sparse
-        val size = (jValue \ "size").extract[Int]
-        val indices = (jValue \ "indices").extract[Seq[Int]].toArray
-        val values = (jValue \ "values").extract[Seq[Double]].toArray
-        sparse(size, indices, values)
-      case 1 => // dense
-        val values = (jValue \ "values").extract[Seq[Double]].toArray
-        dense(values)
-      case _ =>
-        throw new IllegalArgumentException(s"Cannot parse $json into a vector.")
-    }
   }
 
   private[mllib] def parseNumeric(any: Any): Vector = {
@@ -570,9 +536,6 @@ object Vectors {
     }
     allEqual
   }
-
-  /** Max number of nonzero entries used in computing hash code. */
-  private[linalg] val MAX_HASH_NNZ = 128
 }
 
 /**
@@ -601,8 +564,7 @@ class DenseVector @Since("1.0.0") (
     new DenseVector(values.clone())
   }
 
-  @Since("1.6.0")
-  override def foreachActive(f: (Int, Double) => Unit): Unit = {
+  private[spark] override def foreachActive(f: (Int, Double) => Unit) = {
     var i = 0
     val localValuesSize = values.length
     val localValues = values
@@ -616,15 +578,13 @@ class DenseVector @Since("1.0.0") (
   override def hashCode(): Int = {
     var result: Int = 31 + size
     var i = 0
-    val end = values.length
-    var nnz = 0
-    while (i < end && nnz < Vectors.MAX_HASH_NNZ) {
+    val end = math.min(values.length, 16)
+    while (i < end) {
       val v = values(i)
       if (v != 0.0) {
         result = 31 * result + i
         val bits = java.lang.Double.doubleToLongBits(values(i))
         result = 31 * result + (bits ^ (bits >>> 32)).toInt
-        nnz += 1
       }
       i += 1
     }
@@ -680,12 +640,6 @@ class DenseVector @Since("1.0.0") (
       maxIdx
     }
   }
-
-  @Since("1.6.0")
-  override def toJson: String = {
-    val jValue = ("type" -> 1) ~ ("values" -> values.toSeq)
-    compact(render(jValue))
-  }
 }
 
 @Since("1.3.0")
@@ -738,8 +692,7 @@ class SparseVector @Since("1.0.0") (
 
   private[spark] override def toBreeze: BV[Double] = new BSV[Double](indices, values, size)
 
-  @Since("1.6.0")
-  override def foreachActive(f: (Int, Double) => Unit): Unit = {
+  private[spark] override def foreachActive(f: (Int, Double) => Unit) = {
     var i = 0
     val localValuesSize = values.length
     val localIndices = indices
@@ -754,16 +707,19 @@ class SparseVector @Since("1.0.0") (
   override def hashCode(): Int = {
     var result: Int = 31 + size
     val end = values.length
+    var continue = true
     var k = 0
-    var nnz = 0
-    while (k < end && nnz < Vectors.MAX_HASH_NNZ) {
-      val v = values(k)
-      if (v != 0.0) {
-        val i = indices(k)
-        result = 31 * result + i
-        val bits = java.lang.Double.doubleToLongBits(v)
-        result = 31 * result + (bits ^ (bits >>> 32)).toInt
-        nnz += 1
+    while ((k < end) & continue) {
+      val i = indices(k)
+      if (i < 16) {
+        val v = values(k)
+        if (v != 0.0) {
+          result = 31 * result + i
+          val bits = java.lang.Double.doubleToLongBits(v)
+          result = 31 * result + (bits ^ (bits >>> 32)).toInt
+        }
+      } else {
+        continue = false
       }
       k += 1
     }
@@ -872,15 +828,6 @@ class SparseVector @Since("1.0.0") (
       i_v
     }.unzip
     new SparseVector(selectedIndices.length, sliceInds.toArray, sliceVals.toArray)
-  }
-
-  @Since("1.6.0")
-  override def toJson: String = {
-    val jValue = ("type" -> 0) ~
-      ("size" -> size) ~
-      ("indices" -> indices.toSeq) ~
-      ("values" -> values.toSeq)
-    compact(render(jValue))
   }
 }
 

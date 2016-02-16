@@ -18,10 +18,10 @@
 package org.apache.spark.streaming.kafka
 
 import java.util.Properties
-import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
+import java.util.concurrent.{ThreadPoolExecutor, ConcurrentHashMap}
 
-import scala.collection.{mutable, Map}
-import scala.reflect.{classTag, ClassTag}
+import scala.collection.{Map, mutable}
+import scala.reflect.{ClassTag, classTag}
 
 import kafka.common.TopicAndPartition
 import kafka.consumer.{Consumer, ConsumerConfig, ConsumerConnector, KafkaStream}

@@ -59,8 +59,8 @@ class GBTClassifierSuite extends SparkFunSuite with MLlibTestSparkContext {
   test("params") {
     ParamsSuite.checkParams(new GBTClassifier)
     val model = new GBTClassificationModel("gbtc",
-      Array(new DecisionTreeRegressionModel("dtr", new LeafNode(0.0, 0.0, null), 1)),
-      Array(1.0), 1)
+      Array(new DecisionTreeRegressionModel("dtr", new LeafNode(0.0, 0.0, null))),
+      Array(1.0))
     ParamsSuite.checkParams(model)
   }
 
@@ -145,7 +145,7 @@ class GBTClassifierSuite extends SparkFunSuite with MLlibTestSparkContext {
   */
 }
 
-private object GBTClassifierSuite extends SparkFunSuite {
+private object GBTClassifierSuite {
 
   /**
    * Train 2 models on the given dataset, one using the old API and one using the new API.
@@ -156,7 +156,6 @@ private object GBTClassifierSuite extends SparkFunSuite {
       validationData: Option[RDD[LabeledPoint]],
       gbt: GBTClassifier,
       categoricalFeatures: Map[Int, Int]): Unit = {
-    val numFeatures = data.first().features.size
     val oldBoostingStrategy =
       gbt.getOldBoostingStrategy(categoricalFeatures, OldAlgo.Classification)
     val oldGBT = new OldGBT(oldBoostingStrategy)
@@ -165,9 +164,7 @@ private object GBTClassifierSuite extends SparkFunSuite {
     val newModel = gbt.fit(newData)
     // Use parent from newTree since this is not checked anyways.
     val oldModelAsNew = GBTClassificationModel.fromOld(
-      oldModel, newModel.parent.asInstanceOf[GBTClassifier], categoricalFeatures, numFeatures)
+      oldModel, newModel.parent.asInstanceOf[GBTClassifier], categoricalFeatures)
     TreeTests.checkEqual(oldModelAsNew, newModel)
-    assert(newModel.numFeatures === numFeatures)
-    assert(oldModelAsNew.numFeatures === numFeatures)
   }
 }

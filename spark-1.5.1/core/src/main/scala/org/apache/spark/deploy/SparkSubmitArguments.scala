@@ -23,7 +23,7 @@ import java.net.URI
 import java.util.{List => JList}
 import java.util.jar.JarFile
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.io.Source
 
@@ -94,7 +94,7 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
 
   // Set parameters from command line arguments
   try {
-    parse(args.asJava)
+    parse(args.toList)
   } catch {
     case e: IllegalArgumentException =>
       SparkSubmit.printErrorAndExit(e.getMessage())
@@ -176,10 +176,7 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
     packages = Option(packages).orElse(sparkProperties.get("spark.jars.packages")).orNull
     packagesExclusions = Option(packagesExclusions)
       .orElse(sparkProperties.get("spark.jars.excludes")).orNull
-    deployMode = Option(deployMode)
-      .orElse(sparkProperties.get("spark.submit.deployMode"))
-      .orElse(env.get("DEPLOY_MODE"))
-      .orNull
+    deployMode = Option(deployMode).orElse(env.get("DEPLOY_MODE")).orNull
     numExecutors = Option(numExecutors)
       .getOrElse(sparkProperties.get("spark.executor.instances").orNull)
     keytab = Option(keytab).orElse(sparkProperties.get("spark.yarn.keytab")).orNull
@@ -461,7 +458,7 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
   }
 
   override protected def handleExtraArgs(extra: JList[String]): Unit = {
-    childArgs ++= extra.asScala
+    childArgs ++= extra
   }
 
   private def printUsageAndExit(exitCode: Int, unknownParam: Any = null): Unit = {

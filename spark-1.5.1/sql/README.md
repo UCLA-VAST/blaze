@@ -20,7 +20,7 @@ If you are working with Hive 0.12.0, you will need to set several environmental 
 ```
 export HIVE_HOME="<path to>/hive/build/dist"
 export HIVE_DEV_HOME="<path to>/hive/"
-export HADOOP_HOME="<path to>/hadoop"
+export HADOOP_HOME="<path to>/hadoop-1.0.4"
 ```
 
 If you are working with Hive 0.13.1, the following steps are needed:

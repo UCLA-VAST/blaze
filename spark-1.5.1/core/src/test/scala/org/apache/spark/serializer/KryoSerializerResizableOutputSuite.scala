@@ -18,9 +18,10 @@
 package org.apache.spark.serializer
 
 import org.apache.spark.{SparkConf, SparkFunSuite}
-import org.apache.spark.LocalSparkContext
 import org.apache.spark.SparkContext
+import org.apache.spark.LocalSparkContext
 import org.apache.spark.SparkException
+
 
 class KryoSerializerResizableOutputSuite extends SparkFunSuite {
 

@@ -23,9 +23,8 @@
 # Enter posix mode for bash
 set -o posix
 
-if [ -z "${SPARK_HOME}" ]; then
-  export SPARK_HOME="$(cd "`dirname "$0"`"/..; pwd)"
-fi
+# Figure out where Spark is installed
+FWDIR="$(cd "`dirname "$0"`"/..; pwd)"
 
 # NOTE: This exact class name is matched downstream by SparkSubmit.
 # Any changes need to be reflected there.
@@ -40,10 +39,10 @@ function usage {
   pattern+="\|======="
   pattern+="\|--help"
 
-  "${SPARK_HOME}"/bin/spark-submit --help 2>&1 | grep -v Usage 1>&2
+  "$FWDIR"/bin/spark-submit --help 2>&1 | grep -v Usage 1>&2
   echo
   echo "Thrift server options:"
-  "${SPARK_HOME}"/bin/spark-class $CLASS --help 2>&1 | grep -v "$pattern" 1>&2
+  "$FWDIR"/bin/spark-class $CLASS --help 2>&1 | grep -v "$pattern" 1>&2
 }
 
 if [[ "$@" = *--help ]] || [[ "$@" = *-h ]]; then
@@ -53,4 +52,4 @@ fi
 
 export SUBMIT_USAGE_FUNCTION=usage
 
-exec "${SPARK_HOME}"/sbin/spark-daemon.sh submit $CLASS 1 "$@"
+exec "$FWDIR"/sbin/spark-daemon.sh submit $CLASS 1 "$@"

@@ -17,10 +17,13 @@
 
 package org.apache.spark.unsafe.map;
 
+import org.apache.spark.unsafe.memory.MemoryAllocator;
+
 public class BytesToBytesMapOnHeapSuite extends AbstractBytesToBytesMapSuite {
 
   @Override
-  protected boolean useOffHeapMemoryAllocator() {
-    return false;
+  protected MemoryAllocator getMemoryAllocator() {
+    return MemoryAllocator.HEAP;
   }
+
 }

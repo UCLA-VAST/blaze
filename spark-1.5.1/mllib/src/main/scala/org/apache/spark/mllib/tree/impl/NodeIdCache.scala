@@ -19,13 +19,13 @@ package org.apache.spark.mllib.tree.impl
 
 import scala.collection.mutable
 
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.{Path, FileSystem}
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.mllib.tree.configuration.FeatureType._
-import org.apache.spark.mllib.tree.model.{Bin, Node, Split}
-import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.mllib.tree.model.{Bin, Node, Split}
 
 /**
  * :: DeveloperApi ::
@@ -108,21 +108,21 @@ private[spark] class NodeIdCache(
 
     prevNodeIdsForInstances = nodeIdsForInstances
     nodeIdsForInstances = data.zip(nodeIdsForInstances).map {
-      case (point, node) => {
+      dataPoint => {
         var treeId = 0
         while (treeId < nodeIdUpdaters.length) {
-          val nodeIdUpdater = nodeIdUpdaters(treeId).getOrElse(node(treeId), null)
+          val nodeIdUpdater = nodeIdUpdaters(treeId).getOrElse(dataPoint._2(treeId), null)
           if (nodeIdUpdater != null) {
             val newNodeIndex = nodeIdUpdater.updateNodeIndex(
-              binnedFeatures = point.datum.binnedFeatures,
+              binnedFeatures = dataPoint._1.datum.binnedFeatures,
               bins = bins)
-            node(treeId) = newNodeIndex
+            dataPoint._2(treeId) = newNodeIndex
           }
 
           treeId += 1
         }
 
-        node
+        dataPoint._2
       }
     }
 
@@ -138,7 +138,7 @@ private[spark] class NodeIdCache(
       while (checkpointQueue.size > 1 && canDelete) {
         // We can delete the oldest checkpoint iff
         // the next checkpoint actually exists in the file system.
-        if (checkpointQueue.get(1).get.getCheckpointFile.isDefined) {
+        if (checkpointQueue.get(1).get.getCheckpointFile != None) {
           val old = checkpointQueue.dequeue()
 
           // Since the old checkpoint is not deleted by Spark,
@@ -159,16 +159,12 @@ private[spark] class NodeIdCache(
    * Call this after training is finished to delete any remaining checkpoints.
    */
   def deleteAllCheckpoints(): Unit = {
-    while (checkpointQueue.nonEmpty) {
+    while (checkpointQueue.size > 0) {
       val old = checkpointQueue.dequeue()
-      for (checkpointFile <- old.getCheckpointFile) {
+      if (old.getCheckpointFile != None) {
         val fs = FileSystem.get(old.sparkContext.hadoopConfiguration)
-        fs.delete(new Path(checkpointFile), true)
+        fs.delete(new Path(old.getCheckpointFile.get), true)
       }
-    }
-    if (prevNodeIdsForInstances != null) {
-      // Unpersist the previous one if one exists.
-      prevNodeIdsForInstances.unpersist()
     }
   }
 }

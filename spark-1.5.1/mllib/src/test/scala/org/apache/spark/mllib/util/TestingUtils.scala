@@ -17,9 +17,8 @@
 
 package org.apache.spark.mllib.util
 
-import org.scalatest.exceptions.TestFailedException
-
 import org.apache.spark.mllib.linalg.{Matrix, Vector}
+import org.scalatest.exceptions.TestFailedException
 
 object TestingUtils {
 

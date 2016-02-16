@@ -18,7 +18,6 @@
 package org.apache.spark.network.shuffle;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
@@ -79,7 +78,7 @@ public class ExternalShuffleClient extends ShuffleClient {
   @Override
   public void init(String appId) {
     this.appId = appId;
-    TransportContext context = new TransportContext(conf, new NoOpRpcHandler(), true);
+    TransportContext context = new TransportContext(conf, new NoOpRpcHandler());
     List<TransportClientBootstrap> bootstraps = Lists.newArrayList();
     if (saslEnabled) {
       bootstraps.add(new SaslClientBootstrap(conf, appId, secretKeyHolder, saslEncryptionEnabled));
@@ -138,13 +137,9 @@ public class ExternalShuffleClient extends ShuffleClient {
       String execId,
       ExecutorShuffleInfo executorInfo) throws IOException {
     checkInit();
-    TransportClient client = clientFactory.createUnmanagedClient(host, port);
-    try {
-      ByteBuffer registerMessage = new RegisterExecutor(appId, execId, executorInfo).toByteBuffer();
-      client.sendRpcSync(registerMessage, 5000 /* timeoutMs */);
-    } finally {
-      client.close();
-    }
+    TransportClient client = clientFactory.createClient(host, port);
+    byte[] registerMessage = new RegisterExecutor(appId, execId, executorInfo).toByteArray();
+    client.sendRpcSync(registerMessage, 5000 /* timeoutMs */);
   }
 
   @Override

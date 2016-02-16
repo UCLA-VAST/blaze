@@ -21,12 +21,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.CharStreams;
-import org.apache.spark.network.shuffle.protocol.ExecutorShuffleInfo;
 import org.apache.spark.network.util.SystemPropertyConfigProvider;
 import org.apache.spark.network.util.TransportConf;
-import org.apache.spark.network.shuffle.ExternalShuffleBlockResolver.AppExecId;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -42,7 +39,7 @@ public class ExternalShuffleBlockResolverSuite {
 
   static TestShuffleDataContext dataContext;
 
-  static TransportConf conf = new TransportConf("shuffle", new SystemPropertyConfigProvider());
+  static TransportConf conf = new TransportConf(new SystemPropertyConfigProvider());
 
   @BeforeClass
   public static void beforeAll() throws IOException {
@@ -62,8 +59,8 @@ public class ExternalShuffleBlockResolverSuite {
   }
 
   @Test
-  public void testBadRequests() throws IOException {
-    ExternalShuffleBlockResolver resolver = new ExternalShuffleBlockResolver(conf, null);
+  public void testBadRequests() {
+    ExternalShuffleBlockResolver resolver = new ExternalShuffleBlockResolver(conf);
     // Unregistered executor
     try {
       resolver.getBlockData("app0", "exec1", "shuffle_1_1_0");
@@ -83,7 +80,7 @@ public class ExternalShuffleBlockResolverSuite {
 
     // Nonexistent shuffle block
     resolver.registerExecutor("app0", "exec3",
-      dataContext.createExecutorInfo("sort"));
+      dataContext.createExecutorInfo("org.apache.spark.shuffle.sort.SortShuffleManager"));
     try {
       resolver.getBlockData("app0", "exec3", "shuffle_1_1_0");
       fail("Should have failed");
@@ -94,9 +91,9 @@ public class ExternalShuffleBlockResolverSuite {
 
   @Test
   public void testSortShuffleBlocks() throws IOException {
-    ExternalShuffleBlockResolver resolver = new ExternalShuffleBlockResolver(conf, null);
+    ExternalShuffleBlockResolver resolver = new ExternalShuffleBlockResolver(conf);
     resolver.registerExecutor("app0", "exec0",
-      dataContext.createExecutorInfo("sort"));
+      dataContext.createExecutorInfo("org.apache.spark.shuffle.sort.SortShuffleManager"));
 
     InputStream block0Stream =
       resolver.getBlockData("app0", "exec0", "shuffle_0_0_0").createInputStream();
@@ -113,9 +110,9 @@ public class ExternalShuffleBlockResolverSuite {
 
   @Test
   public void testHashShuffleBlocks() throws IOException {
-    ExternalShuffleBlockResolver resolver = new ExternalShuffleBlockResolver(conf, null);
+    ExternalShuffleBlockResolver resolver = new ExternalShuffleBlockResolver(conf);
     resolver.registerExecutor("app0", "exec0",
-      dataContext.createExecutorInfo("hash"));
+      dataContext.createExecutorInfo("org.apache.spark.shuffle.hash.HashShuffleManager"));
 
     InputStream block0Stream =
       resolver.getBlockData("app0", "exec0", "shuffle_1_0_0").createInputStream();
@@ -128,29 +125,5 @@ public class ExternalShuffleBlockResolverSuite {
     String block1 = CharStreams.toString(new InputStreamReader(block1Stream));
     block1Stream.close();
     assertEquals(hashBlock1, block1);
-  }
-
-  @Test
-  public void jsonSerializationOfExecutorRegistration() throws IOException {
-    ObjectMapper mapper = new ObjectMapper();
-    AppExecId appId = new AppExecId("foo", "bar");
-    String appIdJson = mapper.writeValueAsString(appId);
-    AppExecId parsedAppId = mapper.readValue(appIdJson, AppExecId.class);
-    assertEquals(parsedAppId, appId);
-
-    ExecutorShuffleInfo shuffleInfo =
-      new ExecutorShuffleInfo(new String[]{"/bippy", "/flippy"}, 7, "hash");
-    String shuffleJson = mapper.writeValueAsString(shuffleInfo);
-    ExecutorShuffleInfo parsedShuffleInfo =
-      mapper.readValue(shuffleJson, ExecutorShuffleInfo.class);
-    assertEquals(parsedShuffleInfo, shuffleInfo);
-
-    // Intentionally keep these hard-coded strings in here, to check backwards-compatability.
-    // its not legacy yet, but keeping this here in case anybody changes it
-    String legacyAppIdJson = "{\"appId\":\"foo\", \"execId\":\"bar\"}";
-    assertEquals(appId, mapper.readValue(legacyAppIdJson, AppExecId.class));
-    String legacyShuffleJson = "{\"localDirs\": [\"/bippy\", \"/flippy\"], " +
-      "\"subDirsPerLocalDir\": 7, \"shuffleManager\": \"hash\"}";
-    assertEquals(shuffleInfo, mapper.readValue(legacyShuffleJson, ExecutorShuffleInfo.class));
   }
 }

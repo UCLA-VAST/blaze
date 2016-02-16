@@ -17,13 +17,15 @@
 
 package org.apache.spark.sql.hive
 
-import org.apache.spark.sql.{QueryTest, Row}
+import org.apache.spark.sql.hive.test.TestHive
 import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
-import org.apache.spark.sql.hive.test.TestHiveSingleton
+import org.apache.spark.sql.{QueryTest, Row, SQLContext}
 
 case class Cases(lower: String, UPPER: String)
 
-class HiveParquetSuite extends QueryTest with ParquetTest with TestHiveSingleton {
+class HiveParquetSuite extends QueryTest with ParquetTest {
+  private val ctx = TestHive
+  override def _sqlContext: SQLContext = ctx
 
   test("Case insensitive attribute names") {
     withParquetTable((1 to 4).map(i => Cases(i.toString, i.toString)), "cases") {
@@ -51,7 +53,7 @@ class HiveParquetSuite extends QueryTest with ParquetTest with TestHiveSingleton
   test("Converting Hive to Parquet Table via saveAsParquetFile") {
     withTempPath { dir =>
       sql("SELECT * FROM src").write.parquet(dir.getCanonicalPath)
-      hiveContext.read.parquet(dir.getCanonicalPath).registerTempTable("p")
+      ctx.read.parquet(dir.getCanonicalPath).registerTempTable("p")
       withTempTable("p") {
         checkAnswer(
           sql("SELECT * FROM src ORDER BY key"),
@@ -64,7 +66,7 @@ class HiveParquetSuite extends QueryTest with ParquetTest with TestHiveSingleton
     withParquetTable((1 to 10).map(i => (i, s"val_$i")), "t") {
       withTempPath { file =>
         sql("SELECT * FROM t LIMIT 1").write.parquet(file.getCanonicalPath)
-        hiveContext.read.parquet(file.getCanonicalPath).registerTempTable("p")
+        ctx.read.parquet(file.getCanonicalPath).registerTempTable("p")
         withTempTable("p") {
           // let's do three overwrites for good measure
           sql("INSERT OVERWRITE TABLE p SELECT * FROM t")

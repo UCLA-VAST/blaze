@@ -17,9 +17,9 @@
 
 package org.apache.spark.util
 
-import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch}
+import java.util.concurrent.CountDownLatch
 
-import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -31,11 +31,11 @@ import org.apache.spark.SparkFunSuite
 class EventLoopSuite extends SparkFunSuite with Timeouts {
 
   test("EventLoop") {
-    val buffer = new ConcurrentLinkedQueue[Int]
+    val buffer = new mutable.ArrayBuffer[Int] with mutable.SynchronizedBuffer[Int]
     val eventLoop = new EventLoop[Int]("test") {
 
       override def onReceive(event: Int): Unit = {
-        buffer.add(event)
+        buffer += event
       }
 
       override def onError(e: Throwable): Unit = {}
@@ -43,7 +43,7 @@ class EventLoopSuite extends SparkFunSuite with Timeouts {
     eventLoop.start()
     (1 to 100).foreach(eventLoop.post)
     eventually(timeout(5 seconds), interval(5 millis)) {
-      assert((1 to 100) === buffer.asScala.toSeq)
+      assert((1 to 100) === buffer.toSeq)
     }
     eventLoop.stop()
   }

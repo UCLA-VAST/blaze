@@ -17,10 +17,9 @@
 
 package org.apache.spark.sql.catalyst.analysis
 
-import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.catalyst.{SimpleCatalystConf, TableIdentifier}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.SimpleCatalystConf
 
 trait AnalysisTest extends PlanTest {
 
@@ -31,8 +30,8 @@ trait AnalysisTest extends PlanTest {
     val caseSensitiveCatalog = new SimpleCatalog(caseSensitiveConf)
     val caseInsensitiveCatalog = new SimpleCatalog(caseInsensitiveConf)
 
-    caseSensitiveCatalog.registerTable(TableIdentifier("TaBlE"), TestRelations.testRelation)
-    caseInsensitiveCatalog.registerTable(TableIdentifier("TaBlE"), TestRelations.testRelation)
+    caseSensitiveCatalog.registerTable(Seq("TaBlE"), TestRelations.testRelation)
+    caseInsensitiveCatalog.registerTable(Seq("TaBlE"), TestRelations.testRelation)
 
     new Analyzer(caseSensitiveCatalog, EmptyFunctionRegistry, caseSensitiveConf) {
       override val extendedResolutionRules = EliminateSubQueries :: Nil
@@ -68,7 +67,8 @@ trait AnalysisTest extends PlanTest {
       expectedErrors: Seq[String],
       caseSensitive: Boolean = true): Unit = {
     val analyzer = getAnalyzer(caseSensitive)
-    val e = intercept[AnalysisException] {
+    // todo: make sure we throw AnalysisException during analysis
+    val e = intercept[Exception] {
       analyzer.checkAnalysis(analyzer.execute(inputPlan))
     }
     assert(expectedErrors.map(_.toLowerCase).forall(e.getMessage.toLowerCase.contains),

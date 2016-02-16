@@ -45,10 +45,7 @@ private[master] class FileSystemPersistenceEngine(
   }
 
   override def unpersist(name: String): Unit = {
-    val f = new File(dir + File.separator + name)
-    if (!f.delete()) {
-      logWarning(s"Error deleting ${f.getPath()}")
-    }
+    new File(dir + File.separator + name).delete()
   }
 
   override def read[T: ClassTag](prefix: String): Seq[T] = {

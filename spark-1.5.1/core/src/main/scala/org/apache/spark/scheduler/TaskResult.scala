@@ -20,9 +20,11 @@ package org.apache.spark.scheduler
 import java.io._
 import java.nio.ByteBuffer
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.Map
+import scala.collection.mutable
 
 import org.apache.spark.SparkEnv
+import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.storage.BlockId
 import org.apache.spark.util.Utils
 
@@ -34,24 +36,31 @@ private[spark] case class IndirectTaskResult[T](blockId: BlockId, size: Int)
   extends TaskResult[T] with Serializable
 
 /** A TaskResult that contains the task's return value and accumulator updates. */
-private[spark] class DirectTaskResult[T](
-    var valueBytes: ByteBuffer,
-    var accumUpdates: Seq[AccumulableInfo])
+private[spark]
+class DirectTaskResult[T](var valueBytes: ByteBuffer, var accumUpdates: Map[Long, Any],
+    var metrics: TaskMetrics)
   extends TaskResult[T] with Externalizable {
 
   private var valueObjectDeserialized = false
   private var valueObject: T = _
 
-  def this() = this(null.asInstanceOf[ByteBuffer], null)
+  def this() = this(null.asInstanceOf[ByteBuffer], null, null)
 
   override def writeExternal(out: ObjectOutput): Unit = Utils.tryOrIOException {
-    out.writeInt(valueBytes.remaining)
+
+    out.writeInt(valueBytes.remaining);
     Utils.writeByteBuffer(valueBytes, out)
+
     out.writeInt(accumUpdates.size)
-    accumUpdates.foreach(out.writeObject)
+    for ((key, value) <- accumUpdates) {
+      out.writeLong(key)
+      out.writeObject(value)
+    }
+    out.writeObject(metrics)
   }
 
   override def readExternal(in: ObjectInput): Unit = Utils.tryOrIOException {
+
     val blen = in.readInt()
     val byteVal = new Array[Byte](blen)
     in.readFully(byteVal)
@@ -61,12 +70,13 @@ private[spark] class DirectTaskResult[T](
     if (numUpdates == 0) {
       accumUpdates = null
     } else {
-      val _accumUpdates = new ArrayBuffer[AccumulableInfo]
+      val _accumUpdates = mutable.Map[Long, Any]()
       for (i <- 0 until numUpdates) {
-        _accumUpdates += in.readObject.asInstanceOf[AccumulableInfo]
+        _accumUpdates(in.readLong()) = in.readObject()
       }
       accumUpdates = _accumUpdates
     }
+    metrics = in.readObject().asInstanceOf[TaskMetrics]
     valueObjectDeserialized = false
   }
 

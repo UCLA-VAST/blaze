@@ -23,10 +23,8 @@
 # Enter posix mode for bash
 set -o posix
 
-# Figure out if SPARK_HOME is set
-if [ -z "${SPARK_HOME}" ]; then
-  export SPARK_HOME="$(cd "`dirname "$0"`"/..; pwd)"
-fi
+# Figure out where Spark is installed
+FWDIR="$(cd "`dirname "$0"`"/..; pwd)"
 
 CLASS="org.apache.hive.beeline.BeeLine"
-exec "${SPARK_HOME}/bin/spark-class" $CLASS "$@"
+exec "$FWDIR/bin/spark-class" $CLASS "$@"

@@ -59,16 +59,28 @@ case class JobSet(
 
   // Time taken to process all the jobs from the time they were submitted
   // (i.e. including the time they wait in the streaming scheduler queue)
-  def totalDelay: Long = processingEndTime - time.milliseconds
+  def totalDelay: Long = {
+    processingEndTime - time.milliseconds
+  }
 
   def toBatchInfo: BatchInfo = {
-    BatchInfo(
+    val failureReasons: Map[Int, String] = {
+      if (hasCompleted) {
+        jobs.filter(_.result.isFailure).map { job =>
+          (job.outputOpId, Utils.exceptionString(job.result.asInstanceOf[Failure[_]].exception))
+        }.toMap
+      } else {
+        Map.empty
+      }
+    }
+    val binfo = new BatchInfo(
       time,
       streamIdToInputInfo,
       submissionTime,
-      if (hasStarted) Some(processingStartTime) else None,
-      if (hasCompleted) Some(processingEndTime) else None,
-      jobs.map { job => (job.outputOpId, job.toOutputOperationInfo) }.toMap
+      if (processingStartTime >= 0) Some(processingStartTime) else None,
+      if (processingEndTime >= 0) Some(processingEndTime) else None
     )
+    binfo.setFailureReason(failureReasons)
+    binfo
   }
 }

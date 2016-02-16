@@ -17,8 +17,7 @@
 
 package org.apache.spark.ml.feature;
 
-import java.util.Arrays;
-
+import com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -53,11 +52,9 @@ public class JavaTokenizerSuite {
       .setOutputCol("tokens")
       .setPattern("\\s")
       .setGaps(true)
-      .setToLowercase(false)
       .setMinTokenLength(3);
 
-
-    JavaRDD<TokenizerTestData> rdd = jsc.parallelize(Arrays.asList(
+    JavaRDD<TokenizerTestData> rdd = jsc.parallelize(Lists.newArrayList(
       new TokenizerTestData("Test of tok.", new String[] {"Test", "tok."}),
       new TokenizerTestData("Te,st.  punct", new String[] {"Te,st.", "punct"})
     ));

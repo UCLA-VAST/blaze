@@ -17,13 +17,13 @@
 
 package org.apache.spark.mllib.regression
 
-import org.apache.spark.{Logging, SparkException}
 import org.apache.spark.annotation.{DeveloperApi, Since}
 import org.apache.spark.mllib.feature.StandardScaler
-import org.apache.spark.mllib.linalg.{Vector, Vectors}
-import org.apache.spark.mllib.optimization._
-import org.apache.spark.mllib.util.MLUtils._
+import org.apache.spark.{Logging, SparkException}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.mllib.optimization._
+import org.apache.spark.mllib.linalg.{Vectors, Vector}
+import org.apache.spark.mllib.util.MLUtils._
 import org.apache.spark.storage.StorageLevel
 
 /**
@@ -140,7 +140,7 @@ abstract class GeneralizedLinearAlgorithm[M <: GeneralizedLinearModel]
    * translated back to resulting model weights, so it's transparent to users.
    * Note: This technique is used in both libsvm and glmnet packages. Default false.
    */
-  private[mllib] var useFeatureScaling = false
+  private var useFeatureScaling = false
 
   /**
    * The dimension of training features.
@@ -196,9 +196,12 @@ abstract class GeneralizedLinearAlgorithm[M <: GeneralizedLinearModel]
   }
 
   /**
-   * Generate the initial weights when the user does not supply them
+   * Run the algorithm with the configured parameters on an input
+   * RDD of LabeledPoint entries.
+   *
    */
-  protected def generateInitialWeights(input: RDD[LabeledPoint]): Vector = {
+  @Since("0.8.0")
+  def run(input: RDD[LabeledPoint]): M = {
     if (numFeatures < 0) {
       numFeatures = input.map(_.features.size).first()
     }
@@ -214,23 +217,16 @@ abstract class GeneralizedLinearAlgorithm[M <: GeneralizedLinearModel]
      * TODO: See if we can deprecate `intercept` in `GeneralizedLinearModel`, and always
      * have the intercept as part of weights to have consistent design.
      */
-    if (numOfLinearPredictor == 1) {
-      Vectors.zeros(numFeatures)
-    } else if (addIntercept) {
-      Vectors.zeros((numFeatures + 1) * numOfLinearPredictor)
-    } else {
-      Vectors.zeros(numFeatures * numOfLinearPredictor)
+    val initialWeights = {
+      if (numOfLinearPredictor == 1) {
+        Vectors.zeros(numFeatures)
+      } else if (addIntercept) {
+        Vectors.zeros((numFeatures + 1) * numOfLinearPredictor)
+      } else {
+        Vectors.zeros(numFeatures * numOfLinearPredictor)
+      }
     }
-  }
-
-  /**
-   * Run the algorithm with the configured parameters on an input
-   * RDD of LabeledPoint entries.
-   *
-   */
-  @Since("0.8.0")
-  def run(input: RDD[LabeledPoint]): M = {
-    run(input, generateInitialWeights(input))
+    run(input, initialWeights)
   }
 
   /**
@@ -361,11 +357,6 @@ abstract class GeneralizedLinearAlgorithm[M <: GeneralizedLinearModel]
     if (input.getStorageLevel == StorageLevel.NONE) {
       logWarning("The input data was not directly cached, which may hurt performance if its"
         + " parent RDDs are also uncached.")
-    }
-
-    // Unpersist cached data
-    if (data.getStorageLevel != StorageLevel.NONE) {
-      data.unpersist(false)
     }
 
     createModel(weights, intercept)

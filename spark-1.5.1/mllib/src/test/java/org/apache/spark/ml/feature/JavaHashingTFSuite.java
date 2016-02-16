@@ -17,9 +17,7 @@
 
 package org.apache.spark.ml.feature;
 
-import java.util.Arrays;
-import java.util.List;
-
+import com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -56,17 +54,17 @@ public class JavaHashingTFSuite {
 
   @Test
   public void hashingTF() {
-    List<Row> data = Arrays.asList(
+    JavaRDD<Row> jrdd = jsc.parallelize(Lists.newArrayList(
       RowFactory.create(0.0, "Hi I heard about Spark"),
       RowFactory.create(0.0, "I wish Java could use case classes"),
       RowFactory.create(1.0, "Logistic regression models are neat")
-    );
+    ));
     StructType schema = new StructType(new StructField[]{
       new StructField("label", DataTypes.DoubleType, false, Metadata.empty()),
       new StructField("sentence", DataTypes.StringType, false, Metadata.empty())
     });
 
-    DataFrame sentenceData = jsql.createDataFrame(data, schema);
+    DataFrame sentenceData = jsql.createDataFrame(jrdd, schema);
     Tokenizer tokenizer = new Tokenizer()
       .setInputCol("sentence")
       .setOutputCol("words");

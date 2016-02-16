@@ -19,8 +19,8 @@ package org.apache.spark.mllib.clustering
 
 import java.util.Random
 
-import breeze.linalg.{all, normalize, sum, DenseMatrix => BDM, DenseVector => BDV}
-import breeze.numerics.{abs, exp, trigamma}
+import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV, all, normalize, sum}
+import breeze.numerics.{trigamma, abs, exp}
 import breeze.stats.distributions.{Gamma, RandBasis}
 
 import org.apache.spark.annotation.{DeveloperApi, Since}
@@ -95,9 +95,7 @@ final class EMLDAOptimizer extends LDAOptimizer {
   /**
    * Compute bipartite term/doc graph.
    */
-  override private[clustering] def initialize(
-      docs: RDD[(Long, Vector)],
-      lda: LDA): EMLDAOptimizer = {
+  override private[clustering] def initialize(docs: RDD[(Long, Vector)], lda: LDA): LDAOptimizer = {
     // EMLDAOptimizer currently only supports symmetric document-topic priors
     val docConcentration = lda.getDocConcentration
 
@@ -440,7 +438,7 @@ final class OnlineLDAOptimizer extends LDAOptimizer {
 
       val stat = BDM.zeros[Double](k, vocabSize)
       var gammaPart = List[BDV[Double]]()
-      nonEmptyDocs.foreach { case (_, termCounts: Vector) =>
+      nonEmptyDocs.zipWithIndex.foreach { case ((_, termCounts: Vector), idx: Int) =>
         val ids: List[Int] = termCounts match {
           case v: DenseVector => (0 until v.size).toList
           case v: SparseVector => v.indices.toList

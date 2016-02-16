@@ -21,7 +21,8 @@ package org.apache.spark.sql.execution
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
-import org.apache.spark.util.collection.unsafe.sort.{PrefixComparator, PrefixComparators}
+import org.apache.spark.util.collection.unsafe.sort.{PrefixComparators, PrefixComparator}
+
 
 object SortPrefixUtils {
 

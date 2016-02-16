@@ -17,18 +17,17 @@
 
 package org.apache.spark.rdd
 
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.mapred._
+import org.apache.hadoop.util.Progressable
+
 import scala.collection.mutable.{ArrayBuffer, HashSet}
 import scala.util.Random
 
-import org.apache.commons.math3.distribution.{BinomialDistribution, PoissonDistribution}
 import org.apache.hadoop.conf.{Configurable, Configuration}
-import org.apache.hadoop.fs.FileSystem
-import org.apache.hadoop.mapred._
-import org.apache.hadoop.mapreduce.{JobContext => NewJobContext,
-  OutputCommitter => NewOutputCommitter, OutputFormat => NewOutputFormat,
-  RecordWriter => NewRecordWriter, TaskAttemptContext => NewTaskAttempContext}
-import org.apache.hadoop.util.Progressable
-
+import org.apache.hadoop.mapreduce.{JobContext => NewJobContext, OutputCommitter => NewOutputCommitter,
+OutputFormat => NewOutputFormat, RecordWriter => NewRecordWriter,
+TaskAttemptContext => NewTaskAttempContext}
 import org.apache.spark.{Partitioner, SharedSparkContext, SparkFunSuite}
 import org.apache.spark.util.Utils
 
@@ -579,36 +578,17 @@ class PairRDDFunctionsSuite extends SparkFunSuite with SharedSparkContext {
       (x: Int) => if (x % 10 < (10 * fractionPositive).toInt) "1" else "0"
     }
 
-    def assertBinomialSample(
-        exact: Boolean,
-        actual: Int,
-        trials: Int,
-        p: Double): Unit = {
+    def checkSize(exact: Boolean,
+        withReplacement: Boolean,
+        expected: Long,
+        actual: Long,
+        p: Double): Boolean = {
       if (exact) {
-        assert(actual == math.ceil(p * trials).toInt)
-      } else {
-        val dist = new BinomialDistribution(trials, p)
-        val q = dist.cumulativeProbability(actual)
-        withClue(s"p = $p: trials = $trials") {
-          assert(q >= 0.001 && q <= 0.999)
-        }
+        return expected == actual
       }
-    }
-
-    def assertPoissonSample(
-        exact: Boolean,
-        actual: Int,
-        trials: Int,
-        p: Double): Unit = {
-      if (exact) {
-        assert(actual == math.ceil(p * trials).toInt)
-      } else {
-        val dist = new PoissonDistribution(p * trials)
-        val q = dist.cumulativeProbability(actual)
-        withClue(s"p = $p: trials = $trials") {
-          assert(q >= 0.001 && q <= 0.999)
-        }
-      }
+      val stdev = if (withReplacement) math.sqrt(expected) else math.sqrt(expected * p * (1 - p))
+      // Very forgiving margin since we're dealing with very small sample sizes most of the time
+      math.abs(actual - expected) <= 6 * stdev
     }
 
     def testSampleExact(stratifiedData: RDD[(String, Int)],
@@ -633,7 +613,8 @@ class PairRDDFunctionsSuite extends SparkFunSuite with SharedSparkContext {
         samplingRate: Double,
         seed: Long,
         n: Long): Unit = {
-      val trials = stratifiedData.countByKey()
+      val expectedSampleSize = stratifiedData.countByKey()
+        .mapValues(count => math.ceil(count * samplingRate).toInt)
       val fractions = Map("1" -> samplingRate, "0" -> samplingRate)
       val sample = if (exact) {
         stratifiedData.sampleByKeyExact(false, fractions, seed)
@@ -642,10 +623,8 @@ class PairRDDFunctionsSuite extends SparkFunSuite with SharedSparkContext {
       }
       val sampleCounts = sample.countByKey()
       val takeSample = sample.collect()
-      sampleCounts.foreach { case (k, v) =>
-        assertBinomialSample(exact = exact, actual = v.toInt, trials = trials(k).toInt,
-          p = samplingRate)
-      }
+      sampleCounts.foreach { case(k, v) =>
+        assert(checkSize(exact, false, expectedSampleSize(k), v, samplingRate)) }
       assert(takeSample.size === takeSample.toSet.size)
       takeSample.foreach { x => assert(1 <= x._2 && x._2 <= n, s"elements not in [1, $n]") }
     }
@@ -656,7 +635,6 @@ class PairRDDFunctionsSuite extends SparkFunSuite with SharedSparkContext {
         samplingRate: Double,
         seed: Long,
         n: Long): Unit = {
-      val trials = stratifiedData.countByKey()
       val expectedSampleSize = stratifiedData.countByKey().mapValues(count =>
         math.ceil(count * samplingRate).toInt)
       val fractions = Map("1" -> samplingRate, "0" -> samplingRate)
@@ -668,7 +646,7 @@ class PairRDDFunctionsSuite extends SparkFunSuite with SharedSparkContext {
       val sampleCounts = sample.countByKey()
       val takeSample = sample.collect()
       sampleCounts.foreach { case (k, v) =>
-        assertPoissonSample(exact, actual = v.toInt, trials = trials(k).toInt, p = samplingRate)
+        assert(checkSize(exact, true, expectedSampleSize(k), v, samplingRate))
       }
       val groupedByKey = takeSample.groupBy(_._1)
       for ((key, v) <- groupedByKey) {
@@ -679,7 +657,7 @@ class PairRDDFunctionsSuite extends SparkFunSuite with SharedSparkContext {
           if (exact) {
             assert(v.toSet.size <= expectedSampleSize(key))
           } else {
-            assertPoissonSample(false, actual = v.toSet.size, trials(key).toInt, p = samplingRate)
+            assert(checkSize(false, true, expectedSampleSize(key), v.toSet.size, samplingRate))
           }
         }
       }

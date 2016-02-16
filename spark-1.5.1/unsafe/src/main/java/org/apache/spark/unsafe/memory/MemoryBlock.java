@@ -30,10 +30,9 @@ public class MemoryBlock extends MemoryLocation {
 
   /**
    * Optional page number; used when this MemoryBlock represents a page allocated by a
-   * TaskMemoryManager. This field is public so that it can be modified by the TaskMemoryManager,
-   * which lives in a different package.
+   * MemoryManager. This is package-private and is modified by MemoryManager.
    */
-  public int pageNumber = -1;
+  int pageNumber = -1;
 
   public MemoryBlock(@Nullable Object obj, long offset, long length) {
     super(obj, offset);
