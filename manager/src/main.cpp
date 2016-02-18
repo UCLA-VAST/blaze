@@ -58,12 +58,6 @@ int main(int argc, char** argv) {
   // setup PlatformManager
   PlatformManager platform_manager(conf);
 
-  // check if there is accelerator successfully setup
-  if (platform_manager.getLabels().empty()) {
-    LOG(ERROR) << "No accelerator is setup, exiting...";
-    return -1;
-  }
-
   // check all network interfaces on this computer, and 
   // open a communicator on each interface using the same port
   int app_port = conf->app_port();

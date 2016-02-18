@@ -16,6 +16,8 @@ class Platform {
 public:
   Platform(std::map<std::string, std::string> &conf_table);
 
+  void addQueue(AccWorker &conf);
+
   // store an accelerator setup on the platform
   virtual void setupAcc(AccWorker &conf);
 

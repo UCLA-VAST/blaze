@@ -5,9 +5,11 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+#include <cstdint>
 #include <iostream>
 #include <stdexcept>
-#include <cstdint>
 
 #define LOG_HEADER "CommManager"
 #include <glog/logging.h>

@@ -1,10 +1,9 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <boost/smart_ptr.hpp>
 #include <cstdint>
 #include <string>
-
-#include <boost/smart_ptr.hpp>
 
 namespace blaze {
 
@@ -37,6 +36,12 @@ uint64_t getUs();
 uint64_t getMs();
 uint32_t getTid();
 std::string getTS();
+
+// common file/directory operators
+std::string saveFile(std::string path, const std::string &contents);
+bool deleteFile(std::string path);
+
+// parameters
 
 } // namespace blaze
 

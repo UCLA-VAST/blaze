@@ -17,10 +17,10 @@ AR=ar
 
 CFLAGS := -c -fPIC -std=c++0x
 
-ifeq ($(DEBUG),)
-CFLAGS := $(CFLAGS) -O2 -DNDEBUG
-else
+ifeq ($(NDEBUG),)
 CFLAGS := $(CFLAGS) -g
+else
+CFLAGS := $(CFLAGS) -O2 -DNDEBUG
 endif
 
 COMPILE= $(CFLAGS) \

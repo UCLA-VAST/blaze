@@ -9,18 +9,19 @@
 #include <stdexcept>
 #include <cstdint>
 
-#include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
+#include <boost/lexical_cast.hpp>
 #include <glog/logging.h>
 
 #include "proto/task.pb.h"
+#include "proto/acc_conf.pb.h"
 #include "Block.h"
-#include "Task.h"
-#include "Platform.h"
-#include "CommManager.h"
 #include "BlockManager.h"
+#include "CommManager.h"
+#include "Platform.h"
 #include "PlatformManager.h"
+#include "Task.h"
 #include "TaskManager.h"
 
 namespace blaze {
@@ -81,7 +82,8 @@ void AppCommManager::process(socket_ptr sock) {
         platform_manager->getTaskManager(task_msg.acc_id());
 
       // 1.2 get correponding block manager based on platform of queried Task
-      Platform* platform = platform_manager->getPlatform(task_msg.acc_id());
+      Platform* platform = platform_manager->getPlatformByAccId(
+          task_msg.acc_id());
 
       if (!task_manager || !platform) {
         // if there is no matching acc
@@ -517,15 +519,9 @@ void AppCommManager::process(socket_ptr sock) {
               }
 
               // NOTE: only remove normal input file
-              try {
-                // delete memory map file after read
-                boost::filesystem::wpath file(path);
-                if (boost::filesystem::exists(file)) {
-                  boost::filesystem::remove(file);
-                }
-              } catch (std::exception &e) {
-                LOG(WARNING) << "Cannot delete memory mapped file after read";
-              }
+              if (!deleteFile(path)) {
+                LOG(ERROR) << "Cannot remove " << path;
+              } 
             }
           }
           else { 
@@ -645,11 +641,10 @@ void AppCommManager::process(socket_ptr sock) {
         finish_msg.set_type(ACCFINISH);
         try {
           send(finish_msg, sock);
+          VLOG(1) << "Task finished, sent an ACCFINISH";
         } catch (std::exception &e) {
-          throw AccFailure("Cannot send ACCFINISH");
+          LOG(ERROR) << "Cannot send ACCFINISH";
         }
-
-        VLOG(1) << "Task finished, sent an ACCFINISH";
       }
       else {
         throw AccFailure("Task failed");
@@ -679,6 +674,90 @@ void AppCommManager::process(socket_ptr sock) {
 
       send(finish_msg, sock);
     }
+    // 5. Handling ACCREGISTER
+    else if (task_msg.type() == ACCREGISTER) {
+
+      // TODO: handle app_id and acc_id
+      if (!task_msg.has_acc()) {
+        throw AccReject("missing AccMsg");
+      }
+
+      // unpack message
+      AccMsg acc_msg = task_msg.acc();
+      std::string acc_id = acc_msg.acc_id();
+      std::string platform_id = acc_msg.platform_id();
+
+      // check if platform_id and acc_id is valid
+      if (platform_manager->getTaskManager(acc_id)) 
+      {
+        LOG(WARNING) << "Cannot register accelerator ["
+          << acc_id << "] on platform [" << platform_id
+          << "] because: accelerator exists";
+
+        throw (AccReject("Accelerator exists"));
+      }
+      if (!platform_manager->getPlatformById(platform_id)) 
+      {
+        LOG(WARNING) << "Cannot register accelerator ["
+          << acc_id << "] on platform [" << platform_id
+          << "] because: platform does not exist";
+
+        throw (AccReject("Platform does not exist"));
+      }
+      // create AccWorker
+      AccWorker acc_conf;
+      acc_conf.set_id(acc_id);
+
+      // setup parameters and transfer files
+      std::string root_dir = "/tmp/nam/" + acc_id + "/"; 
+
+      std::string path = root_dir+std::string("task.so");
+
+      path = saveFile(path, acc_msg.task_impl());
+      acc_conf.set_path(path);
+
+      // TODO: here is an issue when the file size of very large,
+      // in the received binary string there are usally large 
+      // amount of data being wrong
+      VLOG(1) << "Saved acc task in " << path;
+  
+      for (int i=0; i<acc_msg.param_size(); i++) {
+        KeyValue* new_param = acc_conf.add_param();
+
+        std::string key = acc_msg.param(i).key();
+        new_param->set_key(key);
+
+        // if key specifies a file path
+        if (key.length() > 5 && 
+            key.substr(key.length()-5, 5) == "_path")
+        {
+          std::string value_path = saveFile(
+              root_dir+key, acc_msg.param(i).value());
+
+          VLOG(1) << "Saved file for '" << key << "'"
+                  << " in " << value_path;
+
+          new_param->set_value(value_path);
+        }
+        else {
+          new_param->set_value(acc_msg.param(i).value());
+        }
+      }
+
+      // setup Acc Queue
+      platform_manager->registerAcc(platform_id, acc_conf);
+
+      // send ACCFINISH
+      TaskMsg finish_msg;
+      finish_msg.set_type(ACCFINISH);
+
+      try {
+        send(finish_msg, sock);
+        VLOG(1) << "Task finished, sent an ACCFINISH";
+      } catch (std::exception &e) {
+        LOG(ERROR) << "Cannot send ACCFINISH";
+      }
+    }
     else {
       char msg[500];
       sprintf(msg, "Unknown message type: %d, discarding message\n",
@@ -691,6 +770,7 @@ void AppCommManager::process(socket_ptr sock) {
     TaskMsg reply_msg;
 
     reply_msg.set_type(ACCREJECT);
+    reply_msg.set_msg(e.what());
 
     LOG(ERROR) << "Send ACCREJECT because: " << e.what();
     try {
@@ -704,6 +784,7 @@ void AppCommManager::process(socket_ptr sock) {
     TaskMsg reply_msg;
 
     reply_msg.set_type(ACCFAILURE);
+    reply_msg.set_msg(e.what());
 
     LOG(ERROR) << "Send ACCFAILURE because: " << e.what();
 

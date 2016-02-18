@@ -19,6 +19,14 @@ Platform::Platform(std::map<std::string, std::string> &conf_table)
 
 }
 
+void Platform::addQueue(AccWorker &conf) {
+
+  this->setupAcc(conf); // DEBUG: does it call extended func?
+
+  queue_manager->add(conf.id(), conf.path());
+  queue_manager->start(conf.id());
+}
+
 // store an accelerator setup on the platform
 void Platform::setupAcc(AccWorker &conf) {
   if (acc_table.find(conf.id()) == acc_table.end()) {

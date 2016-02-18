@@ -89,31 +89,12 @@ PlatformManager::PlatformManager(ManagerConf *conf)
         }
       }
 
-      QueueManager* queue_manager = platform->getQueueManager();
-
       // add accelerators to the platform
       for (int j=0; j<platform_conf.acc_size(); j++) {
 
         AccWorker acc_conf = platform_conf.acc(j);
         try {
-          // check if acc of the same already exists
-          if (acc_table.find(acc_conf.id()) != acc_table.end()) {
-            throw std::runtime_error(
-                "accelerator of the same id already exists");
-          }
-          // setup the task environment with ACC conf
-          platform->setupAcc(acc_conf);
-
-          // add acc mapping to table
-          acc_table.insert(std::make_pair(
-                acc_conf.id(), id));
-
-          // add acc configuration to table
-          acc_config_table.insert(
-              std::make_pair(acc_conf.id(), acc_conf));
-
-          // create a corresponding task manager 
-          queue_manager->add(acc_conf.id(), acc_conf.path());
+          registerAcc(id, acc_conf);          
         } 
         catch (std::exception &e) {
           LOG(ERROR) << "Cannot create ACC " << 
@@ -121,9 +102,6 @@ PlatformManager::PlatformManager(ManagerConf *conf)
               ": " << e.what();
         }
       }
-
-      // start all executors/commiters in QueueManager
-      queue_manager->startAll();
     }
     catch (std::runtime_error &e) {
       LOG(ERROR) << "Cannot create platform " << id <<
@@ -132,11 +110,19 @@ PlatformManager::PlatformManager(ManagerConf *conf)
   }
 }
 
-Platform* PlatformManager::getPlatform(std::string acc_id) {
+Platform* PlatformManager::getPlatformByAccId(std::string acc_id) {
   if (acc_table.find(acc_id) == acc_table.end()) {
     return NULL;
   } else {
     return platform_table[acc_table[acc_id]].get();
+  }
+}
+
+Platform* PlatformManager::getPlatformById(std::string platform_id) {
+  if (platform_table.find(platform_id) == platform_table.end()) {
+    return NULL;
+  } else {
+    return platform_table[platform_id].get();
   }
 }
 
@@ -146,6 +132,34 @@ TaskManager* PlatformManager::getTaskManager(std::string acc_id) {
   } else {
     return platform_table[acc_table[acc_id]]->getTaskManager(acc_id);  
   }
+}
+
+void PlatformManager::registerAcc(
+    std::string platform_id, 
+    AccWorker &acc_conf) 
+{
+  // check if acc of the same already exists
+  if (acc_table.find(acc_conf.id()) != acc_table.end()) {
+    throw std::runtime_error(
+        "accelerator of the same id already exists");
+  }
+  Platform_ptr platform = platform_table[platform_id];
+
+  if (!platform) {
+    throw std::runtime_error(
+        "required platform does not exist");
+  }
+
+  // setup the task environment with ACC conf
+  platform->addQueue(acc_conf);
+
+  // add acc mapping to table
+  acc_table.insert(std::make_pair(
+        acc_conf.id(), platform_id));
+
+  VLOG(1) << "Added an accelerator queue "
+          << "[" << acc_conf.id() << "] "
+          << "for platform: " << platform_id;
 }
 
 // create a new platform

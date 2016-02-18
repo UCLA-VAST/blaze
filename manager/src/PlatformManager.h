@@ -13,12 +13,16 @@
 namespace blaze {
 
 class PlatformManager {
+  friend class AppCommManager;
 
 public:
   
   PlatformManager(ManagerConf *conf);
 
-  Platform* getPlatform(std::string acc_id);
+  Platform* getPlatformByAccId(std::string acc_id);
+
+  Platform* getPlatformById(std::string platform_id);
+
   TaskManager* getTaskManager(std::string acc_id);
 
   AccWorker getConfig(std::string acc_id) {
@@ -36,6 +40,10 @@ private:
   Platform_ptr create(
       std::string id, 
       std::map<std::string, std::string> &conf_table);
+
+  void registerAcc(
+      std::string platform_id, 
+      AccWorker &acc_conf);
 
   // map platform_id to Platform 
   std::map<std::string, Platform_ptr> platform_table;

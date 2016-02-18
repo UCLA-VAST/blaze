@@ -98,7 +98,7 @@ public:
     ): CommManager(_platform, address, ip_port, 4) {;}
 private:
   void process(socket_ptr);
-  std::vector<std::string> last_names;
+  std::vector<std::pair<std::string, std::string> > last_labels;
 };
 
 

@@ -45,7 +45,8 @@ void GAMCommManager::process(socket_ptr sock) {
       // sort list to avoid permutations
       //std::sort(labels.begin(), labels.end());
 
-      if ((!msg.has_pull() || !msg.pull()))
+      if ((!msg.has_pull() || !msg.pull()) &&
+          labels == last_labels)
       {
         reply_msg.set_isupdated(false); 
       }
@@ -59,6 +60,8 @@ void GAMCommManager::process(socket_ptr sock) {
 
           DLOG(INFO) << "Add acc name: " << labels[i].first << 
             " | " << labels[i].second;
+
+          last_labels = labels;
         }
       }
 
