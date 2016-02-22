@@ -54,21 +54,15 @@ public:
   // dequeue a task from the execute queue
   bool popReady(Task* &task);
 
-  // schedule a task from app queues to execution queue  
-  void schedule();
-
-  // execute front task in the queue
-  void execute();
-
   // get best and worst cast wait time 
   std::pair<int, int> getWaitTime(Task* task);
 
   void startExecutor();
   void startScheduler();
 
-  // start executor and scheduler threads
   void start();
-  //void stop();
+  void stop();
+  bool isBusy();
 
   // query the current execution queue length
   int getExeQueueLength();
@@ -78,8 +72,22 @@ public:
 
 private:
 
+  // schedule a task from app queues to execution queue  
+  bool schedule();
+
+  // execute front task in the queue
+  bool execute();
+
+  // Enable signal all the worker threads (scheduler, executor)
   bool power;
 
+  // These two flag let TaskManager exits gracefully:
+  // When power=false, but the app_queues and execution_queue
+  // are still not empty, clear the queue before exits
+  bool scheduler_idle;
+  bool executor_idle;
+
+  // Locate TaskEnv and for logging purpose
   std::string acc_id;
 
   // wait time for currently enqueued tasks

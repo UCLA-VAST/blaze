@@ -13,22 +13,25 @@ namespace blaze {
 #define BLAZE_OUTPUT_BLOCK 2
 
 // forward declaration of all classes
+class BlockManager;
+class CommManager;
 class DataBlock;
 class Task;
 class TaskEnv;
-class Platform;
-class BlockManager;
-class CommManager;
-class PlatformManager;
 class TaskManager;
+class Platform;
+class PlatformManager;
 class QueueManager;
 
-typedef boost::shared_ptr<DataBlock> DataBlock_ptr;
-typedef boost::shared_ptr<Task> Task_ptr;
-typedef boost::shared_ptr<TaskEnv> TaskEnv_ptr;
-typedef boost::shared_ptr<Platform> Platform_ptr;
 typedef boost::shared_ptr<BlockManager> BlockManager_ptr;
-typedef boost::shared_ptr<TaskManager> TaskManager_ptr;
+typedef boost::shared_ptr<DataBlock>    DataBlock_ptr;
+typedef boost::weak_ptr<DataBlock>      DataBlock_ref;
+typedef boost::shared_ptr<Task>         Task_ptr;
+typedef boost::shared_ptr<TaskEnv>      TaskEnv_ptr;
+typedef boost::shared_ptr<TaskManager>  TaskManager_ptr;
+typedef boost::weak_ptr<TaskManager>    TaskManager_ref;
+typedef boost::shared_ptr<Platform>     Platform_ptr;
+typedef boost::weak_ptr<Platform>       Platform_ref;
 typedef boost::shared_ptr<QueueManager> QueueManager_ptr;
 
 // common functions
@@ -36,6 +39,7 @@ uint64_t getUs();
 uint64_t getMs();
 uint32_t getTid();
 std::string getTS();
+std::string getUid();
 
 // common file/directory operators
 std::string saveFile(std::string path, const std::string &contents);

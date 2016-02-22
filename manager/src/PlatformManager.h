@@ -12,23 +12,24 @@
 
 namespace blaze {
 
-class PlatformManager {
+class PlatformManager 
+: public boost::basic_lockable_adapter<boost::mutex>
+{
+
   friend class AppCommManager;
 
 public:
   
   PlatformManager(ManagerConf *conf);
 
+  bool accExists(std::string acc_id);
+  bool platformExists(std::string platform);
+
   Platform* getPlatformByAccId(std::string acc_id);
 
   Platform* getPlatformById(std::string platform_id);
 
-  TaskManager* getTaskManager(std::string acc_id);
-
-  AccWorker getConfig(std::string acc_id) {
-    // exception should be handled by previous steps
-    return acc_config_table[acc_id];
-  }
+  TaskManager_ref getTaskManager(std::string acc_id);
 
   // remove a shared block from all platforms
   void removeShared(int64_t block_id);
@@ -45,21 +46,20 @@ private:
       std::string platform_id, 
       AccWorker &acc_conf);
 
+  void removeAcc(
+      std::string requester,
+      std::string acc_id,
+      std::string platform_id);
+
   // map platform_id to Platform 
   std::map<std::string, Platform_ptr> platform_table;
-
-  // TODO
-  // map acc_id to TaskManager
-  //std::map<std::string, TaskManager_ptr> task_manager_table;
 
   // map acc_id to accelerator platform
   std::map<std::string, std::string> acc_table;
 
   // map acc_id to BlockManager platform
+  // TODO: should be deprecated
   std::map<std::string, std::string> cache_table;
-
-  // map acc_id to AccWorker (acc configuration)
-  std::map<std::string, AccWorker> acc_config_table;
 };
 } // namespace blaze
 #endif

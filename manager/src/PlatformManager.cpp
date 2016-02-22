@@ -110,7 +110,19 @@ PlatformManager::PlatformManager(ManagerConf *conf)
   }
 }
 
+bool PlatformManager::accExists(std::string acc_id) {
+  boost::lock_guard<PlatformManager> guard(*this);
+  return acc_table.find(acc_id) != acc_table.end();
+}
+
+bool PlatformManager::platformExists(std::string platform_id) {
+  // boost::lock_guard<PlatformManager> guard(*this);
+  return platform_table.find(platform_id) != platform_table.end();
+}
+
 Platform* PlatformManager::getPlatformByAccId(std::string acc_id) {
+
+  boost::lock_guard<PlatformManager> guard(*this);
   if (acc_table.find(acc_id) == acc_table.end()) {
     return NULL;
   } else {
@@ -119,6 +131,8 @@ Platform* PlatformManager::getPlatformByAccId(std::string acc_id) {
 }
 
 Platform* PlatformManager::getPlatformById(std::string platform_id) {
+
+  boost::lock_guard<PlatformManager> guard(*this);
   if (platform_table.find(platform_id) == platform_table.end()) {
     return NULL;
   } else {
@@ -126,9 +140,12 @@ Platform* PlatformManager::getPlatformById(std::string platform_id) {
   }
 }
 
-TaskManager* PlatformManager::getTaskManager(std::string acc_id) {
+TaskManager_ref PlatformManager::getTaskManager(std::string acc_id) {
+  // lock all tables to guarantee exclusive access
+  boost::lock_guard<PlatformManager> guard(*this);
   if (acc_table.find(acc_id) == acc_table.end()) {
-    return NULL;
+    TaskManager_ref ret;
+    return ret;
   } else {
     return platform_table[acc_table[acc_id]]->getTaskManager(acc_id);  
   }
@@ -138,16 +155,21 @@ void PlatformManager::registerAcc(
     std::string platform_id, 
     AccWorker &acc_conf) 
 {
+  // lock all tables to guarantee exclusive access
+  boost::lock_guard<PlatformManager> guard(*this);
+
+  DLOG(INFO) << "Adding acc: " << acc_conf.id();
+
   // check if acc of the same already exists
   if (acc_table.find(acc_conf.id()) != acc_table.end()) {
     throw std::runtime_error(
-        "accelerator of the same id already exists");
+        "Accelerator already exists");
   }
   Platform_ptr platform = platform_table[platform_id];
 
   if (!platform) {
     throw std::runtime_error(
-        "required platform does not exist");
+        "Required platform does not exist");
   }
 
   // setup the task environment with ACC conf
@@ -157,8 +179,43 @@ void PlatformManager::registerAcc(
   acc_table.insert(std::make_pair(
         acc_conf.id(), platform_id));
 
+  // add cache mapping to table
+  cache_table.insert(std::make_pair(
+        acc_conf.id(), platform_id));
+
   VLOG(1) << "Added an accelerator queue "
           << "[" << acc_conf.id() << "] "
+          << "for platform: " << platform_id;
+}
+
+void PlatformManager::removeAcc(
+    std::string requester,  // TODO: used to verify client ID
+    std::string acc_id,
+    std::string platform_id) 
+{
+  // lock all tables to guarantee exclusive access
+  boost::lock_guard<PlatformManager> guard(*this);
+
+  // check if acc of the same already exists
+  if (acc_table.find(acc_id) == acc_table.end()) {
+    return;
+  }
+  Platform_ptr platform = platform_table[platform_id];
+
+  if (!platform) {
+    throw std::runtime_error(
+        "required platform does not exist");
+  }
+
+  // remove mappings of acc_id
+  acc_table.erase(acc_id);
+  cache_table.erase(acc_id);
+
+  // setup the task environment with ACC conf
+  platform->removeQueue(acc_id);
+
+  VLOG(1) << "Removed an accelerator queue "
+          << "[" << acc_id << "] "
           << "for platform: " << platform_id;
 }
 

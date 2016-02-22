@@ -62,23 +62,19 @@ except socket.error, (val, msg):
   logger.error("cannot connect to %s:%d: %s", ip, port, msg)
   sys.exit(-1)
 
-# build message to register
+# build a message to delete
 req_msg = task_pb2.TaskMsg()
-req_msg.type = task_pb2.ACCREGISTER
-req_msg.acc.acc_id = "test2"
+req_msg.type = task_pb2.ACCDELETE
+req_msg.acc.acc_id = "test1"
 req_msg.acc.platform_id = "cpu"
-
-# load file for test1
-f = open('test1/loopback.so', 'rb')
-task_impl = f.read()
-req_msg.acc.task_impl = task_impl
 
 send_msg(sock, req_msg)
 
 # load reply
 reply_msg = recv_msg(sock)
 if reply_msg.type != task_pb2.ACCFINISH:
-  logger.error("acc register failed: %s", reply_msg.msg)
+  logger.error("Acc deletion failed: %s", reply_msg.msg)
 else:
   logger.info("Successfully registering an accelerator")
+
 

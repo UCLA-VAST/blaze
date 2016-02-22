@@ -17,6 +17,7 @@ public:
   Platform(std::map<std::string, std::string> &conf_table);
 
   void addQueue(AccWorker &conf);
+  void removeQueue(std::string id);
 
   // store an accelerator setup on the platform
   virtual void setupAcc(AccWorker &conf);
@@ -26,7 +27,7 @@ public:
 
   virtual BlockManager* getBlockManager();
 
-  virtual TaskManager* getTaskManager(std::string id);
+  virtual TaskManager_ref getTaskManager(std::string id);
 
   virtual QueueManager* getQueueManager();
 

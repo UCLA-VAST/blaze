@@ -10,7 +10,9 @@
 
 namespace blaze {
 
-class QueueManager {
+class QueueManager 
+: public boost::basic_lockable_adapter<boost::mutex>
+{
 
 public:
   QueueManager(Platform *_platform): 
@@ -18,18 +20,16 @@ public:
   {;}
 
   // add a new queue regarding an existing accelerator
-  virtual void add(
-    std::string id, 
-    std::string lib_path);
+  virtual void add(std::string id, std::string lib_path);
 
   // request the task manager by acc id
   TaskManager_ptr get(std::string id);
 
-  // start the executor and commiter for one task queue
-  virtual void start(std::string id);
+  // remove a task manager in queue_table
+  void remove(std::string id);
 
-  // start the executor and commiter for all queues
-  virtual void startAll();
+  // start the executor for one task queue
+  virtual void start(std::string id);
 
   // read TaskEnv for scheduling
   TaskEnv* getTaskEnv(Task* task);

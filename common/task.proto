@@ -46,6 +46,6 @@ message AccMsg {
   }
   required string acc_id = 1;
   required string platform_id = 2;
-  required bytes task_impl = 3;
+  optional bytes task_impl = 3;
   repeated KeyValue param = 4;
 }

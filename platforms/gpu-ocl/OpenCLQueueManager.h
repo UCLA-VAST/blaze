@@ -13,7 +13,7 @@ public:
   OpenCLQueueManager(Platform* _platform);
 
   // start dispatch and executors for all GPU devices
-  void startAll();
+  void start(std::string id);
 
 private:
   OpenCLPlatform* ocl_platform;

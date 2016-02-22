@@ -76,6 +76,11 @@ namespace blaze {
     return (uint32_t)getpid(); 
   }
 
+  // get the user id from system env
+  std::string getUid() {
+    return std::string(std::getenv("USER"));
+  }
+
   std::string saveFile(
       std::string path, 
       const std::string &contents) 

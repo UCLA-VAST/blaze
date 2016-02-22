@@ -46,22 +46,50 @@ void QueueManager::add(
   }
 
   // construct the corresponding task queue
-  TaskManager_ptr taskManager(
+  TaskManager_ptr task_manager(
       new TaskManager(create_func, destroy_func, id, platform));
 
-  queue_table.insert(std::make_pair(id, taskManager));
+  task_manager->startScheduler();
+
+  // lock before modifying queue_table
+  boost::lock_guard<QueueManager> guard(*this);
+
+  queue_table.insert(std::make_pair(id, task_manager));
 
   LOG(INFO) << "Added a new task queue: " << id;
 }
 
 TaskManager_ptr QueueManager::get(std::string id) {
 
+  boost::lock_guard<QueueManager> guard(*this);
   if (queue_table.find(id) == queue_table.end()) {
     return NULL_TASK_MANAGER;   
   }
   else {
     return queue_table[id];
   }
+}
+
+void QueueManager::remove(std::string id) {
+
+  TaskManager_ptr task_manager = get(id);
+
+  if (!task_manager) {
+    return;
+  }
+
+  this->lock();
+  queue_table.erase(id);
+  this->unlock();
+
+  DLOG(INFO) << "Stopping the TaskManager for " << id;
+  task_manager->stop();
+
+  // wait for TaskManager to exit gracefully
+  while (task_manager->isBusy()) {
+    boost::this_thread::sleep_for(boost::chrono::microseconds(1000));
+  }
+  DLOG(INFO) << "TaskManager for " << id << " is successfully stopped";
 }
 
 TaskEnv* QueueManager::getTaskEnv(Task* task) {
@@ -101,21 +129,11 @@ void QueueManager::start(std::string id) {
 
   // get the reference to the task queue 
   TaskManager_ptr task_manager = get(id);
-
-  if (task_manager == NULL_TASK_MANAGER) {
-    throw std::runtime_error("No matching task queue");
-    return;
+  if (task_manager) {
+    task_manager->startExecutor();
   }
-  task_manager->start();
-}
-
-void QueueManager::startAll() {
-  std::map<std::string, TaskManager_ptr>::iterator iter;
-  for (iter = queue_table.begin();
-      iter != queue_table.end();
-      ++iter)
-  {
-    start(iter->first);
+  else {
+    LOG(ERROR) << "Cannot start executor for " << id;
   }
 }
 

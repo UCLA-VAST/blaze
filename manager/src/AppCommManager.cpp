@@ -14,7 +14,6 @@
 #include <boost/lexical_cast.hpp>
 #include <glog/logging.h>
 
-#include "proto/task.pb.h"
 #include "proto/acc_conf.pb.h"
 #include "Block.h"
 #include "BlockManager.h"
@@ -77,18 +76,14 @@ void AppCommManager::process(socket_ptr sock) {
        * task's input table, in order to get the correct order
        */
 
-      // 1.1 query the PlatformManager to find matching acc
-      TaskManager* task_manager = 
-        platform_manager->getTaskManager(task_msg.acc_id());
-
-      // 1.2 get correponding block manager based on platform of queried Task
-      Platform* platform = platform_manager->getPlatformByAccId(
-          task_msg.acc_id());
-
-      if (!task_manager || !platform) {
-        // if there is no matching acc
+      // query the PlatformManager to find matching acc
+      if (!platform_manager->accExists(acc_id)) {
         throw AccReject("No matching accelerator"); 
       }
+
+      // get correponding block manager based on platform of queried Task
+      Platform* platform = platform_manager->getPlatformByAccId(
+          task_msg.acc_id());
 
       // NOTE: ommit pointer check since it is 
       // already performed in getTaskManager
@@ -100,7 +95,21 @@ void AppCommManager::process(socket_ptr sock) {
       }
 
       // create a new task, and make scheduling decision
-      Task_ptr task = task_manager->create();
+      Task_ptr task;
+
+      TaskManager_ref task_manager = 
+        platform_manager->getTaskManager(task_msg.acc_id());
+
+      // check if task_manager is still valid
+      if (!task_manager.lock()) {
+        // accelerator already removed
+        DLOG(WARNING) << "Accelerator queue for " << acc_id
+                      << " is likely to be removed";
+        throw AccReject("No matching accelerator"); 
+      }
+      else {
+        task = task_manager.lock()->create();
+      }
       
       bool wait_accdata = false;
 
@@ -253,13 +262,14 @@ void AppCommManager::process(socket_ptr sock) {
       }
 
       // 1.4 decide to reject the task if wait time is too long
-      int task_time = task_manager->estimateTime(task.get());
+#if 0
+      int task_time = task_manager.lock()->estimateTime(task.get());
       int task_speedup = task->estimateSpeedup();
 
       if (task_time > 0 && task_speedup > 0) {
 
         // <bestcase wait time, worstcase wait time>
-        std::pair<int,int> wait_time = task_manager->getWaitTime(task.get());
+        std::pair<int,int> wait_time = task_manager.lock()->getWaitTime(task.get());
 
         VLOG(1) << "Wait time = (" << wait_time.first 
           << ", " << wait_time.second << ") us, task estimated time = "
@@ -270,6 +280,7 @@ void AppCommManager::process(socket_ptr sock) {
           throw AccReject("Wait time too long");
         }
       }
+#endif
 
       // 1.5 send msg back to client
       reply_msg.set_type(ACCGRANT);
@@ -578,8 +589,15 @@ void AppCommManager::process(socket_ptr sock) {
 
       VLOG(2) << "Task ready, enqueue to be executed";
 
+      // check if task_manager is still valid
+      if (!task_manager.lock()) {
+        // accelerator already removed
+        DLOG(WARNING) << "Accelerator queue for " << acc_id
+                      << " is likely to be removed";
+        throw AccReject("No matching accelerator"); 
+      }
       // add task to application queue
-      task_manager->enqueue(app_id, task.get());
+      task_manager.lock()->enqueue(app_id, task.get());
 
       // wait on task finish
       while (
@@ -676,76 +694,7 @@ void AppCommManager::process(socket_ptr sock) {
     }
     // 5. Handling ACCREGISTER
     else if (task_msg.type() == ACCREGISTER) {
-
-      // TODO: handle app_id and acc_id
-      if (!task_msg.has_acc()) {
-        throw AccReject("missing AccMsg");
-      }
-
-      // unpack message
-      AccMsg acc_msg = task_msg.acc();
-      std::string acc_id = acc_msg.acc_id();
-      std::string platform_id = acc_msg.platform_id();
-
-      // check if platform_id and acc_id is valid
-      if (platform_manager->getTaskManager(acc_id)) 
-      {
-        LOG(WARNING) << "Cannot register accelerator ["
-          << acc_id << "] on platform [" << platform_id
-          << "] because: accelerator exists";
-
-        throw (AccReject("Accelerator exists"));
-      }
-      if (!platform_manager->getPlatformById(platform_id)) 
-      {
-        LOG(WARNING) << "Cannot register accelerator ["
-          << acc_id << "] on platform [" << platform_id
-          << "] because: platform does not exist";
-
-        throw (AccReject("Platform does not exist"));
-      }
-      // create AccWorker
-      AccWorker acc_conf;
-      acc_conf.set_id(acc_id);
-
-      // setup parameters and transfer files
-      std::string root_dir = "/tmp/nam/" + acc_id + "/"; 
-
-      std::string path = root_dir+std::string("task.so");
-
-      path = saveFile(path, acc_msg.task_impl());
-      acc_conf.set_path(path);
-
-      // TODO: here is an issue when the file size of very large,
-      // in the received binary string there are usally large 
-      // amount of data being wrong
-      VLOG(1) << "Saved acc task in " << path;
-  
-      for (int i=0; i<acc_msg.param_size(); i++) {
-        KeyValue* new_param = acc_conf.add_param();
-
-        std::string key = acc_msg.param(i).key();
-        new_param->set_key(key);
-
-        // if key specifies a file path
-        if (key.length() > 5 && 
-            key.substr(key.length()-5, 5) == "_path")
-        {
-          std::string value_path = saveFile(
-              root_dir+key, acc_msg.param(i).value());
-
-          VLOG(1) << "Saved file for '" << key << "'"
-                  << " in " << value_path;
-
-          new_param->set_value(value_path);
-        }
-        else {
-          new_param->set_value(acc_msg.param(i).value());
-        }
-      }
-
-      // setup Acc Queue
-      platform_manager->registerAcc(platform_id, acc_conf);
+      handleAccRegister(task_msg);
 
       // send ACCFINISH
       TaskMsg finish_msg;
@@ -753,9 +702,23 @@ void AppCommManager::process(socket_ptr sock) {
 
       try {
         send(finish_msg, sock);
-        VLOG(1) << "Task finished, sent an ACCFINISH";
+        VLOG(1) << "Sent an ACCFINISH regarding ACCREGISTER";
       } catch (std::exception &e) {
-        LOG(ERROR) << "Cannot send ACCFINISH";
+        LOG(WARNING) << "Cannot send ACCFINISH";
+      }
+    }
+    else if (task_msg.type() == ACCDELETE) {
+      handleAccDelete(task_msg);
+
+      // send ACCFINISH
+      TaskMsg finish_msg;
+      finish_msg.set_type(ACCFINISH);
+
+      try {
+        send(finish_msg, sock);
+        VLOG(1) << "Sent an ACCFINISH regarding ACCDELETE";
+      } catch (std::exception &e) {
+        LOG(WARNING) << "Cannot send ACCFINISH";
       }
     }
     else {
@@ -810,6 +773,103 @@ void AppCommManager::process(socket_ptr sock) {
   }
   catch (std::exception &e) {
     LOG(ERROR) << "Unexpected exception: " << e.what();
+  }
+}
+void AppCommManager::handleAccRegister(TaskMsg &msg) {
+
+  // TODO: handle app_id and acc_id
+  
+  if (!msg.has_acc()) {
+    throw AccReject("missing AccMsg");
+  }
+
+  // unpack message
+  AccMsg acc_msg = msg.acc();
+  std::string acc_id = acc_msg.acc_id();
+  std::string platform_id = acc_msg.platform_id();
+
+  // check if platform_id and acc_id is valid
+  if (platform_manager->accExists(acc_id)) 
+  {
+    LOG(WARNING) << "Cannot register accelerator ["
+      << acc_id << "] on platform [" << platform_id
+      << "] because: accelerator exists";
+
+    throw (AccReject("Accelerator exists"));
+  }
+  if (!platform_manager->platformExists(platform_id)) 
+  {
+    LOG(WARNING) << "Cannot register accelerator ["
+      << acc_id << "] on platform [" << platform_id
+      << "] because: platform does not exist";
+
+    throw (AccReject("Platform does not exist"));
+  }
+
+  // create AccWorker
+  AccWorker acc_conf;
+  acc_conf.set_id(acc_id);
+
+  // setup parameters and transfer files
+  std::string root_dir = "/tmp/nam/" + acc_id + "/"; 
+
+  std::string path = root_dir+std::string("task.so");
+
+  path = saveFile(path, acc_msg.task_impl());
+  acc_conf.set_path(path);
+
+  // TODO: here is an issue when the file size of very large,
+  // in the received binary string there are usally large 
+  // amount of data being wrong
+  VLOG(1) << "Saved acc task in " << path;
+
+  for (int i=0; i<acc_msg.param_size(); i++) {
+    KeyValue* new_param = acc_conf.add_param();
+
+    std::string key = acc_msg.param(i).key();
+    new_param->set_key(key);
+
+    // if key specifies a file path
+    if (key.length() > 5 && 
+        key.substr(key.length()-5, 5) == "_path")
+    {
+      std::string value_path = saveFile(
+          root_dir+key, acc_msg.param(i).value());
+
+      VLOG(1) << "Saved file for '" << key << "'"
+        << " in " << value_path;
+
+      new_param->set_value(value_path);
+    }
+    else {
+      new_param->set_value(acc_msg.param(i).value());
+    }
+  }
+
+  // setup Acc Queue
+  try {
+    platform_manager->registerAcc(platform_id, acc_conf);
+  }
+  catch (std::runtime_error &e) {
+    throw AccFailure(e.what());
+  }
+}
+
+void AppCommManager::handleAccDelete(TaskMsg &msg) {
+  if (!msg.has_acc()) {
+    throw AccReject("missing AccMsg");
+  }
+
+  // unpack message
+  AccMsg acc_msg = msg.acc();
+  std::string acc_id = acc_msg.acc_id();
+  std::string platform_id = acc_msg.platform_id();
+  
+  try {
+    platform_manager->removeAcc("", acc_id, platform_id);
+  }
+  catch (std::exception &e) {
+    throw AccFailure(e.what());
   }
 }
 } // namespace blaze

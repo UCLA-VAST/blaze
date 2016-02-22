@@ -53,6 +53,8 @@ void GAMCommManager::process(socket_ptr sock) {
       else {
         reply_msg.set_isupdated(true); 
       
+        DLOG(INFO) << "Send an updated accelerator list";
+
         for (int i=0; i<labels.size(); i++) {
           Accelerator* label = reply_msg.add_acc_names();
           label->set_acc_name(labels[i].first);
@@ -60,10 +62,9 @@ void GAMCommManager::process(socket_ptr sock) {
 
           DLOG(INFO) << "Add acc name: " << labels[i].first << 
             " | " << labels[i].second;
-
-          last_labels = labels;
         }
       }
+      last_labels = labels;
 
       // send reply message
       send(reply_msg, sock);

@@ -13,6 +13,7 @@
 
 #include <google/protobuf/message.h>
 
+#include "proto/task.pb.h"
 #include "Common.h"
 
 using namespace boost::asio;
@@ -73,6 +74,8 @@ public:
     ): CommManager(_platform, address, ip_port, 24) {;}
 private:
   void process(socket_ptr);
+  void handleAccRegister(TaskMsg &msg);
+  void handleAccDelete(TaskMsg &msg);
 };
 
 class AccReject : public std::logic_error {

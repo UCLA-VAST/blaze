@@ -103,27 +103,29 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
   doorWaitTime.fetch_sub(delay_time);
 }
 
-void TaskManager::schedule() {
+bool TaskManager::schedule() {
 
+  if (app_queues.empty()) {
+    return true;
+  }
   // iterate through all app queues and record which are non-empty
   std::vector<std::string> ready_queues;
   std::map<std::string, TaskQueue_ptr>::iterator iter;
 
-  while (ready_queues.empty()) {
-    this->lock();
-    for (iter = app_queues.begin();
-        iter != app_queues.end();
-        iter ++)
-    {
-      if (iter->second && !iter->second->empty()) {
-        ready_queues.push_back(iter->first);
-      }
-    }
-    this->unlock();
-    if (ready_queues.empty()) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
+  this->lock();
+  for (iter = app_queues.begin();
+      iter != app_queues.end();
+      iter ++)
+  {
+    if (iter->second && !iter->second->empty()) {
+      ready_queues.push_back(iter->first);
     }
   }
+  this->unlock();
+  if (ready_queues.empty()) {
+    return true;
+  }
+
   Task* next_task;
 
   // select the next task to execute from application queues
@@ -132,33 +134,29 @@ void TaskManager::schedule() {
 
   if (app_queues.find(ready_queues[idx_next]) == app_queues.end()) {
     LOG(ERROR) << "Did not find app_queue, unexpected";
-    return;
-  }
-  app_queues[ready_queues[idx_next]]->pop(next_task);
-
-  execution_queue.push(next_task);
-
-  // atomically increase the length of the task queue
-  exeQueueLength.fetch_add(1);
-
-  VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
-}
-
-bool TaskManager::popReady(Task* &task) {
-  if (execution_queue.empty()) {
     return false;
   }
   else {
-    execution_queue.pop(task);
-    return true;
+    app_queues[ready_queues[idx_next]]->pop(next_task);
   }
+  if (next_task) {
+    execution_queue.push(next_task);
+
+    // atomically increase the length of the task queue
+    exeQueueLength.fetch_add(1);
+
+    VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
+  }
+
+  return false;
 }
 
-void TaskManager::execute() {
+// return true if the execution queue is empty
+bool TaskManager::execute() {
 
   // wait if there is no task to be executed
-  while (execution_queue.empty()) {
-    boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+  if (execution_queue.empty()) {
+    return true;
   }
   // get next task and remove it from the task queue
   // this part is thread-safe with boost::lockfree::queue
@@ -193,6 +191,17 @@ void TaskManager::execute() {
   catch (std::runtime_error &e) {
     LOG(ERROR) << "Task error " << e.what();
   }
+  return false;
+}
+
+bool TaskManager::popReady(Task* &task) {
+  if (execution_queue.empty()) {
+    return false;
+  }
+  else {
+    execution_queue.pop(task);
+    return true;
+  }
 }
 
 std::pair<int, int> TaskManager::getWaitTime(Task* task) {
@@ -217,26 +226,47 @@ std::string TaskManager::getConfig(int idx, std::string key) {
 
 void TaskManager::do_execute() {
 
-  VLOG(1) << "Started an executor";
+  VLOG(1) << "Started an executor for " << acc_id;
 
   // continuously execute tasks from the task queue
-  while (1) { 
-    execute();
+  while (power || !scheduler_idle || !executor_idle) { 
+    executor_idle = false;
+    executor_idle = execute();
+    if (executor_idle) {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+    }
   }
+
+  VLOG(1) << "Executor for " << acc_id << " stopped";
 }
 
 void TaskManager::do_schedule() {
   
-  VLOG(1) << "Started an scheduler";
+  VLOG(1) << "Started an scheduler for " << acc_id;
 
-  while (1) {
-    schedule();
+  while (power || !scheduler_idle) {
+    // return true if the app queues are all empty
+    scheduler_idle = false;
+    scheduler_idle = schedule();
+    if (scheduler_idle) {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(1000));
+    }
   }
+
+  VLOG(1) << "Scheduler for " << acc_id << " stopped";
+}
+
+bool TaskManager::isBusy() {
+  return !scheduler_idle || !executor_idle;
 }
 
 void TaskManager::start() {
   startExecutor();
   startScheduler();
+}
+
+void TaskManager::stop() {
+  power = false;
 }
 
 void TaskManager::startExecutor() {

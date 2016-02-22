@@ -32,30 +32,20 @@ OpenCLQueueManager::OpenCLQueueManager(Platform* _platform):
     TaskQueue_ptr queue(new TaskQueue());
     platform_queues.push_back(queue);
   }
-}
 
-void OpenCLQueueManager::startAll() {
-  
-  if (queue_table.size() == 0) {
-    LOG(WARNING) << "No accelerator setup for the current platform";
-  }
-  else {
-    // start the scheduler for each TaskManager
-    std::map<std::string, TaskManager_ptr>::iterator iter;
-    for (iter = queue_table.begin();
-        iter != queue_table.end();
-        ++iter)
-    {
-      iter->second->startScheduler();
-    }
-    boost::thread dispatcher(
-        boost::bind(&OpenCLQueueManager::do_dispatch, this));
+  // start dispatcher
+  boost::thread dispatcher(
+      boost::bind(&OpenCLQueueManager::do_dispatch, this));
 
-    for (int d=0; d<platform_queues.size(); d++) {
-      boost::thread executor(
+  // start executor
+  for (int d=0; d<platform_queues.size(); d++) {
+    boost::thread executor(
         boost::bind(&OpenCLQueueManager::do_execute, this, d));
     }
-  }
+}
+
+void OpenCLQueueManager::start(std::string id) {
+  // do nothing since the executors are already started
 }
 
 void OpenCLQueueManager::do_dispatch() {
@@ -67,82 +57,95 @@ void OpenCLQueueManager::do_dispatch() {
     // NOTE: no reprogramming optimization, assuming GPU 
     // reprogramming cost is trivial
 
-    bool allEmpty = true;
+    std::vector<Task*> readyTasks;
 
-    // iterate through all task queues
-    std::map<std::string, TaskManager_ptr>::iterator iter;
-    for (iter = queue_table.begin();
-        iter != queue_table.end();
-        ++iter)
-    {
-      Task* task;
-      bool taskReady = iter->second->popReady(task);
+    if (queue_table.empty()) {
+      // no ready queues at this point, sleep and check again
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(10)); 
+      continue;
+    }
+    else {
+      boost::lock_guard<QueueManager> guard(*this);
 
-      if (taskReady) { 
-        if (!task) {
-          DLOG(ERROR) << "Unexpected NULL Task pointer";
-          continue;
-        }
-        allEmpty = false;
+      // iterate through all task queues
+      std::map<std::string, TaskManager_ptr>::iterator iter;
+      for (iter = queue_table.begin();
+          iter != queue_table.end();
+          ++iter)
+      {
+        Task* task = NULL;
+        bool taskReady = iter->second->popReady(task);
 
-        // get the task env to query device assignment
-        OpenCLTaskEnv* taskEnv = 
-          dynamic_cast<OpenCLTaskEnv*>(getTaskEnv(task));
-        if (!taskEnv) {
-          DLOG(ERROR) << "TaskEnv pointer NULL";
-          continue;
-        }
-
-        // decide the device assignment based on input block
-        // NOTE: here use input idx=0, assuming that is the 
-        // main input data of the task
-        DataBlock_ptr block = getTaskInputBlock(task, 0);
-        OpenCLBlock* ocl_block = dynamic_cast<OpenCLBlock*>(block.get());
-        if (!ocl_block) {
-          DLOG(ERROR) << "Block is not of type OpenCLBlock";
-          continue; 
-          // TODO: fail task
-        }
-        // query device assignment based on task env and block env
-        int blockLoc = ocl_block->getDeviceId();
-
-        // assign task based on the block location
-        // NOTE: here there could be additional load balancing
-        int queueLoc = blockLoc;
-
-        // switch task environment to match the block device
-        taskEnv->relocate(queueLoc);
-
-        // assign task input blocks to the device;
-        int block_idx = 1;
-        while (block != NULL_DATA_BLOCK) {
-          block = getTaskInputBlock(task, block_idx); 
-          OpenCLBlock* ocl_block = dynamic_cast<OpenCLBlock*>(block.get());
-
-          if (ocl_block) {
-            // other types of data block will not be considered
-            if (ocl_block->getFlag() == BLAZE_SHARED_BLOCK) 
-            {
-              OpenCLBlock* new_block = new OpenCLBlock(*ocl_block);
-              new_block->relocate(queueLoc);
-
-              DataBlock_ptr bp(new_block);   
-
-              setTaskInputBlock(task, bp, block_idx);
-            } 
-          }
-          block_idx++;
-        }
-
-        if (queueLoc < platform_queues.size()) {
-          platform_queues[queueLoc]->push(task);
+        if (taskReady && task) {
+          readyTasks.push_back(task);
         }
       }
     }
 
-    if (allEmpty) {
+    if (readyTasks.empty()) {
       // no ready queues at this point, sleep and check again
       boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
+      continue;
+    }
+
+    for (std::vector<Task*>::iterator iter = readyTasks.begin();
+         iter != readyTasks.end();
+         iter++) 
+    {
+      Task* task = *iter;
+
+      // get the task env to query device assignment
+      OpenCLTaskEnv* taskEnv = 
+        dynamic_cast<OpenCLTaskEnv*>(getTaskEnv(task));
+      if (!taskEnv) {
+        DLOG(ERROR) << "TaskEnv pointer NULL";
+        continue;
+      }
+
+      // decide the device assignment based on input block
+      // NOTE: here use input idx=0, assuming that is the 
+      // main input data of the task
+      DataBlock_ptr block = getTaskInputBlock(task, 0);
+      OpenCLBlock* ocl_block = dynamic_cast<OpenCLBlock*>(block.get());
+      if (!ocl_block) {
+        DLOG(ERROR) << "Block is not of type OpenCLBlock";
+        continue; 
+        // TODO: fail task
+      }
+      // query device assignment based on task env and block env
+      int blockLoc = ocl_block->getDeviceId();
+
+      // assign task based on the block location
+      // NOTE: here there could be additional load balancing
+      int queueLoc = blockLoc;
+
+      // switch task environment to match the block device
+      taskEnv->relocate(queueLoc);
+
+      // assign task input blocks to the device;
+      int block_idx = 1;
+      while (block != NULL_DATA_BLOCK) {
+        block = getTaskInputBlock(task, block_idx); 
+        OpenCLBlock* ocl_block = dynamic_cast<OpenCLBlock*>(block.get());
+
+        if (ocl_block) {
+          // other types of data block will not be considered
+          if (ocl_block->getFlag() == BLAZE_SHARED_BLOCK) 
+          {
+            OpenCLBlock* new_block = new OpenCLBlock(*ocl_block);
+            new_block->relocate(queueLoc);
+
+            DataBlock_ptr bp(new_block);   
+
+            setTaskInputBlock(task, bp, block_idx);
+          } 
+        }
+        block_idx++;
+      }
+
+      if (queueLoc < platform_queues.size()) {
+        platform_queues[queueLoc]->push(task);
+      }
     }
   }
 }
