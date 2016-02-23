@@ -7,8 +7,8 @@ endif
 ifeq ($(PROTOBUF_DIR),)
 $(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
-ifeq ($(JAVA_HOME),)
-$(error JAVA_HOME not set properly in Makefile.config)
+ifeq ($(GLOG_DIR),)
+$(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
 
 PP=g++
@@ -16,61 +16,55 @@ CC=gcc
 AR=ar
 
 # add support for flex license manage
-FLMDIR = /curr/peichen/work/test/license/production/falcon/build
-FLMLIB = -llmgr_trl -lcrvs -lsb -lnoact -llmgr_dongle_stub
-XTRACFLAG = -DFLEX_INET6 -DRELEASE_VERSION -D__BITS64 -pipe \
-						-DARCH_64 -DARCH_INTEL -DARCH_X86 -DARCH_X86_64 \
-						-DOS_LINUX -pthread -DLM_INTERNAL -DFLEXLM_KITBUILD \
-						-DFLEX_STATIC -DRELEASE_VERSION -DGPLATFORM=\\"x64_lsb\\" \
-						-DLINUX -DLSB3_0 -D__FD_SETSIZE=65535 -DGLIBC \
-						-DLINUX64 -DAMD64 -DREDHAT -DREL -DRHLINUX64 \
-						-DPLATFORM_AMD64_RHLINUX 
+FLMDIR 		:= /curr/peichen/work/test/license/production/falcon/build
+FLMLIB 		:= -llmgr_trl -lcrvs -lsb -lnoact -llmgr_dongle_stub
 
-CFLAGS := -c -fPIC -std=c++0x
+CFLAGS 	  := -c -fPIC -std=c++0x
 
-ifeq ($(DEBUG),)
-CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+INCLUDES  := -I$(BOOST_DIR)/include \
+				     -I$(PROTOBUF_DIR)/include \
+				  	 -I$(GLOG_DIR)/include 
+
+LINK		  := -L../lib -lblaze \
+						 -L$(BOOST_DIR)/lib \
+						 	-lboost_system \
+						 	-lboost_thread \
+						 	-lboost_iostreams \
+						 	-lboost_filesystem \
+						 	-lboost_regex \
+						 -L$(PROTOBUF_DIR)/lib -lprotobuf \
+						 -L$(GLOG_DIR)/lib -lglog \
+						 -lpthread -lm \
+						 -Wl,--no-as-needed -ldl
+
+ifeq ($(RELEASE),)
+CFLAGS   := $(CFLAGS) -g
 else
-CFLAGS := $(CFLAGS) -g
+CFLAGS   := $(CFLAGS) -O2 -DNDEBUG -DUSELICENSE
+INCLUDES := $(INCLUDES) -I$(FLMDIR)
+LINK 		 := $(LINK) -L$(FLMDIR) $(FLMLIB) 
+LMDEPS 	 := $(FLMDIR)/license.o \
+			 	 		$(FLMDIR)/lm_new.o 
 endif
 
-INCLUDES = -I$(BOOST_DIR)/include \
-				   -I$(PROTOBUF_DIR)/include \
-				 	 -I$(GLOG_DIR)/include \
-				   -I$(HADOOP_DIR)/include \
-					 -I$(FLMDIR)
+COMPILE = $(CFLAGS) $(INCLUDES)
 
-COMPILE = $(CFLAGS) \
-				 $(INCLUDES)
-
-LINK= -L../lib -lblaze \
-			-L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex \
-			-L$(PROTOBUF_DIR)/lib -lprotobuf \
-			-L$(GLOG_DIR)/lib -lglog \
-			-L$(FLMDIR) $(FLMLIB) \
-			-lpthread -lm \
-			-Wl,--no-as-needed -ldl
-
-DEPS= Common.o \
-			Block.o \
+DEPS= Block.o \
+			Client.o \
+			Common.o \
+			Platform.o \
 			Task.o \
 			TaskEnv.o \
-			Client.o \
+			BlockManager.o \
 			CommManager.o \
 			AppCommManager.o \
 			GAMCommManager.o \
-			Platform.o \
 			PlatformManager.o \
-			BlockManager.o \
 			TaskManager.o \
 			QueueManager.o \
-			task.pb.o \
 			acc_conf.pb.o \
+			task.pb.o \
 			msgGamNam.pb.o
-
-LMDEPS = $(FLMDIR)/license.o \
-			 	 $(FLMDIR)/lm_new.o 
 
 all: ../bin/acc_manager ../lib/libblaze.so
 
@@ -97,7 +91,7 @@ acc_conf.pb.o: proto/acc_conf.pb.cc
 msgGamNam.pb.o: proto/msgGamNam.pb.cc
 	$(PP) $(COMPILE) $< -o $@ 
 
-%.o: %.cpp *.h proto/*.h
+%.o: %.cpp *.h proto/*.h Makefile
 	$(PP) $(COMPILE) $< -o $@
 
 clean:
