@@ -52,8 +52,12 @@ void* Client::createInput(
   if (num_items <= 0 || 
       item_length <= 0 || 
       data_width <= 0 ||
-      type >= BLAZE_SHARED)
+      type > BLAZE_SHARED)
   {
+    LOG(ERROR) << num_items << ", "
+               << item_length << ", "
+               << data_width << ", "
+               << type;
     throw invalidParam("Invalid input parameters");
   }
 
