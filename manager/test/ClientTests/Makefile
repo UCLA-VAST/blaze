@@ -1,4 +1,5 @@
 include ../../../Makefile.config
+MANAGER_DIR=../../../manager
 
 # check all variables
 ifeq ($(BOOST_DIR),)
@@ -17,13 +18,13 @@ AR=ar
 
 CFLAGS= -c -fPIC -std=c++0x -g
 COMPILE= $(CFLAGS) \
-				 -I$(BLAZE_HOME)/manager/src \
+				 -I$(MANAGER_DIR)/src \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
 				 -I$(GLOG_DIR)/include \
 				 -I$(GTEST_DIR)/include 
 
-LINK= -L$(BLAZE_HOME)/manager/lib -lblaze \
+LINK= -L$(MANAGER_DIR)/lib -lblaze \
 			-L$(BOOST_DIR)/lib \
 			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex \
 			-L$(PROTOBUF_DIR)/lib -lprotobuf \

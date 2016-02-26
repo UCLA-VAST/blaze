@@ -14,13 +14,6 @@
 
 #include "Common.h"
 
-/* TODO list:
- * - guarantee an unique partition id shared by possibly multiple
- *   spark context/applications/tasks
- * - allow update the scratch size after add an empty block, if the space is run out
- *   throw an exception and let the Comm to send ACCFailure
- */
-
 namespace blaze {
 
 /**
