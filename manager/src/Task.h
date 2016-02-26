@@ -1,15 +1,11 @@
 #ifndef TASK_H
 #define TASK_H
 
-#include <stdio.h>
+#include <string>
 #include <map>
 #include <vector>
 #include <cstdlib>
-#include <fstream>
-
-#ifdef USEHDFS
-#include "hdfs.h"
-#endif
+#include <stdexcept>
 
 #include "Common.h"
 
@@ -32,15 +28,11 @@ template <typename U, typename T>
 friend class BlazeTest;
 
 public:
-  Task(int _num_input): 
+  Task(int _num_args): 
     status(NOTREADY), 
-    estimated_time(-1),
-    num_input(_num_input),
+    num_input(_num_args),
     num_ready(0)
   {; }
-
-  virtual int estimateTime() { return -1; }
-  virtual int estimateSpeedup() { return -1; }
 
   // main function to be overwritten by accelerator implementations
   virtual void compute() {;}
@@ -50,9 +42,9 @@ public:
     try {
       compute();
       status = FINISHED;
-    } catch (std::runtime_error &e) {
+    } catch (std::exception &e) {
       status = FAILED; 
-      throw e;
+      throw std::runtime_error(e.what());
     }
   }
   
@@ -65,28 +57,30 @@ public:
 
 protected:
 
-  // read one line from file and write to an array
-  // and return the size of bytes put to a buffer
-  virtual char* readLine(
-      std::string line, 
-      size_t &num_elements,
-      size_t &num_bytes) 
-  {
-    num_bytes = 0; 
-    num_elements = 0;
-    return NULL;
-  }
-
-  TaskEnv* getEnv();
-
   char* getOutput(int idx, int item_length, int num_items, int data_width);
   
   int getInputLength(int idx);
+
   int getInputNumItems(int idx);
+
   char* getInput(int idx);
 
   // add a configuration for a dedicated block 
   void addConfig(int idx, std::string key, std::string val);
+
+  TaskEnv* getEnv();
+
+  // a list of input blocks to its partition_id
+  std::vector<int64_t> input_blocks;
+
+  // list of output blocks
+  std::vector<DataBlock_ptr> output_blocks;
+
+  // a table that maps block index to configurations
+  std::map<int, std::map<std::string, std::string> > config_table;
+
+  // a mapping between partition_id to the input blocks
+  std::map<int64_t, DataBlock_ptr> input_table;
 
 private:
 
@@ -111,8 +105,6 @@ private:
   // an unique id within each TaskQueue
   int task_id;
 
-  int estimated_time;
-
   // pointer to the TaskEnv
   TaskEnv_ptr env;
 
@@ -121,18 +113,6 @@ private:
 
   // number of input blocks that has data initialized
   int num_ready;
-
-  // a mapping between partition_id to the input blocks
-  std::map<int64_t, DataBlock_ptr> input_table;
-
-  // a list of input blocks to its partition_id
-  std::vector<int64_t> input_blocks;
-
-  // list of output blocks
-  std::vector<DataBlock_ptr> output_blocks;
-
-  // a table that maps block index to configurations
-  std::map<int, std::map<std::string, std::string> > config_table;
 };
 }
 #endif

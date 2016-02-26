@@ -463,6 +463,14 @@ public class CapacitySchedulerConfiguration extends Configuration {
         .getClusterNodeLabels() : labels) {
       String capacityPropertyName = getNodeLabelPrefix(queue, label) + CAPACITY;
       float capacity = getFloat(capacityPropertyName, 0f);
+
+      // If the key is not configured and the label is FcsLabel
+      if (getTrimmed(capacityPropertyName) == null && mgr.isFcsLabel(label)) {
+        capacity = getCapacity(queue);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(label + " is an FCS label, use queue capacity instead.");
+        }
+      }
       if (capacity < MINIMUM_CAPACITY_VALUE
           || capacity > MAXIMUM_CAPACITY_VALUE) {
         throw new IllegalArgumentException("Illegal capacity of " + capacity

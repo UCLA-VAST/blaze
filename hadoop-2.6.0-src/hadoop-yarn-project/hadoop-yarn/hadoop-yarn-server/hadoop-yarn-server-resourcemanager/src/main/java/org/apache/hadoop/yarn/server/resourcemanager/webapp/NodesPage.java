@@ -78,8 +78,8 @@ class NodesPage extends RmView {
           th(".mem", "Mem Avail").
           th(".vcores", "VCores Used").
           th(".vcores", "VCores Avail").
-          th(".vaccs", "VAccs Used").
-          th(".vaccs", "VAccs Avail").
+          //th(".vaccs", "VAccs Used").
+          //th(".vaccs", "VAccs Avail").
           th(".nodeManagerVersion", "Version").
           _()._().
           tbody();
@@ -137,8 +137,8 @@ class NodesPage extends RmView {
               _(StringUtils.byteDesc(availableMemory * BYTES_IN_MB))._().
               td(String.valueOf(info.getUsedVirtualCores())).
               td(String.valueOf(info.getAvailableVirtualCores())).
-              td(String.valueOf(info.getUsedVirtualAccs())).
-              td(String.valueOf(info.getAvailableVirtualAccs())).
+              //td(String.valueOf(info.getUsedVirtualAccs())).
+              //td(String.valueOf(info.getAvailableVirtualAccs())).
             td(ni.getNodeManagerVersion()).
             _();
       }

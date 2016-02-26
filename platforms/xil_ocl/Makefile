@@ -2,7 +2,7 @@ include ../../Makefile.config
 
 # check all variables
 ifeq ($(XILINX_OPENCL_DIR),)
-$(error XILINK_OPENCL_DIR not set properly in Makefile.config)
+$(error XILINX_OPENCL_DIR not set properly in Makefile.config)
 endif
 ifeq ($(BOOST_DIR),)
 $(error BOOST_DIR not set properly in Makefile.config)
@@ -21,10 +21,11 @@ endif
 MANAGER_DIR=../../manager
 
 CFLAGS := -c -fPIC -std=c++0x
-ifeq ($(DEBUG),)
-CFLAGS := $(CFLAGS) -O2 -DNDEBUG
-else
+
+ifeq ($(NDEBUG),)
 CFLAGS := $(CFLAGS) -g
+else
+CFLAGS := $(CFLAGS) -O2 -DNDEBUG
 endif
 
 COMPILE= $(CFLAGS) \
@@ -44,9 +45,14 @@ DEPS= OpenCLEnv.o \
 			OpenCLBlock.o \
 			OpenCLQueueManager.o
 
-all: xil_ocl.so
+DST= xlnx_opencl.so
 
-xil_ocl.so: $(DEPS)
+all: $(DST)
+
+package: 
+	cp $(DST) ../../package/nam/lib
+
+$(DST): $(DEPS)
 	$(PP) -shared -o $@ $(DEPS) $(LINK) 
 
 %.o: %.cpp *.h Makefile
@@ -54,4 +60,4 @@ xil_ocl.so: $(DEPS)
 
 clean:
 	rm -rf *.o
-	rm -rf ../lib/xil_ocl.so
+	rm -rf $(DST)

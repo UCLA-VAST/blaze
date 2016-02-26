@@ -40,6 +40,13 @@ class BlazeRuntime(sc: SparkContext) extends Logging {
   // The application signature generated based on Spark application ID.
   val appSignature: String = sc.applicationId
 
+  var accPort: Int = 1027
+
+  // Configure the port for AccManager
+  def setAccPort(port: Int) = {
+    accPort = port
+  }
+
   var BroadcastList: List[BlazeBroadcast[_]] = List()
 
   /**
@@ -55,7 +62,7 @@ class BlazeRuntime(sc: SparkContext) extends Logging {
       val WorkerList: Array[(String, Int)] = (sc.getExecutorStorageStatus)
         .map(w => w.blockManagerId.host)
         .distinct
-        .map(w => (w, 1027))
+        .map(w => (w, accPort))
 
       logInfo("Releasing broadcast blocks from workers (" + WorkerList.length + "): " + 
         WorkerList.map(w => w._1).mkString(", "))
@@ -83,7 +90,6 @@ class BlazeRuntime(sc: SparkContext) extends Logging {
         catch {
           case e: Throwable =>
             val sw = new StringWriter
-            e.printStackTrace(new PrintWriter(sw))
             logInfo("Fail to release broadcast data from Manager " + worker._1 + ": " + sw.toString)
         }
       }
@@ -98,7 +104,7 @@ class BlazeRuntime(sc: SparkContext) extends Logging {
     * Wrap a Spark RDD in a ShellRDD of Blaze.
     */
   def wrap[T: ClassTag](rdd : RDD[T]) : ShellRDD[T] = {
-    new ShellRDD[T](appSignature, rdd)
+    new ShellRDD[T](appSignature, rdd, accPort)
   }
 
   /**

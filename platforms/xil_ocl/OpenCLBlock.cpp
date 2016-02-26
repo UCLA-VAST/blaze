@@ -4,6 +4,8 @@
 
 #include <boost/smart_ptr.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
+
+#define LOG_HEADER  "OpenCLBlock"
 #include <glog/logging.h>
 
 #include "OpenCLBlock.h"

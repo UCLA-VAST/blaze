@@ -1,12 +1,21 @@
 #include <stdio.h>
-#include <glog/logging.h>
+
 #include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
+#define LOG_HEADER "Task"
+
+#include <glog/logging.h>
+
+#ifdef USEHDFS
+#include "hdfs.h"
+#endif
+
 #include "Block.h"
 #include "TaskEnv.h"
 #include "Task.h"
+#include "Platform.h"
 
 namespace blaze {
 
@@ -21,17 +30,6 @@ bool Task::isInputReady(int64_t block_id) {
     return true;
   } else {
     return false;
-  }
-}
-
-std::string Task::getConfig(int idx, std::string key) 
-{
-  if (config_table.find(idx) != config_table.end() &&
-      config_table[idx].find(key) != config_table[idx].end()) 
-  {
-    return config_table[idx][key];
-  } else {
-    return std::string();
   }
 }
 
@@ -96,6 +94,16 @@ void Task::addConfig(int idx, std::string key, std::string val) {
 
   config_table[idx][key] = val;
 }
+std::string Task::getConfig(int idx, std::string key) 
+{
+  if (config_table.find(idx) != config_table.end() &&
+      config_table[idx].find(key) != config_table[idx].end()) 
+  {
+    return config_table[idx][key];
+  } else {
+    return std::string();
+  }
+}
 
 void Task::addInputBlock(
     int64_t partition_id, 
@@ -151,19 +159,6 @@ void Task::inputBlockReady(int64_t partition_id, DataBlock_ptr block) {
   }
 }
 
-/*
-DataBlock_ptr Task::getInputBlock(int idx) {
-  if (idx >= input_blocks.size() || 
-      input_table.find(input_blocks[idx]) == input_table.end()) 
-  {
-    return NULL_DATA_BLOCK; 
-  }
-  else {
-    return input_table[input_blocks[idx]];
-  }
-}
-*/
-
 // push one output block to consumer
 // return true if there are more blocks to output
 bool Task::getOutputBlock(DataBlock_ptr &block) {
@@ -192,6 +187,9 @@ bool Task::isReady() {
 
   if (status == READY) {
     return true; 
+  }
+  else if (input_table.size() < num_input) {
+    return false;
   }
   else {
     bool ready = true;

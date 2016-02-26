@@ -73,8 +73,8 @@ public:
       double point_norm = data[i*data_length+vector_length];
 
       for (int r=0; r<num_runs; r++) {
-        int bestCenter = 0;
-        int bestDistance = std::numeric_limits<double>::infinity();
+        int    bestCenter   = 0;
+        double bestDistance = std::numeric_limits<double>::infinity();
 
         for (int k=0; k<num_clusters; k++) {
           int offset = r*num_clusters*data_length + k*data_length;
@@ -164,9 +164,11 @@ private:
       sqDist = sumSquaredNorm - 2.0 * dot(v1, v2, n);
     } 
     // skip Sparse vector case
-    else {
+    else 
+    {
       sqDist = dist(v1, v2, n);
     }
+    return sqDist;
   }
 };
 

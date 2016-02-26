@@ -5,6 +5,8 @@
 #include <boost/smart_ptr.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
+#define LOG_HEADER "Block"
+
 #include <glog/logging.h>
 
 #include "Block.h"

@@ -1,0 +1,15 @@
+verbose : 0
+platform : {
+  id : "nv_opencl"
+  path : "[FCSROOT]/nam/lib/nv_opencl.so"
+  cache_limit: 8192
+  scratch_limit: 2048
+  acc : {
+    id : "LogisticGradientAndLoss"
+    path : "[PWD]/Logistic.so"
+    param : {
+      key : "program_path"
+      value : "[PWD]/gradient.cl"
+    }
+  }
+}

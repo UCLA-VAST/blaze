@@ -12,13 +12,13 @@
 
 using namespace blaze;
 
-class Logistic : public Task {
+class ArrayTest : public Task {
 public:
 
   // extends the base class constructor
   // to indicate how many input blocks
   // are required
-  Logistic(): Task(2) {;}
+  ArrayTest(): Task(2) {;}
 
   // overwrites the compute function
   // Input data:
@@ -93,7 +93,7 @@ public:
 };
 
 extern "C" Task* create() {
-  return new Logistic();
+  return new ArrayTest();
 }
 
 extern "C" void destroy(Task* p) {

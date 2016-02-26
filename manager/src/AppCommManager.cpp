@@ -1,11 +1,4 @@
-#include <stdio.h>
-#include <time.h>
-#include <fcntl.h>   
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-
-#include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <cstdint>
 
@@ -13,6 +6,8 @@
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/lexical_cast.hpp>
 #include <glog/logging.h>
+
+#define LOG_HEADER "AppCommManager"
 
 #include "proto/acc_conf.pb.h"
 #include "Block.h"
@@ -67,8 +62,8 @@ void AppCommManager::process(socket_ptr sock) {
       acc_id = task_msg.acc_id();
       app_id = task_msg.app_id();
 
-      LOG(INFO) << "Received an ACCREQUEST for " << acc_id
-        << "from app " << app_id;
+      LOG(INFO) << "Received an request for " << acc_id
+        << " from app " << app_id;
 
       /* Receive acc_id to identify the corresponding TaskManager, 
        * with which create a new Task. 
@@ -351,129 +346,7 @@ void AppCommManager::process(socket_ptr sock) {
             if (recv_block.has_num_elements() && 
                 recv_block.num_elements() < 0) { 
               
-              LOG(WARNING) << "Reading file is unstable!";
-
-              if (!recv_block.has_file_size() ||
-                  !recv_block.has_file_offset())
-              {
-                throw AccFailure(std::string(
-                      "Missing information to read from file for block ")+ 
-                    std::to_string((long long)blockId));
-              }
-              int64_t size   = recv_block.file_size();	
-              int64_t offset = recv_block.file_offset();
-
-              //std::vector<std::string> lines;
-              char* buffer = new char[size];
-
-              if (path.compare(0, 7, "hdfs://") == 0) { // read from HDFS
-#ifdef USE_HDFS
-                if (!getenv("HDFS_NAMENODE") ||
-                    !getenv("HDFS_PORT"))
-                {
-                  throw std::runtime_error(
-                      "no HDFS_NAMENODE or HDFS_PORT defined");
-                }
-
-                std::string hdfs_name_node = getenv("HDFS_NAMENODE");
-                uint16_t hdfs_port = 
-                  boost::lexical_cast<uint16_t>(getenv("HDFS_PORT"));
-
-                hdfsFS fs = hdfsConnect(hdfs_name_node.c_str(), hdfs_port);
-
-                if (!fs) {
-                  throw std::runtime_error("Cannot connect to HDFS");
-                }
-
-                hdfsFile fin = hdfsOpenFile(fs, path.c_str(), O_RDONLY, 0, 0, 0); 
-
-                if (!fin) {
-                  throw std::runtime_error("Cannot find file in HDFS");
-                }
-
-                int err = hdfsSeek(fs, fin, offset);
-                if (err != 0) {
-                  throw std::runtime_error(
-                      "Cannot read HDFS from the specific position");
-                }
-
-                int64_t bytes_read = hdfsRead(
-                    fs, fin, (void*)buffer, size);
-
-                if (bytes_read != size) {
-                  throw std::runtime_error("HDFS read error");
-                }
-
-                hdfsCloseFile(fs, fin);
-#else 
-                throw std::runtime_error("HDFS file is not supported");
-#endif
-              }
-              else { // read from normal file
-                std::ifstream fin(path, std::ifstream::binary); 
-
-                if (!fin) {
-                  throw std::runtime_error("Cannot find file");
-                }
-
-                // TODO: error handling
-                fin.seekg(offset);
-                fin.read(buffer, size);
-                fin.close();
-              }
-
-              std::string line_buffer(buffer);
-              delete buffer;
-
-              // buffer for all data
-              std::vector<std::pair<size_t, char*> > data_buf;
-              size_t total_size = 0;
-              size_t item_length = 0;      
-              size_t item_size = 0;      
-
-              // split the file by newline
-              std::istringstream sstream(line_buffer);
-              std::string line;
-
-              while(std::getline(sstream, line)) {
-                char* data;
-                try {
-                  data = task->readLine(line, item_length, item_size);
-                } catch (std::runtime_error &e) {
-                  LOG(ERROR) << "Fail to read line";
-                }
-                if (item_size > 0) {
-                  data_buf.push_back(std::make_pair(item_size, data));
-                  total_size += item_size;
-                }
-              }
-              if (total_size <= 0) {
-                LOG(ERROR) << "Did not read any data for block " << blockId;
-              }
-              // writing data to the corresponding block
-              int align_width = 0;
-              if (!task->getConfig(i, "align_width").empty()) {
-                 align_width = stoi(task->getConfig(i, "align_width"));
-              }
-
-              block_manager->getAlloc(
-                  blockId, block,
-                  data_buf.size(), item_length, item_size, 
-                  align_width);
-
-              int item_offset = 0;
-
-              // lock block for exclusive access during write
-              boost::lock_guard<DataBlock> guard(*block);
-              for (int i=0; i<data_buf.size(); i++) {
-                size_t bytes = data_buf[i].first;
-                char* data   = data_buf[i].second;
-
-                block->writeData((void*)data, bytes, item_offset);
-                item_offset += block->getItemSize();
-
-                delete data;
-              }
+              throw AccFailure("Reading filesystem is unsupported in this version");
             }
             // 2.1.2 Read input data block from memory mapped file
             else {  

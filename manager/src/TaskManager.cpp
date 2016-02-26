@@ -1,8 +1,8 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/atomic.hpp>
-#include <glog/logging.h>
 
 #define LOG_HEADER "TaskManager"
+#include <glog/logging.h>
 
 #include "TaskEnv.h"
 #include "Task.h"
@@ -15,39 +15,6 @@ namespace blaze {
 
 int TaskManager::getExeQueueLength() {
   return exeQueueLength.load();
-}
-
-int TaskManager::estimateTime(Task* task) {
-
-  // check if time estimation is already stored
-  if (task->estimated_time > 0) {
-    return task->estimated_time;
-  }
-  else {
-    int task_delay = task->estimateTime();
-    int ret_delay = 0;
-
-    if (task_delay <= 0) { // no estimation
-      // TODO: use a regression model
-      // current implementation just return a constant
-      ret_delay = 1e5;
-    }
-    else {
-      // TODO: apply an estimation model (linear regression)
-      ret_delay = task_delay + deltaDelay;
-    }
-    // store the time estimation in task
-    task->estimated_time = ret_delay;
-
-    return ret_delay;
-  }
-}
-
-void TaskManager::updateDelayModel(
-    Task* task, 
-    int estimateTime, int realTime) 
-{
-  ;
 }
 
 Task_ptr TaskManager::create() {
@@ -86,21 +53,12 @@ void TaskManager::enqueue(std::string app_id, Task* task) {
   }
   this->unlock();
 
-  // once called, the task estimation time will stored
-  int delay_time = estimateTime(task);
-
   // push task to queue
   bool enqueued = queue->push(task);
   while (!enqueued) {
     boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
     enqueued = queue->push(task);
   }
-  
-  // update lobby wait time
-  lobbyWaitTime.fetch_add(delay_time);
-
-  // update door wait time
-  doorWaitTime.fetch_sub(delay_time);
 }
 
 bool TaskManager::schedule() {
@@ -163,8 +121,6 @@ bool TaskManager::execute() {
   Task* task;
   execution_queue.pop(task);
 
-  int delay_estimate = estimateTime(task);
-
   VLOG(1) << "Started a new task";
 
   try {
@@ -176,14 +132,6 @@ bool TaskManager::execute() {
     uint64_t delay_time = getUs() - start_time;
 
     VLOG(1) << "Task finishes in " << delay_time << " us";
-
-    // if the task is successful, update delay estimation model
-    if (task->status == Task::FINISHED) {
-      updateDelayModel(task, delay_estimate, delay_time);
-    }
-
-    // decrease the waittime, use the recorded estimation 
-    lobbyWaitTime.fetch_sub(delay_estimate);
 
     // decrease the length of the execution queue
     exeQueueLength.fetch_sub(1);
@@ -202,16 +150,6 @@ bool TaskManager::popReady(Task* &task) {
     execution_queue.pop(task);
     return true;
   }
-}
-
-std::pair<int, int> TaskManager::getWaitTime(Task* task) {
-
-  // increment door with current task time
-  int currDoorWaitTime  = doorWaitTime.fetch_add(estimateTime(task));
-  int currLobbyWaitTime = lobbyWaitTime.load();
-
-  return std::make_pair(
-      currLobbyWaitTime, currLobbyWaitTime + currDoorWaitTime);
 }
 
 std::string TaskManager::getConfig(int idx, std::string key) {

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+SPARK_HOME=
+$SPARK_HOME/bin/spark-submit --class LogisticRegression \
+	--driver-memory 16G \
+	--executor-memory 16G \
+	--master local[*] \
+	target/logistic-1.0.jar $@
+

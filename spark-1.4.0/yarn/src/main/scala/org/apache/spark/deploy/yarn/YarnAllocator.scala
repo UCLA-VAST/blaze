@@ -97,12 +97,12 @@ private[yarn] class YarnAllocator(
   // Number of cores per executor.
   protected val executorCores = args.executorCores
   // Number of acc slots per executor.
-  protected val executorAccs = args.executorAccs
+  // protected val executorAccs = args.executorAccs
   // Executor labeling.
   protected val executorLabel = args.executorLabel
   // Resource capability requested for each executors
-  private val resource = Resource.newInstance(executorMemory + memoryOverhead, executorCores,
-    executorAccs)
+  private val resource = Resource.newInstance(executorMemory + memoryOverhead, executorCores)
+    // executorAccs)
 
   private val launcherPool = new ThreadPoolExecutor(
     // max pool size of Integer.MAX_VALUE is ignored because we use an unbounded queue
@@ -213,8 +213,8 @@ private[yarn] class YarnAllocator(
 
     if (missing > 0) {
       logInfo(s"Will request $missing executor containers, each with ${resource.getVirtualCores} " +
-        s"cores and ${resource.getMemory} MB memory including $memoryOverhead MB overhead " +
-        s" and ${resource.getVirtualAccs} acc slots.")
+        s"cores and ${resource.getMemory} MB memory including $memoryOverhead MB overhead")
+        // s" and ${resource.getVirtualAccs} acc slots.")
 
       for (i <- 0 until missing) {
         // val request = new ContainerRequest(resource, null, null, RM_REQUEST_PRIORITY)
@@ -312,7 +312,8 @@ private[yarn] class YarnAllocator(
     // memory, but use the asked vcore count for matching, effectively disabling matching on vcore
     // count.
     val matchingResource = Resource.newInstance(allocatedContainer.getResource.getMemory,
-          resource.getVirtualCores, resource.getVirtualAccs)
+          resource.getVirtualCores)
+      // , resource.getVirtualAccs)
     val matchingRequests = amClient.getMatchingRequests(allocatedContainer.getPriority, location,
       matchingResource)
 

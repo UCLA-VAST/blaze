@@ -17,7 +17,6 @@
 #include "Common.h"
 
 using namespace boost::asio;
-
 typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 
 namespace blaze {

@@ -4,3 +4,7 @@ PROTOBUF_DIR=
 HADOOP_DIR=
 GLOG_DIR=
 GTEST_DIR=
+
+CC=gcc
+PP=g++
+AR=ar

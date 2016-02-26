@@ -1,0 +1,19 @@
+verbose : 0
+platform : {
+  id : "xlnx_opencl"
+  path : "[FCSROOT]/nam/lib/xlnx_opencl.so"
+  cache_limit: 8192
+  scratch_limit: 2048
+  acc : {
+    id : "LogisticGradientAndLoss"
+    path : "[PWD]/LogisticGradientWithLoss.so"
+    param : {
+      key : "program_path"
+      value : "[PWD]/bitstream.xclbin"
+    }
+    param : {
+      key : "kernel_name" 
+      value : "gradient" 
+    }
+  }
+}

@@ -33,6 +33,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmnode
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Private
@@ -150,6 +151,16 @@ public class RMNodeWrapper implements RMNode {
 
   @Override
   public Set<String> getNodeLabels() {
+    return null;
+  }
+
+  @Override
+  public Set<String> getNodeLabelsWoAccs() {
+    return null;
+  }
+
+  @Override
+  public Map<String, Set<String>> getNodeLabelRelations() {
     return null;
   }
 }

@@ -7,72 +7,93 @@ endif
 ifeq ($(PROTOBUF_DIR),)
 $(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
-ifeq ($(JAVA_HOME),)
-$(error JAVA_HOME not set properly in Makefile.config)
+ifeq ($(GLOG_DIR),)
+$(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
 
-PP=g++
-CC=gcc
-AR=ar
+# add support for flex license manage
+FLMDIR 		:= /curr/peichen/work/test/license/production/falcon/build
+FLMLIB 		:= -llmgr_trl -lcrvs -lsb -lnoact -llmgr_dongle_stub
 
-CFLAGS := -c -fPIC -std=c++0x
+CFLAGS 	  := -c -fPIC -std=c++0x
 
+INCLUDES  := -I$(BOOST_DIR)/include \
+				     -I$(PROTOBUF_DIR)/include \
+				  	 -I$(GLOG_DIR)/include 
+
+LINK		  := -L../lib -lblaze \
+						 -L$(BOOST_DIR)/lib \
+						 	 -lboost_system \
+						 	 -lboost_thread \
+						 	 -lboost_iostreams \
+						 	 -lboost_filesystem \
+						 	 -lboost_regex \
+						 -L$(PROTOBUF_DIR)/lib -lprotobuf \
+						 -L$(GLOG_DIR)/lib -lglog \
+						 -lpthread -lm \
+						 -Wl,--no-as-needed -ldl
+
+ifeq ($(RELEASE),)
 ifeq ($(NDEBUG),)
-CFLAGS := $(CFLAGS) -g
+CFLAGS   := $(CFLAGS) -g
 else
-CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+CFLAGS   := $(CFLAGS) -O2 -DNDEBUG
+endif
+else
+CFLAGS   := $(CFLAGS) -O2 -DNDEBUG -DUSELICENSE
+INCLUDES := $(INCLUDES) -I$(FLMDIR)
+LINK 		 := $(LINK) -L$(FLMDIR) $(FLMLIB) 
+LMDEPS 	 := $(FLMDIR)/license.o \
+			 	 		$(FLMDIR)/lm_new.o 
 endif
 
-COMPILE= $(CFLAGS) \
-				 -I$(BOOST_DIR)/include \
-				 -I$(PROTOBUF_DIR)/include \
-				 -I$(GLOG_DIR)/include \
-				 -I$(HADOOP_DIR)/include 
+COMPILE = $(CFLAGS) $(INCLUDES)
 
-LINK= -L../lib -lblaze \
-			-L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex \
-			-L$(PROTOBUF_DIR)/lib -lprotobuf \
-			-L$(GLOG_DIR)/lib -lglog \
-			-L$(HADOOP_DIR)/lib/native -lhdfs \
-			-L$(JAVA_HOME)/jre/lib/amd64/server -ljvm \
-			-lpthread -lm \
-			-Wl,--no-as-needed -ldl
-
-DEPS= Common.o \
-			Block.o \
-			Task.o \
+DEPS= Block.o \
 			Client.o \
+			Common.o \
+			Platform.o \
+			Task.o \
+			TaskEnv.o \
+			BlockManager.o \
 			CommManager.o \
 			AppCommManager.o \
 			GAMCommManager.o \
-			Platform.o \
 			PlatformManager.o \
-			BlockManager.o \
 			TaskManager.o \
 			QueueManager.o \
-			task.pb.o \
 			acc_conf.pb.o \
+			task.pb.o \
 			msgGamNam.pb.o
 
 all: ../bin/acc_manager ../lib/libblaze.so
 
+package: 
+	cp ../bin/acc_manager ../../package/nam/bin/nam_daemon
+	cp ../lib/libblaze.so ../../package/nam/lib
+	cp Common.h ../../package/include
+	cp Client.h ../../package/include
+	cp TaskEnv.h ../../package/include
+
 ../lib/libblaze.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS)
 
-../bin/acc_manager: ../lib/libblaze.so main.o
-	$(PP) -o $@ main.o $(LINK) 
+../bin/acc_manager: ../lib/libblaze.so main.o $(LMDEPS)
+	$(PP) -o $@ main.o $(LMDEPS) $(LINK)
 
-task.pb.o: proto/task.pb.cc
+#task.pb.o: proto/task.pb.cc
+#	$(PP) $(COMPILE) $< -o $@ 
+#
+#acc_conf.pb.o: proto/acc_conf.pb.cc
+#	$(PP) $(COMPILE) $< -o $@ 
+#
+#msgGamNam.pb.o: proto/msgGamNam.pb.cc
+#	$(PP) $(COMPILE) $< -o $@ 
+
+%.o: proto/%.cc 
 	$(PP) $(COMPILE) $< -o $@ 
 
-acc_conf.pb.o: proto/acc_conf.pb.cc
-	$(PP) $(COMPILE) $< -o $@ 
-
-msgGamNam.pb.o: proto/msgGamNam.pb.cc
-	$(PP) $(COMPILE) $< -o $@ 
-
-%.o: %.cpp *.h proto/*.h
+%.o: %.cpp *.h proto/*.h Makefile
 	$(PP) $(COMPILE) $< -o $@
 
 clean:

@@ -7,9 +7,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <cstdint>
-#include <iostream>
-#include <stdexcept>
+#include <fstream>
 
 #define LOG_HEADER "CommManager"
 #include <glog/logging.h>

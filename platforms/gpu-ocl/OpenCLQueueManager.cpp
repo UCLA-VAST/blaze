@@ -2,7 +2,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/atomic.hpp>
 
-#define LOG_HEADER  "OpenCLQueueManager"
+#define LOG_HEADER "OpenCLQueueManager"
 
 #include <glog/logging.h>
 

@@ -1,0 +1,5 @@
+# Ignore everything in this directory
+libblaze.so
+xil_ocl.so
+# Except this file
+

@@ -2,14 +2,13 @@
 #include <stdexcept>
 #include <dlfcn.h>
 
-#define LOG_HEADER "QueueManager"
-
 #include <boost/smart_ptr.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
+#define LOG_HEADER "QueueManager"
 #include <glog/logging.h>
 
 #include "Task.h"

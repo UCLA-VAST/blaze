@@ -36,7 +36,7 @@ private[spark] class ClientArguments(args: Array[String], sparkConf: SparkConf) 
   var userArgs: ArrayBuffer[String] = new ArrayBuffer[String]()
   var executorMemory = 1024 // MB
   var executorCores = 1
-  var executorAccs = 0
+  // var executorAccs = 0
   var executorLabel: String = null 
   var numExecutors = DEFAULT_NUMBER_EXECUTORS
   var amQueue = sparkConf.get("spark.yarn.queue", "default")
@@ -211,9 +211,9 @@ private[spark] class ClientArguments(args: Array[String], sparkConf: SparkConf) 
           executorCores = value
           args = tail
 
-        case ("--executor-accs") :: IntParam(value) :: tail =>
-          executorAccs = value
-          args = tail
+        // case ("--executor-accs") :: IntParam(value) :: tail =>
+        //   executorAccs = value
+        //   args = tail
 
         case ("--executor-label") :: value :: tail =>
           executorLabel = value

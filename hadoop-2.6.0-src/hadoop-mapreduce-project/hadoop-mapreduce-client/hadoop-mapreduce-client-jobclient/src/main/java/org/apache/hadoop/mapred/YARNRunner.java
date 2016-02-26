@@ -532,6 +532,10 @@ public class YARNRunner implements ClientProtocol {
         conf.getInt(MRJobConfig.MR_AM_MAX_ATTEMPTS,
             MRJobConfig.DEFAULT_MR_AM_MAX_ATTEMPTS));
     appContext.setResource(capability);
+    // This sets the label for all containers requested by this application
+    appContext.setNodeLabelExpression(
+        conf.get(MRJobConfig.MR_LABEL,
+            MRJobConfig.DEFAULT_MR_LABEL));
     appContext.setApplicationType(MRJobConfig.MR_APPLICATION_TYPE);
     if (tagsFromConf != null && !tagsFromConf.isEmpty()) {
       appContext.setApplicationTags(new HashSet<String>(tagsFromConf));

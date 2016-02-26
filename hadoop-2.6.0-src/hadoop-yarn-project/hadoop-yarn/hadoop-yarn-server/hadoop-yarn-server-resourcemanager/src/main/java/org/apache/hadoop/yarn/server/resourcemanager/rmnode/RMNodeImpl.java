@@ -20,8 +20,10 @@ package org.apache.hadoop.yarn.server.resourcemanager.rmnode;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -863,4 +865,21 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
     }
     return context.getNodeLabelManager().getLabelsOnNode(nodeId);
   }
+
+  @Override
+  public Map<String, Set<String>> getNodeLabelRelations() {
+    if (context.getNodeLabelManager() == null) {
+      return new HashMap<String, Set<String>>();
+    }
+    return context.getNodeLabelManager().getLabelRelationsOnNode(nodeId);
+  }
+
+  @Override
+  public Set<String> getNodeLabelsWoAccs() {
+    if (context.getNodeLabelManager() == null) {
+      return CommonNodeLabelsManager.EMPTY_STRING_SET;
+    }
+    return context.getNodeLabelManager().getLabelsWoAccsByNode(nodeId);
+  }
+
  }

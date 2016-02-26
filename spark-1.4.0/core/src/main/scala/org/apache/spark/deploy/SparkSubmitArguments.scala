@@ -37,7 +37,7 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
   var master: String = null
   var deployMode: String = null
   var executorMemory: String = null
-  var executorAccs: String = null
+  // var executorAccs: String = null
   var executorCores: String = null
   var executorLabel: String = null
   var totalExecutorCores: String = null
@@ -162,8 +162,8 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
     executorCores = Option(executorCores)
       .orElse(sparkProperties.get("spark.executor.cores"))
       .orNull
-    executorAccs = Option(executorAccs)
-      .orNull
+    // executorAccs = Option(executorAccs)
+    //   .orNull
     executorLabel = Option(executorLabel)
       .orNull
     totalExecutorCores = Option(totalExecutorCores)
@@ -278,7 +278,6 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
     |  deployMode              $deployMode
     |  executorMemory          $executorMemory
     |  executorCores           $executorCores
-    |  executorAccs            $executorAccs
     |  executorLabel           $executorLabel
     |  totalExecutorCores      $totalExecutorCores
     |  propertiesFile          $propertiesFile
@@ -332,8 +331,8 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
       case TOTAL_EXECUTOR_CORES =>
         totalExecutorCores = value
 
-      case EXECUTOR_ACCS =>
-        executorAccs = value
+      // case EXECUTOR_ACCS =>
+      //   executorAccs = value
 
       case EXECUTOR_LABEL =>
         executorLabel = value
@@ -535,7 +534,6 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
         |                              the node running the Application Master via the Secure
         |                              Distributed Cache, for renewing the login tickets and the
         |                              delegation tokens periodically.
-        |  --executor-accs NUM         The number of requested acc slots.
         |  --executor-label LABEL      The labels of the nodes on which to run the executors.
       """.stripMargin
     )

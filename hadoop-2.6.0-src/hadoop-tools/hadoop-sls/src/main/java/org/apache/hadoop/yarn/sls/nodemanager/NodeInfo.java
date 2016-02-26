@@ -20,6 +20,7 @@ package org.apache.hadoop.yarn.sls.nodemanager;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -162,6 +163,16 @@ public class NodeInfo {
 
     @Override
     public Set<String> getNodeLabels() {
+      return null;
+    }
+
+    @Override
+    public Set<String> getNodeLabelsWoAccs() {
+      return null;
+    }
+
+    @Override
+    public Map<String, Set<String>> getNodeLabelRelations() {
       return null;
     }
   }

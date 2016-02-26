@@ -20,6 +20,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.rmnode;
 
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.net.Node;
@@ -142,4 +143,18 @@ public interface RMNode {
    * @return labels in this node
    */
   public Set<String> getNodeLabels();
+
+  /**
+   * Get relationships among labels in this node
+   * 
+   * @return relationships among labels in this node
+   */
+  public Map<String, Set<String>> getNodeLabelRelations();
+
+  /**
+   * Get set of labels in this node, excluding accelerators
+   * 
+   * @return labels in this node excluding accelerators
+   */
+  public Set<String> getNodeLabelsWoAccs();
 }

@@ -36,7 +36,18 @@ message NodeStatusProto {
   repeated ContainerStatusProto containersStatuses = 3;
   optional NodeHealthStatusProto nodeHealthStatus = 4;
   repeated ApplicationIdProto keep_alive_applications = 5;
-  repeated string acc_names = 100;
+  optional AccStatusProto accStatus = 100;
+}
+
+message AccStatusProto {
+  optional bool alive = 1;
+  optional bool isUpdated = 2;
+  repeated AcceleratorProto accelerators = 3;
+}
+
+message AcceleratorProto {
+  optional string acc_name = 1;
+  optional string device_name = 2;
 }
 
 message MasterKeyProto {

@@ -3,6 +3,8 @@
 
 #include <boost/smart_ptr.hpp>
 #include <cstdint>
+#include <iostream>
+#include <stdexcept>
 #include <string>
 
 namespace blaze {
@@ -46,6 +48,19 @@ std::string saveFile(std::string path, const std::string &contents);
 bool deleteFile(std::string path);
 
 // parameters
+
+// custom exceptions
+class invalidParam : public std::runtime_error {
+public:
+  explicit invalidParam(const std::string& what_arg):
+    std::runtime_error(what_arg) {;}
+};
+
+class commError : public std::runtime_error {
+public:
+  explicit commError(const std::string& what_arg):
+    std::runtime_error(what_arg) {;}
+};
 
 } // namespace blaze
 

@@ -5,14 +5,11 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
-#include <iostream>
-#include <string>
 #include <algorithm>
 #include <vector>
-#include <stdexcept>
-#include <cstdint>
 
 #define LOG_HEADER "GAMCommManager"
+
 #include <glog/logging.h>
 
 #include "proto/msgGamNam.pb.h"
@@ -63,6 +60,7 @@ void GAMCommManager::process(socket_ptr sock) {
           DLOG(INFO) << "Add acc name: " << labels[i].first << 
             " | " << labels[i].second;
         }
+        last_labels = labels;
       }
       last_labels = labels;
 

@@ -31,19 +31,13 @@ public:
     void (*destroy_func)(Task*),
     std::string _acc_id,
     Platform *_platform
-  ): power(true),  // TODO: 
-     exeQueueLength(0),
+  ): exeQueueLength(0),
      nextTaskId(0),
-     lobbyWaitTime(0),
-     doorWaitTime(0),
-     deltaDelay(0),
      acc_id(_acc_id),
      createTask(create_func),
      destroyTask(destroy_func),
      platform(_platform)
   {;}
-
-  int estimateTime(Task* task);
 
   // create a task and return the task pointer
   Task_ptr create();
@@ -90,23 +84,15 @@ private:
   // Locate TaskEnv and for logging purpose
   std::string acc_id;
 
-  // wait time for currently enqueued tasks
-  mutable boost::atomic<int> lobbyWaitTime;   
-  // wait time for all tasks waiting to enqueue
-  mutable boost::atomic<int> doorWaitTime;    
-
   mutable boost::atomic<int> nextTaskId;
 
   // current number of tasks in the execution queue
   mutable boost::atomic<int> exeQueueLength;
 
-  int deltaDelay;
-  
   // Task implementation loaded from user acc_impl
   Task* (*createTask)();
   void (*destroyTask)(Task*);
 
-  // TODO: this part should deprecated
   Platform *platform;
 
   // thread function body for scheduler and executor
@@ -114,8 +100,6 @@ private:
   void do_execute();
 
   void updateDelayModel(Task* task, int estimateTime, int realTime);
-
-  //TODO: add a pointer to GAM communicator
 
   // application queues mapped by application id
   std::map<std::string, TaskQueue_ptr> app_queues;

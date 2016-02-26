@@ -90,6 +90,13 @@ public class CommonNodeLabelsManager extends AbstractService {
     }
   }
 
+  protected Set<String> fcsLabels = new HashSet<String>();
+  protected Map<NodeId, Map<String, Set<String>>> deviceToAccOnNode =
+      new HashMap<NodeId, Map<String, Set<String>>>();
+  // maintain a set of accelerators on each node so we can tell which is
+  // device label and accelerator label.
+  protected Map<NodeId, Set<String>> accOnNode = new HashMap<NodeId, Set<String>>();
+
   /**
    * A <code>Host</code> can have multiple <code>Node</code>s 
    */
@@ -276,6 +283,88 @@ public class CommonNodeLabelsManager extends AbstractService {
     }
 
     LOG.info("Add labels: [" + StringUtils.join(labels.iterator(), ",") + "]");
+  }
+
+  /**
+   * Add multiple node labels to repository
+   * 
+   * @param labels
+   *          new node labels added
+   */
+  @SuppressWarnings("unchecked")
+  public void addToCluserFcsNodeLabels(Set<String> labels) throws IOException {
+    if (null == labels || labels.isEmpty()) {
+      return;
+    }
+    Set<String> newLabels = new HashSet<String>();
+    labels = normalizeLabels(labels);
+
+    // do a check before actual adding them, will throw exception if any of them
+    // doesn't meet label name requirement
+    for (String label : labels) {
+      checkAndThrowLabelName(label);
+    }
+
+    for (String label : labels) {
+      // shouldn't overwrite it to avoid changing the Label.resource
+      if (this.labelCollections.get(label) == null) {
+        this.labelCollections.put(label, new Label());
+        newLabels.add(label);
+        // Only difference to addToCluserFcsNodeLabels
+        fcsLabels.add(label);
+      }
+    }
+    if (null != dispatcher && !newLabels.isEmpty()) {
+      dispatcher.getEventHandler().handle(
+          new StoreNewClusterNodeLabels(newLabels));
+    }
+
+    LOG.info("Add labels: [" + StringUtils.join(labels.iterator(), ",") + "]");
+  }
+
+  public boolean isFcsLabel(String label) {
+    return fcsLabels.contains(label);
+  }
+
+  @SuppressWarnings("unchecked")
+  public void replaceDeviceAccMappingOnNode(NodeId id, Map<String, Set<String>> deviceToAcc) {
+    //  throws IOException {
+    deviceToAccOnNode.put(id, deviceToAcc);
+
+    // keep a record of accelerators on this node.
+    if (accOnNode.get(id) == null) {
+      Set<String> accs = new HashSet<String>();
+      accOnNode.put(id, accs);
+    }
+    accOnNode.get(id).clear();
+    for (String device : deviceToAcc.keySet()) {
+      accOnNode.get(id).addAll(deviceToAcc.get(device));
+    }
+  }
+  
+  public Map<String, Set<String>> getLabelRelationsOnNode(NodeId id) {
+    if (deviceToAccOnNode.get(id) == null) {
+      return new HashMap<String, Set<String>>();
+    }
+    return Collections.unmodifiableMap(deviceToAccOnNode.get(id));
+  }
+
+  public void removeLabelRelationsOnNode(NodeId nodeId) {
+    if (deviceToAccOnNode.get(nodeId) != null) {
+      deviceToAccOnNode.get(nodeId).clear();
+    }
+    if (accOnNode.get(nodeId) != null) {
+      accOnNode.get(nodeId).clear();
+    }
+  }
+
+  public Set<String> getLabelsWoAccsByNode(NodeId nodeId) {
+    // create a new copy of labels before removing accelerators
+    Set<String> labels = new HashSet<String>(getLabelsByNode(nodeId, nodeCollections));
+    if (accOnNode.get(nodeId) != null) {
+      labels.removeAll(accOnNode.get(nodeId));
+    }
+    return labels;
   }
   
   protected void checkAddLabelsToNode(
@@ -707,7 +796,7 @@ public class CommonNodeLabelsManager extends AbstractService {
   protected Set<String> getLabelsByNode(NodeId nodeId) {
     return getLabelsByNode(nodeId, nodeCollections);
   }
-  
+
   protected Set<String> getLabelsByNode(NodeId nodeId, Map<String, Host> map) {
     Host host = map.get(nodeId.getHost());
     if (null == host) {

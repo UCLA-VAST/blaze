@@ -1,3 +1,4 @@
+#define LOG_HEADER "Platform"
 #include <glog/logging.h>
 
 #include "TaskEnv.h"

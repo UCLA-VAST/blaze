@@ -469,9 +469,6 @@ public class ApplicationMasterService extends AbstractService implements
         request.setProgress(1);
       }
 
-      float accSpeedup = request.getAccSpeedup();
-      // TODO(mhhuang) change logging level to debug
-      LOG.info("accSpeedup is " + accSpeedup);
 
       // Send the status update to the appAttempt.
       this.rmContext.getDispatcher().getEventHandler().handle(
@@ -529,12 +526,24 @@ public class ApplicationMasterService extends AbstractService implements
         }
       }
 
-      if (ask.size() > 0) {
-        LOG.info("GAM: YARN received resource requests:");
-        for(ResourceRequest resourceRequest : ask) {
-          LOG.info(resourceRequest.toString());
-        }
-      }
+      // float accSpeedup = request.getAccSpeedup();
+      // if (ask.size() > 0) {
+      //   LOG.info("GAM: YARN received resource requests:");
+      //   for(ResourceRequest resourceRequest : ask) {
+      //     LOG.info(resourceRequest.toString());
+      //   }
+
+      //   TODO(mhhuang) change logging level to debug
+      //   LOG.info("accSpeedup is " + accSpeedup);
+
+      //   LOG.info("Cluster acc nodes: <nodeIp, vAccs>");
+      //   ConcurrentHashMap<String, Integer> nodeAccInfo = 
+      //       new ConcurrentHashMap<String, Integer>();
+      //   nodeAccInfo = this.rScheduler.getNodeAccInfo();
+      //   for(ConcurrentHashMap.Entry<String, Integer> entry : nodeAccInfo.entrySet()) {
+      //     LOG.info("<" + entry.getKey() + "," + entry.getValue() + ">");
+      //   }
+      // }
 
       // Send new requests to appAttempt.
       Allocation allocation =
