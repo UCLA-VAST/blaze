@@ -21,56 +21,6 @@
 
 namespace blaze {
 
-// receive one message, bytesize first
-void CommManager::recv(
-    ::google::protobuf::Message &msg, 
-    socket_ptr socket) 
-{
-  try {
-    int msg_size = 0;
-
-    socket->receive(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)), 0);
-
-    if (msg_size<=0) {
-      throw std::runtime_error(
-          "Invalid message size of " +
-          std::to_string((long long)msg_size));
-    }
-    char* msg_data = new char[msg_size];
-
-    socket->receive(buffer(msg_data, msg_size), 0);
-
-    if (!msg.ParseFromArray(msg_data, msg_size)) {
-      throw std::runtime_error("Failed to parse input message");
-    }
-
-    delete [] msg_data;
-  } catch (std::exception &e) {
-    throw std::runtime_error(e.what());
-  }
-}
-
-// send one message, bytesize first
-void CommManager::send(
-    ::google::protobuf::Message &msg, 
-    socket_ptr socket) 
-{
-  try {
-    int msg_size = msg.ByteSize();
-
-    //NOTE: why doesn't this work: socket_stream << msg_size;
-    socket->send(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)),0);
-
-    char* msg_data = new char[msg_size];
-
-    msg.SerializeToArray(msg_data, msg_size);
-
-    socket->send(buffer(msg_data, msg_size),0);
-  } catch (std::exception &e) {
-    throw std::runtime_error(e.what());
-  }
-}
-
 void CommManager::listen() {
 
   try {

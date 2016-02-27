@@ -1,14 +1,6 @@
 #ifndef TASK_MANAGER_H
 #define TASK_MANAGER_H
 
-#include <map>
-#include <vector>
-#include <iostream>
-
-#include <boost/smart_ptr.hpp>
-#include <boost/thread/thread.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/lockable_adapter.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/atomic.hpp>
 

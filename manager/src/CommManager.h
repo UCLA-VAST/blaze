@@ -1,23 +1,12 @@
 #ifndef COMM_H
 #define COMM_H
 
-#include <string>
-#include <vector>
-
-#include <boost/smart_ptr.hpp>
-#include <boost/asio.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/thread/thread.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/lockable_adapter.hpp>
-
 #include <google/protobuf/message.h>
 
 #include "proto/task.pb.h"
 #include "Common.h"
 
 using namespace boost::asio;
-typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 
 namespace blaze {
 
@@ -44,10 +33,6 @@ public:
   }
 
 protected:
-  void recv(::google::protobuf::Message&, socket_ptr);
-
-  void send(::google::protobuf::Message&, socket_ptr);
-
   // pure virtual method called by listen
   virtual void process(socket_ptr) {};
 
@@ -102,8 +87,5 @@ private:
   void process(socket_ptr);
   std::vector<std::pair<std::string, std::string> > last_labels;
 };
-
-
-}
-
+} // namespace blaze
 #endif

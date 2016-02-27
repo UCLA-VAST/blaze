@@ -1,11 +1,20 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <boost/asio.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/smart_ptr.hpp>
+#include <boost/thread/lockable_adapter.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/thread.hpp>
 #include <cstdint>
+#include <google/protobuf/message.h>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace blaze {
 
@@ -25,6 +34,7 @@ class Platform;
 class PlatformManager;
 class QueueManager;
 
+// typedef of boost smart pointer object
 typedef boost::shared_ptr<BlockManager> BlockManager_ptr;
 typedef boost::shared_ptr<DataBlock>    DataBlock_ptr;
 typedef boost::weak_ptr<DataBlock>      DataBlock_ref;
@@ -36,18 +46,28 @@ typedef boost::shared_ptr<Platform>     Platform_ptr;
 typedef boost::weak_ptr<Platform>       Platform_ref;
 typedef boost::shared_ptr<QueueManager> QueueManager_ptr;
 
-// common functions
+typedef boost::shared_ptr<boost::asio::io_service> ios_ptr;
+typedef boost::shared_ptr<boost::asio::ip::tcp::endpoint> endpoint_ptr;
+typedef boost::shared_ptr<boost::asio::ip::tcp::socket> socket_ptr;
+
+// helper functions to get system info
 uint64_t getUs();
 uint64_t getMs();
 uint32_t getTid();
 std::string getTS();
 std::string getUid();
 
-// common file/directory operators
+// helper functions for socket transfer
+void recv(::google::protobuf::Message&, socket_ptr);
+void send(::google::protobuf::Message&, socket_ptr);
+
+// helper functions for file/directory operations
 std::string saveFile(std::string path, const std::string &contents);
+std::string readFile(std::string path);
 bool deleteFile(std::string path);
 
 // parameters
+static std::string nam_root_dir("/tmp/nam");
 
 // custom exceptions
 class invalidParam : public std::runtime_error {
@@ -62,6 +82,17 @@ public:
     std::runtime_error(what_arg) {;}
 };
 
+class fileError : public std::runtime_error {
+public:
+  explicit fileError(const std::string& what_arg):
+    std::runtime_error(what_arg) {;}
+};
+
+class internalError : public std::runtime_error {
+public:
+  explicit internalError(const std::string& what_arg):
+    std::runtime_error(what_arg) {;}
+};
 } // namespace blaze
 
 #endif

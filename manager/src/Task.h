@@ -1,12 +1,6 @@
 #ifndef TASK_H
 #define TASK_H
 
-#include <string>
-#include <map>
-#include <vector>
-#include <cstdlib>
-#include <stdexcept>
-
 #include "Common.h"
 
 namespace blaze {

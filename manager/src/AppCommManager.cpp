@@ -499,10 +499,9 @@ void AppCommManager::process(socket_ptr sock) {
 
           // use thread id to create unique output file path
           std::stringstream path_stream;
-          std::string output_dir = "/tmp";
 
-          path_stream << output_dir << "/"
-                      << "nam-output-"
+          path_stream << nam_root_dir << "/"
+                      << "output-"
                       << getTid() 
                       << std::setw(12) << std::setfill('0') << rand() 
                       << outId
@@ -650,8 +649,6 @@ void AppCommManager::process(socket_ptr sock) {
 }
 void AppCommManager::handleAccRegister(TaskMsg &msg) {
 
-  // TODO: handle app_id and acc_id
-  
   if (!msg.has_acc()) {
     throw AccReject("missing AccMsg");
   }
@@ -684,7 +681,7 @@ void AppCommManager::handleAccRegister(TaskMsg &msg) {
   acc_conf.set_id(acc_id);
 
   // setup parameters and transfer files
-  std::string root_dir = "/tmp/nam/" + acc_id + "/"; 
+  std::string root_dir = nam_root_dir + "/" + acc_id + "/"; 
 
   std::string path = root_dir+std::string("task.so");
 
@@ -718,7 +715,6 @@ void AppCommManager::handleAccRegister(TaskMsg &msg) {
       new_param->set_value(acc_msg.param(i).value());
     }
   }
-
   // setup Acc Queue
   try {
     platform_manager->registerAcc(platform_id, acc_conf);
@@ -732,17 +728,27 @@ void AppCommManager::handleAccDelete(TaskMsg &msg) {
   if (!msg.has_acc()) {
     throw AccReject("missing AccMsg");
   }
-
   // unpack message
   AccMsg acc_msg = msg.acc();
   std::string acc_id = acc_msg.acc_id();
   std::string platform_id = acc_msg.platform_id();
   
+  if (!platform_manager->accExists(acc_id)) {
+    VLOG(1) << "Accelerator " << acc_id << " does not exist, "
+            << "assumes deletion successful.";
+    return;
+  }
   try {
     platform_manager->removeAcc("", acc_id, platform_id);
   }
   catch (std::exception &e) {
     throw AccFailure(e.what());
+  }
+  std::string root_dir = nam_root_dir + "/" + acc_id; 
+  if (deleteFile(root_dir)) {
+    DLOG(INFO) << "Deleted accelerator from " << root_dir;
+  } else {
+    DLOG(ERROR) << "Failed to delete accelerator from " << root_dir;
   }
 }
 } // namespace blaze

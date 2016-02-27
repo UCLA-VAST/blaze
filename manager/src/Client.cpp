@@ -388,39 +388,39 @@ void Client::processOutput(TaskMsg &msg) {
   VLOG(1) << "Finish reading output blocks";
 }
 
-void Client::recv(TaskMsg &task_msg, socket_ptr socket)
-{
-  int msg_size = 0;
-
-  socket->receive(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)), 0);
-
-  if (msg_size<=0) {
-    throw std::runtime_error(
-        "Invalid message size of " +
-        std::to_string((long long)msg_size));
-  }
-
-  char* msg_data = new char[msg_size];
-  socket->receive(buffer(msg_data, msg_size), 0);
-
-  if (!task_msg.ParseFromArray(msg_data, msg_size)) {
-    throw std::runtime_error("Failed to parse input message");
-  }
-
-  delete msg_data;
-}
-
-// send one message, bytesize first
-void Client::send(TaskMsg &task_msg, socket_ptr socket)
-{
-  int msg_size = task_msg.ByteSize();
-
-  socket->send(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)),0);
-
-  char* msg_data = new char[msg_size];
-
-  task_msg.SerializeToArray(msg_data, msg_size);
-
-  socket->send(buffer(msg_data, msg_size),0);
-}
+//void Client::recv(TaskMsg &task_msg, socket_ptr socket)
+//{
+//  int msg_size = 0;
+//
+//  socket->receive(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)), 0);
+//
+//  if (msg_size<=0) {
+//    throw std::runtime_error(
+//        "Invalid message size of " +
+//        std::to_string((long long)msg_size));
+//  }
+//
+//  char* msg_data = new char[msg_size];
+//  socket->receive(buffer(msg_data, msg_size), 0);
+//
+//  if (!task_msg.ParseFromArray(msg_data, msg_size)) {
+//    throw std::runtime_error("Failed to parse input message");
+//  }
+//
+//  delete msg_data;
+//}
+//
+//// send one message, bytesize first
+//void Client::send(TaskMsg &task_msg, socket_ptr socket)
+//{
+//  int msg_size = task_msg.ByteSize();
+//
+//  socket->send(buffer(reinterpret_cast<char*>(&msg_size), sizeof(int)),0);
+//
+//  char* msg_data = new char[msg_size];
+//
+//  task_msg.SerializeToArray(msg_data, msg_size);
+//
+//  socket->send(buffer(msg_data, msg_size),0);
+//}
 } // namespace blaze

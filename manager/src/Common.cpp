@@ -81,6 +81,79 @@ namespace blaze {
     return std::string(std::getenv("USER"));
   }
 
+  // receive one message, bytesize first
+  void recv(::google::protobuf::Message &msg, 
+      socket_ptr socket) 
+  {
+    try {
+      int msg_size = 0;
+  
+      socket->receive(
+          boost::asio::buffer(
+            reinterpret_cast<char*>(&msg_size), 
+            sizeof(int)), 0);
+  
+      if (msg_size<=0) {
+        throw commError(
+            "Invalid message size of " +
+            std::to_string((long long)msg_size));
+      }
+      char* msg_data = new char[msg_size];
+  
+      socket->receive(
+          boost::asio::buffer(msg_data, msg_size), 0);
+  
+      if (!msg.ParseFromArray(msg_data, msg_size)) {
+        throw commError("Failed to parse input message");
+      }
+  
+      delete [] msg_data;
+    } catch (std::exception &e) {
+      throw std::runtime_error(e.what());
+    }
+  }
+  
+  // send one message, bytesize first
+  void send(::google::protobuf::Message &msg, 
+      socket_ptr socket) 
+  {
+    try {
+      int msg_size = msg.ByteSize();
+  
+      socket->send(
+          boost::asio::buffer(
+            reinterpret_cast<char*>(&msg_size), 
+            sizeof(int)), 0);
+  
+      char* msg_data = new char[msg_size];
+  
+      msg.SerializeToArray(msg_data, msg_size);
+  
+      socket->send(
+          boost::asio::buffer(msg_data, msg_size),0);
+
+    } catch (std::exception &e) {
+      throw std::runtime_error(e.what());
+    }
+  }
+
+  // 
+  std::string readFile(std::string path) {
+  
+    std::ifstream fin(path, std::ios::binary);
+  
+    if (fin) {
+      std::string data = std::string(
+          std::istreambuf_iterator<char>(fin), 
+          std::istreambuf_iterator<char>());
+  
+      return data;
+    }
+    else {
+      throw fileError(path);
+    }
+  }
+
   std::string saveFile(
       std::string path, 
       const std::string &contents) 
@@ -90,12 +163,12 @@ namespace blaze {
     }
     boost::filesystem::wpath file_path(path);
     boost::filesystem::wpath dir = file_path.parent_path();
-    //while (boost::filesystem::exists(file_path)) {
-    //  std::string new_path = file_path.stem().string() + 
-    //                         "_new" + 
-    //                         file_path.extension().string();
-    //  file_path = file_path.parent_path() / new_path;
-    //}
+    while (boost::filesystem::exists(file_path)) {
+      std::string new_path = file_path.stem().string() + 
+                             "_new" + 
+                             file_path.extension().string();
+      file_path = file_path.parent_path() / new_path;
+    }
     boost::filesystem::create_directories(dir);
   
     FILE* fout = fopen(file_path.string().c_str(), "wb+");
@@ -113,7 +186,7 @@ namespace blaze {
   bool deleteFile(std::string path) {
     boost::filesystem::wpath file(path);
     if (boost::filesystem::exists(file)) {
-      boost::filesystem::remove(file);
+      boost::filesystem::remove_all(file);
       return true;
     }
     else {

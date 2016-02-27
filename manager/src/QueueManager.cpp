@@ -23,6 +23,12 @@ void QueueManager::add(
     std::string id, 
     std::string lib_path)
 {
+  if (tasklib_table.count(id)) {
+    LOG(WARNING) << "Cannot add Task [" << id
+                 << "] because previous Task with the same ID is not "
+                 << "successfully unloaded.";
+    throw internalError("Task handle exists");
+  }
   void* handle = dlopen(lib_path.c_str(), RTLD_LAZY|RTLD_LOCAL);
 
   if (handle == NULL) {
@@ -54,6 +60,7 @@ void QueueManager::add(
   boost::lock_guard<QueueManager> guard(*this);
 
   queue_table.insert(std::make_pair(id, task_manager));
+  tasklib_table.insert(std::make_pair(id, handle));
 
   LOG(INFO) << "Added a new task queue: " << id;
 }
@@ -89,6 +96,31 @@ void QueueManager::remove(std::string id) {
     boost::this_thread::sleep_for(boost::chrono::microseconds(1000));
   }
   DLOG(INFO) << "TaskManager for " << id << " is successfully stopped";
+
+  // release the loaded library using dlclose
+  // reset errors
+  dlerror();
+
+  void* handle = tasklib_table[id];
+
+  dlclose(handle);
+
+  const char* error = dlerror();
+  if (error) {
+    DLOG(ERROR) << "Task implementation for " << id 
+                << " cannot be unloaded because:" 
+                << error;
+  }
+  else {
+    DLOG(INFO) << "Task implementation for " << id << " is successfully unloaded";
+
+    // only remove item from table if dlclose is successful
+    // otherwise prevent new accelerator with the same id 
+    // be added
+    this->lock();
+    tasklib_table.erase(id);
+    this->unlock();
+  }
 }
 
 TaskEnv* QueueManager::getTaskEnv(Task* task) {

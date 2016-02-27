@@ -1,11 +1,6 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#include <stdio.h>
-#include <boost/smart_ptr.hpp>
-#include <string>
-#include <map>
-
 #include "proto/acc_conf.pb.h"
 #include "Common.h"
 

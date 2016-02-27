@@ -1,10 +1,6 @@
 #ifndef QUEUE_MANAGER_H
 #define QUEUE_MANAGER_H
 
-#include <map>
-#include <vector>
-#include <iostream>
-
 #include "proto/acc_conf.pb.h"
 #include "Common.h"
 
@@ -41,6 +37,7 @@ protected:
   void setTaskInputBlock(Task* task, DataBlock_ptr block, int idx);
 
   std::map<std::string, TaskManager_ptr> queue_table;
+  std::map<std::string, void*>           tasklib_table;
 
   Platform *platform;
 };
