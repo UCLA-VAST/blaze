@@ -1,4 +1,6 @@
-FCS_RT_ROOT=/curr/diwu/prog/fcs_runtime
+ifeq ($(FCS_RT_ROOT),)	
+FCS_RT_ROOT=../../..
+endif
 
 PP=g++
 CC=gcc
