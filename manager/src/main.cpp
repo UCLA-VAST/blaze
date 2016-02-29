@@ -17,7 +17,9 @@
 #include <glog/logging.h>
 
 // use flexlm
+#ifdef USELICENSE
 #include "license.h"
+#endif
 
 #include "CommManager.h"
 #include "PlatformManager.h"
@@ -27,6 +29,7 @@
 
 using namespace blaze;
 
+#ifdef USELICENSE
 void licence_check_out() {
 
   Feature feature = FALCON_RT;
@@ -49,15 +52,17 @@ void licence_check_in() {
   // cleanup for licensing. call once
   fc_license_cleanup();
 }
+#endif
 
 int main(int argc, char** argv) {
 
+  FLAGS_logtostderr = 1;
   google::InitGoogleLogging(argv[0]);
 
-  FLAGS_logtostderr = 1;
-
+#ifdef USELICENSE
   // check license
   licence_check_out();
+#endif
   
   srand(time(NULL));
 
@@ -148,8 +153,10 @@ int main(int argc, char** argv) {
     boost::this_thread::sleep_for(boost::chrono::seconds(60)); 
   }
 
+#ifdef USELICENSE
   // release license
   licence_check_in();
+#endif
 
   return 0;
 }

@@ -7,7 +7,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <stdexcept>
 #include <cstdint>
 
 #define LOG_HEADER "CommManager"

@@ -40,6 +40,9 @@ DEPS= OpenCLPlatform.o \
 
 all: gpu-ocl.so
 
+package:
+	cp gpu-ocl.so ../../package/nam/lib/nv_opencl.so
+
 gpu-ocl.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS) $(LINK) 
 
