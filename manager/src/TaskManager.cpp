@@ -17,6 +17,10 @@ int TaskManager::getExeQueueLength() {
   return exeQueueLength.load();
 }
 
+bool TaskManager::isEmpty() {
+  return execution_queue.empty();
+}
+
 Task_ptr TaskManager::create() {
   
   // create a new task by the constructor loaded form user implementation

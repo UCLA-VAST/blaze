@@ -13,7 +13,7 @@ public:
       Platform* _platform,
       int _reconfig_timer = 500);
 
-  void startAll();
+  void start();
 
 private:
   OpenCLPlatform* ocl_platform;

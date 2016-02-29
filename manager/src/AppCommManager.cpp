@@ -51,7 +51,7 @@ void AppCommManager::process(socket_ptr sock) {
     }
     catch (std::exception &e){
       throw AccFailure(
-          std::string("Error in receiving ACCREQUEST: ")+
+          std::string("Error in receiving TaskMsg: ")+
           std::string(e.what()));
     }
     if (task_msg.type() == ACCREQUEST) {
@@ -681,37 +681,38 @@ void AppCommManager::handleAccRegister(TaskMsg &msg) {
   acc_conf.set_id(acc_id);
 
   // setup parameters and transfer files
-  std::string root_dir = nam_root_dir + "/" + acc_id + "/"; 
+  //std::string root_dir = nam_root_dir + "/" + acc_id + "/"; 
 
-  std::string path = root_dir+std::string("task.so");
+  //std::string path = root_dir+std::string("task.so");
 
-  path = saveFile(path, acc_msg.task_impl());
-  acc_conf.set_path(path);
+  //path = saveFile(path, acc_msg.task_impl());
+  acc_conf.set_path(acc_msg.task_impl());
 
   // TODO: here is an issue when the file size of very large,
   // in the received binary string there are usally large 
   // amount of data being wrong
-  VLOG(1) << "Saved acc task in " << path;
+  //VLOG(1) << "Saved acc task in " << path;
 
   for (int i=0; i<acc_msg.param_size(); i++) {
-    KeyValue* new_param = acc_conf.add_param();
+    AccWorker::KeyValue* new_param = acc_conf.add_param();
 
     std::string key = acc_msg.param(i).key();
     new_param->set_key(key);
 
     // if key specifies a file path
-    if (key.length() > 5 && 
-        key.substr(key.length()-5, 5) == "_path")
+    //if (key.length() > 5 && 
+    //    key.substr(key.length()-5, 5) == "_path")
+    //{
+    //  std::string value_path = saveFile(
+    //      root_dir+key, acc_msg.param(i).value());
+
+    //  VLOG(1) << "Saved file for '" << key << "'"
+    //    << " in " << value_path;
+
+    //  new_param->set_value(value_path);
+    //}
+    //else 
     {
-      std::string value_path = saveFile(
-          root_dir+key, acc_msg.param(i).value());
-
-      VLOG(1) << "Saved file for '" << key << "'"
-        << " in " << value_path;
-
-      new_param->set_value(value_path);
-    }
-    else {
       new_param->set_value(acc_msg.param(i).value());
     }
   }

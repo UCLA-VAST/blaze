@@ -49,7 +49,8 @@ endif
 
 COMPILE = $(CFLAGS) $(INCLUDES)
 
-DEPS= Block.o \
+DEPS= Admin.o \
+			Block.o \
 			Client.o \
 			Common.o \
 			Platform.o \

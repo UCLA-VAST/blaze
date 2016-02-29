@@ -10,6 +10,6 @@ YARN_OUT=../hadoop-2.6.0-src/hadoop-yarn-project/hadoop-yarn/fcs-yarn-common/src
 PYTHON_OUT=./python
 
 all: task.proto acc_conf.proto msgGamNam.proto
-	$(PROTOBUF_DIR)/bin/protoc --cpp_out=$(CPP_OUT) --java_out=$(JAVA_OUT) task.proto --python_out=$(PYTHON_OUT)
-	$(PROTOBUF_DIR)/bin/protoc --cpp_out=$(CPP_OUT) acc_conf.proto
+	$(PROTOBUF_DIR)/bin/protoc --cpp_out=$(CPP_OUT) --java_out=$(JAVA_OUT) --python_out=$(PYTHON_OUT) task.proto
+	$(PROTOBUF_DIR)/bin/protoc --cpp_out=$(CPP_OUT) --python_out=$(PYTHON_OUT) acc_conf.proto
 	$(PROTOBUF_DIR)/bin/protoc --cpp_out=$(CPP_OUT) --java_out=$(YARN_OUT) msgGamNam.proto

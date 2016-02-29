@@ -5,6 +5,7 @@
 #define LOG_HEADER "OpenCLQueueManager"
 #include <glog/logging.h>
 
+#include "Task.h"
 #include "TaskManager.h"
 #include "OpenCLPlatform.h"
 #include "OpenCLQueueManager.h"
@@ -26,17 +27,14 @@ OpenCLQueueManager::OpenCLQueueManager(
   }
 
   DLOG(INFO) << "Set FPGA reconfigure counter = " << _reconfig_timer;
+
+  // start executor
+  boost::thread executor(
+      boost::bind(&OpenCLQueueManager::do_start, this));
 }
 
-void OpenCLQueueManager::startAll() {
-  
-  if (queue_table.size() == 0) {
-    LOG(WARNING) << "No accelerator setup for the current platform";
-  }
-  else {
-    boost::thread executor(
-        boost::bind(&OpenCLQueueManager::do_start, this));
-  }
+void OpenCLQueueManager::start() {
+  // do nothing since the executors are already started
 }
 
 void OpenCLQueueManager::do_start() {
@@ -46,78 +44,26 @@ void OpenCLQueueManager::do_start() {
   if (!ocl_platform) {
     LOG(FATAL) << "Platform pointer incorrect";
   }
-  // NOTE: In current implementation dynamic accelerator registration
-  // is not supported, so if there is only one accelerator skip the 
-  // bitstream reprogramming logics
-  if (queue_table.size() == 1) {
+  VLOG(1) << "Start a executor for FPGAQueueManager";
 
-    std::string acc_id = queue_table.begin()->first;
-    TaskManager_ptr task_manager = queue_table.begin()->second;
+  int retry_counter = 0;
+  std::list<std::pair<std::string, TaskManager_ptr> > ready_queues;
 
-    DLOG(INFO) << "One accelerator on the platform, "
-      << "Setup program and start TaskManager scheduler and executor";
-
-    // program the device
-    try {
-      ocl_platform->changeProgram(acc_id);
+  while (1) {
+    if (queue_table.empty()) {
+      // no ready queues at this point, sleep and check again
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(10)); 
+      continue;
     }
-    catch (std::runtime_error &e) {
+    else {
+      boost::lock_guard<QueueManager> guard(*this);
 
-      // if setup program failed, remove accelerator from queue_table 
-      LOG(ERROR) << "Failed to setup bitstream for " << acc_id 
-        << ": " << e.what()
-        << ". Remove it from QueueManager.";
-      queue_table.erase(queue_table.find(acc_id));
-
-      return;
-    }
-
-    task_manager->start();
-  }
-  else {
-
-    // start the scheduler for each queue;
-    std::map<std::string, TaskManager_ptr>::iterator iter;
-    for (iter = queue_table.begin();
-        iter != queue_table.end();
-        ++iter)
-    {
-      iter->second->startScheduler();
-    }
-
-    std::list<std::string> ready_queues;
-
-    int retry_counter = 0;
-    while (1) {
-
-      // here a round-robin policy is enforced
-      if (ready_queues.empty()) {
-        std::map<std::string, TaskManager_ptr>::iterator iter;
-        for (iter = queue_table.begin();
-            iter != queue_table.end();
-            ++iter)
-        {
-          int queue_length = iter->second->getExeQueueLength();
-          if (queue_length > 0) {
-            ready_queues.push_back(iter->first);
-          }
-        }
-      }
-
-      if (ready_queues.empty()) {
-        // no ready queues at this point, sleep and check again
-        boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
-      }
-      else {
-        // select first queue
-        std::string queue_name = ready_queues.front();
-
-        // switch bitstream for the selected queue
+      if (queue_table.size() == 1) {
+        std::string queue_name = queue_table.begin()->first;
         try {
           ocl_platform->changeProgram(queue_name);
         }
         catch (std::runtime_error &e) {
-
           retry_counter++;
 
           if (retry_counter < 10) {
@@ -139,34 +85,99 @@ void OpenCLQueueManager::do_start() {
           }
           continue;
         }
+      }
 
-        TaskManager_ptr queue = queue_table[queue_name];
-
-        // timer to wait for the queue to fill up again
-        int counter = 0;
-        while (counter < reconfig_timer) {
-          if (queue->getExeQueueLength() > 0) {
-
-            counter = 0;
-            
-            VLOG(1) << "Execute one task from " << queue_name;
-
-            // execute one task
-            queue->execute();
-          }
-          else { 
-            DLOG_EVERY_N(INFO, 50) << "Queue " << queue_name << " empty for 50ms";
-
-            // start counter
-            boost::this_thread::sleep_for(boost::chrono::milliseconds(1)); 
-            
-            counter++;
+      // here a round-robin policy is enforced
+      // iterate through all task queues
+      if (ready_queues.empty()) {
+        std::map<std::string, TaskManager_ptr>::iterator iter;
+        for (iter = queue_table.begin();
+            iter != queue_table.end();
+            ++iter)
+        {
+          if (iter->second->getExeQueueLength()) {
+            ready_queues.push_back(*iter);
           }
         }
-        // if the timer is up, switch to the next queue
-        ready_queues.pop_front(); 
       }
     }
+
+    if (ready_queues.empty()) {
+      // no ready queues at this point, sleep and check again
+      boost::this_thread::sleep_for(boost::chrono::microseconds(1000)); 
+      continue;
+    }
+
+    // select first queue
+    std::string queue_name = ready_queues.front().first;
+    TaskManager_ptr queue  = ready_queues.front().second;
+
+    // switch bitstream for the selected queue
+    try {
+      ocl_platform->changeProgram(queue_name);
+    }
+    catch (std::runtime_error &e) {
+
+      retry_counter++;
+
+      if (retry_counter < 10) {
+        LOG(WARNING) << "Programing bitstream failed " 
+          << retry_counter << " times";
+      }
+      else {
+        // if setup program keeps failing, remove accelerator from queue_table 
+        LOG(ERROR) << "Failed to setup bitstream for " << queue_name
+          << ": " << e.what()
+          << ". Remove it from QueueManager.";
+
+        queue_table.erase(queue_table.find(queue_name));
+
+        // remove queue_name from ready queue since it's already removed
+        ready_queues.pop_front();
+
+        retry_counter = 0;
+      }
+      continue;
+    }
+
+    // timer to wait for the queue to fill up again
+    int counter = 0;
+    while (counter < reconfig_timer) {
+
+      Task* task;
+      if (queue->popReady(task)) {
+        
+        VLOG(1) << "Execute one task from " << queue_name;
+
+        // execute one task
+        try {
+          uint64_t start_time = getUs();
+
+          // start execution
+          task->execute();
+
+          // record task execution time
+          uint64_t delay_time = getUs() - start_time;
+
+          VLOG(1) << "Task finishes in " << delay_time << " us";
+        } 
+        catch (std::runtime_error &e) {
+          LOG(ERROR) << "Task error " << e.what();
+        }
+        // reset the counter
+        counter = 0;
+      }
+      else { 
+        DLOG_EVERY_N(INFO, 50) << "Queue " << queue_name << " empty for 50ms";
+
+        // start counter
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(1)); 
+        
+        counter++;
+      }
+    }
+    // if the timer is up, switch to the next queue
+    ready_queues.pop_front(); 
   }
 }
 

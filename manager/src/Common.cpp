@@ -11,6 +11,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <cstdint>
+#include <glog/logging.h>
 #include <string>
 #include <stdexcept>
 
@@ -98,6 +99,9 @@ namespace blaze {
             "Invalid message size of " +
             std::to_string((long long)msg_size));
       }
+      // TODO: mysterious issue, for receiving the acc request message
+      //boost::this_thread::sleep_for(boost::chrono::microseconds(5)); 
+
       char* msg_data = new char[msg_size];
   
       socket->receive(
@@ -126,7 +130,7 @@ namespace blaze {
             sizeof(int)), 0);
   
       char* msg_data = new char[msg_size];
-  
+
       msg.SerializeToArray(msg_data, msg_size);
   
       socket->send(

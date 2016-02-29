@@ -9,6 +9,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
 #include <cstdint>
+#include <glog/logging.h>
 #include <google/protobuf/message.h>
 #include <iostream>
 #include <map>

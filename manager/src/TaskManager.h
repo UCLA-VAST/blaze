@@ -23,7 +23,10 @@ public:
     void (*destroy_func)(Task*),
     std::string _acc_id,
     Platform *_platform
-  ): exeQueueLength(0),
+  ): power(true),
+     scheduler_idle(true),
+     executor_idle(true),
+     exeQueueLength(0),
      nextTaskId(0),
      acc_id(_acc_id),
      createTask(create_func),
@@ -52,6 +55,8 @@ public:
 
   // query the current execution queue length
   int getExeQueueLength();
+
+  bool isEmpty();
 
   // experimental
   std::string getConfig(int idx, std::string key);
