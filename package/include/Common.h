@@ -1,10 +1,10 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <cstdint>
-#include <string>
-
 #include <boost/smart_ptr.hpp>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
 
 namespace blaze {
 
@@ -40,6 +40,19 @@ std::string getTS();
 void log(FILE*, const std::string);
 void logInfo(const std::string);
 void logErr(const std::string);
+
+// custom exceptions
+class invalidParam : public std::runtime_error {
+public:
+  explicit invalidParam(const std::string& what_arg):
+    std::runtime_error(what_arg) {;}
+};
+
+class commError : public std::runtime_error {
+public:
+  explicit commError(const std::string& what_arg):
+    std::runtime_error(what_arg) {;}
+};
 
 } // namespace blaze
 

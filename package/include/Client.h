@@ -19,6 +19,11 @@
 #define BLAZE_INPUT_CACHED  1
 #define BLAZE_SHARED        2
 
+// for testing purpose
+#ifndef TEST_FRIENDS_LIST
+#define TEST_FRIENDS_LIST
+#endif
+
 using namespace boost::asio;
 
 namespace blaze {
@@ -29,7 +34,7 @@ typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 typedef boost::shared_ptr<boost::thread> client_event;
 
 class Client {
-  
+  TEST_FRIENDS_LIST
 public:
   Client(std::string _acc_id, 
          int _num_inputs, 
@@ -66,6 +71,8 @@ public:
   int   getOutputLength(int idx);
 
   // start client and wait for results
+  // NOTE: in current version the call is blocking no matter
+  // what input is provided
   void start(bool blocking = true);
 
   // pure virtual method to be overloaded
