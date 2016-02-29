@@ -6,7 +6,7 @@ import org.apache.spark.mllib.evaluation.MulticlassMetrics
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.util.MLUtils
-import org.apache.spark.blaze._
+import org.apache.spark.storage.StorageLevel;
 
 object LogisticRegression {
 
@@ -24,8 +24,8 @@ object LogisticRegression {
 
     var data = MLUtils.loadLibSVMFile(sc, args(0))
     val splits = data.randomSplit(Array(0.7, 0.3), seed = 42L)
-    val train = splits(0).repartition(reps).cache()
-    //val train = splits(0).cache()
+    //val train = splits(0).repartition(reps).cache()
+    val train = splits(0).persist(StorageLevel.MEMORY_AND_DISK_SER)
     val test = splits(1)
 
     val model = new LogisticRegressionWithLBFGS()

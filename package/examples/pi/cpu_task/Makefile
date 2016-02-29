@@ -11,7 +11,8 @@ endif
 CFLAGS= -shared -fPIC -std=c++0x -m64
 COMPILE= $(CFLAGS) \
 				 -I$(FCS_RT_ROOT)/include \
-				 -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include
+				 -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
+				 -I$(FCS_RT_ROOT)/extern/googletools/include
 
 ACC = Pi 
 

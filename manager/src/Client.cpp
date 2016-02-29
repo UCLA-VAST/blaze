@@ -95,8 +95,8 @@ void* Client::createInput(
 
 void* Client::createOutput(
     int idx,
-    int item_length, 
     int num_items, 
+    int item_length, 
     int data_width)
 {
   if (idx >= num_outputs) {
@@ -117,8 +117,16 @@ void* Client::createOutput(
     return (void*)block->getData();
   }
   else {
-    LOG(WARNING) << "Output block " << idx << "is already created";
-    return output_blocks[idx]->getData();
+    DataBlock_ptr block = output_blocks[idx];
+    if (num_items != block->getNumItems() ||
+        item_length != block->getItemLength() ||
+        data_width != block->getItemSize()/block->getItemLength())
+    {
+      LOG(WARNING) << "Output " << idx << "is already created, "
+                   << "but the original dimensions do not match the provided ones."
+                   << " Using original dimensions.";
+    }
+    return block->getData();
   }
 }
 
@@ -130,7 +138,7 @@ void Client::setInput(int idx, void* src,
     int type) 
 {
   if (idx >= num_inputs) {
-    throw invalidParam("Invalid input block index");
+    throw invalidParam("Invalid input block");
   }
   if (!input_blocks[idx]) {
     if (num_items <= 0 || 
@@ -158,21 +166,21 @@ void Client::setInput(int idx, void* src,
 
 void* Client::getInputPtr(int idx) {
   if (idx >= num_inputs || !input_blocks[idx]) {
-    throw invalidParam("Invalid input block index");
+    throw invalidParam("Invalid input block");
   }
   return input_blocks[idx]->getData();
 }
 
 int Client::getInputNumItems(int idx) {
   if (idx >= num_inputs || !input_blocks[idx]) {
-    throw invalidParam("Invalid input block index");
+    throw invalidParam("Invalid input index");
   }
   return input_blocks[idx]->getNumItems();
 }
 
 int Client::getInputLength(int idx) {
   if (idx >= num_inputs || !input_blocks[idx]) {
-    throw invalidParam("Invalid input block index");
+    throw invalidParam("Invalid input index");
   }
   return input_blocks[idx]->getLength();
 }
@@ -328,7 +336,7 @@ void Client::prepareData(TaskMsg &accdata_msg, TaskMsg &reply_msg) {
       data_msg->set_element_length(block->getItemLength());
       data_msg->set_element_size(block->getItemSize());
 
-      VLOG(1) << "Finish writing block " << i;
+      VLOG(1) << "Finish writing " << i;
     }
     blockIdx ++;
   }
@@ -361,7 +369,24 @@ void Client::processOutput(TaskMsg &msg) {
     int item_length  = data_msg.element_length();	
     int item_size    = data_msg.element_size();	
 
-    DataBlock_ptr block(new DataBlock(num_items, item_length, item_size));
+    DataBlock_ptr block;
+    if (output_blocks[i]) {
+      block = output_blocks[i];
+
+      // output already allocated, check if size matches
+      if (num_items != block->getNumItems() ||
+          item_length != block->getItemLength() ||
+          item_size != block->getItemSize())
+      {
+        LOG(ERROR) << "Size of output " << i << " does not match the allocated one";
+        throw commError("Output size mismatch");
+      }
+    }
+    else {
+      DataBlock_ptr new_block(new DataBlock(num_items, item_length, item_size));
+      output_blocks[i] = new_block;
+      block = new_block;
+    }
 
     std::string path = data_msg.file_path();
     VLOG(1) << "Reading output from " << path;
@@ -382,10 +407,8 @@ void Client::processOutput(TaskMsg &msg) {
       LOG(ERROR) << "Failed to read data from file " << path;
       throw std::runtime_error("Failed to process output");
     }
-    
-    output_blocks[i] = block;
   }
-  VLOG(1) << "Finish reading output blocks";
+  VLOG(1) << "Finish reading output";
 }
 
 //void Client::recv(TaskMsg &task_msg, socket_ptr socket)

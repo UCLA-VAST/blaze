@@ -1,17 +1,6 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include <cstdint>
-#include <string>
-#include <vector>
-#include <stdexcept>
-
-#include <boost/asio.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/smart_ptr.hpp>
-#include <boost/thread/thread.hpp>
-
 #include "proto/task.pb.h"
 #include "Common.h"
 
@@ -28,9 +17,6 @@ using namespace boost::asio;
 
 namespace blaze {
 
-typedef boost::shared_ptr<io_service> ios_ptr;
-typedef boost::shared_ptr<ip::tcp::endpoint> endpoint_ptr;
-typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
 typedef boost::shared_ptr<boost::thread> client_event;
 
 class Client {
@@ -85,8 +71,8 @@ private:
   void processOutput(TaskMsg &msg);
 
   // routine function for socket communication
-  void recv(TaskMsg&, socket_ptr);
-  void send(TaskMsg&, socket_ptr);
+  //void recv(TaskMsg&, socket_ptr);
+  //void send(TaskMsg&, socket_ptr);
 
   std::string acc_id;
   std::string app_id;

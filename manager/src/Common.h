@@ -68,7 +68,7 @@ std::string readFile(std::string path);
 bool deleteFile(std::string path);
 
 // parameters
-static std::string nam_root_dir("/tmp/nam");
+static std::string nam_root_dir("/tmp");
 
 // custom exceptions
 class invalidParam : public std::runtime_error {

@@ -48,6 +48,7 @@ ROOTDIR=$SCRIPT_DIR
 
 EXAMPLE_DIR=$ROOTDIR/examples/pi/app
 
+sed -i "s/\[FCSROOT\]/$(echo $ROOTDIR | sed -e 's/[\/&]/\\&/g')/g" $ROOTDIR/nam/conf/acc_conf/default
 sed -i "s/\[FCSROOT\]/$(echo $ROOTDIR | sed -e 's/[\/&]/\\&/g')/g" $EXAMPLE_DIR/map.sh
 sed -i "s/\[FCSROOT\]/$(echo $ROOTDIR | sed -e 's/[\/&]/\\&/g')/g" $EXAMPLE_DIR/reduce.sh
 
