@@ -67,10 +67,13 @@ DEPS= Admin.o \
 			task.pb.o \
 			msgGamNam.pb.o
 
-all: ../bin/acc_manager ../lib/libblaze.so
+all: ../bin/acc_manager \
+		 ../bin/acc_admin \
+		 ../lib/libblaze.so
 
 package: 
 	cp ../bin/acc_manager ../../package/nam/bin/nam_daemon
+	cp ../bin/acc_admin ../../package/nam/bin/admin_bin
 	cp ../lib/libblaze.so ../../package/nam/lib
 	cp Common.h ../../package/include
 	cp Client.h ../../package/include
@@ -82,14 +85,8 @@ package:
 ../bin/acc_manager: ../lib/libblaze.so main.o $(LMDEPS)
 	$(PP) -o $@ main.o $(LMDEPS) $(LINK)
 
-#task.pb.o: proto/task.pb.cc
-#	$(PP) $(COMPILE) $< -o $@ 
-#
-#acc_conf.pb.o: proto/acc_conf.pb.cc
-#	$(PP) $(COMPILE) $< -o $@ 
-#
-#msgGamNam.pb.o: proto/msgGamNam.pb.cc
-#	$(PP) $(COMPILE) $< -o $@ 
+../bin/acc_admin: ../lib/libblaze.so admin.o $(LMDEPS)
+	$(PP) -o $@ admin.o $(LMDEPS) $(LINK)
 
 %.o: proto/%.cc 
 	$(PP) $(COMPILE) $< -o $@ 

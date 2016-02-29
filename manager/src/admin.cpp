@@ -3,9 +3,41 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
+#define LOG_HEADER "admin"
+
+// use flexlm
+#ifdef USELICENSE
+#include "license.h"
+#endif
+
 #include "Admin.h"
 
 using namespace blaze;
+
+#ifdef USELICENSE
+void licence_check_out() {
+
+  Feature feature = FALCON_RT;
+
+  // initialize for licensing. call once
+  fc_license_init();
+
+  // get a feature
+  fc_license_checkout(feature, 1);
+
+  printf("\n");
+}
+
+void licence_check_in() {
+
+  Feature feature = FALCON_RT;
+
+  fc_license_checkin(feature);
+
+  // cleanup for licensing. call once
+  fc_license_cleanup();
+}
+#endif
 
 int main(int argc, char** argv) {
 
@@ -13,6 +45,11 @@ int main(int argc, char** argv) {
 
   FLAGS_logtostderr = 1;
   FLAGS_v = 1;
+
+#ifdef USELICENSE
+  // check license
+  licence_check_out();
+#endif
 
   srand(time(NULL));
 
@@ -46,6 +83,11 @@ int main(int argc, char** argv) {
   else {
     admin.deleteAcc(*conf);
   }
+
+#ifdef USELICENSE
+  // release license
+  licence_check_in();
+#endif
 
   return 0;
 }
