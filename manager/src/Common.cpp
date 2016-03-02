@@ -189,13 +189,17 @@ namespace blaze {
   
   bool deleteFile(std::string path) {
     boost::filesystem::wpath file(path);
-    if (boost::filesystem::exists(file)) {
-      boost::filesystem::remove_all(file);
-      return true;
-    }
-    else {
+    if (!boost::filesystem::exists(file)) {
       return false;
     }
+    try {
+      boost::filesystem::remove_all(file);
+    } catch (boost::filesystem::filesystem_error &e) {
+      DLOG(ERROR) << "Failed to delete file " << path
+                  << " because: " << e.what();
+      return false;
+    }
+    return true;
   }
 }
 

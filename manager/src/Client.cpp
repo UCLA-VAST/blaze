@@ -394,14 +394,9 @@ void Client::processOutput(TaskMsg &msg) {
       block->readFromMem(path);
 
       // delete memory map file after read
-      boost::filesystem::wpath file(path);
-      if (boost::filesystem::exists(file)) {
-        boost::filesystem::remove(file);
+      if (!deleteFile(path)) {
+        LOG(WARNING) << "Cannot delete file for output " << i;
       }
-    }
-    catch (boost::filesystem::filesystem_error &e) {
-      // non-lethal problem
-      LOG(WARNING) << "Cannot delete file: " << e.what();
     }
     catch (std::runtime_error &e) {
       LOG(ERROR) << "Failed to read data from file " << path;

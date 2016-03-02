@@ -404,7 +404,7 @@ void AppCommManager::process(socket_ptr sock) {
 
               // NOTE: only remove normal input file
               if (!deleteFile(path)) {
-                LOG(ERROR) << "Cannot remove " << path;
+                LOG(WARNING) << "Did not remove file for block " << blockId;
               } 
             }
           }

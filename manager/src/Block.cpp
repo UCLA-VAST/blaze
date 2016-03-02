@@ -214,7 +214,6 @@ void DataBlock::readFromMem(std::string path) {
 
 void DataBlock::writeToMem(std::string path) {
 
-  //int data_length = length; 
   int data_size = size;
 
   boost::iostreams::mapped_file_params param(path); 
@@ -223,15 +222,19 @@ void DataBlock::writeToMem(std::string path) {
   param.length = data_size;
   boost::iostreams::mapped_file_sink fout(param);
 
-  if (fout.is_open()) {
-
-    readData((void*)fout.data(), data_size);
-
-    fout.close();
+  if (!fout.is_open()) {
+    throw fileError(std::string("Cannot write file: ") + path);
   }
-  else {
-    throw std::runtime_error(std::string("Cannot write file: ") + path);
-  }
+  // push data to file
+  readData((void*)fout.data(), data_size);
+  fout.close();
+
+  // change permission
+  // NOTE: here there might be a security issue need to be addressed
+  boost::filesystem::wpath wpath(path);
+  boost::filesystem::permissions(wpath, boost::filesystem::add_perms |
+                                        boost::filesystem::group_read |
+                                        boost::filesystem::others_read);
 }
 
 } // namespace
