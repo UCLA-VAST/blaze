@@ -82,6 +82,11 @@ namespace blaze {
     return std::string(std::getenv("USER"));
   }
 
+  // get the hostid from machine
+  std::string getHostname() {
+    return std::string(std::getenv("HOSTNAME"));
+  }
+
   // receive one message, bytesize first
   void recv(::google::protobuf::Message &msg, 
       socket_ptr socket) 

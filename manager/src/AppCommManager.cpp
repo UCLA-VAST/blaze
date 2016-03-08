@@ -500,7 +500,7 @@ void AppCommManager::process(socket_ptr sock) {
           // use thread id to create unique output file path
           std::stringstream path_stream;
 
-          path_stream << nam_root_dir << "/"
+          path_stream << local_dir << "/"
                       << "output-"
                       << getTid() 
                       << std::setw(12) << std::setfill('0') << rand() 
@@ -681,7 +681,7 @@ void AppCommManager::handleAccRegister(TaskMsg &msg) {
   acc_conf.set_id(acc_id);
 
   // setup parameters and transfer files
-  //std::string root_dir = nam_root_dir + "/" + acc_id + "/"; 
+  //std::string root_dir = local_dir + "/" + acc_id + "/"; 
 
   //std::string path = root_dir+std::string("task.so");
 
@@ -745,12 +745,12 @@ void AppCommManager::handleAccDelete(TaskMsg &msg) {
   catch (std::exception &e) {
     throw AccFailure(e.what());
   }
-  std::string root_dir = nam_root_dir + "/" + acc_id; 
-  if (deleteFile(root_dir)) {
-    DLOG(INFO) << "Deleted accelerator from " << root_dir;
-  } else {
-    DLOG(ERROR) << "Failed to delete accelerator from " << root_dir;
-  }
+  //std::string root_dir = local_dir + "/" + acc_id; 
+  //if (deleteFile(root_dir)) {
+  //  DLOG(INFO) << "Deleted accelerator from " << root_dir;
+  //} else {
+  //  DLOG(ERROR) << "Failed to delete accelerator from " << root_dir;
+  //}
 }
 } // namespace blaze
 

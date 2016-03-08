@@ -87,17 +87,29 @@ int main(int argc, char** argv) {
     LOG(FATAL) << "cannot parse configuration from " << argv[1];
   }
 
-  // setup Logger
-  FLAGS_v = conf->verbose();
+  // configurations
+  FLAGS_v      = conf->verbose();   // logging
+  int app_port = conf->app_port();  // port for application
+  int gam_port = conf->gam_port();  // port for GAM
+  local_dir    = conf->local_dir(); // local dir for temp files
+
+  // create local dir
+  try {
+    local_dir += "/nam-" + getUid();
+    if (!boost::filesystem::exists(local_dir)) {
+      boost::filesystem::create_directories(local_dir);
+    }
+    DLOG(INFO) << "Set 'local_dir' to " << local_dir;
+  } catch (boost::filesystem::filesystem_error &e) {
+    LOG(ERROR) << "Failed to use '" << local_dir 
+                 << "' as local directory, using '/tmp' instead.";
+  }
 
   // setup PlatformManager
   PlatformManager platform_manager(conf);
 
   // check all network interfaces on this computer, and 
   // open a communicator on each interface using the same port
-  int app_port = conf->app_port();
-  int gam_port = conf->gam_port();
-
   struct ifaddrs* ifAddrStruct = NULL;
   getifaddrs(&ifAddrStruct);
 

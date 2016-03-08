@@ -173,9 +173,6 @@ void OpenCLBlock::readFromMem(std::string path) {
 
 void OpenCLBlock::writeToMem(std::string path) {
 
-  // lazy allocation
-  alloc();
-
   int data_size = size;
 
   boost::iostreams::mapped_file_params param(path); 
@@ -184,21 +181,25 @@ void OpenCLBlock::writeToMem(std::string path) {
   param.length = data_size;
   boost::iostreams::mapped_file_sink fout(param);
 
-  if (fout.is_open()) {
-
-    // first copy data from FPGA to a temp buffer, will be serialized among all tasks
-    char* temp_data = new char[data_size];
-    readData(temp_data, data_size);
-
-    // then copy data from temp buffer to shared memory, in parallel among all tasks
-    memcpy((void*)fout.data(), temp_data, data_size);
-
-    delete [] temp_data;
-    fout.close();
+  if (!fout.is_open()) {
+    throw fileError(std::string("Cannot write file: ") + path);
   }
-  else {
-    throw std::runtime_error(std::string("Cannot write file: ") + path);
-  }
+
+  // first copy data from FPGA to a temp buffer, will be serialized among all tasks
+  char* temp_data = new char[data_size];
+  readData(temp_data, data_size);
+
+  // then copy data from temp buffer to shared memory, in parallel among all tasks
+  memcpy((void*)fout.data(), temp_data, data_size);
+
+  delete [] temp_data;
+  fout.close();
+
+  // change permission
+  boost::filesystem::wpath wpath(path);
+  boost::filesystem::permissions(wpath, boost::filesystem::add_perms |
+                                        boost::filesystem::group_read |
+                                        boost::filesystem::others_read);
 }
 
 void OpenCLBlock::writeData(void* src, size_t _size) {
@@ -214,9 +215,9 @@ void OpenCLBlock::writeData(void* src, size_t _size) {
   ready = true;
 
   uint64_t elapse_t = getUs() - start_t;
-  DLOG(INFO) << "Writting OpenCLBlock of size " << 
-    (double)size /1024/1024 << "MB takes " <<
-    elapse_t << "us.";
+  DLOG(INFO) << "Writting OpenCLBlock of size " 
+             << (double)size /1024/1024 << "MB takes " 
+             << elapse_t << "us.";
 }
 
 void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {

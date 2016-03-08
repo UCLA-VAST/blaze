@@ -57,6 +57,7 @@ uint64_t getMs();
 uint32_t getTid();
 std::string getTS();
 std::string getUid();
+std::string getHostname();
 
 // helper functions for socket transfer
 void recv(::google::protobuf::Message&, socket_ptr);
@@ -68,7 +69,7 @@ std::string readFile(std::string path);
 bool deleteFile(std::string path);
 
 // parameters
-static std::string nam_root_dir("/tmp");
+static std::string local_dir("/tmp");
 
 // custom exceptions
 class invalidParam : public std::runtime_error {

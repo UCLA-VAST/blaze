@@ -16,7 +16,7 @@ CC=gcc
 MANAGER_DIR=../../manager
 
 CFLAGS := -c -fPIC -std=c++0x
-ifeq ($(NDEBUG),)
+ifeq ($(RELEASE),)
 CFLAGS := $(CFLAGS) -g
 else
 CFLAGS := $(CFLAGS) -O2 -DNDEBUG
@@ -38,12 +38,12 @@ DEPS= OpenCLPlatform.o \
 			OpenCLBlock.o \
 			OpenCLQueueManager.o
 
-all: gpu-ocl.so
+all: nv_opencl.so
 
 package:
-	cp gpu-ocl.so ../../package/nam/lib/nv_opencl.so
+	cp nv_opencl.so ../../package/nam/lib/nv_opencl.so
 
-gpu-ocl.so: $(DEPS)
+nv_opencl.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS) $(LINK) 
 
 %.o: %.cpp *.h Makefile

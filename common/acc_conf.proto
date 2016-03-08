@@ -39,5 +39,6 @@ message ManagerConf {
   optional int32 app_port = 1 [default = 1027];
   optional int32 gam_port = 2 [default = 1028];
   optional int32 verbose = 3 [default = 0];
-  repeated AccPlatform platform = 4;
+  optional string local_dir = 4 [default = "/tmp"];
+  repeated AccPlatform platform = 5;
 }

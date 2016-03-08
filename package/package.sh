@@ -14,6 +14,7 @@ rsync -aLrv --exclude=".*" examples fcs_runtime
 rsync -aLrv --exclude=".*" include fcs_runtime
 rsync -aLrv --exclude=".*" install.sh fcs_runtime
 rsync -aLrv --exclude=".*" setup-env.sh fcs_runtime
+rsync -aLrv --exclude=".*" setup-env.csh fcs_runtime
 rsync -aLrv --exclude=".*" README.md fcs_runtime
 
 tar zcf fcs_runtime.tar.gz fcs_runtime

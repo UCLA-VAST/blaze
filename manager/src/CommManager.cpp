@@ -49,8 +49,6 @@ void CommManager::listen() {
 
     while(1) {
 
-      //boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
-
       // create socket for connection
       socket_ptr sock(new ip::tcp::socket(ios));
 

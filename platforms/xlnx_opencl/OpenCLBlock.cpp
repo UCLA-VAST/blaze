@@ -88,7 +88,7 @@ void OpenCLBlock::readFromMem(std::string path) {
 void OpenCLBlock::writeToMem(std::string path) {
 
   // lazy allocation
-  alloc();
+  //alloc();
 
   int data_size = size;
 
@@ -98,21 +98,26 @@ void OpenCLBlock::writeToMem(std::string path) {
   param.length = data_size;
   boost::iostreams::mapped_file_sink fout(param);
 
-  if (fout.is_open()) {
-
-    // first copy data from FPGA to a temp buffer, will be serialized among all tasks
-    char* temp_data = new char[data_size];
-    readData(temp_data, data_size);
-
-    // then copy data from temp buffer to shared memory, in parallel among all tasks
-    memcpy((void*)fout.data(), temp_data, data_size);
-
-    delete [] temp_data;
-    fout.close();
+  if (!fout.is_open()) {
+    throw fileError(std::string("Cannot write file: ") + path);
   }
-  else {
-    throw std::runtime_error(std::string("Cannot write file: ") + path);
-  }
+
+  // first copy data from FPGA to a temp buffer, will be serialized among all tasks
+  char* temp_data = new char[data_size];
+  readData(temp_data, data_size);
+
+  // then copy data from temp buffer to shared memory, in parallel among all tasks
+  memcpy((void*)fout.data(), temp_data, data_size);
+
+  delete [] temp_data;
+  fout.close();
+
+  // change permission
+  // NOTE: here there might be a security issue need to be addressed
+  boost::filesystem::wpath wpath(path);
+  boost::filesystem::permissions(wpath, boost::filesystem::add_perms |
+      boost::filesystem::group_read |
+      boost::filesystem::others_read);
 }
 
 void OpenCLBlock::writeData(void* src, size_t _size) {
