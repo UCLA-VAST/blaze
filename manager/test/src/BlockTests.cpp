@@ -1,85 +1,69 @@
-#include <cstdint>
-#include <string>
-#include <stdexcept>
-#include <unistd.h>
-#include <dlfcn.h>
-
-#include <boost/thread/thread.hpp>
-#include <glog/logging.h>
-#include <gtest/gtest.h>
-
-#include "Common.h"
 #include "Block.h"
-#include "Platform.h"
 #include "BlockManager.h"
+#include "Platform.h"
 #include "PlatformManager.h"
+#include "TestCommon.h"
 
 namespace blaze {
 
-class BlockTests : public ::testing::Test {
-  protected:
+BlockTests::BlockTests()
+{
+  char path[100] = "platform.so";
 
-    BlockTests() {
+  if (access(path, F_OK) == -1) { 
+    std::map<std::string, std::string> table;
+    Platform_ptr new_platform(new Platform(table));
+    platform = new_platform;
+  }
+  else {
+    LOG(INFO) << "Opening platform implementation: "
+      << path;
 
-      char path[100] = "platform.so";
+    void* handle = dlopen(path, RTLD_LAZY|RTLD_GLOBAL);
 
-      if (access(path, F_OK) == -1) { 
-        std::map<std::string, std::string> table;
-        Platform_ptr new_platform(new Platform(table));
-        platform = new_platform;
-      }
-      else {
-        LOG(INFO) << "Opening platform implementation: "
-                  << path;
-
-        void* handle = dlopen(path, RTLD_LAZY|RTLD_GLOBAL);
-
-        if (handle == NULL) {
-          LOG(ERROR) << dlerror();
-          throw std::runtime_error(dlerror());
-        }
-
-        // reset errors
-        dlerror();
-
-        // load the symbols
-        Platform* (*create_func)();
-        void (*destroy_func)(Platform*);
-
-        // read the custom constructor and destructor  
-        create_func = (Platform* (*)())dlsym(handle, "create");
-        destroy_func = (void (*)(Platform*))dlsym(handle, "destroy");
-
-        const char* error = dlerror();
-        if (error) {
-          LOG(ERROR) << error;
-          throw std::runtime_error(error);
-        }
-
-        Platform_ptr new_platform(create_func(), destroy_func);
-        platform = new_platform;
-      }
+    if (handle == NULL) {
+      LOG(ERROR) << dlerror();
+      throw std::runtime_error(dlerror());
     }
 
-    virtual void SetUp() {
-      // allocate 4MB of cache and scratch
-      const int maxCacheSize = 4*1024*1024;
-      const int maxScratchSize = 4*1024*1024;
+    // reset errors
+    dlerror();
 
-      // create a new manager for each test to ensure clean start
-      bman = new BlockManager(
-          platform.get(),
-          maxCacheSize, maxScratchSize);
-      FLAGS_v = 0;
+    // load the symbols
+    Platform* (*create_func)();
+    void (*destroy_func)(Platform*);
+
+    // read the custom constructor and destructor  
+    create_func = (Platform* (*)())dlsym(handle, "create");
+    destroy_func = (void (*)(Platform*))dlsym(handle, "destroy");
+
+    const char* error = dlerror();
+    if (error) {
+      LOG(ERROR) << error;
+      throw std::runtime_error(error);
     }
 
-    virtual void TearDown() {
-      delete bman;
-    }
+    Platform_ptr new_platform(create_func(), destroy_func);
+    platform = new_platform;
+  }
+}
 
-    Platform_ptr  platform;
-    BlockManager* bman;
-};
+void BlockTests::SetUp() 
+{
+  // allocate 4MB of cache and scratch
+  const int maxCacheSize = 4*1024*1024;
+  const int maxScratchSize = 4*1024*1024;
+
+  // create a new manager for each test to ensure clean start
+  bman = new BlockManager(
+      platform.get(),
+      maxCacheSize, maxScratchSize);
+  FLAGS_v = 0;
+}
+
+void BlockTests::TearDown() {
+  delete bman;
+}
 
 TEST_F(BlockTests, CheckBasicBlock) {
 
@@ -292,11 +276,4 @@ TEST_F(BlockTests, CheckMultiThread) {
   }
   tgroup.join_all();
 }
-
-} // namespace blaze
-
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
+};

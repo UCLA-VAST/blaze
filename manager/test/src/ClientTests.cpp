@@ -1,28 +1,14 @@
-#include <cstdint>
-#include <string>
-#include <stdexcept>
-#include <unistd.h>
-
-#include <boost/thread/thread.hpp>
-#include <gtest/gtest.h>
-#include <glog/logging.h>
-
 #define TEST_FRIENDS_LIST \
           friend class ClientTests; \
           friend class ClientTests_CheckBlockAllocation_Test; \
           friend class ClientTests_CheckPrepareRequest_Test; 
 
+#include "TestCommon.h"
 #include "Client.h"
 #include "CommManager.h"
 #include "PlatformManager.h"
 
 namespace blaze {
-
-class cpuCalled : public std::runtime_error {
-public:
-  explicit cpuCalled(const std::string& what_arg):
-    std::runtime_error(what_arg) {;}
-};
 
 class TestClient : public Client {
   TEST_FRIENDS_LIST
@@ -31,15 +17,6 @@ public:
   void compute() {
     throw cpuCalled("");
   }
-};
-
-class ClientTests : public ::testing::Test {
-  protected:
-    ClientTests() { }
-
-    ManagerConf buildConf(std::string path) {
-    
-    }
 };
 
 TEST_F(ClientTests, CheckBlockAllocation) {
@@ -140,11 +117,12 @@ TEST_F(ClientTests, CheckPrepareRequest) {
   ASSERT_EQ(val2, *(float*)&val);
 }
 
-TEST_F(ClientTests, AppTest_ArrayTest) {
+TEST_F(ClientTests, AppTest_arrayTest) {
 
-  std::string path("./app/ArrayTest.so");
+  std::string path("./tasks/cpu/arrayTest/arrayTest.so");
   boost::filesystem::wpath file(path);
-  ASSERT_EQ(boost::filesystem::exists(file), true);
+  ASSERT_EQ(boost::filesystem::exists(file), true)
+    << "Required acc task file does not exist, skipping test";
 
   // config manager
   ManagerConf conf;
@@ -196,12 +174,44 @@ TEST_F(ClientTests, AppTest_ArrayTest) {
   }
 }
 
-} // namespace blaze
+TEST_F(ClientTests, AppTest_loopBack) {
 
+  std::string path("./tasks/cpu/loopBack/loopBack.so");
+  boost::filesystem::wpath file(path);
+  ASSERT_EQ(boost::filesystem::exists(file), true)
+    << "Required acc task file does not exist, skipping test";
 
-int main(int argc, char **argv) {
-  google::InitGoogleLogging(argv[0]);
-  ::testing::InitGoogleTest(&argc, argv);
-  LOG(INFO) << "Logging starts";
-  return RUN_ALL_TESTS();
+  // config manager
+  ManagerConf conf;
+  AccPlatform *platform = conf.add_platform();
+  AccWorker *acc_worker = platform->add_acc();
+  acc_worker->set_id("test");
+  acc_worker->set_path(path);
+
+  // start manager
+  PlatformManager platform_manager(&conf);
+  boost::shared_ptr<CommManager> comm( new AppCommManager(
+        &platform_manager, "127.0.0.1", 1027)); 
+
+  // prepare input
+  TestClient client(1, 1); 
+
+  int data_size = 1024;
+
+  double* input_ptr = (double*)client.createInput(0, 1, data_size, sizeof(double), BLAZE_INPUT);
+  
+  // setup input with random data
+  for (int k=0; k<data_size; k++) {
+    input_ptr[k] = (double)rand()/RAND_MAX;
+  }
+  
+  // start computation
+  client.start();
+
+  // compare results
+  double* output_ptr = (double*)client.getOutputPtr(0);
+  for (int k=0; k<data_size; k++) {
+    EXPECT_DOUBLE_EQ(output_ptr[k], input_ptr[k]);
+  }
 }
+} // namespace blaze

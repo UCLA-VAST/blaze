@@ -1,1 +1,0 @@
-../python/acc_conf_pb2.py
