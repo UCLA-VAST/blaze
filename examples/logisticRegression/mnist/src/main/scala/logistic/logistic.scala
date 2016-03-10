@@ -22,15 +22,15 @@ object LogisticRegression {
 
     val reps = args(1).toInt
 
-    var data = MLUtils.loadLibSVMFile(sc, args(0))
+    var data = MLUtils.loadLibSVMFile(sc, args(0)) //.repartition(reps).cache()
     val splits = data.randomSplit(Array(0.7, 0.3), seed = 42L)
-    //val train = splits(0).repartition(reps).cache()
-    val train = splits(0).persist(StorageLevel.MEMORY_AND_DISK_SER)
+    val train = splits(0).repartition(reps).cache()
+    //val train = splits(0).persist(StorageLevel.MEMORY_AND_DISK_SER)
     val test = splits(1)
 
     val model = new LogisticRegressionWithLBFGS()
       .setNumClasses(10)
-      .run(train)
+      .run(data)
 
     println("training finished.")
 

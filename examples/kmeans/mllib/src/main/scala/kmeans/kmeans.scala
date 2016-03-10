@@ -24,8 +24,8 @@ object Kmeans {
     val reps = args(2).toInt
 
     var data = MLUtils.loadLibSVMFile(sc, args(0))
-    val splits = data.randomSplit(Array(0.8, 0.2), seed = 42L)
-    val train = splits(0).map(e => e.features).repartition(reps).cache()
+    //val splits = data.randomSplit(Array(0.8, 0.2), seed = 42L)
+    val train = data.map(e => e.features).repartition(reps).cache()
 
     /*
     val test = sc.textFile(args(1)).map( line => {

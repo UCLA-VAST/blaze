@@ -1,20 +1,29 @@
-PP=g++
-CC=gcc
+MANAGER_DIR=../../../manager
+include ../../../Makefile.config
 
-ifeq ($(FCS_RT_ROOT),)	
-FCS_RT_ROOT=../../..
+# check all variables
+ifeq ($(BOOST_DIR),)
+$(error BOOST_DIR not set properly in Makefile.config)
 endif
-ifeq ("$(wildcard $(FCS_RT_ROOT)/nam/bin/nam_daemon)","")
-$(error FCS_RT_ROOT seems incorrect, please set it to the root directory of FCS_RUNTIME)
+ifeq ($(PROTOBUF_DIR),)
+$(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
-
-CUDA_DIR=/usr/local/cuda
+ifeq ($(GLOG_DIR),)
+$(error GLOG_DIR not set properly in Makefile.config)
+endif
+ifeq ($(CUDA_DIR),)
+$(error CUDA_DIR not set properly in Makefile.config)
+endif
 
 CFLAGS= -shared -fPIC -std=c++0x -m64
 COMPILE= $(CFLAGS) \
-				 -I$(FCS_RT_ROOT)/include \
-				 -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
+				 -I$(MANAGER_DIR)/src \
+				 -I$(MANAGER_DIR)/../platforms/gpu-ocl \
+				 -I$(BOOST_DIR)/include \
+				 -I$(PROTOBUF_DIR)/include \
+				 -I$(GLOG_DIR)/include \
 				 -I$(CUDA_DIR)/include
+
 LINK=-L$(CUDA_DIR)/lib64 -lOpenCL
 
 ACC = ArrayTest
