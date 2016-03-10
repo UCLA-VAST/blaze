@@ -37,7 +37,7 @@ public:
 
   OpenCLEnv* getEnv(int device_id);
 
-  virtual void setupAcc(AccWorker &con);
+  void addQueue(AccWorker &conf);
 
 private:
   int load_file(const char* filename, char** result);

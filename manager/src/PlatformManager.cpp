@@ -163,13 +163,13 @@ void PlatformManager::registerAcc(
 
   // check if acc of the same already exists
   if (acc_table.find(acc_conf.id()) != acc_table.end()) {
-    throw std::runtime_error(
+    throw commError(
         "Accelerator already exists");
   }
   Platform_ptr platform = platform_table[platform_id];
 
   if (!platform) {
-    throw std::runtime_error(
+    throw commError(
         "Required platform does not exist");
   }
 

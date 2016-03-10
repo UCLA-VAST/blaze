@@ -11,11 +11,11 @@ class Platform {
 public:
   Platform(std::map<std::string, std::string> &conf_table);
 
-  void addQueue(AccWorker &conf);
-  void removeQueue(std::string id);
+  virtual void addQueue(AccWorker &conf);
+  virtual void removeQueue(std::string id);
 
   // store an accelerator setup on the platform
-  virtual void setupAcc(AccWorker &conf);
+  //virtual void setupAcc(AccWorker &conf);
 
   // obtain a BlockManager
   virtual void createBlockManager(size_t cache_limit, size_t scratch_limit);
@@ -45,9 +45,8 @@ public:
   virtual TaskEnv_ptr getEnv(std::string id);
 
 protected:
-  QueueManager_ptr queue_manager;
-
   BlockManager_ptr block_manager;
+  QueueManager_ptr queue_manager;
 
   // a table storing platform configurations mapped by key
   std::map<std::string, std::string> config_table;

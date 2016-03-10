@@ -126,7 +126,7 @@ BlockManager* OpenCLPlatform::getBlockManager() {
   return block_manager.get();
 }
 
-void OpenCLPlatform::setupAcc(AccWorker &conf) {
+void OpenCLPlatform::addQueue(AccWorker &conf) {
 
   int err;
   int status = 0;
@@ -146,7 +146,7 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
     }
   }
   if (program_path.empty() || kernel_name.empty()) {
-    throw std::runtime_error("Invalid configuration");
+    throw invalidParam("Invalid configuration");
   }
 
   DLOG(INFO) << "Load Bitstream from file " << program_path.c_str();
@@ -157,19 +157,47 @@ void OpenCLPlatform::setupAcc(AccWorker &conf) {
       (char **) &kernelbinary);
 
   if (n_i < 0) {
-    throw std::runtime_error(
+    throw fileError(
         "failed to load kernel from xclbin");
   }
   n_t = n_i;
 
   // save bitstream
-  bitstreams.insert(std::make_pair(
-        conf.id(), 
-        std::make_pair(n_i, kernelbinary)));
+  bitstreams[conf.id()] = std::make_pair(n_i, kernelbinary);
 
   // save kernel name
-  kernel_list.insert(std::make_pair(
-        conf.id(), kernel_name));
+  kernel_list[conf.id()] = kernel_name;
+
+  // add a TaskManager, and the scheduler should be started
+  // NOTE: this must come after bitstreams.insert() otherwise
+  // changeProgram() will not find correct bitstream
+  queue_manager->add(conf.id(), conf.path());
+
+  // changeProgram to switch to current accelerator
+  try {
+    changeProgram(conf.id());
+  }
+  catch (internalError &e) {
+
+    // if there is error, then remove acc from queue
+    removeQueue(conf.id());
+
+
+    throw e;
+  }
+}
+
+void OpenCLPlatform::removeQueue(std::string id) {
+  // asynchronously call queue_manager->remove(id)
+  boost::thread executor(
+      boost::bind(&QueueManager::remove, queue_manager.get(), id));
+
+  // remove bitstream from table
+  delete [] bitstreams[id].second;
+  bitstreams.erase(id);
+  kernel_list.erase(id);
+
+  DLOG(INFO) << "Removed queue for " << id;
 }
 
 void OpenCLPlatform::changeProgram(std::string acc_id) {
@@ -202,7 +230,7 @@ void OpenCLPlatform::changeProgram(std::string acc_id) {
         kernel_list.find(acc_id) == kernel_list.end()) 
     {
       DLOG(ERROR) << "Bitstream not setup correctly";
-      throw std::runtime_error("Cannot find bitstream information");
+      throw internalError("Cannot find bitstream information");
     }
 
     // load bitstream from memory
@@ -213,7 +241,7 @@ void OpenCLPlatform::changeProgram(std::string acc_id) {
     cl_device_id device_id = env->getDeviceId();
 
     if (!context || !device_id) {
-      throw std::runtime_error("Failed to get OpenCL context from Task env");
+      throw internalError("Failed to get OpenCL context from Task env");
     }
 
     size_t n_t = bitstream.first;
@@ -233,12 +261,12 @@ void OpenCLPlatform::changeProgram(std::string acc_id) {
           &status, &err);
     } catch (std::exception &e) {
       LOG(ERROR) << "clCreateProgramWithBinary throws " << e.what();
-      throw std::runtime_error("clCreateProgramWithBinary fails");
+      throw internalError("clCreateProgramWithBinary fails");
     }
 
     if ((!program) || (err!=CL_SUCCESS)) {
       LOG(ERROR) << "clCreateProgramWithBinary error, ret=" << err;
-      throw std::runtime_error(
+      throw internalError(
           "Failed to create compute program from binary");
     }
 
@@ -253,7 +281,8 @@ void OpenCLPlatform::changeProgram(std::string acc_id) {
         program, kernel_name.c_str(), &err);
 
     if (!kernel || err != CL_SUCCESS) {
-      throw std::runtime_error(
+      LOG(ERROR) << "clCreateKernel error, ret=" << err;
+      throw internalError(
           "Failed to create compute kernel");
     }
 

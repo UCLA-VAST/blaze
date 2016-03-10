@@ -51,4 +51,4 @@ nv_opencl.so: $(DEPS)
 
 clean:
 	rm -rf *.o
-	rm -rf ../lib/gpu-ocl.so
+	rm -rf nv_opencl.so

@@ -24,7 +24,9 @@ Platform::Platform(std::map<std::string, std::string> &conf_table)
 // all the task queues can have simultaneous executors
 void Platform::addQueue(AccWorker &conf) {
 
-  this->setupAcc(conf); // DEBUG: does it call extended func?
+  if (acc_table.find(conf.id()) == acc_table.end()) {
+    acc_table.insert(std::make_pair(conf.id(), conf));
+  }
 
   // add a TaskManager, and the scheduler should be started
   queue_manager->add(conf.id(), conf.path());
@@ -38,13 +40,6 @@ void Platform::removeQueue(std::string id) {
   // asynchronously call queue_manager->remove(id)
   boost::thread executor(
       boost::bind(&QueueManager::remove, queue_manager.get(), id));
-}
-
-// store an accelerator setup on the platform
-void Platform::setupAcc(AccWorker &conf) {
-  if (acc_table.find(conf.id()) == acc_table.end()) {
-    acc_table.insert(std::make_pair(conf.id(), conf));
-  }
 }
 
 // create a block object for the specific platform

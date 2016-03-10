@@ -156,7 +156,10 @@ DataBlock_ptr OpenCLPlatform::createBlock(const OpenCLBlock& block)
   return bp;
 }
 
-void OpenCLPlatform::setupAcc(AccWorker &conf) {
+void OpenCLPlatform::addQueue(AccWorker &conf) {
+
+  // add a TaskManager, and the scheduler should be started
+  queue_manager->add(conf.id(), conf.path());
 
   int err;
   int status = 0;

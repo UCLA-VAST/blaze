@@ -35,7 +35,9 @@ public:
   virtual void createBlockManager(size_t cache_limit, size_t scratch_limit);
   virtual BlockManager* getBlockManager();
 
-  virtual void setupAcc(AccWorker &conf);
+  void addQueue(AccWorker &conf);
+  void removeQueue(std::string id);
+
   void changeProgram(std::string acc_id);
 
   cl_kernel& getKernel();

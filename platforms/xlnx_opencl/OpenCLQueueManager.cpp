@@ -35,6 +35,7 @@ OpenCLQueueManager::OpenCLQueueManager(
 
 void OpenCLQueueManager::start() {
   // do nothing since the executors are already started
+  DLOG(INFO) << "FPGAQueue started";
 }
 
 void OpenCLQueueManager::do_start() {
@@ -58,35 +59,6 @@ void OpenCLQueueManager::do_start() {
     else {
       boost::lock_guard<QueueManager> guard(*this);
 
-      if (queue_table.size() == 1) {
-        std::string queue_name = queue_table.begin()->first;
-        try {
-          ocl_platform->changeProgram(queue_name);
-        }
-        catch (std::runtime_error &e) {
-          retry_counter++;
-
-          if (retry_counter < 10) {
-            LOG(WARNING) << "Programing bitstream failed " 
-              << retry_counter << " times";
-          }
-          else {
-            // if setup program keeps failing, remove accelerator from queue_table 
-            LOG(ERROR) << "Failed to setup bitstream for " << queue_name
-              << ": " << e.what()
-              << ". Remove it from QueueManager.";
-
-            queue_table.erase(queue_table.find(queue_name));
-
-            // remove queue_name from ready queue since it's already removed
-            ready_queues.pop_front();
-
-            retry_counter = 0;
-          }
-          continue;
-        }
-      }
-
       // here a round-robin policy is enforced
       // iterate through all task queues
       if (ready_queues.empty()) {
@@ -95,7 +67,7 @@ void OpenCLQueueManager::do_start() {
             iter != queue_table.end();
             ++iter)
         {
-          if (iter->second->getExeQueueLength()) {
+          if (!iter->second->isEmpty()) {
             ready_queues.push_back(*iter);
           }
         }
@@ -125,15 +97,15 @@ void OpenCLQueueManager::do_start() {
           << retry_counter << " times";
       }
       else {
+        ocl_platform->removeQueue(queue_name);
+
+        // remove queue_name from ready queue since it's already removed
+        ready_queues.pop_front();
+
         // if setup program keeps failing, remove accelerator from queue_table 
         LOG(ERROR) << "Failed to setup bitstream for " << queue_name
           << ": " << e.what()
           << ". Remove it from QueueManager.";
-
-        queue_table.erase(queue_table.find(queue_name));
-
-        // remove queue_name from ready queue since it's already removed
-        ready_queues.pop_front();
 
         retry_counter = 0;
       }
@@ -168,7 +140,8 @@ void OpenCLQueueManager::do_start() {
         counter = 0;
       }
       else { 
-        DLOG_EVERY_N(INFO, 50) << "Queue " << queue_name << " empty for 50ms";
+        DLOG_EVERY_N(INFO, 50) << "Queue " << queue_name 
+                               << " empty for " << counter << "ms";
 
         // start counter
         boost::this_thread::sleep_for(boost::chrono::milliseconds(1)); 

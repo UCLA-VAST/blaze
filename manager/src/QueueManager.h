@@ -16,16 +16,16 @@ public:
   {;}
 
   // add a new queue regarding an existing accelerator
-  virtual void add(std::string id, std::string lib_path);
-
-  // request the task manager by acc id
-  TaskManager_ptr get(std::string id);
+  void add(std::string id, std::string lib_path);
 
   // remove a task manager in queue_table
   void remove(std::string id);
 
   // start the executor for one task queue
   virtual void start(std::string id);
+
+  // request the task manager by acc id
+  TaskManager_ptr get(std::string id);
 
   // read TaskEnv for scheduling
   TaskEnv* getTaskEnv(Task* task);
