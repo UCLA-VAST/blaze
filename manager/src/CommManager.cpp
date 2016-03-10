@@ -21,49 +21,62 @@
 
 namespace blaze {
 
-void CommManager::listen() {
+CommManager::CommManager(
+      PlatformManager* _platform,
+      std::string _address, int _port,
+      int _max_threads):
+    ip_address(_address), 
+    srv_port(_port), 
+    platform_manager(_platform)
+{ 
+  // create io_service pointers
+  ios_ptr      _ios(new io_service);
+  endpoint_ptr _endpoint(new ip::tcp::endpoint(
+                  ip::address::from_string(ip_address), 
+                  srv_port));
+  acceptor_ptr _acceptor(new ip::tcp::acceptor(*_ios, *_endpoint));
 
-  try {
-    io_service ios;
+  ios = _ios;
+  endpoint = _endpoint;
+  acceptor = _acceptor;
 
-    ip::tcp::endpoint endpoint(
-        ip::address::from_string(ip_address),
-        srv_port);
+  // start io service processing loop
+  io_service::work work(*ios);
 
-    ip::tcp::acceptor acceptor(ios, endpoint);
-
-    // start io service processing loop
-    io_service::work work(ios);
-
-    // create a thread pool
-    boost::thread_group threadPool;
-
-    for (int t=0; t<max_threads; t++) 
-    {
-      threadPool.create_thread(
-          boost::bind(&io_service::run, &ios));
-    }
-
-    VLOG(2) << "Listening for new connections at "
-      << ip_address << ":" << srv_port;
-
-    while(1) {
-
-      // create socket for connection
-      socket_ptr sock(new ip::tcp::socket(ios));
-
-      // accept incoming connection
-      acceptor.accept(*sock);
-
-      //boost::thread t(boost::bind(&CommManager::process, this, sock));
-      // post a job to a worker thread
-      ios.post(boost::bind(&CommManager::process, this, sock));
-    }
-    ios.stop();
+  for (int t=0; t<_max_threads; t++) 
+  {
+    comm_threads.create_thread(
+        boost::bind(&io_service::run, ios.get()));
   }
-  catch (std::exception &e) {
-    // do not throw exception, just end current thread
-    LOG(ERROR) << e.what();
+
+  // asynchronously start listening for new connections
+  startAccept();
+
+  VLOG(2) << "Listening for new connections at "
+    << ip_address << ":" << srv_port;
+}
+
+CommManager::~CommManager() {
+  DLOG(INFO) << "Destroyer called";
+  ios->stop();
+}
+
+void CommManager::startAccept() {
+  socket_ptr sock(new ip::tcp::socket(*ios));
+  acceptor->async_accept(*sock,
+      boost::bind(&CommManager::handleAccept,
+                  this,
+                  boost::asio::placeholders::error,
+                  sock));
+}
+
+void CommManager::handleAccept(
+    const boost::system::error_code& error,
+    socket_ptr sock) 
+{
+  if (!error) {
+    ios->post(boost::bind(&CommManager::process, this, sock));
+    startAccept();
   }
 }
 } // namespace blaze

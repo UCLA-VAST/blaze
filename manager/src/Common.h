@@ -47,9 +47,10 @@ typedef boost::shared_ptr<Platform>     Platform_ptr;
 typedef boost::weak_ptr<Platform>       Platform_ref;
 typedef boost::shared_ptr<QueueManager> QueueManager_ptr;
 
-typedef boost::shared_ptr<boost::asio::io_service> ios_ptr;
+typedef boost::shared_ptr<boost::asio::io_service>        ios_ptr;
 typedef boost::shared_ptr<boost::asio::ip::tcp::endpoint> endpoint_ptr;
-typedef boost::shared_ptr<boost::asio::ip::tcp::socket> socket_ptr;
+typedef boost::shared_ptr<boost::asio::ip::tcp::socket>   socket_ptr;
+typedef boost::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor_ptr;
 
 // helper functions to get system info
 uint64_t getUs();
