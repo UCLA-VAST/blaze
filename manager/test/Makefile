@@ -1,7 +1,10 @@
 CFLAGS := -g
 OBJS   := src/main.o \
+					src/AppClients.o \
 					src/BlockTests.o \
-					src/ClientTests.o
+					src/ClientTests.o \
+					src/ConfigTests.o
+
 DST  	 := bin/test_app
 
 include common.mk
