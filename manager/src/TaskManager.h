@@ -26,13 +26,17 @@ public:
   ): power(true),
      scheduler_idle(true),
      executor_idle(true),
-     exeQueueLength(0),
      nextTaskId(0),
      acc_id(_acc_id),
      createTask(create_func),
      destroyTask(destroy_func),
      platform(_platform)
   {;}
+
+  ~TaskManager() {
+    power = false; 
+    task_workers.join_all();
+  }
 
   // create a task and return the task pointer
   Task_ptr create();
@@ -53,15 +57,14 @@ public:
   void stop();
   bool isBusy();
 
-  // query the current execution queue length
-  int getExeQueueLength();
-
   bool isEmpty();
 
   // experimental
   std::string getConfig(int idx, std::string key);
 
 private:
+
+  boost::thread_group task_workers;
 
   // schedule a task from app queues to execution queue  
   bool schedule();
@@ -82,9 +85,6 @@ private:
   std::string acc_id;
 
   mutable boost::atomic<int> nextTaskId;
-
-  // current number of tasks in the execution queue
-  mutable boost::atomic<int> exeQueueLength;
 
   // Task implementation loaded from user acc_impl
   Task* (*createTask)();

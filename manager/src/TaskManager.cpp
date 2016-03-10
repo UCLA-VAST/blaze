@@ -13,10 +13,6 @@
 
 namespace blaze {
 
-int TaskManager::getExeQueueLength() {
-  return exeQueueLength.load();
-}
-
 bool TaskManager::isEmpty() {
   return execution_queue.empty();
 }
@@ -104,9 +100,6 @@ bool TaskManager::schedule() {
   if (next_task) {
     execution_queue.push(next_task);
 
-    // atomically increase the length of the task queue
-    exeQueueLength.fetch_add(1);
-
     VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
   }
 
@@ -136,9 +129,6 @@ bool TaskManager::execute() {
     uint64_t delay_time = getUs() - start_time;
 
     VLOG(1) << "Task finishes in " << delay_time << " us";
-
-    // decrease the length of the execution queue
-    exeQueueLength.fetch_sub(1);
   } 
   catch (std::runtime_error &e) {
     LOG(ERROR) << "Task error " << e.what();
@@ -212,12 +202,12 @@ void TaskManager::stop() {
 }
 
 void TaskManager::startExecutor() {
-  boost::thread executor(
+  task_workers.create_thread(
       boost::bind(&TaskManager::do_execute, this));
 }
 
 void TaskManager::startScheduler() {
-  boost::thread scheduler(
+  task_workers.create_thread(
       boost::bind(&TaskManager::do_schedule, this));
 }
 
