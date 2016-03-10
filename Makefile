@@ -1,8 +1,16 @@
+all: common accrdd nam
 
-all:
+common: 
 	make -C ./common
+
+accrdd:
 	cd accrdd; mvn package; mvn install
+
+nam: common
 	make -C ./manager/src
+	make -C ./platforms
 
 examples:
 	make -C examples
+
+.PHONY: all common accrdd nam examples

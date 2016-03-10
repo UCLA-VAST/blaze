@@ -4,7 +4,7 @@
 
   <groupId>org.apache.spark</groupId>
 	<artifactId>blaze_2.10</artifactId>
-	<version>1.0</version>
+	<version>1.0.1</version>
 	<packaging>jar</packaging>
 
 	<properties>
