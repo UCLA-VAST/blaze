@@ -527,9 +527,6 @@ public class ResourceTrackerService extends AbstractService implements
 
       // Collect accNames and accRelations
       List<Accelerator> accelerators = accStatus.getAccelerators();
-      if (accelerators.size() == 0) {
-        return;
-      }
       Set<String> labels = new HashSet();
       Map<String, Set<String>> deviceToAcc = new HashMap<String, Set<String>>();
       getLabelsAndTheirRelations(accelerators, labels, deviceToAcc);
