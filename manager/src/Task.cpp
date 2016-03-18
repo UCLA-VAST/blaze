@@ -173,7 +173,6 @@ bool Task::getOutputBlock(DataBlock_ptr &block) {
     // no more output blocks means all data are consumed
     if (output_blocks.empty()) {
       status = COMMITTED;
-      return false;
     }
     return true;
   }

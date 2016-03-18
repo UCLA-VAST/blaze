@@ -46,6 +46,7 @@ class ConfigTests : public ::testing::Test {
 // worker function to run app tests using Client
 bool runArrayTest();
 bool runLoopBack(int data_size = 1024);
+bool runDelay(int data_size = 1024);
 
 // global variables
 static int app_port = 7777;

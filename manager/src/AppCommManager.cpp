@@ -490,12 +490,9 @@ void AppCommManager::process(socket_ptr sock) {
         // for all output blocks
         int64_t outId = 0;
         DataBlock_ptr block;
-        bool block_left = true;
 
         // NOTE: there should not be more than one block
-        while (block_left)  {
-
-          block_left = task->getOutputBlock(block);
+        while (task->getOutputBlock(block))  {
 
           // use thread id to create unique output file path
           std::stringstream path_stream;

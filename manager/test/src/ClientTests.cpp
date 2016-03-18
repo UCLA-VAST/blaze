@@ -160,4 +160,26 @@ TEST_F(ClientTests, AppTest_loopBack) {
 
   ASSERT_EQ(true, runLoopBack());
 }
+
+TEST_F(ClientTests, AppTest_delay) {
+
+  std::string path("./tasks/cpu/delay/delay.so");
+  boost::filesystem::wpath file(path);
+  ASSERT_EQ(boost::filesystem::exists(file), true)
+    << "Required acc task file does not exist, skipping test";
+
+  // config manager
+  ManagerConf conf;
+  AccPlatform *platform = conf.add_platform();
+  AccWorker *acc_worker = platform->add_acc();
+  acc_worker->set_id("test");
+  acc_worker->set_path(path);
+
+  // start manager
+  PlatformManager platform_manager(&conf);
+  boost::shared_ptr<CommManager> comm( new AppCommManager(
+        &platform_manager, "127.0.0.1", app_port)); 
+
+  ASSERT_EQ(true, runDelay());  
+}
 } // namespace blaze

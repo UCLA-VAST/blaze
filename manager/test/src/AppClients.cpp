@@ -78,4 +78,21 @@ bool runLoopBack(int data_size) {
   }
   return true;
 }
+
+bool runDelay(int data_size) {
+  // prepare input
+  TestClient client(1, 0); 
+
+  double* input_ptr = (double*)client.createInput(0, 1, data_size, sizeof(double), BLAZE_INPUT);
+  
+  // setup input with random data
+  for (int k=0; k<data_size; k++) {
+    input_ptr[k] = (double)rand()/RAND_MAX;
+  }
+  
+  // start computation
+  client.start();
+
+  return true;
+}
 }
