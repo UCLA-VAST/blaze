@@ -375,6 +375,13 @@ class LogisticRegressionWithLBFGS
     this
   }
 
+  @Experimental
+  def setNumIterations(numIterations: Int): this.type = {
+    require(numIterations > 0)
+    optimizer.setNumIterations(numIterations)
+    this
+  }
+
   override protected def createModel(weights: Vector, intercept: Double) = {
     if (numOfLinearPredictor == 1) {
       new LogisticRegressionModel(weights, intercept)
