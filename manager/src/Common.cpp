@@ -1,6 +1,3 @@
-#ifndef LOGGER_H
-#define LOGGER_H
-
 #include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
