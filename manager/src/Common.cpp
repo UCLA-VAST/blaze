@@ -204,5 +204,3 @@ namespace blaze {
     return true;
   }
 }
-
-#endif
