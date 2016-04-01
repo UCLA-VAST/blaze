@@ -7,7 +7,8 @@
 namespace blaze {
 
 class Platform {
-  
+  friend class PlatformManager;  
+
 public:
   Platform(std::map<std::string, std::string> &conf_table);
 

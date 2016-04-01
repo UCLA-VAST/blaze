@@ -72,6 +72,11 @@ PlatformManager::PlatformManager(ManagerConf *conf)
 
         DLOG(INFO) << "Create a block manager for " << cache_loc;
       }
+      else {
+        platform->block_manager = platform_table[cache_loc]->block_manager;
+        DLOG(INFO) << "Use block manager on " << cache_loc;
+      }
+
       cache_table.insert(std::make_pair(id, cache_loc));
       DLOG(INFO) << "Config platform " << id << 
         " to use device memory on " << cache_loc;
@@ -88,7 +93,6 @@ PlatformManager::PlatformManager(ManagerConf *conf)
             << iter->second;
         }
       }
-      cache_table.insert(std::make_pair(id, cache_loc));
 
       // add accelerators to the platform
       for (int j=0; j<platform_conf.acc_size(); j++) {
