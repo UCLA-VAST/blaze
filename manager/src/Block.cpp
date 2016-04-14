@@ -9,7 +9,7 @@
 
 #include <glog/logging.h>
 
-#include "Block.h"
+#include "blaze/Block.h"
 
 namespace blaze {
 

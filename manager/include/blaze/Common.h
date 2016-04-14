@@ -36,16 +36,18 @@ class PlatformManager;
 class QueueManager;
 
 // typedef of boost smart pointer object
-typedef boost::shared_ptr<BlockManager> BlockManager_ptr;
-typedef boost::shared_ptr<DataBlock>    DataBlock_ptr;
-typedef boost::weak_ptr<DataBlock>      DataBlock_ref;
-typedef boost::shared_ptr<Task>         Task_ptr;
-typedef boost::shared_ptr<TaskEnv>      TaskEnv_ptr;
-typedef boost::shared_ptr<TaskManager>  TaskManager_ptr;
-typedef boost::weak_ptr<TaskManager>    TaskManager_ref;
-typedef boost::shared_ptr<Platform>     Platform_ptr;
-typedef boost::weak_ptr<Platform>       Platform_ref;
-typedef boost::shared_ptr<QueueManager> QueueManager_ptr;
+typedef boost::shared_ptr<BlockManager>     BlockManager_ptr;
+typedef boost::shared_ptr<CommManager>      CommManager_ptr;
+typedef boost::shared_ptr<DataBlock>        DataBlock_ptr;
+typedef boost::weak_ptr<DataBlock>          DataBlock_ref;
+typedef boost::shared_ptr<Platform>         Platform_ptr;
+typedef boost::weak_ptr<Platform>           Platform_ref;
+typedef boost::shared_ptr<PlatformManager>  PlatformManager_ptr;
+typedef boost::shared_ptr<QueueManager>     QueueManager_ptr;
+typedef boost::shared_ptr<Task>             Task_ptr;
+typedef boost::shared_ptr<TaskEnv>          TaskEnv_ptr;
+typedef boost::shared_ptr<TaskManager>      TaskManager_ptr;
+typedef boost::weak_ptr<TaskManager>        TaskManager_ref;
 
 typedef boost::shared_ptr<boost::asio::io_service>        ios_ptr;
 typedef boost::shared_ptr<boost::asio::ip::tcp::endpoint> endpoint_ptr;

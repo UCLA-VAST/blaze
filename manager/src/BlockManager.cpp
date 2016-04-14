@@ -3,9 +3,9 @@
 #define LOG_HEADER "BlockManager"
 #include <glog/logging.h>
 
-#include "Block.h"
-#include "BlockManager.h"
-#include "Platform.h"
+#include "blaze/Block.h"
+#include "blaze/BlockManager.h"
+#include "blaze/Platform.h"
 
 namespace blaze {
 

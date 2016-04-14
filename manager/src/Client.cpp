@@ -5,8 +5,8 @@
 #define LOG_HEADER "Client"
 #include <glog/logging.h>
 
-#include "Block.h"
-#include "Client.h"
+#include "blaze/Block.h"
+#include "blaze/Client.h"
 
 namespace blaze {
 

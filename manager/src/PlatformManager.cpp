@@ -7,11 +7,11 @@
 #define LOG_HEADER "PlatformManager"
 #include <glog/logging.h>
 
-#include "BlockManager.h"
-#include "Platform.h"
-#include "PlatformManager.h"
-#include "QueueManager.h"
-#include "TaskManager.h"
+#include "blaze/BlockManager.h"
+#include "blaze/Platform.h"
+#include "blaze/PlatformManager.h"
+#include "blaze/QueueManager.h"
+#include "blaze/TaskManager.h"
 
 namespace blaze {
 

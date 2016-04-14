@@ -18,34 +18,34 @@ ifeq ("$(wildcard $(PP))","")
 $(error XILINX_OPENCL_DIR not set properly)
 endif
 
-MANAGER_DIR=../../manager
+MANAGER_DIR	:=../../manager
 
-CFLAGS := -c -fPIC -std=c++0x
+CFLAGS 		:= -fPIC -std=c++0x
 
 ifeq ($(NDEBUG),)
-CFLAGS := $(CFLAGS) -g
+CFLAGS		:= $(CFLAGS) -g
 else
-CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+CFLAGS 		:= $(CFLAGS) -O2 -DNDEBUG
 endif
 
-COMPILE= $(CFLAGS) \
-				 -I$(MANAGER_DIR)/include \
-				 -I$(MANAGER_DIR)/src \
-				 -I$(BOOST_DIR)/include \
-				 -I$(PROTOBUF_DIR)/include \
-				 -I$(GLOG_DIR)/include \
-				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
+COMPILE		:= -c $(CFLAGS) \
+		   -I$(MANAGER_DIR)/include \
+		   -I$(MANAGER_DIR)/src \
+		   -I$(BOOST_DIR)/include \
+		   -I$(PROTOBUF_DIR)/include \
+		   -I$(GLOG_DIR)/include \
+		   -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
 				 
-LINK= -L$(MANAGER_DIR)/lib -lblaze \
-			-L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL \
-			-lpthread -lm -ldl
+LINK		:= -L$(MANAGER_DIR)/lib -lblaze \
+		   -L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL \
+		   -lpthread -lm -ldl
 
-DEPS= OpenCLEnv.o \
-			OpenCLPlatform.o \
-			OpenCLBlock.o \
-			OpenCLQueueManager.o
+DEPS		:= OpenCLEnv.o \
+		   OpenCLPlatform.o \
+		   OpenCLBlock.o \
+		   OpenCLQueueManager.o
 
-DST= xlnx_opencl.so
+DST		:= xlnx_opencl.so
 
 all: $(DST)
 

@@ -1,11 +1,11 @@
 #define LOG_HEADER "Platform"
 #include <glog/logging.h>
 
-#include "TaskEnv.h"
-#include "TaskManager.h"
-#include "BlockManager.h"
-#include "QueueManager.h"
-#include "Platform.h"
+#include "blaze/TaskEnv.h"
+#include "blaze/TaskManager.h"
+#include "blaze/BlockManager.h"
+#include "blaze/QueueManager.h"
+#include "blaze/Platform.h"
 
 namespace blaze {
 

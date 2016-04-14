@@ -1,8 +1,8 @@
 #ifndef OPENCL_QUEUE_MANAGER_H
 #define OPENCL_QUEUE_MANAGER_H
 
+#include "blaze/QueueManager.h"
 #include "OpenCLCommon.h"
-#include "QueueManager.h"
 
 namespace blaze {
 
@@ -13,6 +13,8 @@ public:
       Platform* _platform,
       int _reconfig_timer = 500);
 
+  ~OpenCLQueueManager();
+
   void start();
 
 private:
@@ -22,6 +24,7 @@ private:
   void do_start();
 
   int reconfig_timer;
+  boost::thread_group executors;
 };
 } // namespace blaze
 

@@ -3,8 +3,8 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 
-#include "Block.h"
-#include "TaskEnv.h"
+#include "blaze/Block.h"
+#include "blaze/TaskEnv.h"
 
 namespace blaze {
 

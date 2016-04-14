@@ -9,14 +9,14 @@
 
 #define LOG_HEADER "AppCommManager"
 
+#include "blaze/Block.h"
+#include "blaze/BlockManager.h"
+#include "blaze/CommManager.h"
+#include "blaze/Platform.h"
+#include "blaze/PlatformManager.h"
+#include "blaze/Task.h"
+#include "blaze/TaskManager.h"
 #include "proto/acc_conf.pb.h"
-#include "Block.h"
-#include "BlockManager.h"
-#include "CommManager.h"
-#include "Platform.h"
-#include "PlatformManager.h"
-#include "Task.h"
-#include "TaskManager.h"
 
 namespace blaze {
 
@@ -486,6 +486,7 @@ void AppCommManager::process(socket_ptr sock) {
 
       if (task->status == Task::FINISHED) {
 
+        VLOG(1) << "Task finished, starting to read output";
         // add block information to finish message 
         // for all output blocks
         int64_t outId = 0;

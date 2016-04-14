@@ -1,5 +1,4 @@
-
-#include "Admin.h"
+#include "blaze/Admin.h"
 
 namespace blaze {
 

@@ -11,11 +11,11 @@
 #define LOG_HEADER "QueueManager"
 #include <glog/logging.h>
 
-#include "Task.h"
-#include "Block.h"
-#include "Platform.h"
-#include "TaskManager.h"
-#include "QueueManager.h"
+#include "blaze/Task.h"
+#include "blaze/Block.h"
+#include "blaze/Platform.h"
+#include "blaze/TaskManager.h"
+#include "blaze/QueueManager.h"
 
 namespace blaze {
 

@@ -12,10 +12,10 @@
 #include "hdfs.h"
 #endif
 
-#include "Block.h"
-#include "TaskEnv.h"
-#include "Task.h"
-#include "Platform.h"
+#include "blaze/Block.h"
+#include "blaze/TaskEnv.h"
+#include "blaze/Task.h"
+#include "blaze/Platform.h"
 
 namespace blaze {
 

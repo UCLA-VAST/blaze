@@ -1,0 +1,1 @@
+../../../src/proto/msgGamNam.pb.h

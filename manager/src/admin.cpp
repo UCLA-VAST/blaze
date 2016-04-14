@@ -1,4 +1,4 @@
-#include "stdlib.h"
+#include <stdlib.h>
 
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
@@ -10,7 +10,7 @@
 #include "license.h"
 #endif
 
-#include "Admin.h"
+#include "blaze/Admin.h"
 
 using namespace blaze;
 

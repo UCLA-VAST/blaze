@@ -10,8 +10,8 @@
 #include <boost/thread/lockable_adapter.hpp>
 #include <CL/opencl.h>
 
+#include "blaze/TaskEnv.h"
 #include "OpenCLCommon.h"
-#include "TaskEnv.h"
 
 namespace blaze {
 

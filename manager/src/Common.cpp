@@ -12,7 +12,7 @@
 #include <string>
 #include <stdexcept>
 
-#include "Common.h"
+#include "blaze/Common.h"
 
 namespace blaze {
 

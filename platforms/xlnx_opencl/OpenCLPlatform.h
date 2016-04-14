@@ -9,9 +9,9 @@
 #include <CL/opencl.h>
 
 #include "OpenCLCommon.h"
-#include "Platform.h"
 #include "OpenCLBlock.h"
 #include "OpenCLEnv.h"
+#include "blaze/Platform.h"
 
 namespace blaze {
 

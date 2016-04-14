@@ -1,9 +1,9 @@
 #ifndef OPENCLBLOCK_H
 #define OPENCLBLOCK_H
 
+#include "blaze/Block.h"
 #include "OpenCLCommon.h"
 #include "OpenCLEnv.h"
-#include "Block.h"
 
 namespace blaze {
 

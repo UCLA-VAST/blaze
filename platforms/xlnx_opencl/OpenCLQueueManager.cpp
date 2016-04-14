@@ -5,8 +5,8 @@
 #define LOG_HEADER "OpenCLQueueManager"
 #include <glog/logging.h>
 
-#include "Task.h"
-#include "TaskManager.h"
+#include "blaze/Task.h"
+#include "blaze/TaskManager.h"
 #include "OpenCLPlatform.h"
 #include "OpenCLQueueManager.h"
 
@@ -29,8 +29,12 @@ OpenCLQueueManager::OpenCLQueueManager(
   DLOG(INFO) << "Set FPGA reconfigure counter = " << _reconfig_timer;
 
   // start executor
-  boost::thread executor(
+  executors.create_thread(
       boost::bind(&OpenCLQueueManager::do_start, this));
+}
+OpenCLQueueManager::~OpenCLQueueManager() {
+  // interrupt all executors
+  executors.interrupt_all();
 }
 
 void OpenCLQueueManager::start() {

@@ -15,61 +15,62 @@ endif
 FLMDIR 		:= /curr/peichen/work/test/license/production/falcon/build
 FLMLIB 		:= -llmgr_trl -lcrvs -lsb -lnoact -llmgr_dongle_stub
 
-CFLAGS 	  := -c -fPIC -std=c++0x
+CFLAGS 		:= -c -fPIC -std=c++0x
 
-INCLUDES  := -I$(BOOST_DIR)/include \
-				     -I$(PROTOBUF_DIR)/include \
-				  	 -I$(GLOG_DIR)/include 
+INCLUDES	:= -I../include \
+		   -I$(BOOST_DIR)/include \
+		   -I$(PROTOBUF_DIR)/include \
+		   -I$(GLOG_DIR)/include 
 
-LINK		  := -L../lib -lblaze \
-						 -L$(BOOST_DIR)/lib \
-						 	 -lboost_system \
-						 	 -lboost_thread \
-						 	 -lboost_iostreams \
-						 	 -lboost_filesystem \
-						 	 -lboost_regex \
-						 -L$(PROTOBUF_DIR)/lib -lprotobuf \
-						 -L$(GLOG_DIR)/lib -lglog \
-						 -lpthread -lm \
-						 -Wl,--no-as-needed -ldl
+LINK		:= -L../lib -lblaze \
+		   -L$(BOOST_DIR)/lib \
+		  	-lboost_system \
+		   	-lboost_thread \
+		   	-lboost_iostreams \
+		   	-lboost_filesystem \
+		   	-lboost_regex \
+		   -L$(PROTOBUF_DIR)/lib -lprotobuf \
+		   -L$(GLOG_DIR)/lib -lglog \
+		   -lpthread -lm -Wl,--no-as-needed -ldl
 
 ifeq ($(RELEASE),)
 ifeq ($(NDEBUG),)
-CFLAGS   := $(CFLAGS) -g
+CFLAGS   	:= $(CFLAGS) -g
 else
-CFLAGS   := $(CFLAGS) -O2 -DNDEBUG
+CFLAGS   	:= $(CFLAGS) -O2 -DNDEBUG
 endif
 else
-CFLAGS   := $(CFLAGS) -O2 -DNDEBUG -DUSELICENSE
-INCLUDES := $(INCLUDES) -I$(FLMDIR)
-LINK 		 := $(LINK) -L$(FLMDIR) $(FLMLIB) 
-LMDEPS 	 := $(FLMDIR)/license.o \
-			 	 		$(FLMDIR)/lm_new.o 
+CFLAGS   	:= $(CFLAGS) -O2 -DNDEBUG -DUSELICENSE
+INCLUDES 	:= $(INCLUDES) -I$(FLMDIR)
+LINK 	 	:= $(LINK) -L$(FLMDIR) $(FLMLIB) 
+LMDEPS 	 	:= $(FLMDIR)/license.o \
+		   $(FLMDIR)/lm_new.o 
 endif
 
 COMPILE = $(CFLAGS) $(INCLUDES)
 
-DEPS= Admin.o \
-			Block.o \
-			Client.o \
-			Common.o \
-			Platform.o \
-			Task.o \
-			TaskEnv.o \
-			BlockManager.o \
-			CommManager.o \
-			AppCommManager.o \
-			GAMCommManager.o \
-			PlatformManager.o \
-			TaskManager.o \
-			QueueManager.o \
-			acc_conf.pb.o \
-			task.pb.o \
-			msgGamNam.pb.o
+DEPS		:= AccAgent.o \
+		   Admin.o \
+		   Block.o \
+		   Client.o \
+		   Common.o \
+		   Platform.o \
+		   Task.o \
+		   TaskEnv.o \
+		   BlockManager.o \
+		   CommManager.o \
+		   AppCommManager.o \
+		   GAMCommManager.o \
+		   PlatformManager.o \
+		   TaskManager.o \
+		   QueueManager.o \
+		   acc_conf.pb.o \
+		   task.pb.o \
+		   msgGamNam.pb.o
 
-all: ../bin/acc_manager \
-		 ../bin/acc_admin \
-		 ../lib/libblaze.so
+all: 	../bin/acc_manager \
+	../bin/acc_admin \
+	../lib/libblaze.so
 
 package: 
 	cp ../bin/acc_manager ../../package/nam/bin/nam_daemon
@@ -91,7 +92,7 @@ package:
 %.o: proto/%.cc 
 	$(PP) $(COMPILE) $< -o $@ 
 
-%.o: %.cpp *.h proto/*.h Makefile
+%.o: %.cpp ../include/blaze/*.h proto/*.h Makefile
 	$(PP) $(COMPILE) $< -o $@
 
 clean:

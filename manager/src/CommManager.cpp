@@ -12,10 +12,10 @@
 #define LOG_HEADER "CommManager"
 #include <glog/logging.h>
 
-#include "CommManager.h"
-#include "PlatformManager.h"
-#include "BlockManager.h"
-#include "TaskManager.h"
+#include "blaze/CommManager.h"
+#include "blaze/PlatformManager.h"
+#include "blaze/BlockManager.h"
+#include "blaze/TaskManager.h"
 
 #define MAX_MSGSIZE 4096
 

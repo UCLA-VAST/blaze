@@ -12,9 +12,9 @@
 
 #include <glog/logging.h>
 
+#include "blaze/CommManager.h"
+#include "blaze/PlatformManager.h"
 #include "proto/msgGamNam.pb.h"
-#include "CommManager.h"
-#include "PlatformManager.h"
 
 namespace blaze {
 

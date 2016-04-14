@@ -4,12 +4,12 @@
 #define LOG_HEADER "TaskManager"
 #include <glog/logging.h>
 
-#include "TaskEnv.h"
-#include "Task.h"
-#include "Block.h"
-#include "TaskQueue.h"
-#include "TaskManager.h"
-#include "Platform.h"
+#include "blaze/TaskEnv.h"
+#include "blaze/Task.h"
+#include "blaze/Block.h"
+#include "blaze/TaskQueue.h"
+#include "blaze/TaskManager.h"
+#include "blaze/Platform.h"
 
 namespace blaze {
 
