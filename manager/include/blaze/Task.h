@@ -14,9 +14,10 @@ template <typename U, typename T> class BlazeTest;
  */
 class Task {
 
-friend class TaskManager;
-friend class QueueManager;
+friend class AccAgent;
 friend class AppCommManager;
+friend class QueueManager;
+friend class TaskManager;
 
 template <typename U, typename T> 
 friend class BlazeTest;

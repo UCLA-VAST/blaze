@@ -155,14 +155,12 @@ void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
   // NOTE: this is unnecessary if the OpenCL runtime is thread-safe
   //boost::lock_guard<OpenCLEnv> guard(*env);
   env->lock();
-  DLOG(INFO) << "clEnqueueWriteBuffer grab lock";
 
   int err = clEnqueueWriteBuffer(
       command, data, CL_TRUE, offset, 
       _size, src, 0, NULL, &event);
   DLOG(INFO) << "clEnqueueWriteBuffer finished";
   env->unlock();
-  DLOG(INFO) << "clEnqueueWriteBuffer release lock";
 
   if (err != CL_SUCCESS) {
     DLOG(ERROR) << "clEnqueueWriteBuffer error: " << err;
@@ -178,6 +176,8 @@ void OpenCLBlock::writeData(void* src, size_t _size, size_t offset) {
 // write data to an array
 void OpenCLBlock::readData(void* dst, size_t size) {
   if (allocated) {
+
+    DLOG(INFO) << "Starting to read output data";
 
     // get the command queue handler
     cl_command_queue command = env->getCmdQueue();
@@ -197,6 +197,7 @@ void OpenCLBlock::readData(void* dst, size_t size) {
       DLOG(ERROR) << "block infomation: size=" << size;
       throw std::runtime_error("Failed to write to OpenCL block");
     }
+    DLOG(INFO) << "Finished reading output data";
   }
   else {
     throw std::runtime_error("Block memory not allocated");

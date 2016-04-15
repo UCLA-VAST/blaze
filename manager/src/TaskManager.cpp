@@ -181,7 +181,7 @@ void TaskManager::do_schedule() {
     scheduler_idle = false;
     scheduler_idle = schedule();
     if (scheduler_idle) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(1000));
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100));
     }
   }
 
