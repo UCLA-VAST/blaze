@@ -1,7 +1,7 @@
 #ifndef TASK_H
 #define TASK_H
 
-#include "Common.h"
+#include "blaze/Common.h"
 
 namespace blaze {
 

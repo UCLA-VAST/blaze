@@ -29,12 +29,12 @@ AccAgent::AccAgent(const char* conf_path) {
   }
 
   // Basic configurations
-  FLAGS_logtostderr = 1;
+  //FLAGS_logtostderr = 1;
   FLAGS_v           = conf_->verbose();   // logging
   int app_port      = conf_->app_port();  // port for application
   int gam_port      = conf_->gam_port();  // port for GAM
 
-  google::InitGoogleLogging("");
+  //google::InitGoogleLogging("");
 
   // Create local dir
   try {
