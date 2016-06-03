@@ -9,8 +9,8 @@
 #include <boost/smart_ptr.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
+#include "blaze/Block.h"
 #include "OpenCLCommon.h"
-#include "Block.h"
 #include "OpenCLEnv.h"
 
 namespace blaze {
