@@ -1,99 +1,212 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/atomic.hpp>
+#include <glog/logging.h>
 
-#include "TaskManager.h"
+#include "blaze/TaskEnv.h"
+#include "blaze/Task.h"
+#include "blaze/Block.h"
+#include "blaze/TaskQueue.h"
+#include "blaze/TaskManager.h"
+#include "blaze/Platform.h"
 
 namespace blaze {
-#define LOG_HEADER  std::string("TaskManager::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
 
-Task* TaskManager::create() {
+bool TaskManager::isEmpty() {
+  return execution_queue.empty();
+}
+
+Task_ptr TaskManager::create() {
   
-  Task* task = (Task*)createTask(env);
+  // create a new task by the constructor loaded form user implementation
+  Task_ptr task(createTask(), destroyTask);
 
-  task_queue.push(task);
+  // link the TaskEnv
+  task->env = platform->getEnv(acc_id);
 
-  logger->logInfo(LOG_HEADER + std::string("created a new task"));
+  // give task an unique ID
+  task->task_id = nextTaskId.fetch_add(1);
 
   return task;
 }
 
-void TaskManager::execute() {
+void TaskManager::enqueue(std::string app_id, Task* task) {
+
+  if (!task->isReady()) {
+    throw std::runtime_error("Cannot enqueue task that is not ready");
+  }
   
-  logger->logInfo(LOG_HEADER + std::string("started an executor"));
+  // TODO: when do we remove the queue?
+  // create a new app queue if it does not exist
 
-  // continuously execute tasks from the task queue
-  while (1) { 
+  TaskQueue_ptr queue;
+  // TODO: remove this lock
+  this->lock();
+  if (app_queues.find(app_id) == app_queues.end()) {
+    TaskQueue_ptr new_queue(new TaskQueue());
+    app_queues.insert(std::make_pair(app_id, new_queue));
+    queue = new_queue;
+  } 
+  else {
+    queue = app_queues[app_id];
+  }
+  this->unlock();
 
-    // wait if there is no task to be executed
-    while (task_queue.empty()) {
-      boost::this_thread::sleep_for(boost::chrono::milliseconds(10)); 
-    }
-
-    // get next task and remove it from the task queue
-    // this part is thread-safe with boost::lockfree::queue
-    Task* task;
-    task_queue.pop(task);
-
-    // polling the status, wait for data to be transferred
-    while (!task->isReady()) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
-    }
-    logger->logInfo(LOG_HEADER + std::string("Started a new task"));
-
-    try {
-      // start execution
-      task->execute();
-    } 
-    catch (std::runtime_error &e) {
-      logger->logErr(LOG_HEADER+ 
-          std::string("task->execute() error: ")+
-          e.what());
-    }
-
-    if (task->status == Task::FINISHED)  {
-
-      // put task into the retire queue
-      retire_queue.push(task);
-
-      logger->logInfo(LOG_HEADER + std::string("Task finished"));
-    }
-    else { // task failed, retry 
-
-      // TODO: add a retry counter in task
-      //task_queue.push(task);
-
-      logger->logInfo(LOG_HEADER + std::string(
-            "Task failed due to previous error"));
-    }
+  // push task to queue
+  bool enqueued = queue->push(task);
+  while (!enqueued) {
+    boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+    enqueued = queue->push(task);
   }
 }
 
-void TaskManager::commit() {
-    
-  logger->logInfo(LOG_HEADER + std::string("started an committer"));
-  // continuously retiring tasks from the retire queue
-  while (1) {
+bool TaskManager::schedule() {
 
-    // wait if there is no task to be retired
-    while (retire_queue.empty()) {
-      boost::this_thread::sleep_for(boost::chrono::milliseconds(10)); 
-    }
-
-    // get the next task popped from the retire queue
-    Task* task;
-    retire_queue.pop(task);
-
-    // polling the status, wait for output data to be read
-    while (task->status != Task::COMMITTED) {
-      boost::this_thread::sleep_for(boost::chrono::microseconds(10)); 
-    }
-    
-    // deallocate the object using the function loaded from library
-    destroyTask(task);
-
-    logger->logInfo(LOG_HEADER + std::string("retired a task"));
+  if (app_queues.empty()) {
+    return true;
   }
+  // iterate through all app queues and record which are non-empty
+  std::vector<std::string> ready_queues;
+  std::map<std::string, TaskQueue_ptr>::iterator iter;
+
+  this->lock();
+  for (iter = app_queues.begin();
+      iter != app_queues.end();
+      iter ++)
+  {
+    if (iter->second && !iter->second->empty()) {
+      ready_queues.push_back(iter->first);
+    }
+  }
+  this->unlock();
+  if (ready_queues.empty()) {
+    return true;
+  }
+
+  Task* next_task;
+
+  // select the next task to execute from application queues
+  // use RoundRobin scheduling
+  int idx_next = rand()%ready_queues.size();
+
+  if (app_queues.find(ready_queues[idx_next]) == app_queues.end()) {
+    LOG(ERROR) << "Did not find app_queue, unexpected";
+    return false;
+  }
+  else {
+    app_queues[ready_queues[idx_next]]->pop(next_task);
+  }
+  if (next_task) {
+    execution_queue.push(next_task);
+
+    VLOG(1) << "Schedule a task to execute from " << ready_queues[idx_next];
+  }
+
+  return false;
+}
+
+// return true if the execution queue is empty
+bool TaskManager::execute() {
+
+  // wait if there is no task to be executed
+  if (execution_queue.empty()) {
+    return true;
+  }
+  // get next task and remove it from the task queue
+  // this part is thread-safe with boost::lockfree::queue
+  Task* task;
+  execution_queue.pop(task);
+
+  VLOG(1) << "Started a new task";
+
+  try {
+    // record task execution time
+    uint64_t start_time = getUs();
+
+    // start execution
+    task->execute();
+    uint64_t delay_time = getUs() - start_time;
+
+    VLOG(1) << "Task finishes in " << delay_time << " us";
+  } 
+  catch (std::runtime_error &e) {
+    LOG(ERROR) << "Task error " << e.what();
+  }
+  return false;
+}
+
+bool TaskManager::popReady(Task* &task) {
+  if (execution_queue.empty()) {
+    return false;
+  }
+  else {
+    execution_queue.pop(task);
+    return true;
+  }
+}
+
+std::string TaskManager::getConfig(int idx, std::string key) {
+  Task* task = (Task*)createTask();
+
+  std::string config = task->getConfig(idx, key);
+
+  destroyTask(task);
+  
+  return config;
+}
+
+void TaskManager::do_execute() {
+
+  VLOG(1) << "Started an executor for " << acc_id;
+
+  // continuously execute tasks from the task queue
+  while (power || !scheduler_idle || !executor_idle) { 
+    executor_idle = false;
+    executor_idle = execute();
+    if (executor_idle) {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100)); 
+    }
+  }
+
+  VLOG(1) << "Executor for " << acc_id << " stopped";
+}
+
+void TaskManager::do_schedule() {
+  
+  VLOG(1) << "Started an scheduler for " << acc_id;
+
+  while (power || !scheduler_idle) {
+    // return true if the app queues are all empty
+    scheduler_idle = false;
+    scheduler_idle = schedule();
+    if (scheduler_idle) {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100));
+    }
+  }
+
+  VLOG(1) << "Scheduler for " << acc_id << " stopped";
+}
+
+bool TaskManager::isBusy() {
+  return !scheduler_idle || !executor_idle;
+}
+
+void TaskManager::start() {
+  startExecutor();
+  startScheduler();
+}
+
+void TaskManager::stop() {
+  power = false;
+}
+
+void TaskManager::startExecutor() {
+  task_workers.create_thread(
+      boost::bind(&TaskManager::do_execute, this));
+}
+
+void TaskManager::startScheduler() {
+  task_workers.create_thread(
+      boost::bind(&TaskManager::do_schedule, this));
 }
 
 } // namespace blaze

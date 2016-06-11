@@ -1,0 +1,22 @@
+package blaze;
+
+option java_package = "org.apache.hadoop.fcs";
+
+message Gam2NamRequest {
+  enum MsgType {
+    ACCNAMES = 0;  
+    SHARERATE = 1;  
+  }
+  required MsgType type = 1;
+  optional bool pull = 2 [default = false];
+}
+
+message Accelerator {
+  optional string acc_name = 1;
+  optional string device_name = 2;
+}
+
+message Nam2GamAccNames {
+  optional bool isUpdated = 1 [default = false];
+  repeated Accelerator acc_names = 2;
+}

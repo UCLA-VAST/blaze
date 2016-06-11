@@ -1,39 +1,45 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <ifaddrs.h>
-#include <netinet/in.h> 
-#include <string.h> 
 #include <arpa/inet.h>
-#include <string>
+#include <fcntl.h>
 #include <fstream>
-
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <glog/logging.h>
+#include <ifaddrs.h>
+#include <netinet/in.h> 
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h> 
+#include <string>
+#include <sys/types.h>
 
-#include "Comm.h"
-#include "Context.h"
-#include "QueueManager.h"
-#include "BlockManager.h"
-#include "TaskManager.h"
+#include "blaze/CommManager.h"
+#include "blaze/PlatformManager.h"
+#include "blaze/QueueManager.h"
+#include "blaze/BlockManager.h"
+#include "blaze/TaskManager.h"
 
 using namespace blaze;
 
 int main(int argc, char** argv) {
-  
-  std::string conf_path = "./conf.prototxt";
+
+  // Initialize Google Flags and Logs
+  gflags::SetUsageMessage(argv[0]);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  google::InitGoogleLogging(argv[0]);
+
+  srand(time(NULL));
 
   if (argc < 2) {
     printf("USAGE: %s <conf_path>\n", argv[0]);
     return -1;
   }
 
-  int file_handle = open(argv[1], O_RDONLY);
+  std::string conf_path(argv[1]);
+  int file_handle = open(conf_path.c_str(), O_RDONLY);
 
   if (file_handle < 0) {
     printf("cannot find configure file: %s\n",
-        conf_path.c_str());
+        argv[1]);
     return -1;
   }
   
@@ -41,31 +47,37 @@ int main(int argc, char** argv) {
   google::protobuf::io::FileInputStream fin(file_handle);
   
   if (!google::protobuf::TextFormat::Parse(&fin, conf)) {
-    printf("cannot parse configuration from %s\n", argv[1]);  
-    return 1;
+    LOG(FATAL) << "cannot parse configuration from " << argv[1];
   }
 
-  // setup Logger
-  int verbose = conf->verbose();  
-  Logger logger(verbose);
+  // configurations
+  FLAGS_v      = conf->verbose();   // logging
+  int app_port = conf->app_port();  // port for application
+  int gam_port = conf->gam_port();  // port for GAM
+  local_dir    = conf->local_dir(); // local dir for temp files
 
-  // setup QueueManager
-  QueueManager queue_manager(&logger);
+  // create local dir
+  try {
+    local_dir += "/nam-" + getUid();
+    if (!boost::filesystem::exists(local_dir)) {
+      boost::filesystem::create_directories(local_dir);
+    }
+    DLOG(INFO) << "Set 'local_dir' to " << local_dir;
+  } catch (boost::filesystem::filesystem_error &e) {
+    LOG(ERROR) << "Failed to use '" << local_dir 
+                 << "' as local directory, using '/tmp' instead.";
+  }
 
-  // setup acc context
-  Context context(conf, &logger, &queue_manager);
-
-  queue_manager.startAll();
+  // setup PlatformManager
+  PlatformManager platform_manager(conf);
 
   // check all network interfaces on this computer, and 
   // open a communicator on each interface using the same port
-  int port = conf->port();
-
   struct ifaddrs* ifAddrStruct = NULL;
   getifaddrs(&ifAddrStruct);
 
   // hold all pointers to the communicator
-  std::vector<boost::shared_ptr<Comm> > comm_pool;
+  std::vector<boost::shared_ptr<CommManager> > comm_pool;
 
   for (struct ifaddrs* ifa = ifAddrStruct; 
        ifa != NULL; 
@@ -85,23 +97,29 @@ int main(int argc, char** argv) {
 
       std::string ip_addr(addressBuffer);
 
-      // create communicator object
+      // create communicator for GAM
+      boost::shared_ptr<CommManager> comm_gam( new GAMCommManager(
+            &platform_manager, 
+            ip_addr, gam_port)); 
+
+      // create communicator for applications
       // it will start listening for new connections automatically
-      boost::shared_ptr<Comm> comm( new Comm(
-            &context, 
-            &queue_manager, 
-            &logger, ip_addr, port));
+      boost::shared_ptr<CommManager> comm( new AppCommManager(
+            &platform_manager, 
+            ip_addr, app_port));
+
+      LOG(INFO) << "Start listening " << ip_addr << " on port " <<
+        app_port << " and " << gam_port;
 
       // push the communicator pointer to pool to avoid object
       // being destroyed out of context
       comm_pool.push_back(comm);
+      comm_pool.push_back(comm_gam);
     }
   }
 
-  // if no endpoint in the config, skip this part
   while (1) {
-    // potential place for cleaning stage
-    ;
+    boost::this_thread::sleep_for(boost::chrono::seconds(60)); 
   }
 
   return 0;

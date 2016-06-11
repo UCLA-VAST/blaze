@@ -1,0 +1,6 @@
+*.log
+*.o
+*.so
+*.err
+target
+Makefile.config

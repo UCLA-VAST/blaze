@@ -1,59 +1,70 @@
-
-#include <fstream>
-#include <stdexcept>
+#include <boost/smart_ptr.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/thread/thread.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/lockable_adapter.hpp>
 #include <dlfcn.h>
+#include <fstream>
+#include <glog/logging.h>
+#include <stdexcept>
 
-#include "QueueManager.h"
+#include "blaze/Task.h"
+#include "blaze/Block.h"
+#include "blaze/Platform.h"
+#include "blaze/TaskManager.h"
+#include "blaze/QueueManager.h"
 
 namespace blaze {
 
-#define LOG_HEADER  std::string("QueueManager::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
-
 void QueueManager::add(
     std::string id, 
-    std::string lib_path,
-    TaskEnv *env) 
+    std::string lib_path)
 {
-
-  void* handle = dlopen(lib_path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
+  if (tasklib_table.count(id)) {
+    LOG(WARNING) << "Cannot add Task [" << id
+                 << "] because previous Task with the same ID is not "
+                 << "successfully unloaded.";
+    throw internalError("Task handle exists");
+  }
+  void* handle = dlopen(lib_path.c_str(), RTLD_LAZY|RTLD_LOCAL);
 
   if (handle == NULL) {
-    logger->logErr(LOG_HEADER + dlerror());
     throw std::runtime_error(dlerror());
   }
   // reset errors
   dlerror();
 
   // load the symbols
-  Task* (*create_func)(TaskEnv*);
+  Task* (*create_func)();
   void (*destroy_func)(Task*);
 
   // read the custom constructor and destructor  
-  create_func = (Task* (*)(TaskEnv*))dlsym(handle, "create");
+  create_func = (Task* (*)())dlsym(handle, "create");
   destroy_func = (void (*)(Task*))dlsym(handle, "destroy");
 
   const char* error = dlerror();
   if (error) {
-    logger->logErr(LOG_HEADER + error);
     throw std::runtime_error(error);
   }
 
   // construct the corresponding task queue
-  TaskManager_ptr taskManager(
-      new TaskManager(create_func, destroy_func, env, logger));
+  TaskManager_ptr task_manager(
+      new TaskManager(create_func, destroy_func, id, platform));
 
-  queue_table.insert(std::make_pair(id, taskManager));
+  task_manager->startScheduler();
 
-  logger->logInfo(
-      LOG_HEADER +
-      "added a new task queue: "+
-      id);
+  // lock before modifying queue_table
+  boost::lock_guard<QueueManager> guard(*this);
+
+  queue_table.insert(std::make_pair(id, task_manager));
+  tasklib_table.insert(std::make_pair(id, handle));
+
+  LOG(INFO) << "Added a new task queue: " << id;
 }
 
 TaskManager_ptr QueueManager::get(std::string id) {
 
+  boost::lock_guard<QueueManager> guard(*this);
   if (queue_table.find(id) == queue_table.end()) {
     return NULL_TASK_MANAGER;   
   }
@@ -62,38 +73,95 @@ TaskManager_ptr QueueManager::get(std::string id) {
   }
 }
 
+void QueueManager::remove(std::string id) {
+
+  TaskManager_ptr task_manager = get(id);
+
+  if (!task_manager) {
+    return;
+  }
+
+  this->lock();
+  queue_table.erase(id);
+  this->unlock();
+
+  DLOG(INFO) << "Stopping the TaskManager for " << id;
+  task_manager->stop();
+
+  // wait for TaskManager to exit gracefully
+  while (task_manager->isBusy()) {
+    boost::this_thread::sleep_for(boost::chrono::microseconds(1000));
+  }
+  DLOG(INFO) << "TaskManager for " << id << " is successfully stopped";
+
+  // release the loaded library using dlclose
+  // reset errors
+  dlerror();
+
+  void* handle = tasklib_table[id];
+
+  dlclose(handle);
+
+  const char* error = dlerror();
+  if (error) {
+    DLOG(ERROR) << "Task implementation for " << id 
+                << " cannot be unloaded because:" 
+                << error;
+  }
+  else {
+    DLOG(INFO) << "Task implementation for " << id << " is successfully unloaded";
+
+    // only remove item from table if dlclose is successful
+    // otherwise prevent new accelerator with the same id 
+    // be added
+    this->lock();
+    tasklib_table.erase(id);
+    this->unlock();
+  }
+}
+
+TaskEnv* QueueManager::getTaskEnv(Task* task) {
+  return task->getEnv();
+}
+
+void QueueManager::setTaskEnv(Task* task, TaskEnv_ptr env) {
+  task->env = env;
+}
+
+DataBlock_ptr QueueManager::getTaskInputBlock(Task *task, int idx) {
+  if (idx < task->input_blocks.size() &&
+      task->input_table.find(task->input_blocks[idx]) 
+        != task->input_table.end())
+  {
+    return task->input_table[task->input_blocks[idx]];
+  } else {
+    return NULL_DATA_BLOCK; 
+  }
+}
+
+void QueueManager::setTaskInputBlock(
+    Task *task, 
+    DataBlock_ptr block, 
+    int idx) 
+{
+  if (idx < task->input_blocks.size()) {
+    int64_t block_id = task->input_blocks[idx];
+    DLOG(INFO) << "Reset task input block " << block_id;
+    task->inputBlockReady(block_id, block);
+  }
+}
+
+// Start TaskQueues for the CPU platform
+// all the task queues can have simultaneous executors
 void QueueManager::start(std::string id) {
 
   // get the reference to the task queue 
   TaskManager_ptr task_manager = get(id);
-
-  if (task_manager == NULL_TASK_MANAGER) {
-    throw std::runtime_error("No matching task queue");
-    return;
+  if (task_manager) {
+    task_manager->startExecutor();
   }
-
-  // start executor and commitor
-  boost::thread executor(
-      boost::bind(&TaskManager::execute, task_manager));
-
-  boost::thread committer(
-      boost::bind(&TaskManager::commit, task_manager));
-}
-
-void QueueManager::startAll() {
-  std::map<std::string, TaskManager_ptr>::iterator iter;
-  for (iter = queue_table.begin();
-      iter != queue_table.end();
-      ++iter)
-  {
-    TaskManager_ptr task_manager = iter->second;
-
-    // start executor and commitor
-    boost::thread executor(
-        boost::bind(&TaskManager::execute, task_manager));
-
-    boost::thread committer(
-        boost::bind(&TaskManager::commit, task_manager));
+  else {
+    LOG(ERROR) << "Cannot start executor for " << id;
   }
 }
 

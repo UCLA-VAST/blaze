@@ -16,7 +16,7 @@ class LoopBack()
   def getArg(idx: Int): Option[BlazeBroadcast[_]] = None
   def getArgNum(): Int = 0
 
-  def call(data: Array[Double]): Array[Double] = {
+  override def call(data: Array[Double]): Array[Double] = {
     val out = new Array[Double](data.size)
     Array.copy(data, 0, out, 0, data.size)
     out
@@ -54,6 +54,7 @@ object LoopBack {
 
     val src = data.collect
     val dst = data.map_acc(new LoopBack).collect
+
 
     if (src.deep == dst.deep) {
       println("results correct") 

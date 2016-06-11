@@ -47,6 +47,8 @@ public class DataTransmitter {
 	public void init(String hostname, int port) {
 		try {
 	  	acc_socket = new Socket(hostname, port); 
+      // turn off Negal algorithm to improve latency
+      acc_socket.setTcpNoDelay(true);
 		}
 		catch (Exception e) {
 			; // do nothing
@@ -118,45 +120,38 @@ public class DataTransmitter {
   }
 
 	/**
-	* Create a task message for requesting.
+	* Create an empty message with specific type.
 	*
 	* @param acc_id
 	*		The accelerator ID. Should be provided by accelerator library.
-	* @param blockId
-	*		The unique block ID.
-	* @return The message which hasn't been built.
+	* @param type
+	*		The message type.
+	* @see AccMessage.MsgType
 	**/
-	public static AccMessage.TaskMsg.Builder buildRequest(String acc_id, long[] blockId, long[] brdcstId) {
+	public static AccMessage.TaskMsg.Builder buildMessage(String acc_id, String appId, AccMessage.MsgType type) {
 		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
-			.setType(AccMessage.MsgType.ACCREQUEST)
-			.setAccId(acc_id);
+			.setType(type);
 
-			for (long id: blockId) {
-				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-					.setPartitionId(id);
-				msg.addData(data);
-			}
-			for (long id: brdcstId) {
-				AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-					.setPartitionId(id);
-				msg.addData(data);
-			}
-		
+		if (acc_id != null)
+			msg.setAccId(acc_id);
+
+		if (appId != null)
+			msg.setAppId(appId);
+
 		return msg;
 	}
 
 	/**
 	* Create an empty message with specific type.
 	*
+	* @param appId
+	* 	Application ID given by Spark or resource manager.
 	* @param type
 	*		The message type.
 	* @see AccMessage.MsgType
 	**/
-	public static AccMessage.TaskMsg.Builder buildMessage(AccMessage.MsgType type) {
-		AccMessage.TaskMsg.Builder msg = AccMessage.TaskMsg.newBuilder()
-			.setType(type);
-
-		return msg;
+	public static AccMessage.TaskMsg.Builder buildMessage(String appId, AccMessage.MsgType type) {
+		return buildMessage(null, appId, type);
 	}
 
 	/**
@@ -164,31 +159,36 @@ public class DataTransmitter {
 	* Create and add a data block to assigned message with full information. 
 	*
 	*	@param msg The message that wanted to be added.
-	* @param id The unique ID of the data block.
-	* @param length The number of element of the data.
-	* @param item The number of item per element. 
-	* @param size The file size of either memory mapped file or HDFS file.
-	* @param offset The start position of this block in the file.
-	* @param path The file path.
+	* @param blockInfo The object contains necessary information of the block.
+	* @param isSampled Indicate if the block is sampled or not.
+	* @param maskPath The path of mask memory mapped file.
 	**/
 	public static void addData(
 		AccMessage.TaskMsg.Builder msg, 
-		long id, 
-		int length, 
-		int item, 
-		int size, 
-		int offset, 
-		String path
+		BlockInfo blockInfo,
+		boolean isSampled,
+		String maskPath
 	) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-			.setPartitionId(id)
-			.setLength(length)
-			.setSize(size)
-			.setOffset(offset)
-			.setPath(path);
+			.setPartitionId(blockInfo.id())
+			.setFileOffset(blockInfo.offset());
 
-		if (item != 1)
-			data.setNumItems(item);
+		if (blockInfo.numElt() != -1) {
+			data.setNumElements(blockInfo.numElt());
+			data.setElementSize(blockInfo.eltSize());
+			data.setElementLength(blockInfo.eltLength());
+		}
+		else
+			data.setFileSize(blockInfo.fileSize());
+
+		if (blockInfo.fileName() != null)
+			data.setFilePath(blockInfo.fileName());
+
+		if (isSampled)
+			data.setSampled(true);
+
+		if (maskPath != null)
+			data.setMaskPath(maskPath);
 
 		msg.addData(data);
 		return ;
@@ -200,13 +200,14 @@ public class DataTransmitter {
 	* broadcasting scalar variables.
 	*
 	*	@param msg The message that wanted to be added.
-	* @param id The unique ID of the data block.
 	* @param value The value of the scalar variable.
 	**/
-	public static void addScalarData(AccMessage.TaskMsg.Builder msg, long id, long value) {
+	public static void addScalarData(AccMessage.TaskMsg.Builder msg, long value) {
 		AccMessage.DataMsg.Builder data = AccMessage.DataMsg.newBuilder()
-			.setPartitionId(id)
-			.setBval(value);
+			.setNumElements(1)
+			.setElementLength(1)
+			.setElementSize(4)
+			.setScalarValue(value);
 
 		msg.addData(data);
 		return ;

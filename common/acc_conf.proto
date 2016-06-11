@@ -8,25 +8,37 @@ enum AccType {
 }
 
 message AccPlatform {
-  required AccType type = 1; 
-  optional string name = 2;
-  optional AccType cache_loc = 3 [default = CPU];
+  message KeyValue {
+    required string key = 1; 
+    required string value = 2;
+  }
+
+  optional string id = 1 [default = "cpu"]; 
+  optional string path = 2 [default = ""];
+  optional string cache_loc = 3 [default = "cpu"];
   optional int32 cache_limit = 4 [default = 16];
   optional int32 scratch_limit = 5 [default = 4]; 
-  repeated AccWorker acc = 6;
+  repeated KeyValue param = 6;
+  repeated AccWorker acc = 7;
 }
 
 message AccWorker {
-  required string id = 2;  
-  required string path = 3;
-  optional int32  speedup = 4;
-  optional string impl_name = 5;
-  optional string impl_path = 6;
-  optional string kernel_name = 7;
+  message KeyValue {
+    required string key = 1; 
+    required string value = 2;
+  }
+
+  required string id = 1;  
+  required string path = 2;
+  repeated KeyValue param = 3;
+  optional string kernel_name = 4;
+  optional string kernel_path = 5;
 }
 
 message ManagerConf {
-  optional int32 port = 1 [default = 1027];
-  optional int32 verbose = 2 [default = 3];
-  repeated AccPlatform platform = 3;
+  optional int32 app_port = 1 [default = 1027];
+  optional int32 gam_port = 2 [default = 1028];
+  optional int32 verbose = 3 [default = 0];
+  optional string local_dir = 4 [default = "/tmp"];
+  repeated AccPlatform platform = 5;
 }

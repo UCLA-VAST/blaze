@@ -1,42 +1,164 @@
-#include "Task.h"
+#include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
+#include <glog/logging.h>
+#include <stdio.h>
+
+#ifdef USEHDFS
+#include "hdfs.h"
+#endif
+
+#include "blaze/Block.h"
+#include "blaze/TaskEnv.h"
+#include "blaze/Task.h"
+#include "blaze/Platform.h"
 
 namespace blaze {
 
-#define LOG_HEADER  std::string("Task::") + \
-                    std::string(__func__) +\
-                    std::string("(): ")
+TaskEnv* Task::getEnv() { 
+  return env.get();
+}
 
-void Task::addInputBlock(int64_t partition_id, DataBlock_ptr block) {
+bool Task::isInputReady(int64_t block_id) {
+  if (input_table.find(block_id) != input_table.end() &&
+      input_table[block_id]->isReady()) 
+  {
+    return true;
+  } else {
+    return false;
+  }
+}
 
-  input_blocks.push_back(block);
+char* Task::getOutput(
+    int idx, 
+    int item_length, 
+    int num_items,
+    int data_width) 
+{
+  if (idx < output_blocks.size()) {
+    // if output already exists, return the pointer 
+    // to the existing block
+    return output_blocks[idx]->getData();
+  }
+  else {
+    // if output does not exist, create one
+    DataBlock_ptr block = env->createBlock(num_items, 
+        item_length, item_length*data_width, 0, BLAZE_OUTPUT_BLOCK);
 
-  // add the same block to a map table to provide fast access
-  input_table.insert(std::make_pair(partition_id, block));
+    output_blocks.push_back(block);
 
-  // automatically trace all the blocks,
-  // if all blocks are initialized with data, 
-  // set the task status to READY
-  if (block->isReady()) {
+    return block->getData();
+  }
+}
+
+int Task::getInputLength(int idx) { 
+  if (idx < input_blocks.size() && 
+      input_table.find(input_blocks[idx]) != input_table.end())
+  {
+    return input_table[input_blocks[idx]]->getLength(); 
+  }
+  else {
+    throw std::runtime_error("getInputLength out of bound idx");
+  }
+}
+
+
+int Task::getInputNumItems(int idx) { 
+  if (idx < input_blocks.size() &&
+      input_table.find(input_blocks[idx]) != input_table.end())
+  {
+    return input_table[input_blocks[idx]]->getNumItems() ; 
+  }
+  else {
+    throw std::runtime_error("getInputNumItems out of bound idx");
+  }
+}
+
+char* Task::getInput(int idx) {
+
+  if (idx < input_blocks.size() &&
+      input_table.find(input_blocks[idx]) != input_table.end())
+  {
+    return input_table[input_blocks[idx]]->getData();      
+  }
+  else {
+    throw std::runtime_error("getInput out of bound idx");
+  }
+}
+
+void Task::addConfig(int idx, std::string key, std::string val) {
+
+  config_table[idx][key] = val;
+}
+std::string Task::getConfig(int idx, std::string key) 
+{
+  if (config_table.find(idx) != config_table.end() &&
+      config_table[idx].find(key) != config_table[idx].end()) 
+  {
+    return config_table[idx][key];
+  } else {
+    return std::string();
+  }
+}
+
+void Task::addInputBlock(
+    int64_t partition_id, 
+    DataBlock_ptr block = NULL_DATA_BLOCK) 
+{
+  if (input_blocks.size() >= num_input) {
+    throw std::runtime_error(
+        "Inconsistancy between num_args in ACC Task"
+        " with the number of blocks in ACCREQUEST");
+  }
+  // add the block to the input list
+  input_blocks.push_back(partition_id);
+
+  if (block != NULL_DATA_BLOCK) {
+    // add the same block to a map table to provide fast access
+    input_table.insert(std::make_pair(partition_id, block));
+
+    // automatically trace all the blocks,
+    // if all blocks are initialized with data, 
+    // set the task status to READY
+    if (block->isReady()) {
+      num_ready ++;
+      if (num_ready == num_input) {
+        status = READY;
+      }
+    }
+  }
+}
+
+void Task::inputBlockReady(int64_t partition_id, DataBlock_ptr block) {
+
+  if (input_table.find(partition_id) == input_table.end()) {
+
+    // add the same block to a map table to provide fast access
+    input_table.insert(std::make_pair(partition_id, block));
+
+    // assuming the block is already ready
+    if (!block || !block->isReady()) {
+      throw std::runtime_error("Task::inputBlockReady(): block not ready");
+    }
     num_ready ++;
     if (num_ready == num_input) {
       status = READY;
     }
   }
-}
-
-DataBlock_ptr Task::getInputBlock(int64_t block_id) {
-  if (input_table.find(block_id) != input_table.end()) {
-    return input_table[block_id];
-  }
   else {
-    return NULL_DATA_BLOCK;
+    // overlay this method to set input block to a new block 
+    if (!block || !block->isReady()) {
+      throw std::runtime_error("Task::inputBlockReady(): block not ready");
+    }
+
+    input_table[partition_id] = block;
   }
 }
 
 // push one output block to consumer
 // return true if there are more blocks to output
 bool Task::getOutputBlock(DataBlock_ptr &block) {
-  
+
   if (!output_blocks.empty()) {
 
     block = output_blocks.back();
@@ -47,7 +169,6 @@ bool Task::getOutputBlock(DataBlock_ptr &block) {
     // no more output blocks means all data are consumed
     if (output_blocks.empty()) {
       status = COMMITTED;
-      return false;
     }
     return true;
   }
@@ -56,247 +177,38 @@ bool Task::getOutputBlock(DataBlock_ptr &block) {
   }
 }
 
-// update contents of block by the received block info msg
-// also check all blocks readiness
-DataBlock_ptr Task::onDataReady(const DataMsg &blockInfo) {
-
-  int64_t partition_id = blockInfo.partition_id();
-
-  if (input_table.find(partition_id) == input_table.end()) {
-    throw std::runtime_error(
-        "onDataReady(): Did not find block");
-  }
-
-  DataBlock_ptr block = input_table[partition_id];
-
-  // NOTE: two threads can check simutaneously when the block is 
-  // not ready, and both will try update the block
-  // current implmenetation guarantees that this doesn't happen 
-  // by not letting and two tasks send the same block in ACCDATA
-  if (!block->isReady()) {
-
-    if (partition_id < 0) {
-      if (blockInfo.has_length()) { // if this is a broadcast array
-
-        // NOTE: same as branch length > 0
-        int num_items = blockInfo.num_items();
-        int length = blockInfo.length();
-        int64_t size = blockInfo.size();
-        std::string path = blockInfo.path(); 
-
-        // lock block for exclusive access
-        boost::lock_guard<DataBlock> guard(*block);
-
-        block->setLength(length);
-        block->setNumItems(num_items);
-
-        // allocate memory for block
-        block->alloc(size);
-
-        // read block from memory mapped file
-        block->readFromMem(path);
-
-        // delete memory map file after read
-        boost::filesystem::wpath file(path);
-        if (boost::filesystem::exists(file)) {
-          boost::filesystem::remove(file);
-        }
-      }
-      else if (blockInfo.has_bval()) { // if this is a broadcast scalar
-
-        int64_t bval = blockInfo.bval();
-
-        // lock block for exclusive access
-        boost::lock_guard<DataBlock> guard(*block);
-
-        block->setLength(1);
-        block->setNumItems(1);
-
-        block->alloc(8);
-
-        // add the scalar as a new block
-        block->writeData((void*)&bval, 8);
-      }
-      else {
-        throw std::runtime_error(
-            "onDataReady(): Invalid broadcast data msg");
-      }
-    }
-    else {
-
-      int length = blockInfo.length();
-      int num_items = blockInfo.has_num_items() ? 
-        blockInfo.num_items() : 1;
-      int64_t size = blockInfo.size();	
-      int64_t offset = blockInfo.offset();
-      std::string path = blockInfo.path();
-
-      if (length == -1) { // read from file
-
-        //std::vector<std::string> lines;
-        char* buffer = new char[size];
-
-        if (path.compare(0, 7, "hdfs://") == 0) {
-          // read from HDFS
-
-#ifdef USE_HDFS
-          if (!getenv("HDFS_NAMENODE") ||
-              !getenv("HDFS_PORT"))
-          {
-            throw std::runtime_error(
-                "no HDFS_NAMENODE or HDFS_PORT defined");
-          }
-
-          std::string hdfs_name_node = getenv("HDFS_NAMENODE");
-          uint16_t hdfs_port = 
-            boost::lexical_cast<uint16_t>(getenv("HDFS_PORT"));
-
-          hdfsFS fs = hdfsConnect(hdfs_name_node.c_str(), hdfs_port);
-
-          if (!fs) {
-            throw std::runtime_error("Cannot connect to HDFS");
-          }
-
-          hdfsFile fin = hdfsOpenFile(fs, path.c_str(), O_RDONLY, 0, 0, 0); 
-
-          if (!fin) {
-            throw std::runtime_error("Cannot find file in HDFS");
-          }
-
-          int err = hdfsSeek(fs, fin, offset);
-          if (err != 0) {
-            throw std::runtime_error(
-                "Cannot read HDFS from the specific position");
-          }
-
-          int64_t bytes_read = hdfsRead(
-              fs, fin, (void*)buffer, size);
-
-          if (bytes_read != size) {
-            throw std::runtime_error("HDFS read error");
-          }
-
-          hdfsCloseFile(fs, fin);
-#else 
-          throw std::runtime_error("HDFS file is not supported");
-#endif
-        }
-        else {
-          // read from normal file
-          std::ifstream fin(path, std::ifstream::binary); 
-
-          if (!fin) {
-            throw std::runtime_error("Cannot find file");
-          }
-
-          // TODO: error handling
-          fin.seekg(offset);
-          fin.read(buffer, size);
-          fin.close();
-        }
-
-        std::string line_buffer(buffer);
-        delete buffer;
-
-        // buffer for all data
-        std::vector<std::pair<size_t, char*> > data_buf;
-        size_t total_bytes = 0;
-
-        // split the file by newline
-        std::istringstream sstream(line_buffer);
-        std::string line;
-
-        size_t num_bytes = 0;      
-        size_t num_elements = 0;      
-
-        while(std::getline(sstream, line)) {
-
-          char* data;
-          try {
-            data = readLine(line, num_elements, num_bytes);
-          } catch (std::runtime_error &e) {
-            throw e; 
-          }
-
-          if (num_bytes > 0) {
-            data_buf.push_back(std::make_pair(num_bytes, data));
-
-            total_bytes += num_bytes;
-
-          }
-        }
-
-        if (total_bytes > 0) {
-
-          // lock block for exclusive access
-          boost::lock_guard<DataBlock> guard(*block);
-
-          // copy data to block
-          block->alloc(total_bytes);
-
-          size_t offset = 0;
-          for (int i=0; i<data_buf.size(); i++) {
-            size_t bytes = data_buf[i].first;
-            char* data   = data_buf[i].second;
-
-            block->writeData((void*)data, bytes, offset);
-            offset += bytes;
-
-            delete data;
-          }
-
-          // the number of items is equal to the number of lines
-          block->setNumItems(data_buf.size());
-
-          // the total data length is num_elements * num_lines
-          block->setLength(num_elements*data_buf.size());
-        }
-
-      }
-      else {  // read from memory mapped file
-
-        // lock block for exclusive access
-        boost::lock_guard<DataBlock> guard(*block);
-
-        block->setLength(length);
-        block->setNumItems(num_items);
-
-        // allocate memory for block
-        block->alloc(size);
-
-        block->readFromMem(path);
-
-        // delete memory map file after read
-        boost::filesystem::wpath file(path);
-        if (boost::filesystem::exists(file)) {
-          boost::filesystem::remove(file);
-        }
-      }
-    }
-  }
-
-  return block;
-}
-
 // check if all the blocks in task's input list is ready
 bool Task::isReady() {
 
-  bool isReady = true;
-  int num_ready = 0;
-  for (std::vector<DataBlock_ptr>::iterator iter = input_blocks.begin();
-       iter != input_blocks.end();
-       iter ++)
-  {
-    if (!(*iter)->isReady()) {
-      isReady = false;
-      break;
+  if (status == READY) {
+    return true; 
+  }
+  else if (input_table.size() < num_input) {
+    return false;
+  }
+  else {
+    bool ready = true;
+    int num_ready_curr = 0;
+    for (std::map<int64_t, DataBlock_ptr>::iterator iter = input_table.begin();
+        iter != input_table.end();
+        iter ++)
+    {
+      // a block may be added but not initialized
+      if (iter->second == NULL_DATA_BLOCK || !iter->second->isReady()) {
+        ready = false;
+        break;
+      }
+      num_ready_curr++;
     }
-    num_ready++;
+    if (ready && num_ready_curr == num_input) {
+      status = READY;
+      return true;
+    }
+    else {
+      return false;
+    }
   }
-  if (isReady && num_ready == num_input) {
-    status = READY;
-  }
-  return isReady;
 }
+
 
 } // namespace

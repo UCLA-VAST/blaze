@@ -1,48 +1,83 @@
 include ../../Makefile.config
 
-PROTO_DIR=./proto
+# check all variables
+ifeq ($(BOOST_DIR),)
+$(error BOOST_DIR not set properly in Makefile.config)
+endif
+ifeq ($(PROTOBUF_DIR),)
+$(error PROTOBUF_DIR not set properly in Makefile.config)
+endif
+ifeq ($(GLOG_DIR),)
+$(error PROTOBUF_DIR not set properly in Makefile.config)
+endif
 
-PP=g++
-CC=gcc
+CFLAGS 		:= -c -fPIC -std=c++0x
 
-CFLAGS= -c -fPIC -std=c++0x -g
-COMPILE= $(CFLAGS) \
-				 -I$(PROTO_DIR) \
-				 -I$(BOOST_DIR)/include \
-				 -I$(PROTOBUF_DIR)/include \
-				 -I$(HADOOP_DIR)/include 
+INCLUDES	:= -I../include \
+		   -I$(BOOST_DIR)/include \
+		   -I$(PROTOBUF_DIR)/include \
+		   -I$(GLOG_DIR)/include \
+		   -I$(GFLAGS_DIR)/include
 
-LINK= -L$(BOOST_DIR)/lib \
-			-lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem \
-			-L$(PROTOBUF_DIR)/lib -lprotobuf \
-			-L$(HADOOP_DIR)/lib/native -lhdfs \
-			-L$(JAVA_HOME)/jre/lib/amd64/server -ljvm \
-			-lpthread -lm -ldl
+LINK		:= -L../lib -lblaze \
+		   -L$(BOOST_DIR)/lib \
+		  	-lboost_system \
+		   	-lboost_thread \
+		   	-lboost_iostreams \
+		   	-lboost_filesystem \
+		   	-lboost_regex \
+		   -L$(PROTOBUF_DIR)/lib -lprotobuf \
+		   -L$(GLOG_DIR)/lib -lglog \
+		   -L$(GFLAGS_DIR)/lib -lgflags \
+		   -lpthread -lm -Wl,--no-as-needed -ldl
 
-DEPS= Comm.o \
-			Context.o \
-			Block.o \
-			BlockManager.o \
-			QueueManager.o \
-			Task.o \
-			TaskManager.o \
-			Task_msg.o \
-			Acc_conf.o \
+ifeq ($(NDEBUG),)
+CFLAGS   	:= $(CFLAGS) -g
+else
+CFLAGS   	:= $(CFLAGS) -O2 -DNDEBUG
+endif
 
-all: ../bin/acc_manager
+COMPILE = $(CFLAGS) $(INCLUDES)
 
-../bin/acc_manager: $(DEPS) main.o
-	$(PP) -o $@ $(DEPS) main.o $(LINK) 
+DEPS		:= AccAgent.o \
+		   Admin.o \
+		   Block.o \
+		   Client.o \
+		   Common.o \
+		   Platform.o \
+		   Task.o \
+		   TaskEnv.o \
+		   BlockManager.o \
+		   CommManager.o \
+		   AppCommManager.o \
+		   GAMCommManager.o \
+		   PlatformManager.o \
+		   TaskManager.o \
+		   QueueManager.o \
+		   acc_conf.pb.o \
+		   task.pb.o \
+		   msgGamNam.pb.o
 
-Task_msg.o: $(PROTO_DIR)/task.pb.cc
+all: 	../bin/acc_manager \
+	../bin/acc_admin \
+	../lib/libblaze.so
+
+../lib/libblaze.so: $(DEPS)
+	$(PP) -shared -o $@ $(DEPS)
+
+../bin/acc_manager: ../lib/libblaze.so main.o $(LMDEPS)
+	$(PP) -o $@ main.o $(LMDEPS) $(LINK)
+
+../bin/acc_admin: ../lib/libblaze.so admin.o $(LMDEPS)
+	$(PP) -o $@ admin.o $(LMDEPS) $(LINK)
+
+%.o: proto/%.cc 
 	$(PP) $(COMPILE) $< -o $@ 
 
-Acc_conf.o: $(PROTO_DIR)/acc_conf.pb.cc
-	$(PP) $(COMPILE) $< -o $@ 
-
-%.o: %.cpp *.h
+%.o: %.cpp
 	$(PP) $(COMPILE) $< -o $@
 
 clean:
 	rm -rf *.o
+	rm -rf ../lib/libblaze.so
 	rm -rf ../bin/acc_manager

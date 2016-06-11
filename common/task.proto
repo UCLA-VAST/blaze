@@ -11,22 +11,41 @@ enum MsgType {
   ACCDATA = 4;
   ACCFAILURE = 5;
   ACCBROADCAST = 6;
+	ACCTERM = 7;
+  ACCREGISTER = 8;
+  ACCDELETE = 9;
 }
 
 message DataMsg {
   optional int64 partition_id = 1;
-  optional int32 length = 2;
-  optional int32 num_items = 3;
-  optional int64 size = 4;
-  optional string path = 5;
-  optional int64 offset = 6;
-  optional bool cached = 7;
-  optional int64 bval = 8;
+  optional bool cached = 2;
+  optional bool sampled = 3;
+  optional int32 element_length = 4;
+  optional int32 element_size = 5;
+  optional int32 num_elements = 6;
+  optional int64 scalar_value = 7;
+  optional string file_path = 8;
+  optional int64 file_size = 9;
+  optional int64 file_offset = 10;
+  optional string mask_path = 11;
 }
 
 message TaskMsg {
   required MsgType type = 1;
-  optional string acc_id = 2; 
-  optional int32 task_id = 3;
+  optional string app_id = 2;
+  optional string acc_id = 3; 
   repeated DataMsg data = 4;
+  optional AccMsg acc = 5;
+  optional string msg = 6;
+}
+
+message AccMsg {
+  message KeyValue {
+    required string key = 1; 
+    required bytes value = 2;
+  }
+  required string acc_id = 1;
+  required string platform_id = 2;
+  optional bytes task_impl = 3;
+  repeated KeyValue param = 4;
 }

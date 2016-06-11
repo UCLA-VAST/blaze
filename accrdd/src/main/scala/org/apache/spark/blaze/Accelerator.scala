@@ -43,7 +43,7 @@ trait Accelerator[T, U] extends java.io.Serializable {
     * @return The corresponding variable within Some. Return None if 
     *         the index is out of range.
   **/
-  def getArg(idx: Int): Option[BlazeBroadcast[_]]
+  def getArg(idx: Int): Option[_]
 
   /** Report the total number of reference (broadcast) variables.
     * @return The total number of reference variables.
@@ -56,5 +56,7 @@ trait Accelerator[T, U] extends java.io.Serializable {
     * @param in An element of the input.
     * @return A corresponding element of the output.
   **/
-  def call(in: T): U
+  def call(in: T): U = in.asInstanceOf[U]
+
+  def call(in: Iterator[T]): Iterator[U] = in.asInstanceOf[Iterator[U]]
 }
