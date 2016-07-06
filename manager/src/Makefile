@@ -76,9 +76,9 @@ package:
 	cp ../bin/acc_manager ../../package/nam/bin/nam_daemon
 	cp ../bin/acc_admin ../../package/nam/bin/admin_bin
 	cp ../lib/libblaze.so ../../package/nam/lib
-	cp Common.h ../../package/include
-	cp Client.h ../../package/include
-	cp TaskEnv.h ../../package/include
+	cp ../include/blaze/Common.h ../../package/include
+	cp ../include/blaze/Client.h ../../package/include
+	cp ../include/blaze/TaskEnv.h ../../package/include
 
 ../lib/libblaze.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS)
