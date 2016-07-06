@@ -6,8 +6,8 @@
 
 #include <glog/logging.h>
 
-#include "Task.h"
-#include "TaskManager.h"
+#include "blaze/Task.h"
+#include "blaze/TaskManager.h"
 #include "OpenCLEnv.h"
 #include "OpenCLBlock.h"
 #include "OpenCLPlatform.h"

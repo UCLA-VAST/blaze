@@ -1,9 +1,9 @@
 #ifndef OPENCL_QUEUE_MANAGER_H
 #define OPENCL_QUEUE_MANAGER_H
 
+#include "blaze/QueueManager.h"
+#include "blaze/TaskQueue.h"
 #include "OpenCLCommon.h"
-#include "QueueManager.h"
-#include "TaskQueue.h"
 
 namespace blaze {
 

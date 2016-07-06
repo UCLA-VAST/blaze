@@ -1,7 +1,7 @@
 #define LOG_HEADER "OpenCLPlatform"
 #include <glog/logging.h>
 
-#include "BlockManager.h"
+#include "blaze/BlockManager.h"
 #include "OpenCLEnv.h"
 #include "OpenCLBlock.h"
 #include "OpenCLPlatform.h"

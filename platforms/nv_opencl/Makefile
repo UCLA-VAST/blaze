@@ -23,14 +23,14 @@ CFLAGS := $(CFLAGS) -O2 -DNDEBUG
 endif
 
 COMPILE= $(CFLAGS) \
-				 -I$(MANAGER_DIR)/src \
+				 -I$(MANAGER_DIR)/include \
+				 -I$(CUDA_DIR)/include \
 				 -I$(BOOST_DIR)/include \
 				 -I$(PROTOBUF_DIR)/include \
-				 -I$(GLOG_DIR)/include \
-				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2 \
+				 -I$(GLOG_DIR)/include
 				 
 LINK= -L$(MANAGER_DIR)/lib -lblaze \
-			-L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL \
+			-L$(CUDA_DIR)/lib64 -lOpenCL \
 			-lpthread -lm -ldl
 
 DEPS= OpenCLPlatform.o \

@@ -8,8 +8,8 @@
 
 #include <CL/opencl.h>
 
+#include "blaze/Platform.h"
 #include "OpenCLCommon.h"
-#include "Platform.h"
 
 namespace blaze {
 
