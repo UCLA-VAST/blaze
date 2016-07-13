@@ -1,5 +1,5 @@
 #include "TestCommon.h"
-#include "Client.h"
+#include "blaze/Client.h"
 
 namespace blaze {
 

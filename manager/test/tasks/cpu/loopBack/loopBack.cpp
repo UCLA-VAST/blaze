@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <sstream>
 
-#include "Task.h" 
+#include "blaze/Task.h" 
 using namespace blaze;
 
 class LB : public Task {

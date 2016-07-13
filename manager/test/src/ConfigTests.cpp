@@ -3,10 +3,10 @@
           friend class ConfigTests_CheckCommHandler_Test; 
 
 #include "TestCommon.h"
-#include "Client.h"
-#include "CommManager.h"
-#include "PlatformManager.h"
-#include "proto/acc_conf.pb.h"
+#include "blaze/Client.h"
+#include "blaze/CommManager.h"
+#include "blaze/PlatformManager.h"
+#include "blaze/proto/acc_conf.pb.h"
 
 namespace blaze {
 

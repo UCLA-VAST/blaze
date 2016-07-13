@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "Task.h" 
+#include "blaze/Task.h" 
 
 using namespace blaze;
 

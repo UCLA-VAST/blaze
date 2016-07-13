@@ -4,9 +4,9 @@
           friend class ClientTests_CheckPrepareRequest_Test; 
 
 #include "TestCommon.h"
-#include "Client.h"
-#include "CommManager.h"
-#include "PlatformManager.h"
+#include "blaze/Client.h"
+#include "blaze/CommManager.h"
+#include "blaze/PlatformManager.h"
 
 namespace blaze {
 
