@@ -165,10 +165,10 @@ bool Task::getOutputBlock(DataBlock_ptr &block) {
 
   if (!output_blocks.empty()) {
 
-    block = output_blocks.back();
+    block = output_blocks.front();
 
     // assuming the blocks are controlled by consumer afterwards
-    output_blocks.pop_back();
+    output_blocks.erase(output_blocks.begin(), output_blocks.begin()+1);
 
     // no more output blocks means all data are consumed
     if (output_blocks.empty()) {
