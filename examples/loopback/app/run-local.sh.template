@@ -1,0 +1,7 @@
+#!/bin/bash
+
+SPARK_HOME=
+$SPARK_HOME/spark-submit --class LoopBack \
+	--master local[*] \
+	target/LoopBack-0.0.0.jar $@
+

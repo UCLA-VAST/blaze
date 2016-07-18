@@ -1,0 +1,13 @@
+verbose : 0
+platform : {
+  id : "altr_opencl"
+  path : "[FCSROOT]/nam/lib/altr_opencl.so"
+  cache_limit: 3000
+  scratch_limit: 1000
+	acc : {
+		id : "Memcpy"
+		path : "[PWD]/Memcpy.so"
+    kernel_path : "[PWD]/kernel_top.aocx"
+    kernel_name : "top" 
+	}
+}
