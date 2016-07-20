@@ -31,6 +31,7 @@ LINK		:= -L../lib -lblaze \
 		   	-lboost_regex \
 		   -L$(PROTOBUF_DIR)/lib -lprotobuf \
 		   -L$(GLOG_DIR)/lib -lglog \
+		   -L$(GFLAGS_DIR)/lib -lgflags \
 		   -lpthread -lm -Wl,--no-as-needed -ldl
 
 ifeq ($(RELEASE),)

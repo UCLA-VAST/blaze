@@ -1,0 +1,13 @@
+verbose : 0
+platform : {
+  id : "xlnx_opencl"
+  path : "platforms/altr_opencl/altr_opencl.so"
+  cache_limit: 3000
+  scratch_limit: 1000
+	acc : {
+		id : "LoopBack"
+		path : "memcpy.so"
+    kernel_path : "kernel_top.aocx"
+    kernel_name : "top" 
+	}
+}
