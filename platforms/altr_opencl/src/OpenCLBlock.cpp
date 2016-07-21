@@ -1,14 +1,13 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdexcept>
-
 #include <boost/smart_ptr.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
+#include <stdexcept>
+#include <stdio.h>
+#include <string.h>
 
 #define LOG_HEADER  "OpenCLBlock"
 #include <glog/logging.h>
 
-#include "OpenCLBlock.h"
+#include "blaze/altr_opencl/OpenCLBlock.h"
 
 namespace blaze {
 
@@ -52,7 +51,8 @@ void OpenCLBlock::readFromMem(std::string path) {
 
     // first copy data from shared memory to a temp buffer 
     // NOTE: Altera OpenCL requires host ptr to be aligned to 64-byte
-    char* temp_data = (char*)aligned_alloc(512, size);
+    char* temp_data;
+    posix_memalign((void**)&temp_data, 512, size);
     char* mem_ptr = (char*)fin.data();
 
     if (aligned) {
@@ -105,7 +105,8 @@ void OpenCLBlock::writeToMem(std::string path) {
 
   // first copy data from FPGA to a temp buffer, will be serialized among all tasks
   // NOTE: Altera OpenCL requires host ptr to be aligned to 64-byte
-  char* temp_data = (char*)aligned_alloc(512, size);
+  char* temp_data;
+  posix_memalign((void**)&temp_data, 512, data_size);
 
   readData(temp_data, data_size);
 

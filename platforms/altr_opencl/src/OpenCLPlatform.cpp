@@ -1,11 +1,11 @@
 #define LOG_HEADER "OpenCLPlatform"
 #include <glog/logging.h>
 
+#include "blaze/altr_opencl/OpenCLEnv.h"
+#include "blaze/altr_opencl/OpenCLPlatform.h"
+#include "blaze/altr_opencl/OpenCLQueueManager.h"
 #include "blaze/BlockManager.h"
 #include "blaze/Platform.h"
-#include "OpenCLEnv.h"
-#include "OpenCLPlatform.h"
-#include "OpenCLQueueManager.h"
 
 #define MAX_PLATFORMS 32
 

@@ -28,9 +28,8 @@ else
 CFLAGS 		:= $(CFLAGS) -O2 -DNDEBUG
 endif
 
-COMPILE		:= -c $(CFLAGS) \
+COMPILE		:= -c $(CFLAGS) -I./include \
 		   -I$(MANAGER_DIR)/include \
-		   -I$(MANAGER_DIR)/src \
 		   -I$(BOOST_DIR)/include \
 		   -I$(PROTOBUF_DIR)/include \
 		   -I$(GLOG_DIR)/include \
@@ -40,24 +39,34 @@ LINK		:= -L$(MANAGER_DIR)/lib -lblaze \
 		   -L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL \
 		   -lpthread -lm -ldl
 
-DEPS		:= OpenCLEnv.o \
-		   OpenCLPlatform.o \
-		   OpenCLBlock.o \
-		   OpenCLQueueManager.o
+DEPS		:= src/OpenCLEnv.o \
+		   src/OpenCLPlatform.o \
+		   src/OpenCLBlock.o \
+		   src/OpenCLQueueManager.o
 
 DST		:= xlnx_opencl.so
 
+PKG_DIR		:= ../../package
+
+INC_LIST	:= ./include/blaze/xlnx_opencl/OpenCLEnv.h \
+		   ./include/blaze/xlnx_opencl/OpenCLCommon.h 
 all: $(DST)
 
 package: 
-	cp $(DST) ../../package/nam/lib
+	for file in $(INC_LIST); do \
+		cp $$file $(PKG_DIR)/include/blaze/xlnx_opencl; \
+	done
+	cp $(DST) $(PKG_DIR)/nam/lib
+
+release:
+	$(MAKE) NDEBUG=1
 
 $(DST): $(DEPS)
 	$(PP) -shared -o $@ $(DEPS) $(LINK) 
 
-%.o: %.cpp *.h Makefile
+src/%.o: src/%.cpp include/blaze/xlnx_opencl/*.h
 	$(PP) $(COMPILE) $< -o $@
 
 clean:
-	rm -rf *.o
+	rm -rf src/*.o
 	rm -rf $(DST)

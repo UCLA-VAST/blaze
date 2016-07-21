@@ -7,8 +7,8 @@
 
 #include "blaze/Task.h"
 #include "blaze/TaskManager.h"
-#include "OpenCLPlatform.h"
-#include "OpenCLQueueManager.h"
+#include "blaze/altr_opencl/OpenCLPlatform.h"
+#include "blaze/altr_opencl/OpenCLQueueManager.h"
 
 namespace blaze {
 

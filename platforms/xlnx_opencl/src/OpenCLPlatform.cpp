@@ -3,9 +3,9 @@
 
 #include "blaze/BlockManager.h"
 #include "blaze/Platform.h"
-#include "OpenCLEnv.h"
-#include "OpenCLPlatform.h"
-#include "OpenCLQueueManager.h"
+#include "blaze/xlnx_opencl/OpenCLEnv.h"
+#include "blaze/xlnx_opencl/OpenCLPlatform.h"
+#include "blaze/xlnx_opencl/OpenCLQueueManager.h"
 
 #define MAX_PLATFORMS 32
 

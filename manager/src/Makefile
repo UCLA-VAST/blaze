@@ -84,6 +84,7 @@ package:
 	cp ../include/blaze/Common.h ../../package/include/blaze
 	cp ../include/blaze/Client.h ../../package/include/blaze
 	cp ../include/blaze/TaskEnv.h ../../package/include/blaze
+	cp ../include/blaze/proto/task.pb.h ../../package/include/blaze/proto
 
 release:
 	$(MAKE) RELEASE=1

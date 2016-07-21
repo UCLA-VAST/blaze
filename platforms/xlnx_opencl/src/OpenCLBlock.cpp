@@ -1,14 +1,13 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdexcept>
-
 #include <boost/smart_ptr.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
+#include <stdexcept>
+#include <stdio.h>
+#include <string.h>
 
 #define LOG_HEADER  "OpenCLBlock"
 #include <glog/logging.h>
 
-#include "OpenCLBlock.h"
+#include "blaze/xlnx_opencl/OpenCLBlock.h"
 
 namespace blaze {
 

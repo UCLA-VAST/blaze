@@ -1,5 +1,5 @@
-#include "OpenCLEnv.h" 
-#include "OpenCLBlock.h"
+#include "blaze/xlnx_opencl/OpenCLBlock.h"
+#include "blaze/xlnx_opencl/OpenCLEnv.h" 
 
 namespace blaze {
   

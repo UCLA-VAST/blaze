@@ -2,10 +2,10 @@
 #include <glog/logging.h>
 
 #include "blaze/BlockManager.h"
-#include "OpenCLEnv.h"
-#include "OpenCLBlock.h"
-#include "OpenCLPlatform.h"
-#include "OpenCLQueueManager.h"
+#include "blaze/nv_opencl/OpenCLBlock.h"
+#include "blaze/nv_opencl/OpenCLEnv.h"
+#include "blaze/nv_opencl/OpenCLPlatform.h"
+#include "blaze/nv_opencl/OpenCLQueueManager.h"
 
 #define MAX_PLATFORMS 32
 
