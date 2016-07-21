@@ -11,10 +11,6 @@ ifeq ($(GLOG_DIR),)
 $(error PROTOBUF_DIR not set properly in Makefile.config)
 endif
 
-# add support for flex license manage
-FLMDIR 		:= /curr/peichen/work/test/license/production/falcon/build
-FLMLIB 		:= -llmgr_trl -lcrvs -lsb -lnoact -llmgr_dongle_stub
-
 CFLAGS 		:= -c -fPIC -std=c++0x
 
 INCLUDES	:= -I../include \
@@ -41,6 +37,13 @@ else
 CFLAGS   	:= $(CFLAGS) -O2 -DNDEBUG
 endif
 else
+# check FLMDIR
+ifeq ($(FLMDIR),)
+$(error FLMDIR not set properly in Makefile.config)
+endif
+# add support for flex license manage
+FLMLIB 		:= -llmgr_trl -lcrvs -lsb -lnoact -llmgr_dongle_stub
+
 CFLAGS   	:= $(CFLAGS) -O2 -DNDEBUG -DUSELICENSE
 INCLUDES 	:= $(INCLUDES) -I$(FLMDIR)
 LINK 	 	:= $(LINK) -L$(FLMDIR) $(FLMLIB) 
@@ -77,9 +80,13 @@ package:
 	cp ../bin/acc_manager ../../package/nam/bin/nam_daemon
 	cp ../bin/acc_admin ../../package/nam/bin/admin_bin
 	cp ../lib/libblaze.so ../../package/nam/lib
-	cp ../include/blaze/Common.h ../../package/include
-	cp ../include/blaze/Client.h ../../package/include
-	cp ../include/blaze/TaskEnv.h ../../package/include
+	cp ../include/blaze/AccAgent.h ../../package/include/blaze
+	cp ../include/blaze/Common.h ../../package/include/blaze
+	cp ../include/blaze/Client.h ../../package/include/blaze
+	cp ../include/blaze/TaskEnv.h ../../package/include/blaze
+
+release:
+	$(MAKE) RELEASE=1
 
 ../lib/libblaze.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS)
