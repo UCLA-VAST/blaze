@@ -6,7 +6,6 @@
 #include <boost/iostreams/device/mapped_file.hpp>
 
 #define LOG_HEADER "Block"
-
 #include <glog/logging.h>
 
 #include "blaze/Block.h"

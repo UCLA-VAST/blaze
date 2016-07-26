@@ -1,5 +1,5 @@
 create_solution -name bit -dir . -force
-add_device -vbnv xilinx:adm-pcie-ku3:1ddr:1.1
+add_device -vbnv xilinx:adm-pcie-ku3:2ddr:2.1
 
 # Kernel Definition
 create_kernel top -type c

@@ -16,21 +16,22 @@ ifeq ("$(wildcard $(PP))","")
 $(error XILINX_OPENCL_DIR seems to be incorrect)
 endif
 
-CFLAGS= -shared -fPIC -std=c++0x -m64
-COMPILE= $(CFLAGS) \
-				 -I$(FCS_RT_ROOT)/include \
-				 -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
-				 -I$(FCS_RT_ROOT)/extern/googletools/include \
-				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
-LINK= -L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL
+CFLAGS	:= -shared -fPIC -std=c++0x -m64
+COMPILE	:= $(CFLAGS) \
+	   -I$(FCS_RT_ROOT)/include \
+	   -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
+	   -I$(FCS_RT_ROOT)/extern/googletools/include \
+	   -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
 
-ACC = Memcpy
+LINK	:= -L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL
 
-OBJS= $(addsuffix .so, $(ACC))
+ACC 	:= Memcpy
+
+OBJS	:= $(addsuffix .so, $(ACC))
 
 all: $(OBJS) bitstream.xclbin
 
-%.so: %.cpp Makefile
+%.so: %.cpp
 	$(PP) $(COMPILE) $(LINK) $< -o $@
 
 bitstream.xclbin: memcpy_kernel.cpp

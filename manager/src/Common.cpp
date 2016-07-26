@@ -8,9 +8,11 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <cstdint>
-#include <glog/logging.h>
 #include <string>
 #include <stdexcept>
+
+#define LOG_HEADER "Common"
+#include <glog/logging.h>
 
 #include "blaze/Common.h"
 

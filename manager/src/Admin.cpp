@@ -1,3 +1,6 @@
+#define LOG_HEADER "Admin"
+#include <glog/logging.h>
+
 #include "blaze/Admin.h"
 
 namespace blaze {

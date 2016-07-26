@@ -7,8 +7,8 @@
 #include <vector>
 #include <sstream>
 
-#include "Task.h" 
-#include "xlnx_ocl/OpenCLEnv.h" 
+#include "blaze/Task.h" 
+#include "blaze/xlnx_opencl/OpenCLEnv.h" 
 
 using namespace blaze;
 

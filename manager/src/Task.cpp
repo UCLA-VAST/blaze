@@ -1,11 +1,9 @@
-#include <stdio.h>
-
 #include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
+#include <stdio.h>
 
 #define LOG_HEADER "Task"
-
 #include <glog/logging.h>
 
 #ifdef USEHDFS

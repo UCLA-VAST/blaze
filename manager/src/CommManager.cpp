@@ -1,13 +1,12 @@
-#include <stdio.h>
-#include <time.h>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <fcntl.h>   
+#include <fstream>
+#include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <fstream>
+#include <time.h>
 
 #define LOG_HEADER "CommManager"
 #include <glog/logging.h>

@@ -1,19 +1,18 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <arpa/inet.h>
 #include <fcntl.h>
-#include <sys/types.h>
+#include <fstream>
 #include <ifaddrs.h>
 #include <netinet/in.h> 
-#include <string.h> 
-#include <arpa/inet.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <string>
-#include <fstream>
+#include <string.h> 
+#include <sys/types.h>
 
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #define LOG_HEADER "main"
-
 #include <glog/logging.h>
 
 // use flexlm

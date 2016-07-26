@@ -1,8 +1,7 @@
+#include <boost/regex.hpp>
+#include <dlfcn.h>
 #include <fstream>
 #include <stdexcept>
-#include <dlfcn.h>
-
-#include <boost/regex.hpp>
 
 #define LOG_HEADER "PlatformManager"
 #include <glog/logging.h>

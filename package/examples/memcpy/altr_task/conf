@@ -7,7 +7,13 @@ platform : {
 	acc : {
 		id : "Memcpy"
 		path : "[PWD]/Memcpy.so"
-    kernel_path : "[PWD]/kernel_top.aocx"
-    kernel_name : "top" 
+    param : {
+      key : "program_path"
+      value : "[PWD]/kernel_top.aocx"
+    }
+    param : {
+      key : "kernel_name" 
+      value : "__merlinkernel_kernel_0" 
+    }
 	}
 }

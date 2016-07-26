@@ -1,7 +1,7 @@
 #define LOG_HEADER "main"
 #include <glog/logging.h>
 
-#include  "Client.h"
+#include  "blaze/Client.h"
 
 using namespace blaze;
 

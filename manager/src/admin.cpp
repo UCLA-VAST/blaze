@@ -3,7 +3,8 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
-#define LOG_HEADER "admin"
+#define LOG_HEADER "Admin"
+#include <glog/logging.h>
 
 // use flexlm
 #ifdef USELICENSE

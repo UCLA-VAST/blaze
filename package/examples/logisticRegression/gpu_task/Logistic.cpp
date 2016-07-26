@@ -1,8 +1,8 @@
 #include <stdexcept>
 #include <string>
 
-#include "Task.h" 
-#include "nv_ocl/OpenCLEnv.h" 
+#include "blaze/Task.h" 
+#include "blaze/nv_opencl/OpenCLEnv.h" 
 
 #define GROUP_SIZE 64
 #define GROUP_NUM  256

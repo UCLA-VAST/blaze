@@ -1,3 +1,5 @@
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
 __kernel
 void reduction(__local double* partial_sums) {
   int tid = get_local_id(0);

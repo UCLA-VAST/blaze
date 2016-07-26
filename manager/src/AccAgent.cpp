@@ -1,10 +1,12 @@
 #include <boost/filesystem.hpp>
 #include <fstream>
-#include <glog/logging.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/text_format.h>
 #include <stdio.h>
+
+#define LOG_HEADER "AccAgent"
+#include <glog/logging.h>
 
 #include "blaze/AccAgent.h"
 #include "blaze/Block.h"

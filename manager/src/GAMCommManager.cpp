@@ -1,15 +1,13 @@
-#include <stdio.h>
-#include <time.h>
+#include <algorithm>
 #include <fcntl.h>   
+#include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-
-#include <algorithm>
+#include <time.h>
 #include <vector>
 
 #define LOG_HEADER "GAMCommManager"
-
 #include <glog/logging.h>
 
 #include "blaze/CommManager.h"

@@ -12,22 +12,22 @@ ifeq ("$(wildcard $(PP))","")
 $(error XILINX_OPENCL_DIR is not properly defined)
 endif
 
-CFLAGS= -shared -fPIC -std=c++0x -m64 -g 
-COMPILE= $(CFLAGS) \
-				 -I$(FCS_RT_ROOT)/include \
-				 -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
-				 -I$(FCS_RT_ROOT)/extern/googletools/include \
-				 -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
+CFLAGS	:= -shared -fPIC -std=c++0x -m64 -g 
+COMPILE	:= $(CFLAGS) \
+	   -I$(FCS_RT_ROOT)/include \
+	   -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
+	   -I$(FCS_RT_ROOT)/extern/googletools/include \
+	   -I$(XILINX_OPENCL_DIR)/runtime/include/1_2
 
-LINK= -L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL
+LINK	:= -L$(XILINX_OPENCL_DIR)/runtime/lib/x86_64 -lOpenCL
 
-ACC = LogisticGradientWithLoss
+ACC 	:= LogisticGradientWithLoss
 
-OBJS= $(addsuffix .so, $(ACC))
+OBJS	:= $(addsuffix .so, $(ACC))
 
 all: $(OBJS)
 
-%.so: %.cpp Makefile
+%.so: %.cpp
 	$(PP) $(COMPILE) $(LINK) $< -o $@
 
 clean:

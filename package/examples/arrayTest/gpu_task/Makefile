@@ -8,24 +8,24 @@ ifeq ("$(wildcard $(FCS_RT_ROOT)/nam/bin/nam_daemon)","")
 $(error FCS_RT_ROOT seems incorrect, please set it to the root directory of FCS_RUNTIME)
 endif
 
-CUDA_DIR=/usr/local/cuda
+CUDA_DIR	:=/usr/local/cuda
 
-CFLAGS= -shared -fPIC -std=c++0x -m64
-COMPILE= $(CFLAGS) \
-				 -I$(FCS_RT_ROOT)/include \
-				 -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
-				 -I$(FCS_RT_ROOT)/extern/googletools/include \
-				 -I$(CUDA_DIR)/include
+CFLAGS		:= -shared -fPIC -std=c++0x -m64
+COMPILE		:= $(CFLAGS) \
+						 -I$(FCS_RT_ROOT)/include \
+						 -I$(FCS_RT_ROOT)/extern/boost_1_55_0/include \
+						 -I$(FCS_RT_ROOT)/extern/googletools/include \
+						 -I$(CUDA_DIR)/include
 
-LINK=-L$(CUDA_DIR)/lib64 -lOpenCL
+LINK			:= -L$(CUDA_DIR)/lib64 -lOpenCL
 
-ACC = ArrayTest
+ACC 			:= ArrayTest
 
-OBJS= $(addsuffix .so, $(ACC))
+OBJS			:= $(addsuffix .so, $(ACC))
 
 all: $(OBJS)
 
-%.so: %.cpp Makefile
+%.so: %.cpp
 	$(PP) $(COMPILE) $(LINK) $< -o $@
 
 clean:
