@@ -159,10 +159,10 @@ int main(int argc, char** argv) {
                      << ip_addr << ", because: " << e.what();
       }
     }
-    if (comm_pool.empty()) {
-      LOG(ERROR) << "Failed to start communication on any interface, exiting.";
-      return 1;
-    }
+  }
+  if (comm_pool.empty()) {
+    LOG(ERROR) << "Failed to start communication on any interface, exiting.";
+    return 1;
   }
 
   while (1) {
