@@ -30,24 +30,9 @@ LINK		:= -L../lib -lblaze \
 		   -lpthread -lm -Wl,--no-as-needed -ldl
 
 ifeq ($(RELEASE),)
-ifeq ($(NDEBUG),)
 CFLAGS   	:= $(CFLAGS) -g
 else
 CFLAGS   	:= $(CFLAGS) -O2 -DNDEBUG
-endif
-else
-# check FLMDIR
-ifeq ($(FLMDIR),)
-$(error FLMDIR not set properly in Makefile.config)
-endif
-# add support for flex license manage
-FLMLIB 		:= -llmgr_trl -lcrvs -lsb -lnoact -llmgr_dongle_stub
-
-CFLAGS   	:= $(CFLAGS) -O2 -DNDEBUG -DUSELICENSE
-INCLUDES 	:= $(INCLUDES) -I$(FLMDIR)
-LINK 	 	:= $(LINK) -L$(FLMDIR) $(FLMLIB) 
-LMDEPS 	 	:= $(FLMDIR)/license.o \
-		   $(FLMDIR)/lm_new.o 
 endif
 
 COMPILE = $(CFLAGS) $(INCLUDES)
@@ -74,16 +59,6 @@ DEPS		:= AccAgent.o \
 all: 	../bin/acc_manager \
 	../bin/acc_admin \
 	../lib/libblaze.so
-
-package: 
-	cp ../bin/acc_manager ../../package/nam/bin/nam_daemon
-	cp ../bin/acc_admin ../../package/nam/bin/admin_bin
-	cp ../lib/libblaze.so ../../package/nam/lib
-	cp ../include/blaze/AccAgent.h ../../package/include/blaze
-	cp ../include/blaze/Common.h ../../package/include/blaze
-	cp ../include/blaze/Client.h ../../package/include/blaze
-	cp ../include/blaze/TaskEnv.h ../../package/include/blaze
-	cp ../include/blaze/proto/task.pb.h ../../package/include/blaze/proto
 
 release:
 	$(MAKE) RELEASE=1
