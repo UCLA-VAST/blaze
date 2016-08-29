@@ -17,18 +17,20 @@ CC=gcc
 AR=ar
 
 CFLAGS = -c -fPIC -std=c++0x -g
-COMPILE := $(CFLAGS) \
-				 	 -I$(MANAGER_DIR)/src \
-				 	 -I$(BOOST_DIR)/include \
-				 	 -I$(PROTOBUF_DIR)/include \
-				 	 -I$(GLOG_DIR)/include
+COMPILE 	:= $(CFLAGS) \
+		   -I$(MANAGER_DIR)/include \
+		   -I$(BOOST_DIR)/include \
+		   -I$(PROTOBUF_DIR)/include \
+		   -I$(GLOG_DIR)/include \
+		   -I$(GFLAGS_DIR)/include
 
 LINK		:= -L$(MANAGER_DIR)/lib -lblaze \
-					 -L$(BOOST_DIR)/lib \
-					 -lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex \
-					 -L$(PROTOBUF_DIR)/lib -lprotobuf \
-					 -L$(GLOG_DIR)/lib -lglog \
-					 -lpthread -lm -ldl
+		   -L$(BOOST_DIR)/lib \
+		   -lboost_system -lboost_thread -lboost_iostreams -lboost_filesystem -lboost_regex \
+		   -L$(PROTOBUF_DIR)/lib -lprotobuf \
+		   -L$(GLOG_DIR)/lib -lglog \
+		   -L$(GFLAGS_DIR)/lib -lgflags \
+		   -lpthread -lm -ldl
 
 all: map-bin reduce-bin
 

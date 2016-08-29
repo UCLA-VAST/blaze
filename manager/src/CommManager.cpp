@@ -2,6 +2,13 @@
 #include <boost/filesystem/fstream.hpp>
 #include <fcntl.h>   
 #include <fstream>
+#include <stdio.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <time.h>
+
+#define LOG_HEADER "CommManager"
 #include <glog/logging.h>
 #include <stdio.h>
 #include <sys/mman.h>

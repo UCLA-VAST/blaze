@@ -1,7 +1,7 @@
 #include <cstdint>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <glog/logging.h>
+#include <cstdint>
 #include <string>
 #include <stdexcept>
 #include <stdio.h>
@@ -10,6 +10,9 @@
 #include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
+
+#define LOG_HEADER "Common"
+#include <glog/logging.h>
 
 #include "blaze/Common.h"
 

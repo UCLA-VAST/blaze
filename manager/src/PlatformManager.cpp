@@ -1,6 +1,9 @@
 #include <boost/regex.hpp>
 #include <dlfcn.h>
 #include <fstream>
+#include <stdexcept>
+
+#define LOG_HEADER "PlatformManager"
 #include <glog/logging.h>
 #include <stdexcept>
 

@@ -1,16 +1,20 @@
 #include <arpa/inet.h>
+#include <boost/system/error_code.hpp>
 #include <fcntl.h>
 #include <fstream>
-#include <google/protobuf/text_format.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <glog/logging.h>
 #include <ifaddrs.h>
 #include <netinet/in.h> 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h> 
 #include <string>
+#include <string.h> 
 #include <sys/types.h>
+
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+
+#define LOG_HEADER "main"
+#include <glog/logging.h>
 
 #include "blaze/CommManager.h"
 #include "blaze/PlatformManager.h"
@@ -97,30 +101,39 @@ int main(int argc, char** argv) {
 
       std::string ip_addr(addressBuffer);
 
-      // create communicator for GAM
-      boost::shared_ptr<CommManager> comm_gam( new GAMCommManager(
-            &platform_manager, 
-            ip_addr, gam_port)); 
+      try {
+        // create communicator for GAM
+        boost::shared_ptr<CommManager> comm_gam( new GAMCommManager(
+              &platform_manager, 
+              ip_addr, gam_port)); 
 
-      // create communicator for applications
-      // it will start listening for new connections automatically
-      boost::shared_ptr<CommManager> comm( new AppCommManager(
-            &platform_manager, 
-            ip_addr, app_port));
+        // create communicator for applications
+        // it will start listening for new connections automatically
+        boost::shared_ptr<CommManager> comm( new AppCommManager(
+              &platform_manager, 
+              ip_addr, app_port));
 
-      LOG(INFO) << "Start listening " << ip_addr << " on port " <<
-        app_port << " and " << gam_port;
+        LOG(INFO) << "Start listening " << ip_addr << " on port " <<
+          app_port << " and " << gam_port;
 
-      // push the communicator pointer to pool to avoid object
-      // being destroyed out of context
-      comm_pool.push_back(comm);
-      comm_pool.push_back(comm_gam);
+        // push the communicator pointer to pool to avoid object
+        // being destroyed out of context
+        comm_pool.push_back(comm);
+        comm_pool.push_back(comm_gam);
+      }
+      catch (boost::system::system_error &e) {
+        LOG(WARNING) << "Failed to start communication manager on " 
+                     << ip_addr << ", because: " << e.what();
+      }
     }
+  }
+  if (comm_pool.empty()) {
+    LOG(ERROR) << "Failed to start communication on any interface, exiting.";
+    return 1;
   }
 
   while (1) {
     boost::this_thread::sleep_for(boost::chrono::seconds(60)); 
   }
-
   return 0;
 }

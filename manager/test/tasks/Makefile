@@ -4,7 +4,7 @@ all: $(SUBDIRS)
 
 clean: 
 	for dir in $(SUBDIRS); do \
-			$(MAKE) -C $$dir $@; \
+		$(MAKE) -C $$dir $@; \
 	done
 
 $(SUBDIRS): 

@@ -31,7 +31,7 @@ LINK		:= -L../lib -lblaze \
 		   -L$(GFLAGS_DIR)/lib -lgflags \
 		   -lpthread -lm -Wl,--no-as-needed -ldl
 
-ifeq ($(NDEBUG),)
+ifeq ($(RELEASE),)
 CFLAGS   	:= $(CFLAGS) -g
 else
 CFLAGS   	:= $(CFLAGS) -O2 -DNDEBUG
@@ -61,6 +61,9 @@ DEPS		:= AccAgent.o \
 all: 	../bin/acc_manager \
 	../bin/acc_admin \
 	../lib/libblaze.so
+
+release:
+	$(MAKE) RELEASE=1
 
 ../lib/libblaze.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS)

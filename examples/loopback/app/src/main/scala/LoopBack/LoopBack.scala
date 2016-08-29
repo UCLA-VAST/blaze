@@ -12,7 +12,7 @@ import org.apache.spark.blaze._
 class LoopBack() 
   extends Accelerator[Array[Double], Array[Double]] {
 
-  val id: String = "NLB"
+  val id: String = "LoopBack"
   def getArg(idx: Int): Option[BlazeBroadcast[_]] = None
   def getArgNum(): Int = 0
 
@@ -58,13 +58,15 @@ object LoopBack {
 
     if (src.deep == dst.deep) {
       println("results correct") 
+      acc.stop()
     }
     else {
       println("results incorrect") 
       println(src.deep.mkString("\n"))
       println(dst.deep.mkString("\n"))
+      acc.stop()
+      System.exit(1)
     }
-    acc.stop()
   }
 
   def get_spark_context(appName : String) : SparkContext = {

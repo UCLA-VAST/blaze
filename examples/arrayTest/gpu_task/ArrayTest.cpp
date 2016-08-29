@@ -1,7 +1,7 @@
 #include <stdexcept>
 
 #include "blaze/Task.h" 
-#include "OpenCLEnv.h" 
+#include "blaze/nv_opencl/OpenCLEnv.h" 
 
 using namespace blaze;
 

@@ -1,13 +1,14 @@
 #include common.mk
 
 SUBDIRS = loopBack \
-					arrayTest
+	  arrayTest \
+	  delay
 
 all: $(SUBDIRS)
 
 clean: 
 	for dir in $(SUBDIRS); do \
-			$(MAKE) -C $$dir $@; \
+		$(MAKE) -C $$dir $@; \
 	done
 
 $(SUBDIRS): 

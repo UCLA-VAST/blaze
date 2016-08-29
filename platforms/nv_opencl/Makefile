@@ -16,42 +16,53 @@ CC=gcc
 
 MANAGER_DIR=../../manager
 
-CFLAGS := -c -fPIC -std=c++0x
+CFLAGS 	:= -c -fPIC -std=c++0x
 
-ifeq ($(RELEASE),)
-CFLAGS := $(CFLAGS) -g
+ifeq ($(NDEBUG),)
+CFLAGS 	:= $(CFLAGS) -g
 else
-CFLAGS := $(CFLAGS) -O2 -DNDEBUG
+CFLAGS 	:= $(CFLAGS) -O2 -DNDEBUG
 endif
 
-COMPILE	:= $(CFLAGS) \
+COMPILE	:= $(CFLAGS) -I./include \
 	   -I$(MANAGER_DIR)/include \
 	   -I$(CUDA_DIR)/include \
 	   -I$(BOOST_DIR)/include \
 	   -I$(PROTOBUF_DIR)/include \
 	   -I$(GLOG_DIR)/include \
 	   -I$(GFLAGS_DIR)/include
-
+				 
 LINK	:= -L$(MANAGER_DIR)/lib -lblaze \
 	   -L$(CUDA_DIR)/lib64 -lOpenCL \
 	   -lpthread -lm -ldl
 
-DEPS	:= OpenCLPlatform.o \
-	   OpenCLTaskEnv.o \
-	   OpenCLBlock.o \
-	   OpenCLQueueManager.o
+DEPS	:= src/OpenCLPlatform.o \
+	   src/OpenCLTaskEnv.o \
+	   src/OpenCLBlock.o \
+	   src/OpenCLQueueManager.o
+
+PKG_DIR	:= ../../package
+
+INC_LIST:= ./include/blaze/nv_opencl/OpenCLEnv.h \
+	   ./include/blaze/nv_opencl/OpenCLCommon.h 
 
 all: nv_opencl.so
 
 package:
-	cp nv_opencl.so ../../package/nam/lib/nv_opencl.so
+	for file in $(INC_LIST); do \
+		cp $$file $(PKG_DIR)/include/blaze/nv_opencl; \
+	done
+	cp nv_opencl.so $(PKG_DIR)/nam/lib
+
+release:
+	$(MAKE) NDEBUG=1
 
 nv_opencl.so: $(DEPS)
 	$(PP) -shared -o $@ $(DEPS) $(LINK) 
 
-%.o: %.cpp
+src/%.o: src/%.cpp include/blaze/nv_opencl/*.h
 	$(PP) $(COMPILE) $< -o $@
 
 clean:
-	rm -rf *.o
+	rm -rf src/*.o
 	rm -rf nv_opencl.so

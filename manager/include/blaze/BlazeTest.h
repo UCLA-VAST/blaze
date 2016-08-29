@@ -1,15 +1,17 @@
 #include <stdio.h>
 #include <fcntl.h>
 
+#include <glog/logging.h>
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
-#include "../src/Task.h"
-#include "../src/Block.h"
-#include "../src/CommManager.h"
-#include "../src/BlockManager.h"
-#include "../src/TaskManager.h"
-#include "../src/PlatformManager.h"
+#include "Task.h"
+#include "Block.h"
+#include "CommManager.h"
+#include "BlockManager.h"
+#include "TaskManager.h"
+#include "Platform.h"
+#include "PlatformManager.h"
 
 namespace blaze {
 
@@ -36,55 +38,87 @@ public:
           std::string(conf_path));  
     }
 
-    // setup Logger
-    int verbose = conf->verbose();  
-    logger = new Logger(verbose);
+    FLAGS_logtostderr = 1;
+    google::InitGoogleLogging("");
+    FLAGS_v = conf->verbose();
 
     // setup PlatformManager
-    platform_manager = new PlatformManager(conf, logger);
-
-    // get task managers
-    base_tman = platform_manager->getTaskManager("base");
-    test_tman = platform_manager->getTaskManager("test");
+    platform_manager = new PlatformManager(conf);
 
     // get correponding block managers 
-    base_bman = platform_manager->getBlockManager("base");
-    test_bman = platform_manager->getBlockManager("test");
+    base_platform = platform_manager->getPlatformByAccId("base");
+    test_platform = platform_manager->getPlatformByAccId("test");
 
-    if (!base_bman || !test_bman) {
-      throw std::runtime_error("failed to initialize both accelerators");
+    if (!base_platform) {
+      throw std::runtime_error("failed to initialize base platform");
+    }
+    if (!test_platform) {
+      throw std::runtime_error("failed to initialize test platform");
+    }
+
+    // get task managers
+    base_tman = platform_manager->getTaskManager("base").lock();
+    test_tman = platform_manager->getTaskManager("test").lock();
+
+    if (!base_tman) {
+      throw std::runtime_error("failed to get base acc");
+    }
+    if (!test_tman) {
+      throw std::runtime_error("failed to get test acc");
     }
   }
 
-  void setInput(int idx, void* data, int num_items, size_t item_length) {
+  void setInput(
+      int idx, 
+      void* data, 
+      int num_items, 
+      size_t item_length,
+      int data_width = sizeof(T)) {
 
     if (idx < input_base_blocks.size()) {
-      input_base_blocks[idx]->writeData(data, num_items*item_length*sizeof(T));
-      input_test_blocks[idx]->writeData(data, num_items*item_length*sizeof(T));
+      input_base_blocks[idx]->writeData(data, num_items*item_length*data_width);
+      input_test_blocks[idx]->writeData(data, num_items*item_length*data_width);
     }
     else {
 
-      int base_align_width = 0;
-      int test_align_width = 0;
+      if (num_items == 1 && item_length == 1) {
 
-      if (!base_tman->getConfig(idx, "align_width").empty()) {
-         base_align_width = stoi(base_tman->getConfig(idx, "align_width"));
+        // create a new block and add it to input table
+        DataBlock_ptr base_block(new DataBlock(num_items, 
+              item_length, item_length*data_width));
+
+        DataBlock_ptr test_block(new DataBlock(num_items, 
+              item_length, item_length*data_width));
+
+        base_block->writeData(data, num_items*item_length*data_width);
+        test_block->writeData(data, num_items*item_length*data_width);     
+
+        input_base_blocks.push_back(base_block);
+        input_test_blocks.push_back(test_block);
       }
-      if (!test_tman->getConfig(idx, "align_width").empty()) {
-         test_align_width = stoi(test_tman->getConfig(idx, "align_width"));
+      else {
+        int base_align_width = 0;
+        int test_align_width = 0;
+
+        if (!base_tman->getConfig(idx, "align_width").empty()) {
+          base_align_width = stoi(base_tman->getConfig(idx, "align_width"));
+        }
+        if (!test_tman->getConfig(idx, "align_width").empty()) {
+          test_align_width = stoi(test_tman->getConfig(idx, "align_width"));
+        }
+
+        DataBlock_ptr base_block = base_platform->createBlock(
+            num_items, item_length, item_length*data_width, base_align_width);
+
+        DataBlock_ptr test_block = test_platform->createBlock(
+            num_items, item_length, item_length*data_width, test_align_width);
+
+        base_block->writeData(data, num_items*item_length*data_width);
+        test_block->writeData(data, num_items*item_length*data_width);     
+
+        input_base_blocks.push_back(base_block);
+        input_test_blocks.push_back(test_block);
       }
-
-      DataBlock_ptr base_block = base_bman->create(
-          num_items, item_length, item_length*sizeof(T), base_align_width);
-
-      DataBlock_ptr test_block = test_bman->create(
-          num_items, item_length, item_length*sizeof(T), test_align_width);
-
-      base_block->writeData(data, num_items*item_length*sizeof(T));
-      test_block->writeData(data, num_items*item_length*sizeof(T));
-
-      input_base_blocks.push_back(base_block);
-      input_test_blocks.push_back(test_block);
     }
   }
 
@@ -202,15 +236,13 @@ private:
   // threshold for difference
   U thresh;
 
-  Logger *logger;
-
   PlatformManager* platform_manager;
 
   TaskManager_ptr base_tman;
   TaskManager_ptr test_tman;
 
-  BlockManager* base_bman;
-  BlockManager* test_bman;
+  Platform* base_platform;
+  Platform* test_platform;
 
   std::vector<DataBlock_ptr> input_base_blocks;
   std::vector<DataBlock_ptr> input_test_blocks;

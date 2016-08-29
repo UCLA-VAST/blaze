@@ -1,7 +1,7 @@
-#include "Block.h"
-#include "BlockManager.h"
-#include "Platform.h"
-#include "PlatformManager.h"
+#include "blaze/Block.h"
+#include "blaze/BlockManager.h"
+#include "blaze/Platform.h"
+#include "blaze/PlatformManager.h"
 #include "TestCommon.h"
 
 namespace blaze {

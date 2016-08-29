@@ -1,12 +1,14 @@
 #include <algorithm>
 #include <fcntl.h>   
-#include <glog/logging.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
 #include <vector>
+
+#define LOG_HEADER "GAMCommManager"
+#include <glog/logging.h>
 
 #include "blaze/CommManager.h"
 #include "blaze/PlatformManager.h"

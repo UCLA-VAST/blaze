@@ -1,5 +1,7 @@
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/atomic.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+
+#define LOG_HEADER "TaskManager"
 #include <glog/logging.h>
 
 #include "blaze/TaskEnv.h"

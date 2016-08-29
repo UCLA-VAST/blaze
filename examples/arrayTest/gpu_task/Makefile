@@ -18,7 +18,7 @@ endif
 CFLAGS	:= -shared -fPIC -std=c++0x -m64
 COMPILE	:= $(CFLAGS) \
 	   -I$(MANAGER_DIR)/include \
-	   -I$(MANAGER_DIR)/../platforms/nv_opencl \
+	   -I$(MANAGER_DIR)/../platforms/nv_opencl/include \
 	   -I$(BOOST_DIR)/include \
 	   -I$(PROTOBUF_DIR)/include \
 	   -I$(GLOG_DIR)/include \

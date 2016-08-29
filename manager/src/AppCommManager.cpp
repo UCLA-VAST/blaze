@@ -1,10 +1,9 @@
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/lexical_cast.hpp>
-#include <cstdint>
-#include <fstream>
+
+#define LOG_HEADER "AppCommManager"
 #include <glog/logging.h>
-#include <stdexcept>
 
 #include "blaze/Block.h"
 #include "blaze/BlockManager.h"

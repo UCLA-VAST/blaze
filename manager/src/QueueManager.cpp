@@ -1,10 +1,13 @@
-#include <boost/smart_ptr.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/smart_ptr.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 #include <dlfcn.h>
 #include <fstream>
+#include <stdexcept>
+
+#define LOG_HEADER "QueueManager"
 #include <glog/logging.h>
 #include <stdexcept>
 

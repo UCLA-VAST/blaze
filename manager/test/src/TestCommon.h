@@ -12,7 +12,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "Common.h"
+#include "blaze/Common.h"
 
 namespace blaze {
 

@@ -1,7 +1,6 @@
 #include <glog/logging.h>
-
-#include "OpenCLEnv.h" 
-#include "OpenCLBlock.h"
+#include "blaze/nv_opencl/OpenCLBlock.h"
+#include "blaze/nv_opencl/OpenCLEnv.h" 
 
 namespace blaze {
   
