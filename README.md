@@ -37,8 +37,4 @@ In addition, each accelerator task is compiled with Blaze APIs. Some simple exam
 For any question or discussion, please contact the authors:
 
 * Di Wu: allwu@cs.ucla.edu
-<<<<<<< HEAD
 * Hao Yu (Cody): hyu@cs.ucla.edu
-=======
-* Hao Yu (Cody): hyu@cs.ucla.edu
->>>>>>> falcon
