@@ -4,7 +4,7 @@ import java.io._
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.SparkException
-import org.apache.spark.Logging
+import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
 import scala.reflect.ClassTag

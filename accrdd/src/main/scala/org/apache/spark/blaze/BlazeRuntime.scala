@@ -4,6 +4,8 @@ import java.io._
 import scala.util.matching.Regex
 import scala.reflect.ClassTag
 
+import org.apache.spark.internal.Logging;
+
 import org.apache.spark._
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
@@ -19,6 +21,7 @@ import org.apache.spark.broadcast._
   * @param sc Spark context.
   */
 class BlazeRuntime(sc: SparkContext) extends Logging {
+  // get Logger object
 
   // The application signature generated based on Spark application ID.
   val appSignature: String = sc.applicationId
@@ -47,7 +50,7 @@ class BlazeRuntime(sc: SparkContext) extends Logging {
         .distinct
         .map(w => (w, accPort))
 
-      logInfo("Releasing broadcast blocks from workers (" + WorkerList.length + "): " + 
+      logInfo("Releasing broadcast blocks from workers (" + WorkerList.length + "): " +
         WorkerList.map(w => w._1).mkString(", "))
 
       val msg = DataTransmitter.buildMessage(appSignature, AccMessage.MsgType.ACCTERM)

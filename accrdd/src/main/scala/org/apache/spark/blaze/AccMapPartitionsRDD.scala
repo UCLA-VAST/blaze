@@ -15,7 +15,7 @@ import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 import org.apache.spark.util.random.RandomSampler
-
+import org.apache.spark.internal.Logging
 /**
   * A RDD that uses accelerator to accelerate the computation. The behavior of AccMapPartitionsRDD is 
   * similar to Spark MapPartitionsRDD which performs the computation for a whole partition at a
