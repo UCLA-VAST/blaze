@@ -15,6 +15,7 @@
 
 #define LOG_HEADER "main"
 #include <glog/logging.h>
+#include <gflags/gflags.h>
 
 #include "blaze/CommManager.h"
 #include "blaze/PlatformManager.h"
