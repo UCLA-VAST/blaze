@@ -64,9 +64,9 @@ class ShellRDD[T: ClassTag](
       thisSampler = new BernoulliSampler[Int](fraction)
     thisSampler.setSeed(seed)
 
-    if (seed == 904401792) { // Test mode
-      thisSampler = new TestSampler[Int]
-    }
+    //if (seed == 904401792) { // Test mode
+    //  thisSampler = new TestSampler[Int]
+    //}
 
     new ShellRDD(appId, this, port, thisSampler)
   }

@@ -9,7 +9,7 @@ import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 import org.apache.spark.util.random._
 
-class TestSampler[T] extends RandomSampler[T, T] {
+abstract class TestSampler[T] extends RandomSampler[T, T] {
 
   override def setSeed(r: Long) = {}
 
@@ -27,5 +27,5 @@ class TestSampler[T] extends RandomSampler[T, T] {
     out.iterator
   }
 
-  override def clone = new TestSampler[T]
+  //override def clone = new TestSampler[T]
 }
