@@ -15,6 +15,7 @@ import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 import org.apache.spark.util.random._
+import org.apache.spark.internal.Logging
 
 /**
   * A RDD that uses accelerator to accelerate the computation. The behavior of AccRDD is 

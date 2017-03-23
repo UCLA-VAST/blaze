@@ -1,4 +1,3 @@
-
 package org.apache.spark.blaze;
 
 import java.lang.InterruptedException;

@@ -3,7 +3,7 @@ all: common accrdd nam
 common: 
 	make -C ./common
 
-accrdd:
+accrdd: common
 	cd accrdd; mvn package; mvn install
 
 nam: common

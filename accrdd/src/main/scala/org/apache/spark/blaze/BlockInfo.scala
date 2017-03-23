@@ -2,7 +2,7 @@ package org.apache.spark.blaze
 
 import java.io._
 
-import org.apache.spark.Logging
+import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
 import scala.reflect.ClassTag
