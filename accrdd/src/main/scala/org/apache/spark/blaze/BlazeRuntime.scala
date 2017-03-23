@@ -4,14 +4,13 @@ import java.io._
 import scala.util.matching.Regex
 import scala.reflect.ClassTag
 
-import org.apache.spark.internal.Logging;
-
 import org.apache.spark._
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 import org.apache.spark.storage._
 import org.apache.spark.scheduler._
 import org.apache.spark.broadcast._
+import org.apache.spark.internal.Logging
 
 /**
   * The entry point of Blaze runtime system. BlazeRuntime is mainly used for 
